@@ -1,0 +1,1056 @@
+{
+  "products": [
+    {
+      "id": "perfume-3",
+      "name": "Saelyx Atelier Elixir â€” Santal Royal & White Musk (50ml)",
+      "price": 36500,
+      "description": "Intimate skin scent of refined Mysore sandalwood, clean white musk, iris root, and warm cedarwood.",
+      "image": "https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "perfume-2",
+      "name": "Saelyx Eau De Parfum â€” Imperial Amber & Damascus Rose (100ml)",
+      "price": 42000,
+      "description": "Warm golden amber paired with morning-harvested Damascus roses and creamy sandalwood. Elegant and eternal.",
+      "image": "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "perfume-1",
+      "name": "Saelyx Extrait De Parfum â€” Noir Velvet Oud (100ml)",
+      "price": 48500,
+      "description": "A hypnotic olfactory masterpiece. Rare Cambodian agarwood blended with dark Bulgarian rose, leather accords, and Madagascar bourbon vanilla.",
+      "image": "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-outerwear-5",
+      "name": "Saelyx Suede Leather Zip Trucker Jacket â€” Tobacco",
+      "price": 95000,
+      "description": "Velvety Italian calf suede trucker jacket with satin lining and antique brass hardware.",
+      "image": "https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-outerwear-4",
+      "name": "Saelyx Utility Weatherproof Shell Jacket â€” Forest Green",
+      "price": 52000,
+      "description": "Multi-pocket weatherproof shell jacket with taped seams, concealable hood, and storm flap.",
+      "image": "https://images.unsplash.com/photo-1548883354-7622d03aca27?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-trouser-4",
+      "name": "Saelyx Relaxed Wool Blend Trousers â€” Charcoal Gray",
+      "price": 36500,
+      "description": "Fluid drape wool-blend tailored trousers with single pleat and tab closure.",
+      "image": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-trouser-3",
+      "name": "Saelyx Tailored Pleated Chino Trousers â€” Olive Drab",
+      "price": 32000,
+      "description": "Double pleated high-waist chino trousers in heavy cotton twill with side adjusters.",
+      "image": "https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-jean-3",
+      "name": "Saelyx Straight Fit Distressed Denim Jeans â€” Acid Indigo",
+      "price": 36000,
+      "description": "13.5oz ring-spun cotton denim with subtle hand-thrashed distressing and custom brass rivets.",
+      "image": "https://images.unsplash.com/photo-1542272604-780c96856592?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-knitwear-2",
+      "name": "Saelyx Ultra Fine Cashmere Crewneck Sweater â€” Camel",
+      "price": 58000,
+      "description": "Grade-A Mongolian 2-ply cashmere crewneck knit with featherlight warmth and silky finish.",
+      "image": "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-knitwear-1",
+      "name": "Saelyx Heavy Cable Knit Wool Sweater â€” Off-White",
+      "price": 42000,
+      "description": "Traditional fisherman cable-knit sweater in heavy Australian lambswool with thick ribbed crew neck.",
+      "image": "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-shirt-4",
+      "name": "Saelyx Cuban Collar Silk Resort Shirt â€” Emerald Monogram",
+      "price": 38500,
+      "description": "Pure Mulberry silk twill resort shirt with open Cuban collar and mother-of-pearl buttons.",
+      "image": "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-shirt-3",
+      "name": "Saelyx Oxford Cotton Button-Down Shirt â€” Sky Blue",
+      "price": 31000,
+      "description": "Heavyweight PINPOINT Oxford cotton woven shirt with button-down collar and box pleat.",
+      "image": "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-hoodie-3",
+      "name": "Saelyx Atelier Minimalist Zip Overhead Hoodie â€” Oatmeal",
+      "price": 39000,
+      "description": "Heavyweight fleece overhead hoodie with metal aglets, kangaroo pocket, and rib side panels.",
+      "image": "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-tshirt-5",
+      "name": "Saelyx Vintage Graphic Atelier Print Tee â€” Washed Slate",
+      "price": 24500,
+      "description": "Vintage acid-washed heavyweight tee with archival screenprinted artwork across back.",
+      "image": "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-tshirt-4",
+      "name": "Saelyx Crest Monogram Heavyweight Tee â€” Midnight Navy",
+      "price": 23500,
+      "description": "Pre-shrunk 320GSM combed organic cotton with subtle tonal Saelyx crest embroidery on left sleeve.",
+      "image": "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-coat-1",
+      "name": "Saelyx Cashmere Blend Knee-Length Overcoat â€” Camel",
+      "price": 135000,
+      "description": "Single-breasted knee-length overcoat in wool-cashmere with notched lapels and horn buttons.",
+      "image": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-jacket-3",
+      "name": "Saelyx Selvedge Denim Trucker Jacket â€” Raw Indigo",
+      "price": 45000,
+      "description": "Iconic Type-III jacket crafted from 14.5oz Japanese shuttle-loom denim with selvedge id along the interior placket.",
+      "image": "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-trouser-2",
+      "name": "Saelyx Slim-Straight Stretch Twill Chinos â€” Khaki",
+      "price": 28000,
+      "description": "Tailored casual chino in compact stretch cotton twill with welt rear pockets and horn button closure.",
+      "image": "https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-tshirt-3",
+      "name": "Saelyx Oversized Drop-Shoulder Relaxed Tee â€” Olive Ash",
+      "price": 24000,
+      "description": "Voluminous draped fit with extended half sleeves and split hem designed for effortless high-street layering.",
+      "image": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-tshirt-2",
+      "name": "Saelyx Archival Bullion Graphic Tee â€” Chalk White",
+      "price": 25000,
+      "description": "High-density screenprint and hand-threaded bullion monogram crest graphic across chest with pre-shrunk vintage wash.",
+      "image": "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-tshirt-1",
+      "name": "Saelyx Heavyweight 340GSM Boxy Plain Tee â€” Jet Black",
+      "price": 22500,
+      "description": "Drop-shoulder boxy cut plain t-shirt in combed organic cotton. Thick bound ribbed collar that permanently retains shape.",
+      "image": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "umbrella-5",
+      "name": "Saelyx Carbon Fiber Ultra-Light City Umbrella",
+      "price": 22000,
+      "description": "Ultralight folding umbrella weighing merely 180 grams with aerospace carbon fiber ribs.",
+      "image": "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "umbrella-4",
+      "name": "Saelyx 24K Gold Plated Handle Formal Evening Umbrella",
+      "price": 45000,
+      "description": "Sculpted brass eagle-head handle electroplated in 24K gold. Deep midnight black double-layer canopy for black-tie gala entrances.",
+      "image": "https://images.unsplash.com/photo-1517400508447-f8dd518b86db?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "umbrella-3",
+      "name": "Saelyx Compact Auto-Deploy Bespoke Pocket Umbrella",
+      "price": 19500,
+      "description": "One-touch automatic open and close mechanism, aircraft aluminum frame, leather handle strap, and tailored zippered travel sleeve.",
+      "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "umbrella-2",
+      "name": "Saelyx Monogram Jacquard Canopy Walking Stick Umbrella",
+      "price": 34500,
+      "description": "Subtle tone-on-tone woven Saelyx jacquard canopy that reveals the monogram under rainfall. Polished brass collar and horn tip.",
+      "image": "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "umbrella-1",
+      "name": "Saelyx Chestnut Wood Handle Windproof Atelier Umbrella",
+      "price": 28000,
+      "description": "Full-size gentleman umbrella with solid single-piece English chestnut wood crook handle, fiberglass ribs, and heavy water-repellent pongee canopy.",
+      "image": "https://images.unsplash.com/photo-1517400508447-f8dd518b86db?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bottle-6",
+      "name": "Saelyx Matte Chalk Insulated Sport Bottle (600ml)",
+      "price": 16500,
+      "description": "Powder-coated matte off-white vacuum flask with integrated silicone carry loop.",
+      "image": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bottle-5",
+      "name": "Saelyx Pure Copper Ayurvedic Water Vessel (900ml)",
+      "price": 19000,
+      "description": "Hand-hammered 99.7% pure copper flask designed for natural alkaline water enrichment.",
+      "image": "https://images.unsplash.com/photo-1570831739421-ea9741030e2f?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bottle-4",
+      "name": "Saelyx Double-Walled Insulated Travel Tumbler (450ml)",
+      "price": 15500,
+      "description": "Ceramic-lined stainless steel travel tumbler designed for artisanal espresso, matcha, and cold brews. Fits standard luxury cup holders.",
+      "image": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bottle-3",
+      "name": "Saelyx Atelier Calfskin-Sleeved Crystal Carafe Set",
+      "price": 26500,
+      "description": "Borosilicate thermal glass bottle dressed in hand-stitched saddle-brown Italian calfskin sleeve with gold Saelyx monogram stamp.",
+      "image": "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bottle-2",
+      "name": "Saelyx Brushed Titanium Vacuum Hydration Bottle (500ml)",
+      "price": 22000,
+      "description": "Ultralight aerospace-grade titanium thermal bottle. Preserves the purest taste of natural spring water and fine tea infusions.",
+      "image": "https://images.unsplash.com/photo-1570831739421-ea9741030e2f?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bottle-1",
+      "name": "Saelyx Matte Obsidian 24K Gold Thermal Flask (750ml)",
+      "price": 18500,
+      "description": "Double-walled vacuum insulated 18/8 food-grade stainless steel bottle with matte ceramic outer coating and 24K gold-plated engraved lid.",
+      "image": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "shoe-8",
+      "name": "Saelyx Strappy Evening Stiletto Sandals",
+      "price": 110000,
+      "description": "Minimalist metallic leather ankle-strap stilettos with 100mm pin heel.",
+      "image": "https://images.unsplash.com/photo-1535043934128-cf0b28d52f95?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "shoe-7",
+      "name": "Saelyx Double Monk Strap Dress Shoes",
+      "price": 94000,
+      "description": "Cap-toe double monk shoes in hand-patinated cognac calfskin with solid brass buckles.",
+      "image": "https://images.unsplash.com/photo-1582898956391-7f8976b05423?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "shoe-6",
+      "name": "Saelyx Pointed Suede Knee-High Boots",
+      "price": 145000,
+      "description": "Supple slouchy knee-high boots in chocolate brown Italian velour suede with 75mm heel.",
+      "image": "https://images.unsplash.com/photo-1575537302964-96cd47c06b1b?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "shoe-5",
+      "name": "Saelyx Hand-Stitched Leather Penny Loafers",
+      "price": 78000,
+      "description": "Classic apron-toe penny loafer in full grain burgundy calfskin with stacked leather heel.",
+      "image": "https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "shoe-4",
+      "name": "Saelyx Atelier Crystal-Embellished Satin Mules",
+      "price": 125000,
+      "description": "Pointed-toe evening mules in midnight black silk satin featuring a sculpted 85mm stiletto heel and Austrian crystal buckle.",
+      "image": "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "shoe-3",
+      "name": "Saelyx Minimalist Low-Top Luxury Leather Sneakers",
+      "price": 65000,
+      "description": "Pristine white nappa leather sneakers with stitched Margom rubber soles and gold foil embossed serial numbering.",
+      "image": "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "shoe-2",
+      "name": "Saelyx Bespoke Chelsea Boots in Italian Suede",
+      "price": 118000,
+      "description": "Wholecut suede chelsea boots with seamless side elastics, cushioned memory foam insole, and storm-welted rubber-injected sole.",
+      "image": "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "shoe-1",
+      "name": "Saelyx Monogram Burnished Calfskin Derby Shoes",
+      "price": 89000,
+      "description": "Traditional Goodyear welted derby shoes in hand-burnished calfskin with channelled oak-bark tanned leather soles.",
+      "image": "https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bag-8",
+      "name": "Saelyx Embossed Leather Shoulder Bag",
+      "price": 120000,
+      "description": "Structured shoulder bag with gold monogram turn-lock clasp and adjustable leather strap.",
+      "image": "https://images.unsplash.com/photo-1591561954557-26941169b49e?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bag-7",
+      "name": "Saelyx Soft Ruched Nappa Leather Pouch",
+      "price": 89000,
+      "description": "Magnetic frame gathered clutch pouch in ultra-soft lambskin.",
+      "image": "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bag-6",
+      "name": "Saelyx Minimalist Nappa Leather Backpack",
+      "price": 135000,
+      "description": "Buttery soft nappa leather city backpack with water-resistant zip closures.",
+      "image": "https://images.unsplash.com/photo-1546938576-6e6a64f317cc?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bag-5",
+      "name": "Saelyx Structured Calfskin Business Briefcase",
+      "price": 165000,
+      "description": "Slim briefcase with dual compartment, padded 15-inch laptop sleeve, and brass combination lock.",
+      "image": "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bag-4",
+      "name": "Saelyx Atelier Crossbody Sling with Sculpted Hardware",
+      "price": 92000,
+      "description": "Ergonomic luxury crossbody sling in supple pebbled leather with magnetic Fidlock fastener and signature webbing strap.",
+      "image": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bag-3",
+      "name": "Saelyx Archival Grained Saffiano Leather Tote",
+      "price": 145000,
+      "description": "Scratch-resistant Saffiano leather tote with reinforced handles, padded laptop compartment, and gold monogram plaque.",
+      "image": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bag-2",
+      "name": "Saelyx 24K Gold Chain Embossed Evening Clutch",
+      "price": 115000,
+      "description": "Sculpted hard-case evening clutch in mirror-finish box calf leather, accented with a removable heavy link 24K gold-plated chain.",
+      "image": "https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "bag-1",
+      "name": "Saelyx Polished Calfskin Monogram Weekender Duffle",
+      "price": 185000,
+      "description": "Full-grain Italian calf leather travel duffle with debossed Saelyx monogram, solid brass hardware, and detachable shoulder strap.",
+      "image": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "perfume-8",
+      "name": "Saelyx Midnight Vanilla & Tonka Bean (50ml)",
+      "price": 38000,
+      "description": "Rich Madagascar smoked vanilla bean, toasted tonka, roasted cacao, and almond milk.",
+      "image": "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "perfume-7",
+      "name": "Saelyx Rose de Grasse Absolue (100ml)",
+      "price": 46000,
+      "description": "Hand-picked May Rose centifolia petals from Grasse with pink pepper and amber musk.",
+      "image": "https://images.unsplash.com/photo-1582211594533-268f4f1edcb9?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "perfume-6",
+      "name": "Saelyx Smoked Leather & Tobacco Elixir (50ml)",
+      "price": 44000,
+      "description": "Cuban tobacco leaf, aged birch tar, dark honey, and bourbon vanilla.",
+      "image": "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "perfume-5",
+      "name": "Saelyx Citrus Vetiver & Bergamot Pure Parfum (100ml)",
+      "price": 39500,
+      "description": "Crisp Calabrian bergamot, Haitian vetiver root, and sparkling bitter orange.",
+      "image": "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "perfume-4",
+      "name": "Saelyx Bespoke Travel Parfum Atomizer Set (3 x 15ml)",
+      "price": 29000,
+      "description": "Three signature Saelyx fragrances housed in leather-wrapped magnetic brass atomizers with a velvet travel pouch.",
+      "image": "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=800&q=80",
+      "category": "Accessories",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-16",
+      "name": "Saelyx Hand-Pleated Cape Evening Gown",
+      "price": 160000,
+      "description": "Floor length gown with integrated pleated cape in royal emerald silk chiffon.",
+      "image": "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-15",
+      "name": "Saelyx Seamless Ribbed Knit Bodysuit",
+      "price": 22000,
+      "description": "Fine gauge ribbed knit bodysuit with scoop neck and snap gusset closure.",
+      "image": "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-14",
+      "name": "Saelyx Double Breasted Tuxedo Dress",
+      "price": 89000,
+      "description": "Sharp tailored blazer dress with silk satin peak lapels and covered buttons.",
+      "image": "https://images.unsplash.com/photo-1551803091-e20673f15770?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-13",
+      "name": "Saelyx Feather-Embellished Velvet Mini Dress",
+      "price": 96000,
+      "description": "Plush velvet mini dress trimmed with ethically sourced ostrich feather plumes at hemline.",
+      "image": "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-12",
+      "name": "Saelyx Liquid Satin Bias Slip Dress",
+      "price": 54000,
+      "description": "Bias-cut slip dress in heavy silk satin that clings gently to natural contours.",
+      "image": "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-11",
+      "name": "Saelyx Off-the-Shoulder Cashmere Knit Top",
+      "price": 42000,
+      "description": "Bardot neckline folded cashmere sweater with elongated cuffs.",
+      "image": "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-10",
+      "name": "Saelyx Tailored Vest & Trouser Set",
+      "price": 84000,
+      "description": "Two-piece tailored ensemble featuring a halter waistcoat and high-rise pleated slacks.",
+      "image": "https://images.unsplash.com/photo-1508427953056-b00b8d78ebf5?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-9",
+      "name": "Saelyx Asymmetric Halterneck Maxi Dress",
+      "price": 68000,
+      "description": "Gathered halterneck evening dress with thigh-high slit and cascading side drape.",
+      "image": "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-8",
+      "name": "Saelyx Sheer Silk Organza Duster Trench",
+      "price": 88000,
+      "description": "Transparent silk organza lightweight layering duster with mother-of-pearl buttons.",
+      "image": "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-7",
+      "name": "Saelyx Pleated Silk Column Skirt",
+      "price": 45000,
+      "description": "Midi-length column skirt with precise knife pleats and invisible waistband.",
+      "image": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-6",
+      "name": "Saelyx Double-Face Cashmere Wrap Coat",
+      "price": 155000,
+      "description": "Belted wrap coat hand-stitched from double-face Mongolian cashmere with notch lapels.",
+      "image": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-5",
+      "name": "Saelyx Sculpted Corset Crepe Top",
+      "price": 36000,
+      "description": "Boning-reinforced corset top in heavy wool crepe with curved hemline and sweetheart neckline.",
+      "image": "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-4",
+      "name": "Saelyx High-Waisted Wide-Leg Palazzo Pants",
+      "price": 39000,
+      "description": "Flowing wide-leg trousers tailored with a seamless waist panel and deep concealed pockets.",
+      "image": "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-3",
+      "name": "Saelyx Silk Chiffon Monogram Scarf Dress",
+      "price": 76000,
+      "description": "Ethereal pleated silk dress featuring an integrated scarf halter that flows gently over the shoulder.",
+      "image": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-2",
+      "name": "Saelyx Hourglass Tailored Wool Crepe Blazer",
+      "price": 98000,
+      "description": "Sculpted hourglass silhouette blazer with cinched waist, padded shoulders, and 24K gold-plated crested buttons.",
+      "image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "womens-1",
+      "name": "Saelyx Draped Satin Backless Evening Gown",
+      "price": 140000,
+      "description": "Liquid silk-satin floor-length gown with dramatic cowl back, asymmetric neckline, and hand-finished hemline.",
+      "image": "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&q=80",
+      "category": "Women",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-vest-2",
+      "name": "Saelyx Quilted Tech-Satin Down Puffer Gilet",
+      "price": 48000,
+      "description": "Channel-quilted lightweight down vest in matte weatherproof satin with stand collar and two-way zipper.",
+      "image": "https://images.unsplash.com/photo-1548883354-7622d03aca27?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-vest-1",
+      "name": "Saelyx Tailored Pinstripe Wool Waistcoat",
+      "price": 38000,
+      "description": "Sleeveless tailored waistcoat in fine charcoal pinstripe wool with cinch back adjuster and horn buttons.",
+      "image": "https://images.unsplash.com/photo-1508427953056-b00b8d78ebf5?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-coat-2",
+      "name": "Saelyx Double-Breasted Stormproof Trench Coat",
+      "price": 125000,
+      "description": "Heavyweight weatherproof cotton gabardine trench with storm flap, waist belt with brass D-rings, and throat latch.",
+      "image": "https://images.unsplash.com/photo-1516826957135-700dedea698c?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-jacket-2",
+      "name": "Saelyx Debossed Leather Trim Satin Bomber Jacket",
+      "price": 82000,
+      "description": "High-density weatherproof satin bomber jacket with supple nappa leather collar and pocket welts.",
+      "image": "https://images.unsplash.com/photo-1548883354-7622d03aca27?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-jacket-1",
+      "name": "Saelyx Italian Nappa Leather Biker Jacket",
+      "price": 135000,
+      "description": "Buttery soft full-grain Italian lambskin nappa leather jacket with asymmetric zipper and quilted silk-blend lining.",
+      "image": "https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-short-2",
+      "name": "Saelyx Tailored Chino Shorts (7-inch Inseam)",
+      "price": 24000,
+      "description": "Tailored chino shorts with notched rear waistband, horn button closure, and coin welt pocket.",
+      "image": "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-short-1",
+      "name": "Saelyx Minimalist Tailored Cargo Shorts",
+      "price": 26000,
+      "description": "Clean low-profile bellows cargo pockets with hidden snaps, 8-inch inseam, and water-repellent stretch ripstop cotton.",
+      "image": "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-jogger-2",
+      "name": "Saelyx Wide-Leg Relaxed Atelier Sweatpants",
+      "price": 29500,
+      "description": "Open straight hem sweatpants with tonal side stripe, elasticized waist, and internal satin lining.",
+      "image": "https://images.unsplash.com/photo-1542272604-780c96856592?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-jogger-1",
+      "name": "Saelyx 380GSM Heavy French Terry Cuffed Joggers",
+      "price": 28000,
+      "description": "Tapered luxury joggers with dense ribbed ankle cuffs, solid metal aglet drawstrings, and deep zippered side pockets.",
+      "image": "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-trouser-1",
+      "name": "Saelyx Double Forward Pleat Atelier Wool Trousers",
+      "price": 34000,
+      "description": "High-rise waist with extended Gurkha-style brass side buckles, deep pleats, and unfinished hems for tailored drape.",
+      "image": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-jean-2",
+      "name": "Saelyx Vintage Wash Relaxed Tapered Denim Jeans",
+      "price": 35000,
+      "description": "Hand-distressed light vintage wash jeans with relaxed thigh and gentle taper at ankle, accented with leather back patch.",
+      "image": "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-jean-1",
+      "name": "Saelyx 14oz Japanese Red-Line Selvedge Denim Jeans",
+      "price": 38000,
+      "description": "Woven on vintage shuttle looms in Okayama. Pure indigo raw selvedge denim in a classic straight cut with custom copper hardware.",
+      "image": "https://images.unsplash.com/photo-1542272604-780c96856592?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-tank-2",
+      "name": "Saelyx Dropped Armhole Athleisure Luxury Tank",
+      "price": 18000,
+      "description": "Relaxed draped tank with deep cut armholes, back center seam detail, and discreet tonal Saelyx hem label.",
+      "image": "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-tank-1",
+      "name": "Saelyx 2x2 Heavy Ribbed Organic Cotton Tank",
+      "price": 16500,
+      "description": "Fitted heavy ribbed tank top with curved scoop neckline and raw edge binding for breathable summer comfort.",
+      "image": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-polo-2",
+      "name": "Saelyx Silk-Cotton Mercerized Pique Polo",
+      "price": 33000,
+      "description": "Mercerized silk-cotton honeycomb pique polo shirt with 3-button trocas shell placket and self-fabric collar.",
+      "image": "https://images.unsplash.com/photo-1586363104862-3a5e2ab60d99?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-polo-1",
+      "name": "Saelyx Extra Fine Merino Wool Open-Placket Polo",
+      "price": 37000,
+      "description": "Seamless fine-gauge knit polo featuring a relaxed buttonless Johnny collar and ribbed waist welt.",
+      "image": "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-shirt-2",
+      "name": "Saelyx Camp-Collar French Linen Casual Resort Shirt",
+      "price": 29500,
+      "description": "Garment-washed pure French flax linen shirt with relaxed open Cuban collar and chest patch pocket.",
+      "image": "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-shirt-1",
+      "name": "Saelyx Bespoke 120s Poplin Formal Dress Shirt",
+      "price": 36000,
+      "description": "Hand-tailored dress shirt with cutaway collar, double French cuffs, and Australian mother-of-pearl buttons.",
+      "image": "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-sweatshirt-2",
+      "name": "Saelyx Double-Face Interlock Minimalist Sweatshirt",
+      "price": 34500,
+      "description": "Smooth double-face spacer fabric sweatshirt with concealed side zip pockets and laser-cut clean hems.",
+      "image": "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-sweatshirt-1",
+      "name": "Saelyx Atelier Monogram Crewneck Sweatshirt",
+      "price": 32000,
+      "description": "Classic raglan sleeve crewneck in vintage washed grey melange with ribbed collar V-insert and tonal chest flocking.",
+      "image": "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-hoodie-2",
+      "name": "Saelyx Two-Way Raccagni Zipper Luxury Zip-Up Hoodie",
+      "price": 42000,
+      "description": "Full zip hoodie crafted with Swiss Raccagni two-way brushed steel zipper, split kangaroo pockets, and double-rib side gussets.",
+      "image": "https://images.unsplash.com/photo-1509967419530-da38b4704bc6?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "mens-hoodie-1",
+      "name": "Saelyx 400GSM Heavy French Terry Pullover Hoodie",
+      "price": 38500,
+      "description": "Double-layered structured hood with crossover collar, deep kangaroo pouch, and tone-on-tone Saelyx chest embroidery.",
+      "image": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&q=80",
+      "category": "Men",
+      "stock": 10,
+      "available": true
+    },
+    {
+      "id": "new-12",
+      "name": "Saelyx 24K Gold Leaf Thermal Water Flask (750ml)",
+      "price": 26000,
+      "description": "Triple-wall vacuum insulated 18/8 food-grade stainless steel bottle with hand-gilded 24K gold foil emblem and Italian leather carry loop.",
+      "image": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-11",
+      "name": "Saelyx Chestnut Wood Handle Windproof Atelier Umbrella",
+      "price": 28000,
+      "description": "Full-size gentleman umbrella with solid single-piece English chestnut wood crook handle, fiberglass ribs, and heavy water-repellent pongee canopy.",
+      "image": "https://images.unsplash.com/photo-1517400508447-f8dd518b86db?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-10",
+      "name": "Saelyx Monogram Weekend Duffle Bag in Grain Calfskin",
+      "price": 115000,
+      "description": "Supple full-grain Italian leather duffle with debossed Saelyx monogram, hand-stitched rolled handles, and solid brass hardware with padlock.",
+      "image": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-9",
+      "name": "Saelyx Grand Royal Oud Extrait de Parfum (100ml)",
+      "price": 52000,
+      "description": "Rare Cambodian Agarwood aged for 25 years, balanced with Taif rose, ambergris, and golden saffron threads in handcrafted French crystal flacon.",
+      "image": "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-8",
+      "name": "Saelyx Liquid Silk Halterneck Evening Top",
+      "price": 32000,
+      "description": "Crossed halterneck top crafted from double-faced silk crepe with a fluid drape and open back.",
+      "image": "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-7",
+      "name": "Saelyx Silk Chiffon Monogram Scarf Dress",
+      "price": 76000,
+      "description": "Ethereal pleated silk dress featuring an integrated scarf halter that flows gently over the shoulder.",
+      "image": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-6",
+      "name": "Saelyx Hourglass Tailored Wool Crepe Blazer",
+      "price": 98000,
+      "description": "Sculpted hourglass silhouette blazer with cinched waist, padded shoulders, and 24K gold-plated crested buttons.",
+      "image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-5",
+      "name": "Saelyx Asymmetric Draped Evening Cape Dress",
+      "price": 135000,
+      "description": "Floor-sweeping silhouette with flowing side cape and asymmetric neckline, hand-draped from Italian silk-satin.",
+      "image": "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-4",
+      "name": "Saelyx 320GSM Heavyweight Luxury Tee",
+      "price": 24500,
+      "description": "The benchmark luxury t-shirt. Crafted from heavy long-staple combed cotton with a bound collar that never loses shape.",
+      "image": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-3",
+      "name": "Saelyx Single-Breasted Sculpted Wool Blazer",
+      "price": 95000,
+      "description": "A masterclass in modern luxury tailoring. Italian virgin wool with floating canvas construction and horn button closures.",
+      "image": "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-2",
+      "name": "Saelyx 380GSM Structured Drop-Shoulder Hoodie",
+      "price": 38500,
+      "description": "Ultra-dense French Terry cotton hoodie with dropped shoulders, subtle tonal Saelyx bullion chest embroidery, and double-lined structured hood.",
+      "image": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    },
+    {
+      "id": "new-1",
+      "name": "Saelyx Monogram Silk Atelier Overshirt",
+      "price": 48000,
+      "description": "Hand-tailored 100% Mulberry silk shirt featuring the signature House of Saelyx jacquard monogram, mother-of-pearl buttons, and relaxed luxury silhouette.",
+      "image": "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80",
+      "category": "New",
+      "stock": 20,
+      "available": true
+    }
+  ],
+  "orders": [],
+  "settings": {
+    "deliveryZones": [
+      {
+        "name": "Colombo",
+        "fee": 500
+      },
+      {
+        "name": "Greater Colombo",
+        "fee": 750
+      },
+      {
+        "name": "Outside Colombo",
+        "fee": 1200
+      }
+    ],
+    "paymentMethods": [
+      "Cash on Delivery",
+      "PayHere",
+      "Binance Pay"
+    ]
+  }
+}

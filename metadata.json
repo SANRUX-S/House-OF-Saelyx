@@ -1,0 +1,8 @@
+{
+  "name": "House OF Saelyx",
+  "description": "SAELYX - Ultra-Premium Luxury Fashion House & Haute Couture Campaign",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
