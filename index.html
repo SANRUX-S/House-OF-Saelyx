@@ -864,64 +864,8 @@
                     </svg>
                 </button>
 
-                <!-- Products Track -->
-                <div class="saelyx-products-track" id="arrivalsTrack">
-                    <!-- Product 1 -->
-                    <div class="saelyx-product-card" onclick="openCatalogModal('new')">
-                        <div class="saelyx-prod-img-box">
-                            <img src="https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80" alt="Saelyx Monogram Debossed Suede Backgammon Set" class="saelyx-prod-img">
-                        </div>
-                        <div class="saelyx-prod-info">
-                            <h3 class="saelyx-prod-title">Saelyx Monogram Debossed Suede Backgammon Set</h3>
-                            <span class="saelyx-prod-price">Rs 203,800.00 LKR</span>
-                        </div>
-                    </div>
-
-                    <!-- Product 2 -->
-                    <div class="saelyx-product-card" onclick="openCatalogModal('new')">
-                        <div class="saelyx-prod-img-box">
-                            <img src="https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80" alt="MADE-TO-ORDER | Saelyx for Cinelli Supercorsa Bike" class="saelyx-prod-img">
-                        </div>
-                        <div class="saelyx-prod-info">
-                            <div class="saelyx-prod-badge">CLOSED</div>
-                            <h3 class="saelyx-prod-title">MADE-TO-ORDER | Saelyx for Cinelli Supercorsa Bike</h3>
-                            <span class="saelyx-prod-price">Rs 2,626,400.00 LKR</span>
-                        </div>
-                    </div>
-
-                    <!-- Product 3 -->
-                    <div class="saelyx-product-card" onclick="openCatalogModal('new')">
-                        <div class="saelyx-prod-img-box">
-                            <img src="https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80" alt="Saelyx for Cinelli Wind Jacket" class="saelyx-prod-img">
-                        </div>
-                        <div class="saelyx-prod-info">
-                            <h3 class="saelyx-prod-title">Saelyx for Cinelli Wind Jacket</h3>
-                            <span class="saelyx-prod-price">Rs 104,500.00 LKR</span>
-                        </div>
-                    </div>
-
-                    <!-- Product 4 -->
-                    <div class="saelyx-product-card" onclick="openCatalogModal('new')">
-                        <div class="saelyx-prod-img-box">
-                            <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80" alt="Saelyx for Cinelli Bibshort" class="saelyx-prod-img">
-                        </div>
-                        <div class="saelyx-prod-info">
-                            <h3 class="saelyx-prod-title">Saelyx for Cinelli Bibshort</h3>
-                            <span class="saelyx-prod-price">Rs 97,600.00 LKR</span>
-                        </div>
-                    </div>
-
-                    <!-- Product 5 -->
-                    <div class="saelyx-product-card" onclick="openCatalogModal('new')">
-                        <div class="saelyx-prod-img-box">
-                            <img src="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80" alt="Saelyx for Cinelli Vice Di Milano Tee" class="saelyx-prod-img">
-                        </div>
-                        <div class="saelyx-prod-info">
-                            <h3 class="saelyx-prod-title">Saelyx for Cinelli Vice Di Milano Tee</h3>
-                            <span class="saelyx-prod-price">Rs 24,000.00 LKR</span>
-                        </div>
-                    </div>
-                </div>
+                <!-- Products Track (Dynamically populated with all New Arrivals) -->
+                <div class="saelyx-products-track" id="arrivalsTrack"></div>
 
                 <!-- Right Nav Arrow -->
                 <button class="saelyx-carousel-arrow arrow-right" id="arrivalsNextBtn" aria-label="Next products" onclick="scrollArrivals(1)">
@@ -3094,6 +3038,31 @@
             }
         }
 
+        // Render all New Arrivals products into the homepage carousel
+        function renderNewArrivals() {
+            const track = document.getElementById('arrivalsTrack');
+            if (!track) return;
+            const newArrivals = saelyxCatalogData.filter(i => i.cat === 'new');
+            if (newArrivals.length === 0) return;
+            const fallbackImg = 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=800&q=80';
+            let html = '';
+            newArrivals.forEach(prod => {
+                html += `
+                    <div class="saelyx-product-card" onclick="openCatalogModal('new')">
+                        <div class="saelyx-prod-img-box">
+                            <img src="${prod.img || fallbackImg}" alt="${prod.name}" class="saelyx-prod-img" loading="lazy" onerror="this.onerror=null; this.src='${fallbackImg}';">
+                        </div>
+                        <div class="saelyx-prod-info">
+                            ${prod.badge ? `<div class="saelyx-prod-badge">${prod.badge}</div>` : ''}
+                            <h3 class="saelyx-prod-title">${prod.name}</h3>
+                            <span class="saelyx-prod-price">${prod.priceLKR}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            track.innerHTML = html;
+        }
+
         // Scroll Arrivals carousel
         function scrollArrivals(direction) {
             const track = document.getElementById('arrivalsTrack');
@@ -4660,6 +4629,9 @@
             }
         ];
 
+        // Render all New Arrivals products into the homepage carousel
+        renderNewArrivals();
+
         // Keep the existing customer-facing layout while syncing catalogue records from the shared admin database.
         fetch('/api/products')
             .then(response => response.ok ? response.json() : [])
@@ -4683,6 +4655,7 @@
                     ...saelyxCatalogData,
                     ...syncedProducts.filter(product => !existingProductIds.has(product.id))
                 ];
+                renderNewArrivals();
                 if (document.getElementById('saelyxCatalogModal')?.classList.contains('is-open')) filterCatalog(currentActiveCatalogCat);
             })
             .catch(() => {});

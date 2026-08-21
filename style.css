@@ -949,7 +949,7 @@ section {
 /* ===================== SAELYX NEW ARRIVALS PRODUCT SHOWCASE ===================== */
 #category.saelyx-new-arrivals-section {
   background: #ffffff;
-  padding: 60px 0 70px;
+  padding: 50px 0 55px;
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid #e5e5e5;
@@ -965,18 +965,19 @@ section {
 /* New Arrivals Section Heading */
 .saelyx-arrivals-heading {
   text-align: left;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
+  padding-left: 0;
 }
 
 .saelyx-arrivals-title {
   font-family: "Cinzel", "Playfair Display", Georgia, serif;
-  font-size: 28px;
-  font-weight: 500;
-  color: #1a1a1a;
-  letter-spacing: 0.02em;
+  font-size: 26px;
+  font-weight: 600;
+  color: #111111;
+  letter-spacing: 0.03em;
   line-height: 1.2;
   margin: 0;
-  text-transform: none;
+  text-transform: uppercase;
 }
 
 .saelyx-carousel-container {
@@ -1072,7 +1073,7 @@ section {
 
 /* Info Box */
 .saelyx-prod-info {
-  padding-top: 14px;
+  padding-top: 10px;
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -1100,7 +1101,7 @@ section {
   font-weight: 500;
   color: #1a1a1a;
   line-height: 1.35;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
   text-transform: none;
   letter-spacing: 0.02em;
   transition: color 0.25s ease;
@@ -1120,20 +1121,20 @@ section {
 
 /* Bottom Center SHOP ALL CTA Button */
 .saelyx-shop-all-wrap {
-  margin-top: 45px;
+  margin-top: 30px;
 }
 
 .saelyx-shop-all-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 13px 44px;
+  padding: 12px 40px;
   background: #ffffff;
   color: #111111;
-  border: 1px solid #111111;
+  border: 1.5px solid #000000;
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 11.5px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   text-decoration: none;
