@@ -962,6 +962,23 @@ section {
   position: relative;
 }
 
+/* New Arrivals Section Heading */
+.saelyx-arrivals-heading {
+  text-align: left;
+  margin-bottom: 30px;
+}
+
+.saelyx-arrivals-title {
+  font-family: "Cinzel", "Playfair Display", Georgia, serif;
+  font-size: 28px;
+  font-weight: 500;
+  color: #1a1a1a;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  margin: 0;
+  text-transform: none;
+}
+
 .saelyx-carousel-container {
   position: relative;
   width: 100%;
