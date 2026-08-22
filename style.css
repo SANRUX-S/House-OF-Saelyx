@@ -5350,5 +5350,221 @@ body.catalog-modal-open {
   box-shadow: 0 12px 30px rgba(37, 211, 102, 0.4);
 }
 
+/* ===================== SHOP MEN BY CATEGORY ===================== */
+.saelyx-men-categories-section {
+    background: #faf9f6;
+    padding: 80px 0;
+    position: relative;
+    overflow: hidden;
+}
 
+.saelyx-men-categories-inner {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 40px;
+}
 
+.saelyx-men-categories-header {
+    margin-bottom: 40px;
+}
+
+.saelyx-men-categories-title {
+    font-family: "Cinzel", "Playfair Display", Georgia, serif;
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    font-weight: 600;
+    color: #111111;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.saelyx-men-categories-grid {
+    display: flex;
+    width: 100%;
+    gap: 0;
+}
+
+.saelyx-men-cat-item {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0%;
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4 / 5;
+    display: flex;
+    align-items: flex-end;
+    text-decoration: none;
+    color: #faf9f6;
+    transition: flex-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
+    isolation: isolate;
+}
+
+.saelyx-men-cat-item:hover {
+    flex-grow: 1.6;
+}
+
+.saelyx-men-cat-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 1;
+}
+
+.saelyx-men-cat-item:hover .saelyx-men-cat-bg {
+    transform: scale(1.04);
+}
+
+.saelyx-men-cat-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        180deg,
+        rgba(8, 8, 8, 0.2) 0%,
+        rgba(8, 8, 8, 0.5) 50%,
+        rgba(8, 8, 8, 0.75) 100%
+    );
+    z-index: 2;
+    transition: background 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.saelyx-men-cat-item:hover .saelyx-men-cat-overlay {
+    background: linear-gradient(
+        180deg,
+        rgba(8, 8, 8, 0.35) 0%,
+        rgba(8, 8, 8, 0.6) 50%,
+        rgba(8, 8, 8, 0.85) 100%
+    );
+}
+
+.saelyx-men-cat-content {
+    position: relative;
+    z-index: 3;
+    padding: 40px 32px;
+    width: 100%;
+    pointer-events: none;
+}
+
+.saelyx-men-cat-num {
+    display: block;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    color: rgba(250, 249, 246, 0.8);
+    margin-bottom: 12px;
+    transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translateY(0);
+}
+
+.saelyx-men-cat-item:hover .saelyx-men-cat-num {
+    transform: translateY(-12px);
+    color: rgba(250, 249, 246, 1);
+}
+
+.saelyx-men-cat-title {
+    font-family: "Cinzel", "Playfair Display", Georgia, serif;
+    font-size: clamp(1.1rem, 2vw, 1.6rem);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 16px;
+    line-height: 1.2;
+    transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translateY(0);
+}
+
+.saelyx-men-cat-item:hover .saelyx-men-cat-title {
+    transform: translateY(-12px);
+}
+
+.saelyx-men-cat-desc {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    line-height: 1.5;
+    color: rgba(250, 249, 246, 0.75);
+    margin: 0;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    max-width: 280px;
+}
+
+.saelyx-men-cat-item:hover .saelyx-men-cat-desc {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.saelyx-men-cat-divider {
+    width: 1px;
+    background: rgba(0, 0, 0, 0.08);
+    align-self: stretch;
+    transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.saelyx-men-categories-grid:hover .saelyx-men-cat-divider {
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.saelyx-men-cat-item:hover + .saelyx-men-cat-divider {
+    background: rgba(0, 0, 0, 0.3);
+    width: 2px;
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+    .saelyx-men-categories-inner {
+        padding: 0 24px;
+    }
+    .saelyx-men-cat-content {
+        padding: 28px 20px;
+    }
+    .saelyx-men-cat-desc {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 767px) {
+    .saelyx-men-categories-section {
+        padding: 50px 0;
+    }
+    .saelyx-men-categories-inner {
+        padding: 0 16px;
+    }
+    .saelyx-men-categories-grid {
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 12px;
+        padding-bottom: 8px;
+    }
+    .saelyx-men-categories-grid::-webkit-scrollbar {
+        display: none;
+    }
+    .saelyx-men-cat-item {
+        flex: 0 0 75vw;
+        scroll-snap-align: center;
+        aspect-ratio: 3 / 4;
+    }
+    .saelyx-men-cat-divider {
+        display: none;
+    }
+    .saelyx-men-cat-content {
+        padding: 28px 20px;
+    }
+    .saelyx-men-cat-title {
+        font-size: 1.2rem;
+    }
+    .saelyx-men-cat-desc {
+        font-size: 0.78rem;
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
