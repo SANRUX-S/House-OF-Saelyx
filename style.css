@@ -1285,12 +1285,14 @@ section {
   background: #080808;
 }
 
-/* Original image shown fully — no crop, no zoom, no stretch */
+/* Banner image — fills full width, mild bottom crop (top stays anchored) */
 .saelyx-about-banner-img {
   display: block;
   width: 100%;
   height: auto;
-  object-fit: contain;
+  max-height: 62vh;
+  object-fit: cover;
+  object-position: top center;
 }
 
 .saelyx-about-banner-overlay {
@@ -1390,14 +1392,14 @@ section {
   .saelyx-about-banner-item {
     min-height: 360px;
   }
-  /* On small screens, contain the full image inside the banner height (never cropped) */
+  /* On small screens, image fills the banner with a slight bottom crop */
   .saelyx-about-banner-img {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    object-position: center;
+    object-fit: cover;
+    object-position: top center;
   }
   .saelyx-about-banner-content {
     align-items: center;
