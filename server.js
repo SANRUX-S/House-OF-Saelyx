@@ -103,6 +103,152 @@ app.post('/api/newsletter', (req, res) => {
   res.status(201).json({ status: 'ok', message: 'Subscribed successfully.' });
 });
 
+// ---------- ADMIN API ----------
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'saelyx2026';
+
+function requireAdmin(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (token === Buffer.from(`${ADMIN_USERNAME}:${ADMIN_PASSWORD}`).toString('base64')) {
+    return next();
+  }
+  return res.status(401).json({ message: 'Unauthorized' });
+}
+
+// Admin login
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    const token = Buffer.from(`${ADMIN_USERNAME}:${ADMIN_PASSWORD}`).toString('base64');
+    return res.json({ token, username });
+  }
+  return res.status(401).json({ message: 'Invalid credentials' });
+});
+
+// Get all products (admin - includes unavailable)
+app.get('/api/admin/products', requireAdmin, (_req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    res.json(data.products || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to read products' });
+  }
+});
+
+// Create product
+app.post('/api/admin/products', requireAdmin, (req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const product = req.body || {};
+    if (!product.name || !product.price) {
+      return res.status(400).json({ message: 'Name and price are required' });
+    }
+    product.id = product.id || `p-${Date.now()}`;
+    product.slug = product.slug || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    product.currency = product.currency || 'LKR';
+    product.sizes = Array.isArray(product.sizes) ? product.sizes : [];
+    product.colors = Array.isArray(product.colors) ? product.colors : [];
+    product.images = Array.isArray(product.images) ? product.images : [];
+    product.tags = Array.isArray(product.tags) ? product.tags : [];
+    product.stock = Number(product.stock) || 0;
+    product.price = Number(product.price) || 0;
+    product.isNew = Boolean(product.isNew);
+    product.isFeatured = Boolean(product.isFeatured);
+    product.isBestSeller = Boolean(product.isBestSeller);
+    product.isLimited = Boolean(product.isLimited);
+    product.available = product.available !== false;
+    data.products = [product, ...(data.products || [])];
+    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+    res.status(201).json(product);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to create product' });
+  }
+});
+
+// Update product
+app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const idx = (data.products || []).findIndex((p) => p.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ message: 'Product not found' });
+    const updated = { ...data.products[idx], ...req.body, id: req.params.id };
+    updated.price = Number(updated.price) || 0;
+    updated.stock = Number(updated.stock) || 0;
+    updated.sizes = Array.isArray(updated.sizes) ? updated.sizes : [];
+    updated.colors = Array.isArray(updated.colors) ? updated.colors : [];
+    updated.images = Array.isArray(updated.images) ? updated.images : [];
+    updated.tags = Array.isArray(updated.tags) ? updated.tags : [];
+    data.products[idx] = updated;
+    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to update product' });
+  }
+});
+
+// Delete product
+app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const before = (data.products || []).length;
+    data.products = (data.products || []).filter((p) => p.id !== req.params.id);
+    if (data.products.length === before) return res.status(404).json({ message: 'Product not found' });
+    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+    res.json({ message: 'Product deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to delete product' });
+  }
+});
+
+// Get all orders
+app.get('/api/admin/orders', requireAdmin, (_req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    res.json(data.orders || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to read orders' });
+  }
+});
+
+// Update order status
+app.put('/api/admin/orders/:id', requireAdmin, (req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const idx = (data.orders || []).findIndex((o) => o.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ message: 'Order not found' });
+    data.orders[idx] = { ...data.orders[idx], ...req.body, id: req.params.id };
+    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+    res.json(data.orders[idx]);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to update order' });
+  }
+});
+
+// Get all messages (contact + newsletter)
+app.get('/api/admin/messages', requireAdmin, (_req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    res.json(data.messages || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to read messages' });
+  }
+});
+
+// Delete message
+app.delete('/api/admin/messages/:id', requireAdmin, (req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const before = (data.messages || []).length;
+    data.messages = (data.messages || []).filter((m) => m.id !== req.params.id);
+    if (data.messages.length === before) return res.status(404).json({ message: 'Message not found' });
+    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+    res.json({ message: 'Message deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to delete message' });
+  }
+});
+
 // Middleware to resolve asset prefixes like /css/*, /js/*, /fonts/*, /webfonts/*, /images/*, /img/*
 app.use((req, res, next) => {
   const cleanPath = req.path.replace(/^\/(?:css|js|fonts|webfonts|images|img)\//, '/');
@@ -116,6 +262,11 @@ app.use((req, res, next) => {
 
 // Serve static files from root
 app.use(express.static(__dirname));
+
+// Admin panel route
+app.get('/admin', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
 
 // Fallback to index.html for SPA / general routing
 app.get('*', (req, res) => {

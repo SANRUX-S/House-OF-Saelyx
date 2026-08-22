@@ -448,14 +448,15 @@ img {
   background: #080808;
   padding: 0;
 }
-/* Hero background video — fills the entire page background with no black bars */
+/* Hero background video — fills the entire hero section without black bars */
 .hero-bg-layer {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
+  object-position: center center;
   background: #080808;
   z-index: 0;
 }
@@ -1285,14 +1286,15 @@ section {
   background: #080808;
 }
 
-/* Banner image — fills full width, mild bottom crop (top stays anchored) */
+/* Banner image — fills full width at exact 3:1 ratio (1850x625), person fully visible, no head crop */
 .saelyx-about-banner-img {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 62vh;
+  max-height: none;
+  aspect-ratio: 3 / 1;
   object-fit: cover;
-  object-position: top center;
+  object-position: center;
 }
 
 .saelyx-about-banner-overlay {
@@ -1392,14 +1394,14 @@ section {
   .saelyx-about-banner-item {
     min-height: 360px;
   }
-  /* On small screens, image fills the banner with a slight bottom crop */
+  /* On small screens, image fills the banner centered; the 3:1 crop keeps the head visible */
   .saelyx-about-banner-img {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: top center;
+    object-position: center;
   }
   .saelyx-about-banner-content {
     align-items: center;
