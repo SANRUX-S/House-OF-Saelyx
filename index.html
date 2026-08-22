@@ -825,7 +825,9 @@
 
     <!-- Luxury Fashion Hero Section -->
     <section id="hero" class="hero-fashion">
-        <div class="hero-bg-layer" style="background-image: url('https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=2000&q=85'), url('hero-fashion.jpg');"></div>
+        <video class="hero-bg-layer" autoplay muted loop playsinline preload="auto" aria-label="House of Saelyx fashion film background">
+            <source src="WhatsApp Video 2026-08-21 at 15.45.03.mp4" type="video/mp4">
+        </video>
         <div class="hero-overlay"></div>
 
         <div class="hero-content-layer">
@@ -882,57 +884,22 @@
         </div>
     </section>
 
-    <!-- About Section -->
-    <section id="about">
-        <div class="container">
-            <div class="row align-items-center gy-5">
-                <div class="col-lg-6" data-aos="fade-right">
-                    <div class="astack">
-                        <div class="amain">
-                            <img src="Burgundi%20and%20White%20Minimalist%20Elegant%20Line%20Perfume%20Store%20Logo.png" alt="House of Saelyx Burgundy Logo">
-                        </div>
-                        <div class="asm d-none d-sm-block">
-                            <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&q=80" alt="Saelyx Fashion Collection">
-                        </div>
-                        <div class="aexp">
-                            <span class="anum">1.5+</span>
-                            <small>Years Of Excellence</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6" data-aos="fade-left">
-                    <span class="slbl">The House Atelier</span>
-                    <h2 class="stitle">Welcome To <span>House OF Saelyx</span></h2>
-                    <div class="sline lft"></div>
-                    <p class="sdesc">Founded in 2025, House OF Saelyx was built on a simple philosophy: elevate everyday style into an unforgettable wearable art form. We combine traditional handloom weaving with futuristic textile innovation.</p>
-                    
-                    <div class="mt-4">
-                        <div class="fti">
-                            <div class="ftico r"><i class="fa-solid fa-seedling"></i></div>
-                            <div>
-                                <h6>100% Farm-To-Fabric Freshness</h6>
-                                <p>We source all raw materials—from organic hemp to cruelty-free wool—directly from regenerative farms and local artisan clusters.</p>
-                            </div>
-                        </div>
-                        <div class="fti">
-                            <div class="ftico y"><i class="fa-solid fa-award"></i></div>
-                            <div>
-                                <h6>Master Award-Winning Designers</h6>
-                                <p>Our international creative team brings decades of Parisian and New York runway experience into every collection.</p>
-                            </div>
-                        </div>
-                        <div class="fti">
-                            <div class="ftico g"><i class="fa-solid fa-shield-halved"></i></div>
-                            <div>
-                                <h6>Hygiene & Quality Standard</h6>
-                                <p>Cutting-edge, automated tailoring units with rigorous 30-point quality checks to ensure global durability standards.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 pt-2">
-                        <a href="#reservation" class="btn-red"><i class="fa-solid fa-scissors"></i> Book a Private Atelier Consultation</a>
-                    </div>
+    <!-- Menswear Feature Banner (Replaces Welcome To House Of Saelyx) -->
+    <section id="about" class="saelyx-about-banner-section">
+        <div class="saelyx-about-banner-item">
+            <img src="mens new 2.jpg" alt="Men's New Arrivals - House of Saelyx" class="saelyx-about-banner-img">
+            <div class="saelyx-about-banner-overlay"></div>
+            <div class="saelyx-about-banner-content">
+                <div class="saelyx-mens-new-block">
+                    <h2 class="saelyx-mens-new-title">SHOP MEN’S NEW</h2>
+                    <p class="saelyx-mens-new-sub">Discover the latest menswear arrivals, tailored for the modern gentleman.</p>
+                    <a href="javascript:void(0)" class="saelyx-mens-new-btn" onclick="openCatalogModal('mens')">
+                        <span>SHOP NOW</span>
+                        <svg class="saelyx-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </a>
                 </div>
             </div>
         </div>

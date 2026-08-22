@@ -448,23 +448,16 @@ img {
   background: #080808;
   padding: 0;
 }
+/* Hero background video — fills the entire page background with no black bars */
 .hero-bg-layer {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center 25%;
-  transform: scale(1);
-  animation: heroSlowZoom 28s cubic-bezier(0.25, 1, 0.5, 1) infinite alternate;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  background: #080808;
   z-index: 0;
-  will-change: transform;
-}
-@keyframes heroSlowZoom {
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(1.06);
-  }
 }
 .hero-overlay {
   position: absolute;
@@ -635,7 +628,6 @@ img {
     flex-direction: column;
     gap: 2rem;
   letter-spacing: 0.08em;
-  .hero-text-column,
   line-height: 1.12;
     position: static;
     width: 100%;
@@ -1274,6 +1266,157 @@ section {
   color: #888;
   margin: 0;
   line-height: 1.6;
+}
+
+/* ===================== SAELYX MENSWEAR FEATURE BANNER (SHOP MEN'S NEW) ===================== */
+.saelyx-about-banner-section {
+  background: #ffffff;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.saelyx-about-banner-item {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-top: 1px solid rgba(183, 110, 121, 0.25);
+  border-bottom: 1px solid rgba(183, 110, 121, 0.25);
+  background: #080808;
+}
+
+/* Original image shown fully — no crop, no zoom, no stretch */
+.saelyx-about-banner-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.saelyx-about-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(8, 8, 8, 0.78) 0%,
+    rgba(12, 10, 12, 0.35) 48%,
+    rgba(20, 14, 16, 0.1) 100%
+  );
+  z-index: 2;
+  pointer-events: none;
+}
+
+.saelyx-about-banner-content {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(24px, 6vw, 80px);
+}
+
+/* Left-side text block (SHOP MEN'S NEW + supporting line + SHOP NOW button) */
+.saelyx-mens-new-block {
+  pointer-events: auto;
+  max-width: 580px;
+  text-align: left;
+}
+
+.saelyx-mens-new-title {
+  margin: 0 0 0.9rem;
+  color: #faf9f6;
+  font-family: "Cinzel", "Italiana", "Playfair Display", serif;
+  font-size: clamp(2rem, 4.6vw, 3.9rem);
+  font-weight: 700;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.06;
+  text-shadow: 0 4px 28px rgba(0, 0, 0, 0.65);
+}
+
+.saelyx-mens-new-sub {
+  margin: 0 0 1.6rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(0.7rem, 0.95vw, 0.95rem);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  line-height: 1.5;
+  max-width: 420px;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+}
+
+.saelyx-mens-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  color: #111111;
+  font-family: "Cinzel", "Playfair Display", Georgia, serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  padding: 15px 34px;
+  border-radius: 3px;
+  text-decoration: none;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border: 1.5px solid transparent;
+}
+
+.saelyx-mens-new-btn:hover {
+  background: #b76e79;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.85);
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 14px 34px rgba(183, 110, 121, 0.45);
+}
+
+.saelyx-mens-new-btn .saelyx-btn-arrow {
+  transition: transform 0.3s ease;
+}
+
+.saelyx-mens-new-btn:hover .saelyx-btn-arrow {
+  transform: translateX(5px);
+}
+
+@media (max-width: 768px) {
+  .saelyx-about-banner-item {
+    min-height: 360px;
+  }
+  /* On small screens, contain the full image inside the banner height (never cropped) */
+  .saelyx-about-banner-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+  }
+  .saelyx-about-banner-content {
+    align-items: center;
+    padding: 24px 20px;
+  }
+  .saelyx-mens-new-title {
+    font-size: clamp(1.4rem, 6.5vw, 2.3rem);
+    letter-spacing: 0.02em;
+  }
+  .saelyx-mens-new-sub {
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    max-width: 92%;
+  }
+  .saelyx-mens-new-btn {
+    padding: 12px 24px;
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+  }
 }
 
 /* ===================== SAELYX MENSWEAR & ATELIER COLLECTION (MATCHING SCREENSHOT) ===================== */
