@@ -2,7 +2,7 @@ const fs = require('fs');
 const h = fs.readFileSync('index.html', 'utf8');
 const c = fs.readFileSync('style.css', 'utf8');
 console.log('Video bg in hero:', h.includes('<video class="hero-bg-layer"'));
-console.log('Video src correct:', h.includes('WhatsApp Video 2026-08-21 at 15.45.03.mp4'));
+console.log('Video src correct:', h.includes('bg-video.mp4'));
 console.log('Old bg-image removed:', !h.includes('background-image'));
 console.log('CTA buttons kept:', h.includes('btn-shop-luxury') && h.includes('btn-vip-gold'));
 console.log('hero-bg-layer contain:', c.includes('object-fit: contain') && c.includes('.hero-bg-layer'));
