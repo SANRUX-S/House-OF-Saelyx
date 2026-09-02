@@ -263,18 +263,18 @@ export const Navbar: React.FC = () => {
         </button>
 
         {/* Center: Category Navigation Pill */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-black/35 backdrop-blur-2xl border border-white/20 rounded-full px-1.5 py-0.5 shadow-2xl pointer-events-auto">
-          <div className="flex items-center gap-0.5 text-[10px] lg:text-[11px] font-medium tracking-[0.15em] uppercase text-white/90">
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-black/40 backdrop-blur-2xl border border-white/20 rounded-full px-4 py-1.5 shadow-2xl pointer-events-auto">
+          <div className="flex items-center gap-1 sm:gap-2 text-[11px] lg:text-[11.5px] font-semibold tracking-[0.2em] uppercase text-white/90">
             {navCategories.map((cat) => {
-              const isActive = activeCategory === cat.value;
+              const isActive = activeCategory === cat.value && (currentRoute.name === 'collection');
               return (
                 <button
                   key={cat.value}
                   onClick={() => handleCategoryClick(cat.value)}
-                  className={`transition-all duration-300 cursor-pointer rounded-full px-3 lg:px-3.5 py-0.5 whitespace-nowrap ${
+                  className={`transition-all duration-200 cursor-pointer rounded-full px-3 py-1 whitespace-nowrap ${
                     isActive
-                      ? 'bg-white text-black font-bold shadow-md scale-[1.02]'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                      ? 'text-white bg-white/20 font-bold'
+                      : 'text-white/85 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {cat.label}
