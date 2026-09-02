@@ -38,22 +38,23 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
+    // Use a short delay or click event so button clicks inside the dropdown register cleanly
+    document.addEventListener('click', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const handleAction = (action: () => void) => {
-    onClose();
+  const handleAction = (e: React.MouseEvent, action: () => void) => {
+    e.preventDefault();
+    e.stopPropagation();
     action();
+    onClose();
   };
 
   const handleLogoutClick = async (e: React.MouseEvent) => {
@@ -63,8 +64,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
     await logout();
   };
 
-  // Section 1: Customer Account & Orders
-  const accountItems = [
+  const allMenuItems = [
     {
       label: 'MY PROFILE',
       icon: User,
@@ -76,11 +76,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
       icon: ShoppingBag,
       action: () => navigateTo({ name: 'orders' }),
       desc: 'Purchase history & order details'
-    }
-  ];
-
-  // Section 2: Services, Privileges & Concierge
-  const serviceItems = [
+    },
     {
       label: 'TRACK MY ORDER',
       icon: Truck,
@@ -104,6 +100,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
   return (
     <div
       ref={dropdownRef}
+      onClick={(e) => e.stopPropagation()}
       className="absolute right-0 top-full mt-3 w-[340px] sm:w-[370px] bg-white text-[#1A1816] rounded-2xl border border-[#E8E1D5] shadow-[0_22px_55px_rgba(0,0,0,0.14)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 transform-gpu select-none"
     >
       {/* Top Header with Authenticated Customer Info */}
@@ -138,9 +135,9 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
 
       {/* Admin Shortcut (For Directors & Super Admins) */}
       {(user.role === 'admin' || user.role === 'super_admin') && (
-        <div className="p-2 border-b border-[#EDE6DC] bg-[#FAF8F5]/60">
+        <div className="border-b border-[#EDE6DC] bg-[#FAF8F5]/60 p-2">
           <button
-            onClick={() => handleAction(() => navigateTo({ name: 'admin' }))}
+            onClick={(e) => handleAction(e, () => navigateTo({ name: 'admin' }))}
             className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#F2ECE2] active:scale-[0.98] text-[#1A1816] text-[10.5px] uppercase font-semibold tracking-wider transition-all duration-200 cursor-pointer border border-[#EAE3D9] shadow-2xs group"
           >
             <div className="flex items-center gap-2.5">
@@ -152,63 +149,32 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
         </div>
       )}
 
-      {/* Section 1: Customer Account & Orders */}
-      <div className="p-2 sm:p-2.5 space-y-1">
-        {accountItems.map((item) => {
+      {/* Menu Navigation Items with Divider Line for Every Single Item */}
+      <div className="divide-y divide-[#EDE6DC]">
+        {allMenuItems.map((item) => {
           const Icon = item.icon;
           return (
-            <button
-              key={item.label}
-              onClick={() => handleAction(item.action)}
-              className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#FAF8F5] active:bg-[#F2ECE2] active:scale-[0.98] transition-all duration-200 text-left group cursor-pointer"
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF8F5] border border-[#EAE3D9] group-hover:bg-[#F2EDE4] group-hover:border-[#DDD3C5] group-hover:scale-105 flex items-center justify-center text-[#1A1816] transition-all duration-200 flex-shrink-0 shadow-2xs">
-                  <Icon className="w-4.5 h-4.5 stroke-[1.5]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-semibold tracking-wider uppercase text-[#1A1816] truncate group-hover:text-black transition-colors">
-                    {item.label}
+            <div key={item.label} className="p-1.5 sm:p-2">
+              <button
+                onClick={(e) => handleAction(e, item.action)}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#FAF8F5] active:bg-[#F2ECE2] active:scale-[0.98] transition-all duration-200 text-left group cursor-pointer"
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF8F5] border border-[#EAE3D9] group-hover:bg-[#F2EDE4] group-hover:border-[#DDD3C5] group-hover:scale-105 flex items-center justify-center text-[#1A1816] transition-all duration-200 flex-shrink-0 shadow-2xs">
+                    <Icon className="w-4.5 h-4.5 stroke-[1.5]" />
                   </div>
-                  <div className="text-[10px] text-[#7A6E60] font-normal truncate mt-0.5">
-                    {item.desc}
-                  </div>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#B8ADA0] group-hover:text-[#1A1816] group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 ml-1.5" />
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Divider Between Sections */}
-      <div className="border-t border-[#EDE6DC] mx-2" />
-
-      {/* Section 2: Services, Privileges & Concierge */}
-      <div className="p-2 sm:p-2.5 space-y-1">
-        {serviceItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.label}
-              onClick={() => handleAction(item.action)}
-              className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#FAF8F5] active:bg-[#F2ECE2] active:scale-[0.98] transition-all duration-200 text-left group cursor-pointer"
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF8F5] border border-[#EAE3D9] group-hover:bg-[#F2EDE4] group-hover:border-[#DDD3C5] group-hover:scale-105 flex items-center justify-center text-[#1A1816] transition-all duration-200 flex-shrink-0 shadow-2xs">
-                  <Icon className="w-4.5 h-4.5 stroke-[1.5]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-semibold tracking-wider uppercase text-[#1A1816] truncate group-hover:text-black transition-colors">
-                    {item.label}
-                  </div>
-                  <div className="text-[10px] text-[#7A6E60] font-normal truncate mt-0.5">
-                    {item.desc}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-semibold tracking-wider uppercase text-[#1A1816] truncate group-hover:text-black transition-colors">
+                      {item.label}
+                    </div>
+                    <div className="text-[10px] text-[#7A6E60] font-normal truncate mt-0.5">
+                      {item.desc}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#B8ADA0] group-hover:text-[#1A1816] group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 ml-1.5" />
-            </button>
+                <ChevronRight className="w-4 h-4 text-[#B8ADA0] group-hover:text-[#1A1816] group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 ml-1.5" />
+              </button>
+            </div>
           );
         })}
       </div>
