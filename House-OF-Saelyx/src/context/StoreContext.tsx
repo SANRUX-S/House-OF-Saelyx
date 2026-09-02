@@ -361,8 +361,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      // If current user is already an admin with custom role, don't overwrite with standard patron
-      if (userRef.current && (userRef.current.role === 'super_admin' || userRef.current.role === 'admin')) {
+      // If current user is an admin with custom password login and not firebase auth, preserve it
+      if (userRef.current && (userRef.current.role === 'super_admin' || userRef.current.role === 'admin') && !fbUser) {
         return;
       }
 
@@ -417,6 +417,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             role: 'patron',
             country: 'Sri Lanka'
           });
+        }
+      } else {
+        // Explicitly clear non-admin user on signOut
+        if (userRef.current && userRef.current.role !== 'super_admin' && userRef.current.role !== 'admin') {
+          setUser(null);
         }
       }
     });
@@ -1068,14 +1073,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
-      await fbSignOut(auth);
+      if (auth) {
+        await fbSignOut(auth);
+      }
     } catch (e) {
-      console.error(e);
+      console.warn('Firebase SignOut note:', e);
+    } finally {
+      setUser(null);
+      try {
+        localStorage.removeItem('saelyx_user');
+        localStorage.removeItem('saelyx_admin_user');
+        sessionStorage.clear();
+      } catch (e) {}
+      setIsAuthOpen(false);
+      navigateTo({ name: 'home' });
     }
-    setUser(null);
-    localStorage.removeItem('saelyx_user');
   };
 
   const updateUserProfile = async (updates: Partial<AppUser>): Promise<boolean> => {

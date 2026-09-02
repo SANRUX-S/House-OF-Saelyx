@@ -268,6 +268,49 @@
   ],
   "orders": [
     {
+      "customerName": "House of Saelyx VIP Patron",
+      "email": "houseofsaelyx@gmail.com",
+      "phone": "732732728282",
+      "address": "74 Ward Place, Rosmead Enclave",
+      "city": "Colombo 07",
+      "postalCode": "00700",
+      "country": "Sri Lanka",
+      "items": [
+        {
+          "productId": "prod-01",
+          "title": "SÆ SIGNATURE OVERSIZED TEE",
+          "image": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85",
+          "priceLKR": 79000,
+          "size": "S",
+          "quantity": 1
+        }
+      ],
+      "subtotalLKR": 79000,
+      "shippingLKR": 0,
+      "totalLKR": 79000,
+      "currencyUsed": "LKR",
+      "totalInCurrency": 79000,
+      "status": "placed",
+      "paymentMethod": "cod",
+      "paymentStatus": "pending_delivery",
+      "trackingNumber": "EXP-702932",
+      "courierName": "Saelyx White-Glove Van 04",
+      "deliveryEta": "Today by 5:30 PM (Priority Hand-Delivery)",
+      "notes": "Please ring gate intercom for white-glove hand-delivery.",
+      "id": "SOX-20260903-7964",
+      "orderNumber": "SOX-20260903-7964",
+      "userId": "vip-patron-demo",
+      "createdAt": "2026-09-02T19:21:08.696Z",
+      "statusHistory": [
+        {
+          "status": "placed",
+          "timestamp": "2026-09-02T19:21:08.696Z",
+          "note": "Order successfully placed by customer.",
+          "location": "SAELYX Online System"
+        }
+      ]
+    },
+    {
       "id": "SLX-85885",
       "subtotalLKR": 16800,
       "trackingNumber": "EXP-203235",

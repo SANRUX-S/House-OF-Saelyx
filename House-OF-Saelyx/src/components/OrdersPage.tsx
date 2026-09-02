@@ -17,7 +17,7 @@ import { useStore } from '../context/StoreContext';
 import { Order, OrderStatus } from '../types';
 
 export const OrdersPage: React.FC = () => {
-  const { user, orders, formatPrice, navigateTo } = useStore();
+  const { user, orders, formatPrice, navigateTo, currentRoute } = useStore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Filter orders belonging to the authenticated customer
@@ -27,6 +27,14 @@ export const OrdersPage: React.FC = () => {
     if (user.email && o.email && o.email.toLowerCase() === user.email.toLowerCase()) return true;
     return false;
   });
+
+  // Automatically select order if orderId was passed in route
+  React.useEffect(() => {
+    if (currentRoute.name === 'orders' && (currentRoute as any).orderId) {
+      const match = orders.find(o => o.orderNumber === (currentRoute as any).orderId || o.id === (currentRoute as any).orderId);
+      if (match) setSelectedOrder(match);
+    }
+  }, [currentRoute, orders]);
 
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
