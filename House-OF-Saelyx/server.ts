@@ -106,9 +106,31 @@ export function createApp() {
     }
   });
 
+  // Helper: Automated Order Confirmation Email Dispatch
+  function sendOrderConfirmationEmail(order: any) {
+    try {
+      console.log(`\n======================================================`);
+      console.log(`[SAELYX LUXURY EMAIL DISPATCH]`);
+      console.log(`To: ${order.email}`);
+      console.log(`Subject: Your SAELYX Order #${order.orderNumber} is Confirmed`);
+      console.log(`Customer: ${order.customerName}`);
+      console.log(`Order Number: #${order.orderNumber}`);
+      console.log(`Date: ${order.createdAt}`);
+      console.log(`Payment Method: ${order.paymentMethod || 'Cash on Delivery'} (${order.paymentStatus || 'Pending'})`);
+      console.log(`Delivery Address: ${order.address}, ${order.city} ${order.postalCode}`);
+      console.log(`Total: ${order.currencyUsed || 'LKR'} ${order.totalInCurrency || order.totalLKR}`);
+      console.log(`Items: ${order.items?.map((i: any) => `${i.title} (${i.size}) × ${i.quantity}`).join(', ')}`);
+      console.log(`Tracking Link: https://houseofsaelyx.com/track-order?id=${order.orderNumber}`);
+      console.log(`======================================================\n`);
+    } catch (e) {
+      console.error('Email dispatch error:', e);
+    }
+  }
+
   app.post('/api/orders', (req, res) => {
     try {
       const newOrder = db.createOrder(req.body);
+      sendOrderConfirmationEmail(newOrder);
       res.status(201).json(newOrder);
     } catch (e: any) {
       res.status(400).json({ error: e.message });

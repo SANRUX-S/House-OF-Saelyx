@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ShoppingBag, User } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { AccountDropdown } from './AccountDropdown';
 
 export const Navbar: React.FC = () => {
   const {
@@ -18,6 +19,7 @@ export const Navbar: React.FC = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -119,14 +121,33 @@ export const Navbar: React.FC = () => {
         </button>
 
         {/* Right: User & Shopping Bag Actions */}
-        <div className="flex items-center gap-3.5">
-          <button
-            onClick={() => setIsAuthOpen(true)}
-            className="p-1 text-white/90 hover:text-white cursor-pointer"
-            aria-label="User account"
-          >
-            <User className="w-6 h-6 stroke-[1.75]" />
-          </button>
+        <div className="flex items-center gap-3.5 relative">
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+                className="p-0.5 text-white/90 hover:text-white cursor-pointer flex items-center gap-1"
+                aria-label="User account"
+              >
+                <div className="w-7 h-7 rounded-full bg-white/15 border border-white/20 flex items-center justify-center font-serif text-xs text-white">
+                  {user.name ? user.name[0]?.toUpperCase() : 'S'}
+                </div>
+              </button>
+              <AccountDropdown 
+                isOpen={isAccountDropdownOpen} 
+                onClose={() => setIsAccountDropdownOpen(false)} 
+                user={user} 
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthOpen(true)}
+              className="p-1 text-white/90 hover:text-white cursor-pointer"
+              aria-label="User account"
+            >
+              <User className="w-6 h-6 stroke-[1.75]" />
+            </button>
+          )}
 
           <button
             onClick={() => setIsCartOpen(true)}
@@ -276,13 +297,23 @@ export const Navbar: React.FC = () => {
           <div className="w-[1px] h-4 bg-white/20" />
 
           {user ? (
-            <button
-              onClick={() => setIsAuthOpen(true)}
-              className="flex items-center gap-1.5 text-[11px] lg:text-xs uppercase tracking-[0.18em] font-medium text-white/90 hover:text-white px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-colors cursor-pointer"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span className="max-w-[90px] truncate">{user.name}</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+                className="flex items-center gap-2 text-[11px] lg:text-xs uppercase tracking-[0.18em] font-medium text-white/90 hover:text-white px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all cursor-pointer shadow-sm"
+              >
+                <div className="w-4 h-4 rounded-full bg-white/20 text-[9px] flex items-center justify-center font-serif font-bold">
+                  {user.name ? user.name[0]?.toUpperCase() : 'S'}
+                </div>
+                <span className="max-w-[110px] truncate">{user.name}</span>
+                <span className="text-[8px] opacity-60">▼</span>
+              </button>
+              <AccountDropdown 
+                isOpen={isAccountDropdownOpen} 
+                onClose={() => setIsAccountDropdownOpen(false)} 
+                user={user} 
+              />
+            </div>
           ) : (
             <div className="flex items-center gap-3.5 lg:gap-4">
               <button

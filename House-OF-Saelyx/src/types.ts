@@ -129,6 +129,11 @@ export interface AppUser {
   avatarUrl?: string;
   joinedDate?: string;
   ordersCount?: number;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+  authProvider?: string;
   savedAddresses?: Array<{
     title: string;
     street: string;
@@ -186,6 +191,11 @@ export type AppRoute =
   | { name: 'cart' }
   | { name: 'checkout' }
   | { name: 'track'; orderId?: string }
+  | { name: 'track-order'; orderId?: string }
+  | { name: 'orders'; orderId?: string }
+  | { name: 'profile' }
+  | { name: 'vip' }
+  | { name: 'contact-support' }
   | { name: 'admin'; tab?: 'overview' | 'products' | 'orders' | 'messages' | 'staff' | 'security' | 'settings' }
   | { name: 'legal-terms' }
   | { name: 'legal-privacy' }

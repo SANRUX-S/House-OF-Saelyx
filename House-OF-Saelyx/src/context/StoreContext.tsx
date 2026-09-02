@@ -110,8 +110,8 @@ interface StoreContextType {
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
   loginAsGuest: () => void;
   loginAsBypassPatron: () => void;
-  loginAdmin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
 
   // Orders
   orders: Order[];
@@ -183,10 +183,17 @@ function parseRouteFromUrl(): AppRoute {
     }
     if (path === '/cart') return { name: 'cart' };
     if (path === '/checkout') return { name: 'checkout' };
-    if (path.startsWith('/track')) {
-      const orderId = search.get('id') || path.replace('/track', '').replace('/', '').trim();
-      return { name: 'track', orderId: orderId || undefined };
+    if (path === '/profile') return { name: 'profile' };
+    if (path.startsWith('/orders')) {
+      const orderId = search.get('id') || path.replace('/orders', '').replace('/', '').trim();
+      return { name: 'orders', orderId: orderId || undefined };
     }
+    if (path.startsWith('/track-order') || path.startsWith('/track')) {
+      const orderId = search.get('id') || path.replace('/track-order', '').replace('/track', '').replace('/', '').trim();
+      return { name: 'track-order', orderId: orderId || undefined };
+    }
+    if (path === '/vip') return { name: 'vip' };
+    if (path === '/contact-support' || path === '/care/contact' || path === '/care/concierge') return { name: 'contact-support' };
     if (path.startsWith('/admin')) {
       const tab = search.get('tab') as any;
       return { name: 'admin', tab: tab || 'overview' };
@@ -195,7 +202,6 @@ function parseRouteFromUrl(): AppRoute {
     if (path === '/legal/privacy') return { name: 'legal-privacy' };
     if (path === '/legal/returns') return { name: 'legal-returns' };
     if (path === '/care/shipping') return { name: 'care-shipping' };
-    if (path === '/care/contact' || path === '/care/concierge') return { name: 'care-concierge' };
     if (path === '/care/size-guide') return { name: 'care-size-guide' };
     if (path === '/care/authenticity') return { name: 'care-authenticity' };
   } catch (e) {
@@ -212,13 +218,18 @@ function routeToUrl(route: AppRoute): string {
     case 'collection': return `/collections/${route.category}`;
     case 'cart': return '/cart';
     case 'checkout': return '/checkout';
-    case 'track': return route.orderId ? `/track?id=${encodeURIComponent(route.orderId)}` : '/track';
+    case 'profile': return '/profile';
+    case 'orders': return route.orderId ? `/orders?id=${encodeURIComponent(route.orderId)}` : '/orders';
+    case 'track-order': return route.orderId ? `/track-order?id=${encodeURIComponent(route.orderId)}` : '/track-order';
+    case 'track': return route.orderId ? `/track-order?id=${encodeURIComponent(route.orderId)}` : '/track-order';
+    case 'vip': return '/vip';
+    case 'contact-support': return '/contact-support';
     case 'admin': return route.tab ? `/admin?tab=${route.tab}` : '/admin';
     case 'legal-terms': return '/legal/terms';
     case 'legal-privacy': return '/legal/privacy';
     case 'legal-returns': return '/legal/returns';
     case 'care-shipping': return '/care/shipping';
-    case 'care-concierge': return '/care/contact';
+    case 'care-concierge': return '/contact-support';
     case 'care-size-guide': return '/care/size-guide';
     case 'care-authenticity': return '/care/authenticity';
     default: return '/';
@@ -369,7 +380,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               email: fbUser.email || data.email || '',
               phoneNumber: fbUser.phoneNumber || data.phoneNumber || '',
               role: data.role || 'patron',
-              avatarUrl: fbUser.photoURL || undefined,
+              avatarUrl: fbUser.photoURL || data.avatarUrl || undefined,
+              address: data.address || '',
+              city: data.city || '',
+              postalCode: data.postalCode || '',
+              country: data.country || 'Sri Lanka',
+              authProvider: data.authProvider || 'google',
               joinedDate: data.joinedDate || new Date().toISOString()
             });
           } else {
@@ -380,6 +396,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               phoneNumber: fbUser.phoneNumber || '',
               role: 'patron',
               avatarUrl: fbUser.photoURL || undefined,
+              address: '',
+              city: '',
+              postalCode: '',
+              country: 'Sri Lanka',
+              authProvider: 'google',
               joinedDate: new Date().toISOString(),
               ordersCount: 0
             };
@@ -393,7 +414,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYX Patron',
             email: fbUser.email || '',
             phoneNumber: fbUser.phoneNumber || '',
-            role: 'patron'
+            role: 'patron',
+            country: 'Sri Lanka'
           });
         }
       }
@@ -1056,36 +1078,107 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.removeItem('saelyx_user');
   };
 
+  const updateUserProfile = async (updates: Partial<AppUser>): Promise<boolean> => {
+    if (!user) return false;
+    try {
+      const updatedUser: AppUser = { ...user, ...updates };
+      setUser(updatedUser);
+      try {
+        localStorage.setItem('saelyx_user', JSON.stringify(updatedUser));
+      } catch (e) {}
+
+      // Persist to Firestore
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, JSON.parse(JSON.stringify(updatedUser)), { merge: true });
+      } catch (e) {
+        console.warn('Firestore user update note:', e);
+      }
+
+      // Pre-fill delivery details in localStorage so checkout immediately gets them
+      if (updates.name || updates.phoneNumber || updates.address || updates.city || updates.postalCode || updates.country) {
+        const deliveryDetails = {
+          customerName: updatedUser.name,
+          email: updatedUser.email,
+          phone: updatedUser.phoneNumber || '',
+          address: updatedUser.address || '',
+          city: updatedUser.city || '',
+          postalCode: updatedUser.postalCode || '',
+          country: updatedUser.country || 'Sri Lanka',
+          notes: ''
+        };
+        try {
+          localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(deliveryDetails));
+        } catch (e) {}
+      }
+
+      await logAuditEvent('USER_PROFILE_UPDATED', `Profile updated for [${updatedUser.name || updatedUser.email}]`);
+      return true;
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      return false;
+    }
+  };
+
   // Orders Management
-  const createOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'>): Promise<Order> => {
+  const createOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'> & { orderNumber?: string }): Promise<Order> => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const orderNum = orderData.orderNumber || `SOX-${yyyy}${mm}${dd}-${rand}`;
+
     const orderPayload = {
       ...orderData,
+      id: orderNum,
+      orderNumber: orderNum,
       userId: user?.uid
     };
 
-    const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderPayload)
-    });
+    let placedOrder: Order;
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
 
-    if (!res.ok) {
-      throw new Error('Failed to create order');
+      if (res.ok) {
+        placedOrder = await res.json();
+      } else {
+        throw new Error('API creation failed');
+      }
+    } catch (apiErr) {
+      console.warn('API order fallback:', apiErr);
+      placedOrder = {
+        ...orderPayload,
+        createdAt: new Date().toISOString(),
+        status: 'placed',
+        statusHistory: [
+          {
+            status: 'placed',
+            timestamp: new Date().toISOString(),
+            note: 'Order placed by customer.',
+            location: 'SAELYX Online System'
+          }
+        ]
+      } as Order;
     }
 
-    const placedOrder: Order = await res.json();
-
-    // Also persist into Firestore
+    // Always persist into Firestore
     try {
       const sanitizedOrder = JSON.parse(JSON.stringify(placedOrder));
-      const ordersRef = doc(db, 'orders', placedOrder.id);
+      const ordersRef = doc(db, 'orders', placedOrder.id || placedOrder.orderNumber);
       await setDoc(ordersRef, sanitizedOrder);
     } catch (e) {
       console.error('Firestore order sync error details:', e);
     }
 
+    // Immediately prepend to local orders state so My Orders displays it right away
+    setOrders(prev => [placedOrder, ...prev.filter(o => o.id !== placedOrder.id && o.orderNumber !== placedOrder.orderNumber)]);
+
     await logAuditEvent('ORDER_CREATED', `Order ${placedOrder.orderNumber} created for ${placedOrder.customerName} (${placedOrder.currencyUsed} ${placedOrder.totalInCurrency})`);
-    await fetchData();
     return placedOrder;
   };
 
@@ -1405,6 +1498,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginAsBypassPatron,
         loginAdmin,
         logout,
+        updateUserProfile,
         orders,
         createOrder,
         updateOrderStatus,

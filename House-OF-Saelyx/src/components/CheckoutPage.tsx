@@ -18,6 +18,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { OrderConfirmationModal } from './OrderConfirmationModal';
 
 export const CheckoutPage: React.FC = () => {
   const { 
@@ -60,8 +61,21 @@ export const CheckoutPage: React.FC = () => {
   const [address, setAddress] = useState(savedDetailsObj?.address || '74 Ward Place, Rosmead Enclave');
   const [city, setCity] = useState(savedDetailsObj?.city || 'Colombo 07');
   const [postalCode, setPostalCode] = useState(savedDetailsObj?.postalCode || '00700');
-  const [country, setCountry] = useState(savedDetailsObj?.country || 'Sri Lanka');
+  const [country, setCountry] = useState(savedDetailsObj?.country || user?.country || 'Sri Lanka');
   const [notes, setNotes] = useState(savedDetailsObj?.notes || 'Please ring gate intercom for white-glove hand-delivery.');
+
+  // Pre-fill fields whenever authenticated user profile is loaded
+  useEffect(() => {
+    if (user) {
+      if (!customerName && user.name) setCustomerName(user.name);
+      if (!email && user.email) setEmail(user.email);
+      if (!phone && user.phoneNumber) setPhone(user.phoneNumber);
+      if (user.address && (!savedDetailsObj || !savedDetailsObj.address)) setAddress(user.address);
+      if (user.city && (!savedDetailsObj || !savedDetailsObj.city)) setCity(user.city);
+      if (user.postalCode && (!savedDetailsObj || !savedDetailsObj.postalCode)) setPostalCode(user.postalCode);
+      if (user.country && (!savedDetailsObj || !savedDetailsObj.country)) setCountry(user.country);
+    }
+  }, [user]);
 
   const [paymentMethod, setPaymentMethod] = useState<'payhere' | 'paypal' | 'binance_qr' | 'cod'>('payhere');
   
@@ -373,6 +387,13 @@ export const CheckoutPage: React.FC = () => {
   if (confirmedOrder) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-32 pb-24 px-5 sm:px-8">
+        <OrderConfirmationModal
+          order={confirmedOrder}
+          onClose={() => {
+            setConfirmedOrder(null);
+            navigateTo({ name: 'home' });
+          }}
+        />
         <div className="max-w-xl mx-auto bg-white p-8 sm:p-12 rounded-2xl border border-[#EAE3D9] shadow-[0_2px_16px_rgba(0,0,0,0.03)] text-center space-y-6 animate-in fade-in">
           <div className="w-14 h-14 bg-[#FAF8F5] border border-[#EAE3D9] text-emerald-800 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-8 h-8 stroke-[1.5]" />
@@ -407,16 +428,17 @@ export const CheckoutPage: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
-              onClick={() => navigateTo({ name: 'track', orderId: confirmedOrder.orderNumber })}
-              className="flex-1 h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase font-medium tracking-[0.2em] rounded-xl transition-all"
+              onClick={() => navigateTo({ name: 'orders' })}
+              className="flex-1 h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase font-medium tracking-[0.2em] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
-              Track Live Courier Van →
+              <span>CONTINUE TO MY ORDERS</span>
+              <span>→</span>
             </button>
             <button
-              onClick={() => navigateTo({ name: 'home' })}
-              className="px-6 h-12 bg-white border border-[#D5CBBF] text-[#1A1816] text-[11px] uppercase font-medium tracking-[0.2em] rounded-xl hover:bg-[#FAF8F5] transition-colors"
+              onClick={() => navigateTo({ name: 'track-order', orderId: confirmedOrder.orderNumber })}
+              className="px-6 h-12 bg-white border border-[#D5CBBF] text-[#1A1816] text-[11px] uppercase font-medium tracking-[0.18em] rounded-xl hover:bg-[#FAF8F5] transition-colors cursor-pointer"
             >
-              Return to Boutique
+              Track Order
             </button>
           </div>
         </div>

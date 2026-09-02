@@ -692,16 +692,21 @@ class StoreDB {
     return this.data.orders.find(o => o.id === id || o.orderNumber.toLowerCase() === id.toLowerCase() || o.phone.replace(/\s+/g, '') === id.replace(/\s+/g, ''));
   }
 
-  createOrder(orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'>): Order {
-    const orderNum = `SLX-${Math.floor(10000 + Math.random() * 90000)}`;
+  createOrder(orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'> & { orderNumber?: string }): Order {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const orderNum = orderData.orderNumber || `SOX-${yyyy}${mm}${dd}-${rand}`;
     const newOrder: Order = {
       ...orderData,
       id: orderNum,
       orderNumber: orderNum,
       createdAt: new Date().toISOString(),
       status: 'placed',
-      trackingNumber: orderData.trackingNumber || `SLX-TRK-${Math.floor(100000 + Math.random() * 900000)}`,
-      courierName: orderData.courierName || 'SAELYX Direct Courier',
+      trackingNumber: orderData.trackingNumber || `SOX-TRK-${Math.floor(100000 + Math.random() * 900000)}`,
+      courierName: orderData.courierName || 'SAELYX Direct White-Glove Courier',
       deliveryEta: orderData.deliveryEta || 'Estimated in 1-2 Business Days',
       statusHistory: [
         {

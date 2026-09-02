@@ -24,6 +24,11 @@ import { CareShippingPage } from './components/CareShippingPage';
 import { CareConciergePage } from './components/CareConciergePage';
 import { CareSizeGuidePage } from './components/CareSizeGuidePage';
 import { CareAuthenticityPage } from './components/CareAuthenticityPage';
+import { ProfilePage } from './components/ProfilePage';
+import { OrdersPage } from './components/OrdersPage';
+import { TrackOrderPage } from './components/TrackOrderPage';
+import { VipPage } from './components/VipPage';
+import { ContactSupportPage } from './components/ContactSupportPage';
 import { ScrollToTop } from './components/ScrollToTop';
 
 const StoreContent: React.FC = () => {
@@ -91,6 +96,17 @@ const StoreContent: React.FC = () => {
         return <CollectionPage category={currentRoute.category || 'all'} />;
       case 'checkout':
         return <CheckoutPage />;
+      case 'profile':
+        return <ProfilePage />;
+      case 'orders':
+        return <OrdersPage />;
+      case 'track-order':
+      case 'track':
+        return <TrackOrderPage initialOrderId={(currentRoute as any).orderId} />;
+      case 'vip':
+        return <VipPage />;
+      case 'contact-support':
+        return <ContactSupportPage />;
       case 'legal-terms':
         return <LegalTermsPage />;
       case 'legal-privacy':
