@@ -22,7 +22,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
   const { navigateTo, logout } = useStore();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click or Escape
+  // Close on outside click or Escape key
   useEffect(() => {
     if (!isOpen) return;
 
@@ -38,11 +38,14 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
       }
     };
 
-    // Use a short delay or click event so button clicks inside the dropdown register cleanly
-    document.addEventListener('click', handleClickOutside);
+    // Delay attaching event listener by 50ms so the opening click does NOT immediately close it!
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 50);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      clearTimeout(timer);
       document.removeEventListener('click', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };

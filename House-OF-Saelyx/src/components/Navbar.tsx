@@ -125,7 +125,10 @@ export const Navbar: React.FC = () => {
           {user ? (
             <div className="relative">
               <button
-                onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAccountDropdownOpen((prev) => !prev);
+                }}
                 className="p-0.5 text-white/90 hover:text-white cursor-pointer flex items-center gap-1"
                 aria-label="User account"
               >
@@ -299,7 +302,10 @@ export const Navbar: React.FC = () => {
           {user ? (
             <div className="relative">
               <button
-                onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAccountDropdownOpen((prev) => !prev);
+                }}
                 className="flex items-center gap-2 text-[11px] lg:text-xs uppercase tracking-[0.18em] font-medium text-white/90 hover:text-white px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all cursor-pointer shadow-sm"
               >
                 <div className="w-4 h-4 rounded-full bg-white/20 text-[9px] flex items-center justify-center font-serif font-bold">
