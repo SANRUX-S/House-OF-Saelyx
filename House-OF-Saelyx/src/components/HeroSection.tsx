@@ -102,7 +102,7 @@ export const HeroSection: React.FC = () => {
       </div>
 
       {/* 3. FOREGROUND LAYER */}
-      <div className="relative z-20 max-w-7xl mx-auto h-full px-4 sm:px-10 md:px-14 flex flex-col justify-between pt-16 md:pt-28 pb-6">
+      <div className="relative z-20 w-full h-full px-6 sm:px-10 md:px-12 lg:px-16 flex flex-col justify-between pt-16 md:pt-24 pb-8">
         
         {/* Mobile Search Bar */}
         <div className="w-full md:hidden mb-2 z-30">
@@ -118,7 +118,7 @@ export const HeroSection: React.FC = () => {
         </div>
 
         {/* --- DESKTOP LAYOUT --- */}
-        <div className="hidden md:flex mt-auto mb-4 lg:mb-8 w-full flex-row items-end justify-between gap-8 z-20">
+        <div className="hidden md:flex mt-auto mb-4 lg:mb-6 w-full flex-row items-end justify-between gap-8 z-20">
           {/* Desktop Left Text Block */}
           <div className="max-w-md text-left flex flex-col items-start space-y-4">
             <span className="block text-[10px] font-semibold tracking-[0.25em] text-white/90 uppercase">
