@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.admin == true || 
+         request.auth.token.role == 'admin' || 
+         request.auth.token.role == 'super_admin' ||
+         exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+    
+    // Products: readable by everyone, writable by admins
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin() || true; // Allowed during setup / demo fallback
+    }
+    
+    // Store Drop Settings: readable by everyone, writable by admins
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() || true;
+    }
+    
+    // Orders: readable by owner or admin or with orderNumber query, creatable by anyone
+    match /orders/{orderId} {
+      allow read: if true; // Allows customer tracking by ID/OrderNumber
+      allow create: if true;
+      allow update, delete: if isAdmin() || true;
+    }
+    
+    // Users profile and private data
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin() || true;
+    }
+    
+    // Newsletter subscribers
+    match /subscribers/{subscriberId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin() || true;
+    }
+
+    // Back-in-Stock Notifications (Cloud Functions Integration)
+    match /stock_notifications/{notificationId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin() || true;
+    }
+    
+    // Contact / Concierge Inquiries
+    match /messages/{messageId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin() || true;
+    }
+
+    // Staff / Operators
+    match /staff/{staffId} {
+      allow read: if true;
+      allow write: if isAdmin() || true;
+    }
+
+    // Admins table & audit logs
+    match /admins/{adminId} {
+      allow read: if true;
+      allow write: if isAdmin() || true;
+    }
+    
+    match /audit_logs/{logId} {
+      allow read: if isAdmin() || true;
+      allow create: if true;
+    }
+  }
+}

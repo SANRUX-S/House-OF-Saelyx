@@ -1,0 +1,6 @@
+{
+  "name": "SAELYX — Made for Presence",
+  "description": "Minimalist luxury streetwear and ready-to-wear drops crafted for understated presence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

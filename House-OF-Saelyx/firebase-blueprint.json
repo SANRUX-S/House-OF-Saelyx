@@ -1,0 +1,166 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Atelier garment item in the store catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "priceLKR": { "type": "number" },
+        "category": { "type": "string", "enum": ["men", "women", "new", "collections", "knits"] },
+        "inStock": { "type": "boolean" },
+        "stockCount": { "type": "number" },
+        "sizes": { "type": "array" },
+        "images": { "type": "array" },
+        "badge": { "type": "string" },
+        "color": { "type": "string" },
+        "description": { "type": "string" },
+        "fabricDetails": { "type": "string" },
+        "fit": { "type": "string" }
+      },
+      "required": ["id", "title", "priceLKR", "category", "inStock", "stockCount"]
+    },
+    "StockNotification": {
+      "title": "StockNotification",
+      "description": "Customer email waitlist registration for back-in-stock notifications processed by Firebase Cloud Functions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "productTitle": { "type": "string" },
+        "productSlug": { "type": "string" },
+        "productImage": { "type": "string" },
+        "selectedSize": { "type": "string" },
+        "customerEmail": { "type": "string", "format": "email" },
+        "customerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "channel": { "type": "string", "enum": ["email", "sms", "both"] },
+        "notified": { "type": "boolean" },
+        "notifiedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "sent", "cancelled"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["productId", "productTitle", "customerEmail", "status", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "customerName": { "type": "string" },
+        "email": { "type": "string" },
+        "totalLKR": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["orderNumber", "customerName", "email", "totalLKR", "status"]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Concierge inquiry or bespoke consultation message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "topic": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "email", "message"]
+    },
+    "Subscriber": {
+      "title": "Subscriber",
+      "description": "Newsletter subscriber email",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System security and administrative audit record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "actor": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["timestamp", "actor", "action", "details"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Atelier patron and registered customer profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "joinedDate": { "type": "string" },
+        "ordersCount": { "type": "number" },
+        "phoneNumber": { "type": "string" },
+        "role": { "type": "string" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Atelier staff operator with special administrative clearance",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["username", "email", "role", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Store catalogue collection"
+    },
+    "/stock_notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/StockNotification" },
+      "description": "Back in stock notification waitlist requests triggerable by Cloud Functions"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer order documents"
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ContactMessage" },
+      "description": "Customer support and concierge messages"
+    },
+    "/subscribers/{subscriberId}": {
+      "schema": { "$ref": "#/entities/Subscriber" },
+      "description": "Newsletter subscribers"
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Atelier security logs"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Atelier registered customer records"
+    },
+    "/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/Staff" },
+      "description": "Atelier staff operator registry"
+    }
+  }
+}
