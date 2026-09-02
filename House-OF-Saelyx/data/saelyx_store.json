@@ -2,241 +2,251 @@
   "products": [
     {
       "id": "prod-01",
-      "createdAt": "2026-09-02T06:07:48.408Z",
-      "title": "SÆ SIGNATURE OVERSIZED TEE",
-      "badge": "DROP 001",
-      "subtitle": "Heavyweight Sand Khaki / 280 GSM Pure Combed Cotton",
-      "sizes": [
-        "S",
-        "M",
-        "L",
-        "XL"
-      ],
+      "category": "new",
+      "slug": "s-signature-oversized-tee",
       "hoverImage": "",
+      "priceLKR": 79000,
+      "fabricDetails": "100% Organic Heavyweight Cotton. Pre-shrunk, garment-dyed for ultra-soft tactile finish.",
+      "bulletDetails": [],
+      "description": "Constructed from custom-developed 280 GSM heavyweight combed cotton. Features a relaxed drop-shoulder silhouette with micro-embroidered SÆ chest signature.",
+      "createdAt": "2026-09-02T06:07:48.408Z",
+      "completeTheSetProductId": "",
+      "inStock": true,
       "color": "Sand Khaki",
       "images": [
         "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85",
         "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=1200&q=85"
       ],
-      "category": "new",
-      "slug": "s-signature-oversized-tee",
-      "fit": "Relaxed Oversized Fit",
-      "completeTheSetProductId": "",
-      "inStock": true,
-      "description": "Constructed from custom-developed 280 GSM heavyweight combed cotton. Features a relaxed drop-shoulder silhouette with micro-embroidered SÆ chest signature.",
-      "priceLKR": 79000,
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "subCategory": "Tops",
+      "subtitle": "Heavyweight Sand Khaki / 280 GSM Pure Combed Cotton",
       "stockCount": 42,
-      "bulletDetails": [],
-      "fabricDetails": "100% Organic Heavyweight Cotton. Pre-shrunk, garment-dyed for ultra-soft tactile finish.",
-      "subCategory": "Tops"
+      "badge": "DROP 001",
+      "fit": "Relaxed Oversized Fit",
+      "title": "SÆ SIGNATURE OVERSIZED TEE"
     },
     {
       "id": "prod-02",
-      "fabricDetails": "420 GSM Loopback French Terry. Custom dyed in organic desert sandstone.",
-      "description": "Designed for effortless movement with an architectural straight-leg drape, tonal woven drawstring, and deep concealed side welt pockets.",
       "category": "new",
+      "priceLKR": 7900,
+      "stockCount": 38,
+      "inStock": true,
       "images": [
         "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=1200&q=85",
         "https://images.unsplash.com/photo-1517445312882-bc9910d016b7?auto=format&fit=crop&w=1200&q=85"
       ],
       "subCategory": "Bottoms",
-      "priceLKR": 7900,
+      "fit": "Fluid Straight Leg",
+      "subtitle": "Relaxed Wide Drape / French Terry Weave",
+      "color": "Sandstone",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
       ],
-      "color": "Sandstone",
-      "stockCount": 38,
-      "badge": "DROP 001",
+      "description": "Designed for effortless movement with an architectural straight-leg drape, tonal woven drawstring, and deep concealed side welt pockets.",
+      "fabricDetails": "420 GSM Loopback French Terry. Custom dyed in organic desert sandstone.",
       "title": "SÆ LOUNGE PANTS",
-      "fit": "Fluid Straight Leg",
-      "inStock": true,
-      "slug": "s-lounge-pants",
-      "subtitle": "Relaxed Wide Drape / French Terry Weave"
+      "badge": "DROP 001",
+      "slug": "s-lounge-pants"
     },
     {
       "id": "prod-03",
-      "subtitle": "Double-Weave Thermal Knit / Custom Matte Hardware",
+      "inStock": true,
+      "subCategory": "Knits",
       "images": [
         "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85",
         "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1200&q=85"
       ],
-      "fabricDetails": "500 GSM Double-knit Cotton Blend with brushed interior fleece.",
+      "subtitle": "Double-Weave Thermal Knit / Custom Matte Hardware",
+      "description": "Heavyweight knit zip hoodie crafted with double-faced ribbing and dual-direction matte metal zipper. Minimalist warmth engineered for trans-seasonal presence.",
+      "title": "SÆ KNIT ZIP HOODIE",
       "stockCount": 29,
-      "inStock": true,
+      "badge": "DROP 001",
       "slug": "s-knit-zip-hoodie",
-      "color": "Oatmeal Heather",
-      "priceLKR": 7900,
+      "fit": "Boxy Structured Fit",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
       ],
-      "description": "Heavyweight knit zip hoodie crafted with double-faced ribbing and dual-direction matte metal zipper. Minimalist warmth engineered for trans-seasonal presence.",
-      "title": "SÆ KNIT ZIP HOODIE",
+      "color": "Oatmeal Heather",
       "category": "new",
-      "badge": "DROP 001",
-      "fit": "Boxy Structured Fit",
-      "subCategory": "Knits"
+      "fabricDetails": "500 GSM Double-knit Cotton Blend with brushed interior fleece.",
+      "priceLKR": 7900
     },
     {
       "id": "prod-04",
-      "fit": "Coordinated Oversized",
-      "subCategory": "Sets",
-      "inStock": true,
+      "color": "Desert Sand",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
       "category": "collections",
+      "inStock": true,
+      "description": "The definitive SAELYX ensemble. Combines our signature 280 GSM heavyweight tee with tailored 420 GSM French Terry drape trousers.",
+      "priceLKR": 15800,
+      "badge": "LIMITED DROP",
+      "isSpotlight": true,
+      "title": "THE SIGNATURE COORDINATES SET",
+      "subCategory": "Sets",
+      "fit": "Coordinated Oversized",
+      "fabricDetails": "Heavyweight Combed Cotton & Luxury Loopback Terry.",
+      "subtitle": "Signature Oversized Tee + Lounge Pants Duo",
+      "stockCount": 19,
       "images": [
         "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85",
         "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85"
       ],
-      "priceLKR": 15800,
-      "isSpotlight": true,
-      "description": "The definitive SAELYX ensemble. Combines our signature 280 GSM heavyweight tee with tailored 420 GSM French Terry drape trousers.",
-      "slug": "the-signature-coordinates-set",
-      "subtitle": "Signature Oversized Tee + Lounge Pants Duo",
-      "sizes": [
-        "S",
-        "M",
-        "L",
-        "XL"
-      ],
-      "color": "Desert Sand",
-      "fabricDetails": "Heavyweight Combed Cotton & Luxury Loopback Terry.",
-      "title": "THE SIGNATURE COORDINATES SET",
-      "badge": "LIMITED DROP",
-      "stockCount": 19
+      "slug": "the-signature-coordinates-set"
     },
     {
       "id": "prod-05",
-      "badge": "ESSENTIAL",
-      "slug": "s-heavyweight-crewneck",
       "title": "SÆ HEAVYWEIGHT CREWNECK",
-      "inStock": true,
+      "badge": "ESSENTIAL",
+      "fit": "Boxy Classic",
+      "subtitle": "Monochrome Drop-Shoulder / 450 GSM Fleece",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
       ],
+      "color": "Chalk Beige",
+      "fabricDetails": "100% Ring-Spun Heavyweight Cotton Fleece.",
+      "stockCount": 24,
       "images": [
         "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=1200&q=85"
       ],
-      "color": "Chalk Beige",
-      "subtitle": "Monochrome Drop-Shoulder / 450 GSM Fleece",
-      "description": "Sculpted crewneck with reinforced cross-grain side panels and high-density ribbed collar that maintains shape wear after wear.",
-      "fit": "Boxy Classic",
-      "fabricDetails": "100% Ring-Spun Heavyweight Cotton Fleece.",
       "category": "men",
-      "subCategory": "Tops",
+      "description": "Sculpted crewneck with reinforced cross-grain side panels and high-density ribbed collar that maintains shape wear after wear.",
+      "slug": "s-heavyweight-crewneck",
+      "inStock": true,
       "priceLKR": 8400,
-      "stockCount": 24
+      "subCategory": "Tops"
     },
     {
       "id": "prod-06",
-      "fabricDetails": "95% Modal Cotton, 5% Elastane.",
-      "stockCount": 35,
-      "description": "High-neck cropped tank with engineered micro-ribbing for sculpted support and zero chafing. Subtle tonal SÆ logo at center back neckline.",
-      "fit": "Fitted Contour",
-      "images": [
-        "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85"
-      ],
-      "slug": "s-ribbed-cropped-tank",
       "subtitle": "Seamless Form Weave / Minimalist Embroidered Logo",
-      "subCategory": "Tops",
-      "inStock": true,
-      "category": "women",
+      "badge": "NEW",
+      "stockCount": 35,
+      "title": "SÆ RIBBED CROPPED TANK",
       "sizes": [
         "XS",
         "S",
         "M",
         "L"
       ],
+      "images": [
+        "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85"
+      ],
       "color": "Vanilla Cream",
-      "badge": "NEW",
-      "title": "SÆ RIBBED CROPPED TANK",
-      "priceLKR": 5900
+      "slug": "s-ribbed-cropped-tank",
+      "inStock": true,
+      "category": "women",
+      "fabricDetails": "95% Modal Cotton, 5% Elastane.",
+      "priceLKR": 5900,
+      "description": "High-neck cropped tank with engineered micro-ribbing for sculpted support and zero chafing. Subtle tonal SÆ logo at center back neckline.",
+      "fit": "Fitted Contour",
+      "subCategory": "Tops"
     },
     {
       "id": "prod-07",
-      "title": "SÆ TAILORED SWEATSHORTS",
-      "badge": "NEW",
-      "priceLKR": 6900,
-      "category": "men",
+      "images": [
+        "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=1200&q=85"
+      ],
       "color": "Sandstone",
-      "description": "Mid-thigh casual luxury sweatshorts with deep slash pockets, heavy cotton cords, and custom matte eyelets.",
+      "fabricDetails": "380 GSM Organic French Terry.",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
       ],
-      "fit": "Relaxed 6.5\" Inseam",
-      "subCategory": "Bottoms",
-      "images": [
-        "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=1200&q=85"
-      ],
-      "stockCount": 31,
       "slug": "s-tailored-sweatshorts",
+      "title": "SÆ TAILORED SWEATSHORTS",
+      "badge": "NEW",
       "subtitle": "Relaxed Inseam / Raw-Edge Hemming",
-      "fabricDetails": "380 GSM Organic French Terry.",
+      "subCategory": "Bottoms",
+      "stockCount": 31,
+      "description": "Mid-thigh casual luxury sweatshorts with deep slash pockets, heavy cotton cords, and custom matte eyelets.",
+      "priceLKR": 6900,
+      "fit": "Relaxed 6.5\" Inseam",
+      "category": "men",
       "inStock": true
     },
     {
       "id": "prod-08",
-      "inStock": true,
-      "stockCount": 14,
-      "slug": "s-minimalist-duffle-bag",
-      "subtitle": "Water-Resistant Cotton Canvas / Tuscan Leather Accents",
       "fabricDetails": "Heavyweight Waxed Canvas & Vegetable Tanned Leather.",
       "bulletDetails": [],
+      "category": "collections",
+      "inStock": true,
       "images": [
         "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=1200&q=85"
       ],
-      "hoverImage": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85",
-      "description": "Understated travel essential. High-density woven canvas with brushed stainless hardware and magnetic quick-access pockets.",
-      "category": "collections",
-      "completeTheSetProductId": "",
-      "title": "SÆ MINIMALIST DUFFLE BAG",
-      "fit": "35L Capacity",
-      "badge": "LIMITED",
       "priceLKR": 14500,
-      "color": "Matte Dune",
       "subCategory": "Accessories",
+      "stockCount": 14,
+      "slug": "s-minimalist-duffle-bag",
+      "description": "Understated travel essential. High-density woven canvas with brushed stainless hardware and magnetic quick-access pockets.",
+      "completeTheSetProductId": "",
+      "fit": "35L Capacity",
+      "subtitle": "Water-Resistant Cotton Canvas / Tuscan Leather Accents",
       "sizes": [
         "ONE SIZE"
-      ]
+      ],
+      "color": "Matte Dune",
+      "title": "SÆ MINIMALIST DUFFLE BAG",
+      "badge": "LIMITED",
+      "hoverImage": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85"
     },
     {
       "id": "prod-mtiy4opf",
-      "slug": "test",
-      "priceLKR": 38500,
       "images": [
         "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80"
       ],
-      "inStock": true,
+      "priceLKR": 38500,
+      "slug": "test",
       "category": "men",
-      "stockCount": 50,
       "description": "test test testtest test testtest test testtest test testtest test testtest test testtest test test",
       "fabricDetails": "280 GSM Heavyweight Combed Cotton",
-      "badge": "DROP 001",
-      "title": "Test",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
       ],
+      "inStock": true,
+      "stockCount": 50,
+      "badge": "DROP 001",
+      "title": "Test",
       "subtitle": "test test test"
     },
     {
       "id": "prod-mtj5ymhb",
-      "description": "A structural, sculptural draping garment custom-crafted for the SAELYX collection.",
-      "subtitle": "400 GSM Heavyweight",
-      "createdAt": "2026-09-01T21:12:48.719Z",
       "hoverImage": "",
+      "completeTheSetProductId": "",
+      "priceLKR": 38500,
+      "inStock": true,
+      "createdAt": "2026-09-01T21:12:48.719Z",
+      "description": "A structural, sculptural draping garment custom-crafted for the SAELYX collection.",
+      "category": "men",
+      "stockCount": 50,
+      "fit": "Architectural Relaxed",
+      "images": [
+        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80"
+      ],
+      "slug": "test-002",
+      "title": "TEST 002",
       "fabricDetails": "400 GSM Heavyweight Combed Cotton",
       "bulletDetails": [
         "Heavyweight 400 GSM custom combed cotton",
@@ -245,36 +255,31 @@
         "Multi-panel construction with flatlock reinforced seams",
         "Tonal embroidered signature micro-emblem"
       ],
-      "inStock": true,
+      "badge": "TEST DROP 002",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
       ],
-      "color": "Noir Black",
-      "priceLKR": 38500,
-      "badge": "TEST DROP 002",
-      "title": "TEST 002",
-      "category": "men",
-      "fit": "Architectural Relaxed",
-      "stockCount": 50,
-      "slug": "test-002",
-      "completeTheSetProductId": "",
-      "images": [
-        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80"
-      ]
+      "subtitle": "400 GSM Heavyweight",
+      "color": "Noir Black"
     }
   ],
   "orders": [
     {
-      "customerName": "House of Saelyx VIP Patron",
-      "email": "houseofsaelyx@gmail.com",
-      "phone": "732732728282",
-      "address": "74 Ward Place, Rosmead Enclave",
+      "id": "SOX-20260903-7964",
+      "userId": "vip-patron-demo",
+      "notes": "Please ring gate intercom for white-glove hand-delivery.",
+      "status": "placed",
       "city": "Colombo 07",
-      "postalCode": "00700",
-      "country": "Sri Lanka",
+      "createdAt": "2026-09-02T19:21:08.696Z",
+      "deliveryEta": "Today by 5:30 PM (Priority Hand-Delivery)",
+      "phone": "732732728282",
+      "trackingNumber": "EXP-702932",
+      "totalInCurrency": 79000,
+      "shippingLKR": 0,
+      "courierName": "Saelyx White-Glove Van 04",
       "items": [
         {
           "productId": "prod-01",
@@ -286,21 +291,10 @@
         }
       ],
       "subtotalLKR": 79000,
-      "shippingLKR": 0,
-      "totalLKR": 79000,
+      "customerName": "House of Saelyx VIP Patron",
+      "address": "74 Ward Place, Rosmead Enclave",
       "currencyUsed": "LKR",
-      "totalInCurrency": 79000,
-      "status": "placed",
       "paymentMethod": "cod",
-      "paymentStatus": "pending_delivery",
-      "trackingNumber": "EXP-702932",
-      "courierName": "Saelyx White-Glove Van 04",
-      "deliveryEta": "Today by 5:30 PM (Priority Hand-Delivery)",
-      "notes": "Please ring gate intercom for white-glove hand-delivery.",
-      "id": "SOX-20260903-7964",
-      "orderNumber": "SOX-20260903-7964",
-      "userId": "vip-patron-demo",
-      "createdAt": "2026-09-02T19:21:08.696Z",
       "statusHistory": [
         {
           "status": "placed",
@@ -308,22 +302,31 @@
           "note": "Order successfully placed by customer.",
           "location": "SAELYX Online System"
         }
-      ]
+      ],
+      "totalLKR": 79000,
+      "email": "houseofsaelyx@gmail.com",
+      "postalCode": "00700",
+      "paymentStatus": "pending_delivery",
+      "orderNumber": "SOX-20260903-7964",
+      "country": "Sri Lanka"
     },
     {
       "id": "SLX-85885",
-      "subtotalLKR": 16800,
-      "trackingNumber": "EXP-203235",
       "courierName": "Saelyx White-Glove Van 04",
-      "currencyUsed": "LKR",
-      "status": "placed",
-      "customerName": "okindu",
+      "subtotalLKR": 16800,
+      "address": "74 Ward Place, Rosmead Enclave",
+      "paymentMethod": "cod",
+      "statusHistory": [
+        {
+          "status": "placed",
+          "timestamp": "2026-09-02T17:31:09.608Z",
+          "note": "Order successfully placed by customer.",
+          "location": "SAELYX Online System"
+        }
+      ],
       "totalInCurrency": 19300,
-      "totalLKR": 19300,
-      "email": "houseofsaelyx@gmail.com",
+      "paymentStatus": "pending_delivery",
       "orderNumber": "SLX-85885",
-      "postalCode": "00700",
-      "userId": "vip-patron-demo",
       "items": [
         {
           "productId": "prod-06",
@@ -342,32 +345,52 @@
           "quantity": 1
         }
       ],
-      "address": "74 Ward Place, Rosmead Enclave",
-      "paymentStatus": "pending_delivery",
-      "city": "Colombo 07",
-      "phone": "070124589",
-      "shippingLKR": 2500,
-      "createdAt": "2026-09-02T17:31:09.608Z",
-      "notes": "Please ring gate intercom for white-glove hand-delivery.",
+      "email": "houseofsaelyx@gmail.com",
       "country": "Sri Lanka",
+      "trackingNumber": "EXP-203235",
+      "phone": "070124589",
+      "totalLKR": 19300,
+      "postalCode": "00700",
+      "createdAt": "2026-09-02T17:31:09.608Z",
+      "status": "placed",
+      "deliveryEta": "Today by 5:30 PM (Priority Hand-Delivery)",
+      "customerName": "okindu",
+      "currencyUsed": "LKR",
+      "shippingLKR": 2500,
+      "city": "Colombo 07",
+      "userId": "vip-patron-demo",
+      "notes": "Please ring gate intercom for white-glove hand-delivery."
+    },
+    {
+      "id": "SLX-56850",
+      "totalInCurrency": 55300,
+      "status": "placed",
+      "totalLKR": 55300,
+      "courierName": "SAELYX Express Concierge",
+      "address": "TEST 00, TEST",
+      "phone": "+94 7777777777",
+      "userId": "admin-super-001",
+      "city": "Colombo",
+      "subtotalLKR": 55300,
+      "trackingNumber": "SLX-TRK-360429",
+      "deliveryEta": "Tomorrow by 3:00 PM (Direct Hand Delivery)",
+      "currencyUsed": "LKR",
+      "orderNumber": "SLX-56850",
+      "customerName": "House Of Saelyx",
+      "email": "houseofsaelyx@gmail.com",
+      "country": "Sri Lanka",
+      "notes": "Please call before arrival.",
+      "shippingLKR": 0,
       "statusHistory": [
         {
           "status": "placed",
-          "timestamp": "2026-09-02T17:31:09.608Z",
+          "timestamp": "2026-09-01T21:29:59.111Z",
           "note": "Order successfully placed by customer.",
           "location": "SAELYX Online System"
         }
       ],
-      "paymentMethod": "cod",
-      "deliveryEta": "Today by 5:30 PM (Priority Hand-Delivery)"
-    },
-    {
-      "id": "SLX-56850",
-      "email": "houseofsaelyx@gmail.com",
-      "notes": "Please call before arrival.",
-      "subtotalLKR": 55300,
-      "city": "Colombo",
-      "courierName": "SAELYX Express Concierge",
+      "createdAt": "2026-09-01T21:29:59.111Z",
+      "postalCode": "",
       "items": [
         {
           "productId": "prod-04",
@@ -385,40 +408,27 @@
           "size": "S",
           "quantity": 1
         }
-      ],
-      "country": "Sri Lanka",
+      ]
+    },
+    {
+      "id": "SLX-79015",
+      "courierName": "SAELYX Express Concierge",
+      "address": "TEST 00, TEST",
+      "userId": "admin-super-001",
+      "createdAt": "2026-09-01T21:18:45.475Z",
+      "email": "houseofsaelyx@gmail.com",
+      "notes": "Please call before arrival.",
+      "subtotalLKR": 15800,
+      "status": "placed",
       "statusHistory": [
         {
           "status": "placed",
-          "timestamp": "2026-09-01T21:29:59.111Z",
+          "timestamp": "2026-09-01T21:18:45.475Z",
           "note": "Order successfully placed by customer.",
           "location": "SAELYX Online System"
         }
       ],
-      "createdAt": "2026-09-01T21:29:59.111Z",
-      "totalLKR": 55300,
-      "status": "placed",
-      "shippingLKR": 0,
-      "totalInCurrency": 55300,
-      "userId": "admin-super-001",
-      "trackingNumber": "SLX-TRK-360429",
-      "customerName": "House Of Saelyx",
-      "orderNumber": "SLX-56850",
-      "phone": "+94 7777777777",
-      "postalCode": "",
-      "deliveryEta": "Tomorrow by 3:00 PM (Direct Hand Delivery)",
-      "currencyUsed": "LKR",
-      "address": "TEST 00, TEST"
-    },
-    {
-      "id": "SLX-79015",
-      "subtotalLKR": 15800,
-      "status": "placed",
-      "totalLKR": 15800,
-      "notes": "Please call before arrival.",
-      "email": "houseofsaelyx@gmail.com",
-      "courierName": "SAELYX Express Concierge",
-      "userId": "admin-super-001",
+      "city": "Colombo",
       "items": [
         {
           "productId": "prod-04",
@@ -429,41 +439,23 @@
           "quantity": 1
         }
       ],
-      "address": "TEST 00, TEST",
-      "postalCode": "",
       "trackingNumber": "SLX-TRK-219064",
-      "customerName": "House Of Saelyx",
       "totalInCurrency": 15800,
-      "statusHistory": [
-        {
-          "status": "placed",
-          "timestamp": "2026-09-01T21:18:45.475Z",
-          "note": "Order successfully placed by customer.",
-          "location": "SAELYX Online System"
-        }
-      ],
-      "shippingLKR": 0,
-      "currencyUsed": "LKR",
-      "city": "Colombo",
-      "phone": "+94 7777777777",
-      "createdAt": "2026-09-01T21:18:45.475Z",
+      "country": "Sri Lanka",
       "deliveryEta": "Tomorrow by 3:00 PM (Direct Hand Delivery)",
       "orderNumber": "SLX-79015",
-      "country": "Sri Lanka"
+      "totalLKR": 15800,
+      "postalCode": "",
+      "phone": "+94 7777777777",
+      "customerName": "House Of Saelyx",
+      "currencyUsed": "LKR",
+      "shippingLKR": 0
     },
     {
       "id": "ord-mtj0jv8w",
-      "createdAt": "2026-09-01T18:41:22.160Z",
-      "subtotalLKR": 237000,
-      "postalCode": "",
-      "totalInCurrency": 237000,
-      "phone": "-94 784543543",
-      "courierName": "SAELYX Express Concierge",
-      "city": "Colombo",
-      "address": "test lane, test",
-      "trackingNumber": "SLX-TRK-718533",
       "totalLKR": 237000,
-      "status": "placed",
+      "courierName": "SAELYX Express Concierge",
+      "totalInCurrency": 237000,
       "statusHistory": [
         {
           "status": "placed",
@@ -472,12 +464,19 @@
           "location": "SAELYX Online System"
         }
       ],
+      "city": "Colombo",
+      "subtotalLKR": 237000,
+      "phone": "-94 784543543",
+      "postalCode": "",
+      "country": "Sri Lanka",
+      "trackingNumber": "SLX-TRK-718533",
       "email": "teset@test.com",
-      "shippingLKR": 0,
+      "status": "placed",
       "notes": "Please call before arrival.",
-      "currencyUsed": "LKR",
-      "deliveryEta": "Tomorrow by 3:00 PM (Direct Hand Delivery)",
       "orderNumber": "SLX-64984",
+      "deliveryEta": "Tomorrow by 3:00 PM (Direct Hand Delivery)",
+      "customerName": "Test brother",
+      "createdAt": "2026-09-01T18:41:22.160Z",
       "items": [
         {
           "productId": "prod-04",
@@ -488,17 +487,21 @@
           "quantity": 15
         }
       ],
-      "customerName": "Test brother",
-      "country": "Sri Lanka"
+      "currencyUsed": "LKR",
+      "shippingLKR": 0,
+      "address": "test lane, test"
     },
     {
       "id": "ord-mtizi1lr",
-      "notes": "Please call before arrival.",
       "customerName": "Kasun Fernando",
-      "currencyUsed": "LKR",
-      "country": "Sri Lanka",
+      "notes": "Please call before arrival.",
+      "totalInCurrency": 23700,
       "email": "name@domain.com",
-      "courierName": "SAELYX Express Concierge",
+      "currencyUsed": "LKR",
+      "trackingNumber": "SLX-TRK-929595",
+      "orderNumber": "SLX-97200",
+      "country": "Sri Lanka",
+      "deliveryEta": "Tomorrow by 3:00 PM (Direct Hand Delivery)",
       "items": [
         {
           "productId": "prod-04",
@@ -517,18 +520,13 @@
           "quantity": 1
         }
       ],
-      "subtotalLKR": 23700,
-      "totalInCurrency": 23700,
-      "city": "Colombo",
-      "deliveryEta": "Tomorrow by 3:00 PM (Direct Hand Delivery)",
       "createdAt": "2026-09-01T18:11:57.471Z",
-      "address": "Apt 4B, Flower Road",
-      "orderNumber": "SLX-97200",
-      "totalLKR": 23700,
-      "status": "placed",
       "shippingLKR": 0,
-      "trackingNumber": "SLX-TRK-929595",
-      "postalCode": "",
+      "status": "placed",
+      "city": "Colombo",
+      "courierName": "SAELYX Express Concierge",
+      "totalLKR": 23700,
+      "address": "Apt 4B, Flower Road",
       "statusHistory": [
         {
           "status": "placed",
@@ -537,21 +535,17 @@
           "location": "SAELYX Online System"
         }
       ],
+      "subtotalLKR": 23700,
+      "postalCode": "",
       "phone": "-94 7777777777"
     },
     {
       "id": "ord-1002",
-      "subtotalLKR": 15800,
+      "customerName": "Sarah Kingsley",
+      "city": "London",
+      "currencyUsed": "GBP",
       "phone": "+44 7911 123456",
-      "courierName": "DHL Express Worldwide",
-      "totalInCurrency": 52.5,
-      "address": "14 Kensington Square",
-      "totalLKR": 20300,
-      "status": "dispatched",
-      "postalCode": "W8 5HH",
       "shippingLKR": 4500,
-      "email": "sarah.k@fashionstudio.co.uk",
-      "createdAt": "2026-08-31T23:02:03.975Z",
       "statusHistory": [
         {
           "status": "placed",
@@ -566,11 +560,11 @@
           "location": "CMB Air Freight Cargo Hub"
         }
       ],
-      "currencyUsed": "GBP",
-      "customerName": "Sarah Kingsley",
-      "city": "London",
-      "trackingNumber": "DHL-EXP-440192",
+      "address": "14 Kensington Square",
+      "deliveryEta": "Thursday, Sept 3",
+      "status": "dispatched",
       "orderNumber": "SLX-94822",
+      "subtotalLKR": 15800,
       "items": [
         {
           "productId": "prod-04",
@@ -581,25 +575,18 @@
           "quantity": 1
         }
       ],
+      "trackingNumber": "DHL-EXP-440192",
       "country": "United Kingdom",
-      "deliveryEta": "Thursday, Sept 3"
+      "courierName": "DHL Express Worldwide",
+      "postalCode": "W8 5HH",
+      "email": "sarah.k@fashionstudio.co.uk",
+      "totalLKR": 20300,
+      "createdAt": "2026-08-31T23:02:03.975Z",
+      "totalInCurrency": 52.5
     },
     {
       "id": "ord-1001",
       "totalLKR": 15800,
-      "city": "Colombo 07",
-      "status": "out_for_delivery",
-      "customerName": "Ashan Perera",
-      "trackingNumber": "SLX-EXP-88914",
-      "totalInCurrency": 15800,
-      "shippingLKR": 0,
-      "currencyUsed": "LKR",
-      "deliveryEta": "Today by 4:30 PM (Direct Hand Delivery)",
-      "phone": "+94 77 123 4567",
-      "orderNumber": "SLX-94821",
-      "country": "Sri Lanka",
-      "subtotalLKR": 15800,
-      "email": "ashan.perera@gmail.com",
       "items": [
         {
           "productId": "prod-01",
@@ -618,9 +605,21 @@
           "quantity": 1
         }
       ],
-      "courierName": "SAELYX White-Glove Dispatch",
+      "city": "Colombo 07",
+      "status": "out_for_delivery",
+      "shippingLKR": 0,
+      "customerName": "Ashan Perera",
+      "email": "ashan.perera@gmail.com",
+      "currencyUsed": "LKR",
+      "country": "Sri Lanka",
+      "totalInCurrency": 15800,
+      "deliveryEta": "Today by 4:30 PM (Direct Hand Delivery)",
+      "orderNumber": "SLX-94821",
+      "subtotalLKR": 15800,
       "createdAt": "2026-08-31T05:02:03.975Z",
-      "postalCode": "00700",
+      "phone": "+94 77 123 4567",
+      "courierName": "SAELYX White-Glove Dispatch",
+      "address": "42 Ward Place, Cinnamon Gardens",
       "statusHistory": [
         {
           "status": "placed",
@@ -647,7 +646,8 @@
           "location": "En route, Ward Place"
         }
       ],
-      "address": "42 Ward Place, Cinnamon Gardens"
+      "trackingNumber": "SLX-EXP-88914",
+      "postalCode": "00700"
     }
   ],
   "settings": {

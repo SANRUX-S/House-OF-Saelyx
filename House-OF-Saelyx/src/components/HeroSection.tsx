@@ -118,26 +118,26 @@ export const HeroSection: React.FC = () => {
         </div>
 
         {/* --- DESKTOP LAYOUT --- */}
-        <div className="hidden md:flex my-auto w-full flex-row items-end justify-between gap-6 pt-16">
+        <div className="hidden md:flex mt-auto mb-4 lg:mb-8 w-full flex-row items-end justify-between gap-8 z-20">
           {/* Desktop Left Text Block */}
-          <div className="w-[325px] text-left flex flex-col items-start md:-translate-x-[160px] md:translate-y-[60px] mt-[158px] -ml-[3px] transition-transform px-1">
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-white/90 uppercase mb-3">
+          <div className="max-w-md text-left flex flex-col items-start space-y-4">
+            <span className="block text-[10px] font-semibold tracking-[0.25em] text-white/90 uppercase">
               NEW COLLECTION
             </span>
 
-            <h2 className="font-serif text-5xl lg:text-[52px] font-normal tracking-wide text-white uppercase leading-[1.15] drop-shadow-lg max-w-md mb-5">
+            <h2 className="font-serif text-4xl lg:text-5xl xl:text-[52px] font-normal tracking-wide text-white uppercase leading-[1.12] drop-shadow-xl">
               MADE FOR <br />
               PRESENCE
             </h2>
 
-            <p className="text-white/90 text-xs sm:text-sm font-light tracking-wide max-w-xs leading-relaxed drop-shadow-md mb-7">
+            <p className="text-white/90 text-xs lg:text-sm font-light tracking-wide max-w-sm leading-relaxed drop-shadow-md">
               Designed for those who enter a room before they speak.
             </p>
 
-            <div>
+            <div className="pt-2">
               <button
                 onClick={scrollToDrops}
-                className="group inline-flex items-center gap-2.5 bg-white text-[#181614] hover:bg-white/90 px-7 py-2.5 rounded-full text-[11px] font-semibold uppercase tracking-[0.15em] shadow-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                className="group inline-flex items-center gap-2.5 bg-white text-[#181614] hover:bg-white/90 px-7 py-3 rounded-full text-[11px] font-semibold uppercase tracking-[0.18em] shadow-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
                 <span>EXPLORE COLLECTION</span>
                 <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" />
@@ -145,12 +145,12 @@ export const HeroSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Desktop Right Showcase Card */}
+          {/* Desktop Right Showcase Card (3 items slider) */}
           {currentFloatingProduct && (
-            <div className="w-auto flex flex-col items-end gap-2.5 transition-transform md:translate-x-[140px] md:translate-y-[45px]">
+            <div className="w-auto flex flex-col items-end gap-3 z-20">
               <div
                 onClick={() => setActiveModalProduct(currentFloatingProduct)}
-                className="relative w-[280px] aspect-[16/10] rounded-2xl overflow-hidden shadow-2xl border border-white/20 cursor-pointer transition-all duration-300 active:scale-95 bg-neutral-900 group"
+                className="relative w-[290px] lg:w-[320px] aspect-[16/10] rounded-2xl overflow-hidden shadow-2xl border border-white/20 cursor-pointer transition-all duration-300 hover:shadow-white/10 active:scale-95 bg-neutral-900 group"
               >
                 <img
                   src={currentFloatingProduct.images[0] || 'https://houseofsaelyx.vercel.app/images/hero19201080.avif'}
@@ -159,14 +159,14 @@ export const HeroSection: React.FC = () => {
                   referrerPolicy="no-referrer"
                 />
                 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
 
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setActiveSlide((prev) => (prev - 1 + heroFeaturedItems.length) % heroFeaturedItems.length);
                   }}
-                  className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/50 text-white/90 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity hover:bg-black/80 active:scale-90 cursor-pointer z-10"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/60 text-white/90 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity hover:bg-black/90 active:scale-90 cursor-pointer z-10"
                   aria-label="Previous product"
                   title="Previous product"
                 >
@@ -177,20 +177,20 @@ export const HeroSection: React.FC = () => {
                     e.stopPropagation();
                     setActiveSlide((prev) => (prev + 1) % heroFeaturedItems.length);
                   }}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/50 text-white/90 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity hover:bg-black/80 active:scale-90 cursor-pointer z-10"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/60 text-white/90 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity hover:bg-black/90 active:scale-90 cursor-pointer z-10"
                   aria-label="Next product"
                   title="Next product"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
 
-                <div className="absolute inset-0 p-3.5 flex flex-col justify-end text-white text-left pointer-events-none">
+                <div className="absolute inset-0 p-4 flex flex-col justify-end text-white text-left pointer-events-none">
                   <div className="flex items-end justify-between pointer-events-auto">
                     <div className="min-w-0 pr-2">
-                      <h4 className="text-[10px] font-sans font-semibold tracking-[0.12em] uppercase truncate drop-shadow">
+                      <h4 className="text-[11px] font-sans font-semibold tracking-[0.15em] uppercase truncate drop-shadow">
                         {currentFloatingProduct.title}
                       </h4>
-                      <p className="text-[10px] font-mono text-white/90 drop-shadow mt-0.5">
+                      <p className="text-[10.5px] font-mono text-white/90 drop-shadow mt-0.5">
                         {formatPrice ? formatPrice(currentFloatingProduct.priceLKR) : `LKR ${currentFloatingProduct.priceLKR?.toLocaleString()}`}
                       </p>
                     </div>
@@ -199,7 +199,7 @@ export const HeroSection: React.FC = () => {
                         e.stopPropagation();
                         addToCart(currentFloatingProduct);
                       }}
-                      className="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center shadow-md transition-all active:scale-95 hover:bg-neutral-100 flex-shrink-0 cursor-pointer"
+                      className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shadow-md transition-all active:scale-95 hover:bg-neutral-100 flex-shrink-0 cursor-pointer"
                       aria-label="Quick Add to Bag"
                       title="Quick Add to Bag"
                     >
@@ -210,7 +210,7 @@ export const HeroSection: React.FC = () => {
               </div>
 
               {/* Slider Controls */}
-              <div className="flex items-center justify-between w-full max-w-[280px] px-1">
+              <div className="flex items-center justify-between w-full max-w-[290px] lg:max-w-[320px] px-1">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
