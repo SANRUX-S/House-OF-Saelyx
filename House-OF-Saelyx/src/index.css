@@ -1,1 +1,44 @@
 @import "tailwindcss";
+
+/* ==========================================================================
+   SAELYX Luxury Global Custom Scrollbar Styling
+   ========================================================================== */
+
+html {
+  scroll-behavior: smooth;
+  background-color: #0C0B0A;
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(217, 119, 6, 0.6) #141210;
+}
+
+/* WebKit browsers (Chrome, Edge, Safari, Opera) */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141210 !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(217, 119, 6, 0.5);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.95);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #d97706;
+}
+
+::-webkit-scrollbar-corner {
+  background: #141210 !important;
+}
