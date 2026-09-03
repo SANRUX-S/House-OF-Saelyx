@@ -30,6 +30,7 @@ import { TrackOrderPage } from './components/TrackOrderPage';
 import { VipPage } from './components/VipPage';
 import { ContactSupportPage } from './components/ContactSupportPage';
 import { ScrollToTop } from './components/ScrollToTop';
+import { SEOManager } from './components/SEOManager';
 
 const StoreContent: React.FC = () => {
   const { 
@@ -76,6 +77,7 @@ const StoreContent: React.FC = () => {
   if (currentRoute.name === 'admin') {
     return (
       <div className="min-h-screen bg-[#0C0B0A] text-stone-100 selection:bg-amber-400 selection:text-black font-sans antialiased">
+        <SEOManager />
         <AdminPanel />
         <BackInStockModal 
           isOpen={isRestockModalOpen} 
@@ -148,6 +150,7 @@ const StoreContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#F8F6F2] selection:bg-[#181614] selection:text-[#F8F6F2]">
+      <SEOManager />
       {/* Top Luxury Navigation */}
       <Navbar />
 
