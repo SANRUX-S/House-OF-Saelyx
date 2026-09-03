@@ -42,7 +42,7 @@ const defaultFaqs: FaqItem[] = [
     question: "CAN I RETURN OR EXCHANGE?",
     content: (
       <div className="text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
-        Yes, we offer hassle-free returns and exchanges within 14 days of delivery provided items are unworn with original tags attached.
+        Yes, we offer hassle-free returns and exchanges within 7 days of delivery provided items are unworn with original tags attached.
       </div>
     )
   },
