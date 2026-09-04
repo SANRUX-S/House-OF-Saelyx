@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 
 const ADMIN_ROLES: Record<string, 'admin' | 'super_admin'> = {
   'saelyx.co@gmail.com': 'super_admin',
+  'saelyx.co+super@gmail.com': 'super_admin',
   'saelyx.co+admin@gmail.com': 'admin'
 };
 

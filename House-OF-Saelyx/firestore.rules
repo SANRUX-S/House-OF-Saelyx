@@ -16,6 +16,7 @@ service cloud.firestore {
         request.auth.token.role == 'admin' ||
         request.auth.token.role == 'super_admin' ||
         request.auth.token.email == 'saelyx.co@gmail.com' ||
+        request.auth.token.email == 'saelyx.co+super@gmail.com' ||
         request.auth.token.email == 'saelyx.co+admin@gmail.com' ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
@@ -25,6 +26,7 @@ service cloud.firestore {
       return isAuthenticated() && (
         request.auth.token.role == 'super_admin' ||
         request.auth.token.email == 'saelyx.co@gmail.com' ||
+        request.auth.token.email == 'saelyx.co+super@gmail.com' ||
         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin')
       );
@@ -63,6 +65,11 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /concierge_inquiries/{inquiryId} {
       allow create: if true;
       allow read, update, delete: if isAdmin();
     }

@@ -44,6 +44,7 @@ export const facebookProvider = new FacebookAuthProvider();
 
 const ADMIN_ROLES: Record<string, UserRole> = {
   'saelyx.co@gmail.com': 'super_admin',
+  'saelyx.co+super@gmail.com': 'super_admin',
   'saelyx.co+admin@gmail.com': 'admin'
 };
 

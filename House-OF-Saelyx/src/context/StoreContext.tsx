@@ -395,7 +395,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               email: fbUser.email || '',
               phoneNumber: fbUser.phoneNumber || '',
               role: configuredAdminRole || 'patron',
-              avatarUrl: fbUser.photoURL || undefined,
               address: '',
               city: '',
               postalCode: '',
@@ -404,6 +403,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               joinedDate: new Date().toISOString(),
               ordersCount: 0
             };
+            if (fbUser.photoURL) newUser.avatarUrl = fbUser.photoURL;
             await setDoc(userDocRef, newUser);
             setUser(newUser);
           }
