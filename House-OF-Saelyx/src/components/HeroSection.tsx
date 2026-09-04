@@ -81,15 +81,15 @@ export const HeroSection: React.FC = () => {
         }}
       >
         <img
-          src="https://houseofsaelyx.vercel.app/images/hero19201080.avif"
-          alt="SAELYX Editorial Lifestyle Collection"
+          src="https://saelyxe.com/images/hero19201080.avif"
+          alt="SAELYXE Editorial Lifestyle Collection"
           className="w-full h-full object-cover object-[55%_center] md:object-center filter brightness-[0.95]"
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/30 pointer-events-none" />
       </div>
 
-      {/* 2. MIDDLE LAYER: Luxury "SAELYX" Backdrop */}
+      {/* 2. MIDDLE LAYER: Luxury "SAELYXE" Backdrop */}
       <div
         className="absolute inset-x-0 top-[18%] md:top-[12%] flex items-center justify-center pointer-events-none z-10"
         style={{
@@ -97,7 +97,7 @@ export const HeroSection: React.FC = () => {
         }}
       >
         <h1 className="font-serif text-[28vw] md:text-[22vw] font-normal tracking-[0.05em] text-white/[0.07] uppercase whitespace-nowrap select-none leading-none">
-          SAELYX
+          SAELYXE
         </h1>
       </div>
 
@@ -153,7 +153,7 @@ export const HeroSection: React.FC = () => {
                 className="relative w-[290px] lg:w-[320px] aspect-[16/10] rounded-2xl overflow-hidden shadow-2xl border border-white/20 cursor-pointer transition-all duration-300 hover:shadow-white/10 active:scale-95 bg-neutral-900 group"
               >
                 <img
-                  src={currentFloatingProduct.images[0] || 'https://houseofsaelyx.vercel.app/images/hero19201080.avif'}
+                  src={currentFloatingProduct.images[0] || 'https://saelyxe.com/images/hero19201080.avif'}
                   alt={currentFloatingProduct.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   referrerPolicy="no-referrer"

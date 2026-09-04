@@ -68,7 +68,7 @@ const INITIAL_STOCK_NOTIFICATIONS: StockNotification[] = [
     productSlug: 'navy-hoodie',
     productImage: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
     selectedSize: 'XL',
-    customerEmail: 'elena.rostova@houseofsaelyx.vip',
+    customerEmail: 'elena.rostova@saelyxe.vip',
     customerName: 'Elena Rostova',
     channel: 'email',
     notified: true,
@@ -84,7 +84,7 @@ const INITIAL_STAFF: AdminStaff[] = [
     id: 'staff-001',
     username: 'saelyx_super',
     displayName: 'Atelier Director General',
-    email: 'superadmin@houseofsaelyx.com',
+    email: 'superadmin@saelyxe.com',
     role: 'super_admin',
     status: 'active',
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -94,7 +94,7 @@ const INITIAL_STAFF: AdminStaff[] = [
     id: 'staff-002',
     username: 'saelyx_admin',
     displayName: 'Lead Logistics & Inventory Officer',
-    email: 'operations@houseofsaelyx.com',
+    email: 'operations@saelyxe.com',
     role: 'admin',
     status: 'active',
     createdAt: '2026-02-15T00:00:00.000Z',
@@ -356,7 +356,7 @@ const INITIAL_ORDERS: Order[] = [
     totalInCurrency: 15800,
     status: 'out_for_delivery',
     trackingNumber: 'SLX-EXP-88914',
-    courierName: 'SAELYX White-Glove Dispatch',
+    courierName: 'SAELYXE White-Glove Dispatch',
     deliveryEta: 'Today by 4:30 PM (Direct Hand Delivery)',
     createdAt: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
     statusHistory: [
@@ -370,7 +370,7 @@ const INITIAL_ORDERS: Order[] = [
         status: 'confirmed',
         timestamp: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
         note: 'Garments quality-checked and prepared with luxury silk dust bags.',
-        location: 'SAELYX Atelier, Colombo'
+        location: 'SAELYXE Atelier, Colombo'
       },
       {
         status: 'dispatched',
@@ -434,7 +434,7 @@ const INITIAL_ORDERS: Order[] = [
 ];
 
 const INITIAL_SETTINGS: DropSettings = {
-  spotlightEyebrow: 'SAELYX PREMIER KNITS',
+  spotlightEyebrow: 'SAELYXE PREMIER KNITS',
   spotlightTitle: 'THE SIGNATURE COORDINATES SET',
   spotlightSubhead: 'EXPERIENCE THE PRESENCE.',
   spotlightDescription: 'A curating of our most refined heavyweight textures. Crafted for understated luxury.',
@@ -706,14 +706,14 @@ class StoreDB {
       createdAt: new Date().toISOString(),
       status: 'placed',
       trackingNumber: orderData.trackingNumber || `SOX-TRK-${Math.floor(100000 + Math.random() * 900000)}`,
-      courierName: orderData.courierName || 'SAELYX Direct White-Glove Courier',
+      courierName: orderData.courierName || 'SAELYXE Direct White-Glove Courier',
       deliveryEta: orderData.deliveryEta || 'Estimated in 1-2 Business Days',
       statusHistory: [
         {
           status: 'placed',
           timestamp: new Date().toISOString(),
           note: 'Order successfully placed by customer.',
-          location: 'SAELYX Online System'
+          location: 'SAELYXE Online System'
         }
       ]
     };
@@ -744,7 +744,7 @@ class StoreDB {
       status,
       timestamp: new Date().toISOString(),
       note: note || `Order updated to ${status.replace('_', ' ').toUpperCase()}`,
-      location: location || 'SAELYX Fulfillment Center'
+      location: location || 'SAELYXE Fulfillment Center'
     });
 
     this.saveData(this.data);
@@ -777,7 +777,7 @@ class StoreDB {
       this.data.newsletterSubscribers.push({ email, date: new Date().toISOString() });
       this.saveData(this.data);
     }
-    return { success: true, message: 'Thank you for subscribing to SAELYX drops.' };
+    return { success: true, message: 'Thank you for subscribing to SAELYXE drops.' };
   }
 
   getSubscribers() {

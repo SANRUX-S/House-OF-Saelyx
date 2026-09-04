@@ -28,7 +28,7 @@ export const VipPage: React.FC = () => {
         {/* Headline */}
         <div className="space-y-3">
           <span className="text-[11px] uppercase tracking-[0.3em] font-semibold text-[#8C7A68] block">
-            HOUSE OF SAELYX ATELIER
+            HOUSE OF SAELYXE ATELIER
           </span>
           <h1 className="font-serif text-3xl sm:text-5xl text-[#1A1816] font-normal tracking-tight">
             VIP ELIGIBLE
@@ -40,7 +40,7 @@ export const VipPage: React.FC = () => {
 
         {/* Editorial Text */}
         <p className="text-xs sm:text-sm text-[#7A6E60] leading-relaxed max-w-lg mx-auto font-serif italic">
-          "The House of Saelyx Private Client Tier is reserved for distinguished patrons. Our bespoke salon and early runway access are currently in preparation."
+          "The House of Saelyxe Private Client Tier is reserved for distinguished patrons. Our bespoke salon and early runway access are currently in preparation."
         </p>
 
         <div className="pt-4">

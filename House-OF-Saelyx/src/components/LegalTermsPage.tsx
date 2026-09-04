@@ -38,7 +38,7 @@ export const LegalTermsPage: React.FC = () => {
         <div className="space-y-4 border-b border-[#E3D9CD] pb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EFE9E0] border border-[#DCD0C0] text-[11px] font-semibold uppercase tracking-[0.25em] text-[#7A6E60]">
             <Scale className="w-3.5 h-3.5 text-[#857768]" />
-            HOUSE OF SAELYX • TERMS OF SERVICE & CONDITIONS
+            HOUSE OF SAELYXE • TERMS OF SERVICE & CONDITIONS
           </div>
           <h1 className="font-serif text-3xl sm:text-5xl text-[#1A1816] font-normal tracking-tight leading-tight">
             SAELYXE Terms & Conditions

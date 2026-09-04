@@ -110,9 +110,9 @@ export function createApp() {
   function sendOrderConfirmationEmail(order: any) {
     try {
       console.log(`\n======================================================`);
-      console.log(`[SAELYX LUXURY EMAIL DISPATCH]`);
+      console.log(`[SAELYXE LUXURY EMAIL DISPATCH]`);
       console.log(`To: ${order.email}`);
-      console.log(`Subject: Your SAELYX Order #${order.orderNumber} is Confirmed`);
+      console.log(`Subject: Your SAELYXE Order #${order.orderNumber} is Confirmed`);
       console.log(`Customer: ${order.customerName}`);
       console.log(`Order Number: #${order.orderNumber}`);
       console.log(`Date: ${order.createdAt}`);
@@ -120,7 +120,7 @@ export function createApp() {
       console.log(`Delivery Address: ${order.address}, ${order.city} ${order.postalCode}`);
       console.log(`Total: ${order.currencyUsed || 'LKR'} ${order.totalInCurrency || order.totalLKR}`);
       console.log(`Items: ${order.items?.map((i: any) => `${i.title} (${i.size}) × ${i.quantity}`).join(', ')}`);
-      console.log(`Tracking Link: https://houseofsaelyx.com/track-order?id=${order.orderNumber}`);
+      console.log(`Tracking Link: https://saelyxe.com/track-order?id=${order.orderNumber}`);
       console.log(`======================================================\n`);
     } catch (e) {
       console.error('Email dispatch error:', e);
@@ -382,7 +382,7 @@ export async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`SAELYX Server running on http://localhost:${PORT}`);
+    console.log(`SAELYXE Server running on http://localhost:${PORT}`);
   });
 }
 

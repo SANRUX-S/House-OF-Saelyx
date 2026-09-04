@@ -353,7 +353,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       )}
                       {notificationPermission === 'denied' && (
                         <p className="text-[10px] text-rose-400 font-sans leading-relaxed">
-                          ⚠️ Notifications are blocked by your browser. Please click the lock icon in your browser address bar to allow notifications for SAELYX.
+                          ⚠️ Notifications are blocked by your browser. Please click the lock icon in your browser address bar to allow notifications for SAELYXE.
                         </p>
                       )}
                       {notificationPermission === 'granted' && (
@@ -448,7 +448,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                     className="mt-4 p-4 bg-black border border-neutral-800 text-left font-sans text-xs space-y-3 rounded"
                   >
                     <div className="border-b border-neutral-800 pb-2 flex items-center justify-between text-[11px] font-mono text-neutral-400">
-                      <span>From: concierge@houseofsaelyx.com</span>
+                      <span>From: concierge@saelyxe.com</span>
                       <span className="text-amber-400">Automated Dispatch</span>
                     </div>
                     <div className="text-sm font-serif text-white">

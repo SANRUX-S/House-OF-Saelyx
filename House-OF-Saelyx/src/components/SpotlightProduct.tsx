@@ -46,7 +46,7 @@ export const SpotlightProduct: React.FC = () => {
       {/* Background Image Container - Height slightly extended for mobile */}
       <div className="relative w-full min-h-[680px] sm:min-h-[720px] md:min-h-[650px] lg:min-h-[750px] md:aspect-[16/9] flex items-center">
         <img
-          src="https://houseofsaelyx.vercel.app/images/spotlight19201080.avif"
+          src="https://saelyxe.vercel.app/images/spotlight19201080.avif"
           alt="THE SIGNATURE COORDINATES SET"
           className="absolute inset-0 w-full h-full object-cover object-[65%_center] md:object-center"
           referrerPolicy="no-referrer"
@@ -62,7 +62,7 @@ export const SpotlightProduct: React.FC = () => {
             {/* Header Titles */}
             <div className="space-y-2 sm:space-y-3">
               <span className="block text-[11px] sm:text-xs md:text-sm uppercase tracking-[0.25em] sm:tracking-[0.3em] text-white/90 font-medium">
-                {settings?.spotlightEyebrow || 'SAELYX PREMIER KNITS'}
+                {settings?.spotlightEyebrow || 'SAELYXE PREMIER KNITS'}
               </span>
 
               <h2 className="font-serif text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-light text-white tracking-wide leading-[1.08]">

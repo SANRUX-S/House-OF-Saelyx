@@ -40,7 +40,7 @@ export const Footer: React.FC = () => {
     <footer className="w-full bg-[#121110] text-[#e5e5e5] pt-16 pb-10 select-none border-t border-white/10 font-sans">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 space-y-16">
         
-        {/* Top Newsletter Row - Highlighting luxury editorial title inspired by SAELYX Hero */}
+        {/* Top Newsletter Row - Highlighting luxury editorial title inspired by SAELYXE Hero */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-white/10">
           <div>
             <span className="block text-[10px] tracking-[0.3em] text-white/60 uppercase font-medium mb-2">
@@ -230,7 +230,7 @@ export const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400 font-light">
           <div className="tracking-widest uppercase text-[11px]">
-            © {new Date().getFullYear()} HOUSE OF SAELYX
+            © {new Date().getFullYear()} HOUSE OF SAELYXE
           </div>
 
           {/* Payment Badges */}

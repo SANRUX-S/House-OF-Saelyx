@@ -114,7 +114,7 @@ export async function verifyAdminCredentials(username: string, pass: string): Pr
       isPasswordValid = true;
     } else if (trimmedUser === 'saelyx_admin' && trimmedPass === 'SaelyxAtelier#2026') {
       isPasswordValid = true;
-    } else if (trimmedUser === 'admin@saelyx.com' && (trimmedPass === 'SaelyxAtelier#2026' || trimmedPass === 'admin123')) {
+    } else if (trimmedUser === 'admin@saelyxe.com' && (trimmedPass === 'SaelyxAtelier#2026' || trimmedPass === 'admin123')) {
       isPasswordValid = true;
     } else {
       // For newly added staff, support standard keys for convenience and grading robustness
@@ -135,7 +135,7 @@ export async function verifyAdminCredentials(username: string, pass: string): Pr
       user: {
         uid: dbStaff.id,
         name: dbStaff.displayName || dbStaff.name || 'Atelier Operator',
-        email: dbStaff.email || `${trimmedUser}@houseofsaelyx.com`,
+        email: dbStaff.email || `${trimmedUser}@saelyxe.com`,
         role: dbStaff.role || 'admin',
         joinedDate: dbStaff.createdAt ? dbStaff.createdAt.split('T')[0] : '2026-01-01',
         ordersCount: dbStaff.role === 'super_admin' ? 99 : 45

@@ -96,7 +96,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80'],
         hoverImage: '',
         completeTheSetProductId: '',
-        description: 'A structural, sculptural draping garment custom-crafted for the SAELYX collection.',
+        description: 'A structural, sculptural draping garment custom-crafted for the SAELYXE collection.',
         fabricDetails: '400 GSM Heavyweight Combed Cotton',
         bulletDetails: defaultBullets,
         sizes: ['S', 'M', 'L', 'XL'],

@@ -87,7 +87,7 @@ export const CartDrawer: React.FC = () => {
         currencyUsed: selectedCurrency.code,
         totalInCurrency: totalLKR * selectedCurrency.rateFromLKR,
         notes: formData.notes,
-        courierName: 'SAELYX Express Concierge',
+        courierName: 'SAELYXE Express Concierge',
         deliveryEta: 'Tomorrow by 3:00 PM (Direct Hand Delivery)'
       };
 
@@ -147,7 +147,7 @@ export const CartDrawer: React.FC = () => {
                 <div className="space-y-2">
                   <h3 className="font-serif text-2xl text-white">ORDER CONFIRMED</h3>
                   <p className="text-xs text-neutral-400">
-                    Thank you for choosing SAELYX. Your limited drop garment is being prepared.
+                    Thank you for choosing SAELYXE. Your limited drop garment is being prepared.
                   </p>
                 </div>
 

@@ -116,7 +116,7 @@ export const Navbar: React.FC = () => {
           className="group flex items-center cursor-pointer text-center"
         >
           <span className="font-serif text-2xl font-normal tracking-[0.3em] text-white uppercase transition-opacity group-hover:opacity-80">
-            SAELYX
+            SAELYXE
           </span>
         </button>
 
@@ -231,7 +231,7 @@ export const Navbar: React.FC = () => {
         </div>
 
         <div className="pt-6 border-t border-white/10 flex items-center justify-between px-2">
-          <span className="text-[11px] text-neutral-400 tracking-[0.2em] uppercase">HOUSE OF SAELYX</span>
+          <span className="text-[11px] text-neutral-400 tracking-[0.2em] uppercase">HOUSE OF SAELYXE</span>
           <div className="flex items-center gap-2 bg-white/5 px-3.5 py-2 rounded-full border border-white/10">
             <span className="text-sm">{selectedCurrency?.flag}</span>
             <span className="text-xs font-mono text-white tracking-widest">{selectedCurrency?.code}</span>
@@ -261,7 +261,7 @@ export const Navbar: React.FC = () => {
           className="group flex items-center cursor-pointer text-left"
         >
           <span className="font-serif text-xl lg:text-2xl font-normal tracking-[0.35em] text-white uppercase transition-opacity group-hover:opacity-80">
-            SAELYX
+            SAELYXE
           </span>
         </button>
 

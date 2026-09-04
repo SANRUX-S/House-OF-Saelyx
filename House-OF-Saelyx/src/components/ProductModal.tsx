@@ -90,7 +90,7 @@ export const ProductModal: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <div className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
-                    {activeModalProduct.fit || 'SAELYX DROP GARMENT'}
+                    {activeModalProduct.fit || 'SAELYXE DROP GARMENT'}
                   </div>
                   <h2 className="font-['Plus_Jakarta_Sans'] text-xl sm:text-2xl font-bold uppercase tracking-tight text-[#1A1816] mt-1">
                     {activeModalProduct.title}

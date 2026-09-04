@@ -376,7 +376,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const data = snap.data();
             setUser({
               uid: fbUser.uid,
-              name: data.name || fbUser.displayName || 'SAELYX Patron',
+              name: data.name || fbUser.displayName || 'SAELYXE Patron',
               email: fbUser.email || data.email || '',
               phoneNumber: fbUser.phoneNumber || data.phoneNumber || '',
               role: data.role || 'patron',
@@ -391,7 +391,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } else {
             const newUser: AppUser = {
               uid: fbUser.uid,
-              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYX Patron',
+              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
               email: fbUser.email || '',
               phoneNumber: fbUser.phoneNumber || '',
               role: 'patron',
@@ -411,7 +411,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           console.warn('Firestore user fetch note:', e);
           setUser({
             uid: fbUser.uid,
-            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYX Patron',
+            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
             email: fbUser.email || '',
             phoneNumber: fbUser.phoneNumber || '',
             role: 'patron',
@@ -619,7 +619,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               productSlug: 'navy-hoodie',
               productImage: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
               selectedSize: 'XL',
-              customerEmail: 'elena.rostova@houseofsaelyx.vip',
+              customerEmail: 'elena.rostova@saelyxe.vip',
               customerName: 'Elena Rostova',
               channel: 'email',
               notified: true,
@@ -711,7 +711,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: 'staff-001',
             username: 'saelyx_super',
             displayName: 'Atelier Director General',
-            email: 'superadmin@houseofsaelyx.com',
+            email: 'superadmin@saelyxe.com',
             role: 'super_admin' as const,
             status: 'active' as const,
             createdAt: '2026-01-01T00:00:00.000Z'
@@ -720,7 +720,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: 'staff-002',
             username: 'saelyx_admin',
             displayName: 'Lead Logistics & Inventory Officer',
-            email: 'operations@houseofsaelyx.com',
+            email: 'operations@saelyxe.com',
             role: 'admin' as const,
             status: 'active' as const,
             createdAt: '2026-02-15T00:00:00.000Z'
@@ -901,7 +901,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const fbUser = result.user;
       const appUser: AppUser = {
         uid: fbUser.uid,
-        name: fbUser.displayName || 'SAELYX VIP Member',
+        name: fbUser.displayName || 'SAELYXE VIP Member',
         email: fbUser.email || '',
         phoneNumber: fbUser.phoneNumber || '',
         role: 'patron',
@@ -936,7 +936,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const fbUser = result.user;
       const appUser: AppUser = {
         uid: fbUser.uid,
-        name: fbUser.displayName || 'SAELYX VIP Member',
+        name: fbUser.displayName || 'SAELYXE VIP Member',
         email: fbUser.email || '',
         role: 'patron',
         avatarUrl: fbUser.photoURL || undefined,
@@ -1034,7 +1034,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setUser({
       uid: `guest-${Math.random().toString(36).substr(2, 9)}`,
       name: 'Guest Collector',
-      email: 'guest@houseofsaelyx.com',
+      email: 'guest@saelyxe.com',
       role: 'guest'
     });
     setIsAuthOpen(false);
@@ -1043,8 +1043,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loginAsBypassPatron = () => {
     setUser({
       uid: 'vip-patron-demo',
-      name: 'House of Saelyx VIP Patron',
-      email: 'houseofsaelyx@gmail.com',
+      name: 'House of Saelyxe VIP Patron',
+      email: 'hello@saelyxe.com',
       role: 'patron',
       joinedDate: new Date().toISOString()
     });
@@ -1174,7 +1174,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             status: 'placed',
             timestamp: new Date().toISOString(),
             note: 'Order placed by customer.',
-            location: 'SAELYX Online System'
+            location: 'SAELYXE Online System'
           }
         ]
       } as Order;

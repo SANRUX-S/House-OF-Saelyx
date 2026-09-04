@@ -266,7 +266,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
                   required
                   value={form.email}
                   onChange={e => setForm({ ...form, email: e.target.value })}
-                  placeholder="name@houseofsaelyx.com"
+                  placeholder="name@saelyxe.com"
                   className="form-input-custom"
                 />
               </div>

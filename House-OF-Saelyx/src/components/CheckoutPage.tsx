@@ -213,7 +213,7 @@ export const CheckoutPage: React.FC = () => {
               Authentication Required
             </h1>
             <p className="text-xs text-[#7A6E60] leading-relaxed">
-              A House of Saelyx client profile is required to reserve limited atelier garment stock and arrange priority hand-delivery.
+              A House of Saelyxe client profile is required to reserve limited atelier garment stock and arrange priority hand-delivery.
             </p>
           </div>
 
@@ -306,7 +306,7 @@ export const CheckoutPage: React.FC = () => {
         paymentMethod: paymentMethod as any,
         paymentStatus: paymentMethod === 'cod' ? 'pending_delivery' : 'verified',
         trackingNumber: `EXP-${Math.floor(100000 + Math.random() * 900000)}`,
-        courierName: 'Saelyx White-Glove Van 04',
+        courierName: 'Saelyxe White-Glove Van 04',
         deliveryEta: 'Today by 5:30 PM (Priority Hand-Delivery)',
         notes: `${notes} ${bankRefNumber ? `[Bank Ref: ${bankRefNumber}]` : ''} ${binanceTxHash ? `[Binance TX: ${binanceTxHash}]` : ''}`.trim()
       });
@@ -346,7 +346,7 @@ export const CheckoutPage: React.FC = () => {
 
       const order = await createOrder({
         customerName: details?.payer?.name?.given_name ? `${details.payer.name.given_name} ${details.payer.name.surname || ''}` : (customerName || 'PayPal Customer'),
-        email: details?.payer?.email_address || email || 'patron@saelyx.com',
+        email: details?.payer?.email_address || email || 'patron@saelyxe.com',
         phone: phone || '+94 77 123 4567',
         address: address || '74 Ward Place',
         city: city || 'Colombo 07',
@@ -369,7 +369,7 @@ export const CheckoutPage: React.FC = () => {
         paymentMethod: 'paypal',
         paymentStatus: 'verified',
         trackingNumber: `EXP-${Math.floor(100000 + Math.random() * 900000)}`,
-        courierName: 'Saelyx White-Glove Van 04',
+        courierName: 'Saelyxe White-Glove Van 04',
         deliveryEta: 'Today by 5:30 PM (Priority Hand-Delivery)',
         notes: `${notes} [PayPal Order ID: ${details?.id || 'APPROVED'}]`.trim()
       });
@@ -776,7 +776,7 @@ export const CheckoutPage: React.FC = () => {
                                         currency_code: paypalCurrency,
                                         value: paypalAmount,
                                       },
-                                      description: `House of Saelyx Couture Commission`,
+                                      description: `House of Saelyxe Couture Commission`,
                                     },
                                   ],
                                 });
@@ -856,7 +856,7 @@ export const CheckoutPage: React.FC = () => {
                           <div className="flex flex-col sm:flex-row items-center gap-4 bg-black/40 p-3 rounded-lg border border-white/10">
                             <div className="w-24 h-24 bg-white p-1.5 rounded-lg flex items-center justify-center flex-shrink-0">
                               <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=binancepay://saelyx?amount=${totalUSDT}&currency=USDT&ref=SAELYX-${Date.now()}`}
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=binancepay://saelyxe?amount=${totalUSDT}&currency=USDT&ref=SAELYXE-${Date.now()}`}
                                 alt="Binance QR" 
                                 className="w-full h-full object-contain"
                               />
@@ -864,7 +864,7 @@ export const CheckoutPage: React.FC = () => {
                             <div className="space-y-1 text-center sm:text-left text-[11px]">
                               <p className="text-neutral-300">Scan via Binance App for instant clearance.</p>
                               <p className="text-neutral-400 font-mono text-[10px]">
-                                Pay ID: <span className="text-amber-300 font-semibold">298471938 (House of Saelyx)</span>
+                                Pay ID: <span className="text-amber-300 font-semibold">298471938 (House of Saelyxe)</span>
                               </p>
                               <p className="text-neutral-400 font-mono text-[10px]">
                                 Network: <span className="text-emerald-400 font-semibold">USDT (TRC20 / BEP20)</span>

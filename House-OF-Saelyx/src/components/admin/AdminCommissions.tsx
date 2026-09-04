@@ -42,7 +42,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   const handleOpenDispatchModal = (order: Order) => {
     setSelectedOrder(order);
     setNewStatus(order.status);
-    setNewCourier(order.courierName || 'Saelyx White-Glove Van 04');
+    setNewCourier(order.courierName || 'Saelyxe White-Glove Van 04');
     setNewTracking(order.trackingNumber || `EXP-${Math.floor(100000 + Math.random() * 900000)}`);
     setNewEta(order.deliveryEta || 'Same-day VIP Doorstep Delivery');
   };
@@ -229,7 +229,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       {/* Logistics & Courier */}
                       <td>
                         <div className="text-xs font-medium text-stone-800">
-                          {order.courierName || 'Saelyx White-Glove Van 04'}
+                          {order.courierName || 'Saelyxe White-Glove Van 04'}
                         </div>
                         <div className="text-[11px] text-stone-500 font-mono">
                           {order.trackingNumber || 'Pending Allocation'}
@@ -332,7 +332,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   type="text"
                   value={newCourier}
                   onChange={e => setNewCourier(e.target.value)}
-                  placeholder="e.g. Saelyx White-Glove Van 04"
+                  placeholder="e.g. Saelyxe White-Glove Van 04"
                   className="form-input-custom"
                 />
               </div>
