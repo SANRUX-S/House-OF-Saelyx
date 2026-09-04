@@ -96,7 +96,7 @@ export const HeroSection: React.FC = () => {
           transform: `translateY(${scrollY * -0.15}px)`,
         }}
       >
-        <h1 className="font-serif text-[28vw] md:text-[22vw] font-normal tracking-[0.05em] text-white/[0.07] uppercase whitespace-nowrap select-none leading-none">
+        <h1 className="font-serif text-[28vw] md:text-[18vw] font-normal tracking-[0.05em] text-white/[0.07] uppercase whitespace-nowrap select-none leading-none">
           SAELYXE
         </h1>
       </div>
