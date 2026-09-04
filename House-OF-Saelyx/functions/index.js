@@ -129,6 +129,21 @@ exports.subscribeBackInStock = onCall(async (request) => {
  */
 exports.dispatchRestockAlerts = onRequest(async (req, res) => {
   try {
+    const authorization = req.headers.authorization || "";
+    if (!authorization.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const idToken = authorization.slice("Bearer ".length).trim();
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const isAdmin = decodedToken.admin === true ||
+      decodedToken.role === "admin" ||
+      decodedToken.role === "super_admin";
+
+    if (!isAdmin) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+
     const { productId } = req.body || req.query;
     if (!productId) {
       return res.status(400).json({ error: "Missing productId parameter" });

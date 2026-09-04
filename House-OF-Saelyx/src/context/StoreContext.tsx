@@ -19,8 +19,7 @@ import {
   googleProvider, 
   facebookProvider, 
   verifyAdminCredentials,
-  hashPasswordWithSalt,
-  ADMIN_SALT
+  getConfiguredAdminRole,
 } from '../lib/firebase';
 import { 
   signInWithPopup, 
@@ -368,6 +367,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (fbUser) {
         try {
+          const configuredAdminRole = getConfiguredAdminRole(fbUser.email);
           // Check Firestore user doc
           const userDocRef = doc(db, 'users', fbUser.uid);
           const snap = await getDoc(userDocRef);
@@ -379,7 +379,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               name: data.name || fbUser.displayName || 'SAELYX Patron',
               email: fbUser.email || data.email || '',
               phoneNumber: fbUser.phoneNumber || data.phoneNumber || '',
-              role: data.role || 'patron',
+              role: configuredAdminRole || data.role || 'patron',
               avatarUrl: fbUser.photoURL || data.avatarUrl || undefined,
               address: data.address || '',
               city: data.city || '',
@@ -394,7 +394,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYX Patron',
               email: fbUser.email || '',
               phoneNumber: fbUser.phoneNumber || '',
-              role: 'patron',
+              role: configuredAdminRole || 'patron',
               avatarUrl: fbUser.photoURL || undefined,
               address: '',
               city: '',
@@ -432,11 +432,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Fetch initial data from server APIs with Firestore sync
   const fetchData = useCallback(async () => {
     try {
-      const [prodRes, currRes, setRes, ordersRes] = await Promise.all([
+      const [prodRes, currRes, setRes] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/currencies'),
-        fetch('/api/settings'),
-        fetch('/api/orders')
+        fetch('/api/settings')
       ]);
 
       if (prodRes.ok) {
@@ -488,10 +487,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (e) {}
       }
 
-      if (ordersRes.ok) {
-        const ordersData = await ordersRes.json();
-        setOrders(ordersData);
-      }
     } catch (e) {
       console.error('Error loading store data:', e);
     } finally {
@@ -543,6 +538,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 2. Orders real-time listener
   useEffect(() => {
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     try {
       const colRef = collection(db, 'orders');
       const q = query(colRef, orderBy('createdAt', 'desc'));
@@ -571,10 +567,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       return () => unsub();
     } catch (e) {}
-  }, []);
+  }, [user?.role]);
 
   // 3. Stock Notifications real-time listener (Waitlists)
   useEffect(() => {
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     try {
       const stockRef = collection(db, 'stock_notifications');
       const unsub = onSnapshot(stockRef, async (snap) => {
@@ -642,10 +639,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (e) {
       console.error('Error setting up stock_notifications listener:', e);
     }
-  }, []);
+  }, [user?.role]);
 
   // 4. Concierge Inquiries real-time listener
   useEffect(() => {
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     try {
       const colRef = collection(db, 'concierge_inquiries');
       const unsub = onSnapshot(colRef, async (snap) => {
@@ -693,10 +691,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       return () => unsub();
     } catch (e) {}
-  }, []);
+  }, [user?.role]);
 
   // 5. Staff real-time listener
   useEffect(() => {
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     try {
       const colRef = collection(db, 'staff');
       const unsub = onSnapshot(colRef, async (snap) => {
@@ -744,7 +743,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (e) {
       console.error('Error setting up staff listener:', e);
     }
-  }, []);
+  }, [user?.role]);
 
   // 6. Settings real-time listener
   useEffect(() => {
@@ -779,6 +778,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 7. Audit Logs real-time listener
   useEffect(() => {
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     try {
       const colRef = collection(db, 'audit_logs');
       const unsub = onSnapshot(colRef, (snap) => {
@@ -794,7 +794,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       return () => unsub();
     } catch (e) {}
-  }, []);
+  }, [user?.role]);
 
   // Helpers
   const getProductBySlug = (slugOrId: string): Product | undefined => {

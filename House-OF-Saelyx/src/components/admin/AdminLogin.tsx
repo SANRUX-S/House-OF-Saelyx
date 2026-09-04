@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { sendAdminPasswordReset } from '../../lib/firebase';
 import { 
   Lock, 
   Eye, 
@@ -23,7 +24,9 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [resetMsg, setResetMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +36,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     }
 
     setErrorMsg('');
+    setResetMsg('');
     setIsLoggingIn(true);
 
     try {
@@ -44,6 +48,27 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       setErrorMsg(err.message || 'Authentication error.');
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const email = username.trim();
+    if (!email) {
+      setErrorMsg('Enter your Firebase administrator email first.');
+      return;
+    }
+    setErrorMsg('');
+    setResetMsg('');
+    setIsSendingReset(true);
+    try {
+      const result = await sendAdminPasswordReset(email);
+      if (result.success) {
+        setResetMsg('Password reset email sent. Check your inbox.');
+      } else {
+        setErrorMsg(result.error || 'Unable to send password reset email.');
+      }
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -81,18 +106,23 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             <span>{errorMsg}</span>
           </div>
         )}
+        {resetMsg && (
+          <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
+            {resetMsg}
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="form-label-custom">Email or Operator Username</label>
+            <label className="form-label-custom">Firebase Administrator Email</label>
             <input
               type="text"
               required
               autoComplete="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="e.g. saelyx_super or saelyx_admin"
+              placeholder="admin@your-domain.com"
               className="form-input-custom"
             />
           </div>
@@ -132,7 +162,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               <span>Remember Me</span>
             </label>
 
-            <span className="text-stone-400">Restricted Access</span>
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              disabled={isSendingReset}
+              className="text-stone-500 hover:text-stone-900 underline underline-offset-2 disabled:opacity-50"
+            >
+              {isSendingReset ? 'Sending...' : 'Forgot password?'}
+            </button>
           </div>
 
           {/* Submit Button */}
@@ -146,29 +183,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           </button>
         </form>
 
-        {/* Quick-Access Test Operators for convenience */}
-        <div className="mt-6 pt-5 border-t border-stone-100">
-          <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider text-center mb-2.5">
-            Quick Operator Credential Fill
+        <div className="mt-6 pt-5 border-t border-stone-100 text-center">
+          <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-2.5">
+            Secure operator access
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickFill('saelyx_super', 'SaelyxVIP#2026!')}
-              className="p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-left border border-stone-200 transition-colors"
-            >
-              <div className="text-[11px] font-bold text-stone-900">Super Admin</div>
-              <div className="text-[10px] text-stone-500 font-mono">saelyx_super</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('saelyx_admin', 'SaelyxAtelier#2026')}
-              className="p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-left border border-stone-200 transition-colors"
-            >
-              <div className="text-[11px] font-bold text-stone-900">Atelier Admin</div>
-              <div className="text-[10px] text-stone-500 font-mono">saelyx_admin</div>
-            </button>
+          <div className="text-[10px] text-stone-500">
+            Use credentials defined in your environment configuration.
           </div>
         </div>
 

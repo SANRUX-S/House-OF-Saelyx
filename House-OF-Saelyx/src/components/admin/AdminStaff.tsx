@@ -293,7 +293,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
                   className="form-input-custom"
                 />
                 <p className="text-[10px] text-stone-400 mt-1">
-                  Default: SaelyxAtelier#2026 if left blank
+                  Default: set a strong passkey in your secure environment if left blank
                 </p>
               </div>
 

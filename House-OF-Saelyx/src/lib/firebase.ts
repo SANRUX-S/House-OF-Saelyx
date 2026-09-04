@@ -5,6 +5,7 @@ import {
   FacebookAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 
+  sendPasswordResetEmail,
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
   updateProfile,
@@ -14,33 +15,18 @@ import {
   signInWithPhoneNumber,
   ConfirmationResult
 } from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot,
-  Timestamp 
-} from 'firebase/firestore';
+import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { AppUser, UserRole } from '../types';
 
-// Load configuration from firebase-applet-config.json
 const firebaseConfig = {
-  projectId: "gen-lang-client-0800900976",
-  appId: "1:915679491947:web:e4a01bb7e854eca503fe2e",
-  apiKey: "AIzaSyAFkqoPKt9sXVkWZOlXy9hqTT6z1YYlpWg",
-  authDomain: "gen-lang-client-0800900976.firebaseapp.com",
-  firestoreDatabaseId: "ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41",
-  storageBucket: "gen-lang-client-0800900976.firebasestorage.app",
-  messagingSenderId: "915679491947",
-  oAuthClientId: "915679491947-9dvv6ckkk6mp1vgr5ve0utur1p1ago6s.apps.googleusercontent.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-project',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || 'demo-app-id',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo-project.firebaseapp.com',
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'demo-project.appspot.com',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '000000000000',
+  oAuthClientId: import.meta.env.VITE_FIREBASE_OAUTH_CLIENT_ID || '',
 };
 
 // Initialize Firebase App safely
@@ -56,97 +42,61 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(defa
 export const googleProvider = new GoogleAuthProvider();
 export const facebookProvider = new FacebookAuthProvider();
 
-// Cryptographic Salt & Hash utility using Web Crypto API
-export async function hashPasswordWithSalt(password: string, salt: string): Promise<string> {
-  const enc = new TextEncoder();
-  const data = enc.encode(password + '::saelyx_salt::' + salt);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+const ADMIN_ROLES: Record<string, UserRole> = {
+  'saelyx.co@gmail.com': 'super_admin',
+  'saelyx.co+admin@gmail.com': 'admin'
+};
+
+export function getConfiguredAdminRole(email?: string | null): UserRole | undefined {
+  return email ? ADMIN_ROLES[email.toLowerCase()] : undefined;
 }
 
-// Fixed known secure admin credentials & salted hashes for demo/admin access
-// Super Admin: saelyx_super / SaelyxVIP#2026!
-// Normal Admin: saelyx_admin / SaelyxAtelier#2026
-export const ADMIN_SALT = "saelyx_couture_2026_salt";
-
-export interface AdminCredential {
-  username: string;
-  role: UserRole;
-  displayName: string;
-  hashedKey: string;
-}
-
-// Helper to check admin credentials
 export async function verifyAdminCredentials(username: string, pass: string): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
-  const trimmedUser = username.trim().toLowerCase();
-  const trimmedPass = pass.trim();
-
   try {
-    // Query Firestore staff collection for this username
-    const staffRef = collection(db, 'staff');
-    const q = query(staffRef, where('username', '==', trimmedUser));
-    const querySnapshot = await getDocs(q);
+    const credential = await signInWithEmailAndPassword(auth, username.trim(), pass);
+    const token = await credential.user.getIdTokenResult(true);
+    const role = token.claims.role as UserRole | undefined;
+    const adminDoc = await getDoc(doc(db, 'admins', credential.user.uid));
+    const adminData = adminDoc.exists() ? adminDoc.data() : null;
+    const adminDocRole = adminData?.role as UserRole | undefined;
+    const configuredRole = credential.user.email ? ADMIN_ROLES[credential.user.email.toLowerCase()] : undefined;
+    const isAdmin = token.claims.admin === true || role === 'admin' || role === 'super_admin' || adminDoc.exists() || Boolean(configuredRole);
 
-    let dbStaff: any = null;
-    querySnapshot.forEach(docSnap => {
-      dbStaff = { id: docSnap.id, ...docSnap.data() };
-    });
-
-    // If the user doesn't exist in Firestore, they are revoked or don't exist!
-    if (!dbStaff) {
-      return {
-        valid: false,
-        error: 'Access denied. This operator account does not exist or has been revoked.'
-      };
-    }
-
-    if (dbStaff.status === 'revoked' || dbStaff.status === 'inactive') {
-      return {
-        valid: false,
-        error: 'Access denied. This operator account has been explicitly revoked.'
-      };
-    }
-
-    // Check password based on username/role
-    let isPasswordValid = false;
-    if (trimmedUser === 'saelyx_super' && trimmedPass === 'SaelyxVIP#2026!') {
-      isPasswordValid = true;
-    } else if (trimmedUser === 'saelyx_admin' && trimmedPass === 'SaelyxAtelier#2026') {
-      isPasswordValid = true;
-    } else if (trimmedUser === 'admin@saelyx.com' && (trimmedPass === 'SaelyxAtelier#2026' || trimmedPass === 'admin123')) {
-      isPasswordValid = true;
-    } else {
-      // For newly added staff, support standard keys for convenience and grading robustness
-      if (trimmedPass === 'SaelyxAtelier#2026' || trimmedPass === 'admin123' || trimmedPass === trimmedUser + '123') {
-        isPasswordValid = true;
-      }
-    }
-
-    if (!isPasswordValid) {
-      return {
-        valid: false,
-        error: 'Invalid password key. Please verify your cryptographic security code.'
-      };
+    if (!isAdmin) {
+      await fbSignOut(auth);
+      return { valid: false, error: 'Access denied. This Firebase account is not an administrator.' };
     }
 
     return {
       valid: true,
       user: {
-        uid: dbStaff.id,
-        name: dbStaff.displayName || dbStaff.name || 'Atelier Operator',
-        email: dbStaff.email || `${trimmedUser}@houseofsaelyx.com`,
-        role: dbStaff.role || 'admin',
-        joinedDate: dbStaff.createdAt ? dbStaff.createdAt.split('T')[0] : '2026-01-01',
-        ordersCount: dbStaff.role === 'super_admin' ? 99 : 45
+        uid: credential.user.uid,
+        name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Atelier Operator',
+        email: credential.user.email || '',
+        role: role || adminDocRole || configuredRole || 'admin',
+        joinedDate: new Date().toISOString().slice(0, 10),
+        ordersCount: (role || adminDocRole) === 'super_admin' ? 99 : 45
       }
     };
 
   } catch (err: any) {
-    console.error('Error verifying admin credentials via DB:', err);
     return {
       valid: false,
-      error: 'Atelier secure database connection error: ' + err.message
+      error: err?.code === 'auth/invalid-credential' ? 'Invalid Firebase administrator credentials.' : 'Firebase administrator authentication failed.'
+    };
+  }
+}
+
+export async function sendAdminPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+    return { success: true };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.code === 'auth/user-not-found'
+        ? 'No Firebase account was found for that email address.'
+        : 'Unable to send the Firebase password reset email.'
     };
   }
 }

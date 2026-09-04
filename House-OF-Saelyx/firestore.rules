@@ -1,81 +1,85 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
     function isAdmin() {
-      return isAuthenticated() && 
-        (request.auth.token.admin == true || 
-         request.auth.token.role == 'admin' || 
-         request.auth.token.role == 'super_admin' ||
-         exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'super_admin' ||
+        request.auth.token.email == 'saelyx.co@gmail.com' ||
+        request.auth.token.email == 'saelyx.co+admin@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
-    
-    // Products: readable by everyone, writable by admins
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'super_admin' ||
+        request.auth.token.email == 'saelyx.co@gmail.com' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin')
+      );
+    }
+
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdmin() || true; // Allowed during setup / demo fallback
+      allow create, update: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
-    
-    // Store Drop Settings: readable by everyone, writable by admins
+
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isAdmin() || true;
+      allow create, update, delete: if isSuperAdmin();
     }
-    
-    // Orders: readable by owner or admin or with orderNumber query, creatable by anyone
+
     match /orders/{orderId} {
-      allow read: if true; // Allows customer tracking by ID/OrderNumber
       allow create: if true;
-      allow update, delete: if isAdmin() || true;
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
-    
-    // Users profile and private data
+
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin() || true;
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if isOwner(userId) || isAdmin();
     }
-    
-    // Newsletter subscribers
+
     match /subscribers/{subscriberId} {
       allow create: if true;
-      allow read, update, delete: if isAdmin() || true;
+      allow read, update, delete: if isAdmin();
     }
 
-    // Back-in-Stock Notifications (Cloud Functions Integration)
     match /stock_notifications/{notificationId} {
       allow create: if true;
-      allow read, update, delete: if isAdmin() || true;
+      allow read, update, delete: if isAdmin();
     }
-    
-    // Contact / Concierge Inquiries
+
     match /messages/{messageId} {
       allow create: if true;
-      allow read, update, delete: if isAdmin() || true;
+      allow read, update, delete: if isAdmin();
     }
 
-    // Staff / Operators
     match /staff/{staffId} {
-      allow read: if true;
-      allow write: if isAdmin() || true;
+      allow read, create, update, delete: if isSuperAdmin();
     }
 
-    // Admins table & audit logs
     match /admins/{adminId} {
-      allow read: if true;
-      allow write: if isAdmin() || true;
+      allow read: if isOwner(adminId) || isAdmin();
+      allow create, update, delete: if isSuperAdmin();
     }
-    
+
     match /audit_logs/{logId} {
-      allow read: if isAdmin() || true;
-      allow create: if true;
+      allow create: if isAuthenticated();
+      allow read: if isAdmin();
+      allow update, delete: if isAdmin();
     }
   }
 }

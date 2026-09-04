@@ -1,11 +1,39 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { db } from './server/db.js';
+import { requireAdmin } from './server/auth.js';
 
 export function createApp() {
   const app = express();
-  app.use(express.json());
+  const requestCounts = new Map<string, { count: number; resetAt: number }>();
+  app.disable('x-powered-by');
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; connect-src 'self' http://localhost:3000 ws: wss: https:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self';"
+    );
+    next();
+  });
+  app.use(express.json({ limit: '64kb' }));
+  app.use((req, res, next) => {
+    const now = Date.now();
+    const key = req.ip || 'unknown';
+    const current = requestCounts.get(key);
+    if (!current || current.resetAt <= now) {
+      requestCounts.set(key, { count: 1, resetAt: now + 60_000 });
+      return next();
+    }
+    current.count += 1;
+    if (current.count > 240) return res.status(429).json({ error: 'Too many requests. Try again shortly.' });
+    return next();
+  });
+  const adminOnly = requireAdmin;
 
   // 1. Health check
   app.get('/api/health', (req, res) => {
@@ -53,7 +81,7 @@ export function createApp() {
     }
   });
 
-  app.post('/api/products', (req, res) => {
+  app.post('/api/products', adminOnly, (req, res) => {
     try {
       const newProduct = db.addProduct(req.body);
       res.status(201).json(newProduct);
@@ -62,7 +90,7 @@ export function createApp() {
     }
   });
 
-  app.put('/api/products/:id', (req, res) => {
+  app.put('/api/products/:id', adminOnly, (req, res) => {
     try {
       const updated = db.updateProduct(req.params.id, req.body);
       if (!updated) {
@@ -74,7 +102,7 @@ export function createApp() {
     }
   });
 
-  app.delete('/api/products/:id', (req, res) => {
+  app.delete('/api/products/:id', adminOnly, (req, res) => {
     try {
       const ok = db.deleteProduct(req.params.id);
       if (!ok) return res.status(404).json({ error: 'Product not found' });
@@ -85,7 +113,7 @@ export function createApp() {
   });
 
   // 3. Orders & Hand-Delivery Tracking API
-  app.get('/api/orders', (req, res) => {
+  app.get('/api/orders', adminOnly, (req, res) => {
     try {
       const orders = db.getOrders();
       res.json(orders);
@@ -100,7 +128,16 @@ export function createApp() {
       if (!order) {
         return res.status(404).json({ error: 'Order not found. Please check your order reference or phone number.' });
       }
-      res.json(order);
+      res.json({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        trackingNumber: order.trackingNumber,
+        courierName: order.courierName,
+        deliveryEta: order.deliveryEta,
+        statusHistory: order.statusHistory,
+        createdAt: order.createdAt
+      });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -129,7 +166,47 @@ export function createApp() {
 
   app.post('/api/orders', (req, res) => {
     try {
-      const newOrder = db.createOrder(req.body);
+      const body = req.body || {};
+      const items = Array.isArray(body.items) ? body.items : [];
+      if (!items.length || items.length > 50) {
+        return res.status(400).json({ error: 'Order must contain valid items' });
+      }
+
+      const validatedItems = items.map((item: any) => {
+        const product = db.getProductById(String(item.productId || ''));
+        const quantity = Number(item.quantity);
+        if (!product || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+          throw new Error('Invalid product or quantity');
+        }
+        if (!product.inStock || (product.stockCount || 0) < quantity) {
+          throw new Error(`Insufficient stock for ${product.title}`);
+        }
+        return {
+          productId: product.id,
+          title: product.title,
+          image: product.images?.[0] || '',
+          priceLKR: product.priceLKR,
+          size: typeof item.size === 'string' ? item.size.slice(0, 20) : '',
+          quantity
+        };
+      });
+
+      const subtotalLKR = validatedItems.reduce((sum: number, item: any) => sum + item.priceLKR * item.quantity, 0);
+      const shippingLKR = subtotalLKR > 50000 ? 0 : 2500;
+      const paymentMethod = ['cod', 'paypal', 'payhere', 'binance_qr'].includes(body.paymentMethod) ? body.paymentMethod : 'cod';
+      const safeOrder = {
+        ...body,
+        items: validatedItems,
+        subtotalLKR,
+        shippingLKR,
+        totalLKR: subtotalLKR + shippingLKR,
+        paymentMethod,
+        paymentStatus: paymentMethod === 'cod' ? 'pending_delivery' : 'pending_verification',
+        status: 'placed',
+        trackingNumber: undefined,
+        orderNumber: undefined
+      };
+      const newOrder = db.createOrder(safeOrder);
       sendOrderConfirmationEmail(newOrder);
       res.status(201).json(newOrder);
     } catch (e: any) {
@@ -137,7 +214,7 @@ export function createApp() {
     }
   });
 
-  app.put('/api/orders/:id/status', (req, res) => {
+  app.put('/api/orders/:id/status', adminOnly, (req, res) => {
     try {
       const { status, note, location, trackingNumber, courierName, deliveryEta } = req.body;
       const updated = db.updateOrderStatus(
@@ -168,7 +245,7 @@ export function createApp() {
     }
   });
 
-  app.put('/api/settings', (req, res) => {
+  app.put('/api/settings', adminOnly, (req, res) => {
     try {
       const updated = db.updateSettings(req.body);
       res.json(updated);
@@ -207,7 +284,7 @@ export function createApp() {
   });
 
   // 7. Staff Management API (Super Admin)
-  app.get('/api/staff', (req, res) => {
+  app.get('/api/staff', adminOnly, (req, res) => {
     try {
       res.json(db.getStaff());
     } catch (e: any) {
@@ -215,7 +292,7 @@ export function createApp() {
     }
   });
 
-  app.post('/api/staff', (req, res) => {
+  app.post('/api/staff', adminOnly, (req, res) => {
     try {
       const newStaff = db.addStaff(req.body);
       db.addAuditLog({
@@ -231,7 +308,7 @@ export function createApp() {
     }
   });
 
-  app.put('/api/staff/:id', (req, res) => {
+  app.put('/api/staff/:id', adminOnly, (req, res) => {
     try {
       const updated = db.updateStaff(req.params.id, req.body);
       if (!updated) return res.status(404).json({ error: 'Staff member not found' });
@@ -248,7 +325,7 @@ export function createApp() {
     }
   });
 
-  app.delete('/api/staff/:id', (req, res) => {
+  app.delete('/api/staff/:id', adminOnly, (req, res) => {
     try {
       const ok = db.deleteStaff(req.params.id);
       if (!ok) return res.status(404).json({ error: 'Staff member not found' });
@@ -266,7 +343,7 @@ export function createApp() {
   });
 
   // 8. Contact & Concierge Messages API
-  app.get('/api/messages', (req, res) => {
+  app.get('/api/messages', adminOnly, (req, res) => {
     try {
       res.json(db.getMessages());
     } catch (e: any) {
@@ -283,7 +360,7 @@ export function createApp() {
     }
   });
 
-  app.put('/api/messages/:id/status', (req, res) => {
+  app.put('/api/messages/:id/status', adminOnly, (req, res) => {
     try {
       const { status, replyNotes } = req.body;
       const updated = db.updateMessageStatus(req.params.id, status, replyNotes);
@@ -295,7 +372,7 @@ export function createApp() {
   });
 
   // 9. Security Audit Logs API
-  app.get('/api/audit-logs', (req, res) => {
+  app.get('/api/audit-logs', adminOnly, (req, res) => {
     try {
       res.json(db.getAuditLogs());
     } catch (e: any) {
@@ -303,7 +380,7 @@ export function createApp() {
     }
   });
 
-  app.post('/api/audit-logs', (req, res) => {
+  app.post('/api/audit-logs', adminOnly, (req, res) => {
     try {
       const log = db.addAuditLog({
         ...req.body,
@@ -316,7 +393,7 @@ export function createApp() {
   });
 
   // 10. Back-in-Stock Notifications & Firebase Cloud Functions API
-  app.get('/api/stock-notifications', (req, res) => {
+  app.get('/api/stock-notifications', adminOnly, (req, res) => {
     try {
       res.json(db.getStockNotifications());
     } catch (e: any) {
@@ -333,7 +410,7 @@ export function createApp() {
     }
   });
 
-  app.delete('/api/stock-notifications/:id', (req, res) => {
+  app.delete('/api/stock-notifications/:id', adminOnly, (req, res) => {
     try {
       const ok = db.deleteStockNotification(req.params.id);
       if (!ok) return res.status(404).json({ error: 'Notification entry not found' });
@@ -344,7 +421,7 @@ export function createApp() {
   });
 
   // Firebase Cloud Function trigger simulation & execution endpoint
-  app.post('/api/functions/onStockReplenished', (req, res) => {
+  app.post('/api/functions/onStockReplenished', adminOnly, (req, res) => {
     try {
       const { productId } = req.body;
       const result = db.triggerRestockCloudFunction(productId);

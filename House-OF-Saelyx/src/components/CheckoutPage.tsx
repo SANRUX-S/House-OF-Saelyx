@@ -80,7 +80,7 @@ export const CheckoutPage: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'payhere' | 'paypal' | 'binance_qr' | 'cod'>('payhere');
   
   // PayPal Client ID loaded quietly in the background - never exposed to customer
-  const paypalClientId = (import.meta as any).env?.VITE_PAYPAL_CLIENT_ID || 'BAAMUOgTBDkm5zJDRNV99vEveCMd826nh5KSC7oVRlMlGxKCMwo9Ur79GyITXGOTVpV3U5Mi_I3Aw5AAU0';
+  const paypalClientId = (import.meta as any).env?.VITE_PAYPAL_CLIENT_ID || '';
 
   const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
   const [cardExpiry, setCardExpiry] = useState('12/28');
@@ -304,7 +304,7 @@ export const CheckoutPage: React.FC = () => {
         totalInCurrency,
         status: 'placed',
         paymentMethod: paymentMethod as any,
-        paymentStatus: paymentMethod === 'cod' ? 'pending_delivery' : 'verified',
+        paymentStatus: paymentMethod === 'cod' ? 'pending_delivery' : 'pending_verification',
         trackingNumber: `EXP-${Math.floor(100000 + Math.random() * 900000)}`,
         courierName: 'Saelyx White-Glove Van 04',
         deliveryEta: 'Today by 5:30 PM (Priority Hand-Delivery)',
@@ -367,7 +367,7 @@ export const CheckoutPage: React.FC = () => {
         totalInCurrency,
         status: 'placed',
         paymentMethod: 'paypal',
-        paymentStatus: 'verified',
+        paymentStatus: 'pending_verification',
         trackingNumber: `EXP-${Math.floor(100000 + Math.random() * 900000)}`,
         courierName: 'Saelyx White-Glove Van 04',
         deliveryEta: 'Today by 5:30 PM (Priority Hand-Delivery)',

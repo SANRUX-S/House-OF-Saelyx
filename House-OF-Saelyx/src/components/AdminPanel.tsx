@@ -71,6 +71,18 @@ export const AdminPanel: React.FC = () => {
   const isSuperAdmin = user?.role === 'super_admin';
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
 
+  useEffect(() => {
+    const superAdminOnlyTabs: AdminTab[] = ['staff', 'security', 'drop-config'];
+    if (!isSuperAdmin && superAdminOnlyTabs.includes(activeTab)) {
+      setActiveTab('overview');
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', 'overview');
+        window.history.replaceState(null, '', url.toString());
+      } catch (e) {}
+    }
+  }, [activeTab, isSuperAdmin]);
+
   // Sync tab with URL
   const handleSwitchTab = (tab: AdminTab) => {
     setActiveTab(tab);
