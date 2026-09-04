@@ -76,7 +76,7 @@ const StoreContent: React.FC = () => {
   // If in Admin mode, render completely isolated full-screen Atelier interface without consumer navbar/footer
   if (currentRoute.name === 'admin') {
     return (
-      <div className="min-h-screen bg-[#0C0B0A] text-stone-100 selection:bg-amber-400 selection:text-black font-sans antialiased">
+      <div className="min-h-screen bg-[#F4F6F5] text-stone-900 selection:bg-[#B4F105] selection:text-black font-sans antialiased">
         <SEOManager />
         <AdminPanel />
         <BackInStockModal 
