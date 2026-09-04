@@ -7,9 +7,9 @@ export const SEOManager: React.FC = () => {
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
-    let title = 'SAELYX — Made for Presence | Luxury Streetwear & Ready-To-Wear';
+    let title = 'SAELYXE — Made for Presence | Luxury Streetwear & Ready-To-Wear';
     let description = 'Minimalist luxury streetwear and ready-to-wear drops crafted for understated presence. Handcrafted silhouettes, architectural tailoring, and exclusive limited drops.';
-    let imageUrl = 'https://saelyx.com/images/spotlight19201080.jpg';
+    let imageUrl = 'https://saelyxe.com/images/spotlight19201080.jpg';
     let canonicalPath = '/';
     let dynamicSchema: object | null = null;
 
@@ -18,13 +18,13 @@ export const SEOManager: React.FC = () => {
     if (routeName === 'product' && currentRoute.slug) {
       const product = getProductBySlug(currentRoute.slug);
       if (product) {
-        title = `${product.title} | SAELYX Atelier`;
+        title = `${product.title} | SAELYXE Atelier`;
         description = product.description 
           ? product.description.replace(/(<([^>]+)>)/gi, '').substring(0, 160)
-          : `${product.title} - Handcrafted minimalist luxury streetwear by SAELYX. Fabric: ${product.fabricDetails || 'Luxury blend'}.`;
+          : `${product.title} - Handcrafted minimalist luxury streetwear by SAELYXE. Fabric: ${product.fabricDetails || 'Luxury blend'}.`;
         
         if (product.images && product.images.length > 0) {
-          imageUrl = product.images[0].startsWith('http') ? product.images[0] : `https://saelyx.com${product.images[0]}`;
+          imageUrl = product.images[0].startsWith('http') ? product.images[0] : `https://saelyxe.com${product.images[0]}`;
         }
         canonicalPath = `/product/${product.slug || product.id}`;
 
@@ -40,11 +40,11 @@ export const SEOManager: React.FC = () => {
           "mpn": product.id,
           "brand": {
             "@type": "Brand",
-            "name": "SAELYX"
+            "name": "SAELYXE"
           },
           "offers": {
             "@type": "Offer",
-            "url": `https://saelyx.com${canonicalPath}`,
+            "url": `https://saelyxe.com${canonicalPath}`,
             "priceCurrency": priceInfo.code || "LKR",
             "price": product.priceLKR,
             "priceValidUntil": "2027-12-31",
@@ -52,7 +52,7 @@ export const SEOManager: React.FC = () => {
             "availability": product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
             "seller": {
               "@type": "Organization",
-              "name": "SAELYX"
+              "name": "SAELYXE"
             }
           }
         };
@@ -60,64 +60,64 @@ export const SEOManager: React.FC = () => {
     } else if (routeName === 'collection') {
       const category = currentRoute.category || 'all';
       const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
-      title = `${categoryName} Collection | SAELYX Luxury Streetwear`;
-      description = `Explore the SAELYX ${categoryName} luxury streetwear collection. Crafted with architectural silhouettes, heavyweight luxury cottons, and refined drops.`;
+      title = `${categoryName} Collection | SAELYXE Luxury Streetwear`;
+      description = `Explore the SAELYXE ${categoryName} luxury streetwear collection. Crafted with architectural silhouettes, heavyweight luxury cottons, and refined drops.`;
       canonicalPath = `/collection/${category}`;
 
       dynamicSchema = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
         "name": `${categoryName} Collection`,
-        "url": `https://saelyx.com/collection/${category}`,
+        "url": `https://saelyxe.com/collection/${category}`,
         "description": description,
         "isPartOf": {
           "@type": "WebSite",
-          "name": "SAELYX",
-          "url": "https://saelyx.com/"
+          "name": "SAELYXE",
+          "url": "https://saelyxe.com/"
         }
       };
     } else if (routeName === 'vip') {
-      title = 'VIP House Membership | SAELYX Private Atelier Access';
-      description = 'Join SAELYX VIP House for exclusive tier benefits, priority drop access, bespoke concierge support, and private vault previews.';
+      title = 'VIP House Membership | SAELYXE Private Atelier Access';
+      description = 'Join SAELYXE VIP House for exclusive tier benefits, priority drop access, bespoke concierge support, and private vault previews.';
       canonicalPath = '/vip';
     } else if (routeName === 'checkout') {
-      title = 'Secure Checkout | SAELYX Atelier';
-      description = 'Complete your SAELYX purchase with encrypted SSL checkout and worldwide insured express shipping.';
+      title = 'Secure Checkout | SAELYXE Atelier';
+      description = 'Complete your SAELYXE purchase with encrypted SSL checkout and worldwide insured express shipping.';
       canonicalPath = '/checkout';
     } else if (routeName === 'track-order' || routeName === 'track') {
-      title = 'Track Order | SAELYX Private Client Services';
-      description = 'Track your SAELYX luxury drop shipment in real time with global courier integration.';
+      title = 'Track Order | SAELYXE Private Client Services';
+      description = 'Track your SAELYXE luxury drop shipment in real time with global courier integration.';
       canonicalPath = '/track';
     } else if (routeName === 'legal-terms') {
-      title = 'Terms of Service | SAELYX';
-      description = 'Official terms of service and client governance for SAELYX House.';
+      title = 'Terms of Service | SAELYXE';
+      description = 'Official terms of service and client governance for SAELYXE House.';
       canonicalPath = '/legal-terms';
     } else if (routeName === 'legal-privacy') {
-      title = 'Privacy Policy | SAELYX Security & Data Care';
-      description = 'SAELYX privacy policy detailing client encryption, security protocols, and data rights.';
+      title = 'Privacy Policy | SAELYXE Security & Data Care';
+      description = 'SAELYXE privacy policy detailing client encryption, security protocols, and data rights.';
       canonicalPath = '/legal-privacy';
     } else if (routeName === 'legal-returns') {
-      title = 'Returns & Exchanges | SAELYX Concierge';
-      description = 'Complimentary luxury return policy and client exchange instructions for SAELYX garments.';
+      title = 'Returns & Exchanges | SAELYXE Concierge';
+      description = 'Complimentary luxury return policy and client exchange instructions for SAELYXE garments.';
       canonicalPath = '/legal-returns';
     } else if (routeName === 'care-shipping') {
-      title = 'Worldwide Delivery & Shipping | SAELYX';
+      title = 'Worldwide Delivery & Shipping | SAELYXE';
       description = 'Global express courier delivery, insured dispatch, and luxury custom packaging options.';
       canonicalPath = '/care-shipping';
     } else if (routeName === 'care-concierge') {
-      title = 'Atelier Concierge | SAELYX';
+      title = 'Atelier Concierge | SAELYXE';
       description = 'Personal styling assistance, garment care advice, and private client service.';
       canonicalPath = '/care-concierge';
     } else if (routeName === 'care-size-guide') {
-      title = 'Garment Fit & Size Guide | SAELYX';
-      description = 'Detailed measurement charts and drape guidance for SAELYX architectural fits.';
+      title = 'Garment Fit & Size Guide | SAELYXE';
+      description = 'Detailed measurement charts and drape guidance for SAELYXE architectural fits.';
       canonicalPath = '/care-size-guide';
     } else if (routeName === 'care-authenticity') {
-      title = 'Authenticity & Craftsmanship | SAELYX';
-      description = 'Verification of custom weave fabrics, serial numbers, and genuine SAELYX garment craft.';
+      title = 'Authenticity & Craftsmanship | SAELYXE';
+      description = 'Verification of custom weave fabrics, serial numbers, and genuine SAELYXE garment craft.';
       canonicalPath = '/care-authenticity';
     } else if (routeName === 'admin') {
-      title = 'Admin Atelier | SAELYX Console';
+      title = 'Admin Atelier | SAELYXE Console';
       description = 'Internal atelier administration and inventory management.';
       canonicalPath = '/admin';
     }
@@ -148,7 +148,7 @@ export const SEOManager: React.FC = () => {
     setMetaContent('og:title', title, true);
     setMetaContent('og:description', description, true);
     setMetaContent('og:image', imageUrl, true);
-    setMetaContent('og:url', `https://saelyx.com${canonicalPath}`, true);
+    setMetaContent('og:url', `https://saelyxe.com${canonicalPath}`, true);
     setMetaContent('twitter:title', title);
     setMetaContent('twitter:description', description);
     setMetaContent('twitter:image', imageUrl);
@@ -160,10 +160,10 @@ export const SEOManager: React.FC = () => {
       canonicalLink.setAttribute('rel', 'canonical');
       document.head.appendChild(canonicalLink);
     }
-    canonicalLink.setAttribute('href', `https://saelyx.com${canonicalPath}`);
+    canonicalLink.setAttribute('href', `https://saelyxe.com${canonicalPath}`);
 
     // Dynamic JSON-LD script management
-    const schemaScriptId = 'saelyx-dynamic-jsonld';
+    const schemaScriptId = 'saelyxe-dynamic-jsonld';
     let scriptElement = document.getElementById(schemaScriptId) as HTMLScriptElement | null;
     if (dynamicSchema) {
       if (!scriptElement) {

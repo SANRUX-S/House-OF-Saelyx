@@ -151,7 +151,7 @@ export const OrdersPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#8C7A68] block mb-1">
-              HOUSE OF SAELYX
+              HOUSE OF SAELYXE
             </span>
             <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
               MY ORDERS
@@ -356,7 +356,7 @@ export const OrdersPage: React.FC = () => {
                       <p className="font-semibold text-[#1A1816]">{selectedOrder.customerName}</p>
                       <p className="text-[#4A4036]">{selectedOrder.address}, {selectedOrder.city} {selectedOrder.postalCode}</p>
                       <p className="text-[#7A6E60]">Phone: {selectedOrder.phone}</p>
-                      <p className="text-[#7A6E60]">White-Glove Courier: {selectedOrder.courierName || 'Saelyx Dedicated Courier'}</p>
+                      <p className="text-[#7A6E60]">White-Glove Courier: {selectedOrder.courierName || 'Saelyxe Dedicated Courier'}</p>
                     </div>
                   </div>
 

@@ -51,7 +51,7 @@ export const CareConciergePage: React.FC = () => {
         {/* Title */}
         <div className="space-y-2 border-b border-[#E3D9CD] pb-6">
           <span className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
-            HOUSE OF SAELYX • ATELIER CONCIERGE
+            HOUSE OF SAELYXE • ATELIER CONCIERGE
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
             Client Care & Private Consultations
@@ -91,7 +91,7 @@ export const CareConciergePage: React.FC = () => {
                   <Mail className="w-4 h-4 text-[#7A6E60] mt-0.5" />
                   <div>
                     <div className="font-semibold text-[#1A1816]">Electronic Dispatch</div>
-                    <div className="text-[#635546]">concierge@houseofsaelyx.com</div>
+                    <div className="text-[#635546]">concierge@saelyxe.com</div>
                   </div>
                 </div>
 

@@ -21,7 +21,7 @@ export const CareAuthenticityPage: React.FC = () => {
         {/* Title */}
         <div className="space-y-2 border-b border-[#E3D9CD] pb-6">
           <span className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
-            HOUSE OF SAELYX • ATELIER PROVENANCE
+            HOUSE OF SAELYXE • ATELIER PROVENANCE
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
             Certificate of Authenticity & Craft
@@ -41,7 +41,7 @@ export const CareAuthenticityPage: React.FC = () => {
                 OFFICIAL SEAL OF PROVENANCE
               </div>
               <h3 className="font-serif text-xl tracking-wider text-white mt-1">
-                HOUSE OF SAELYX ATELIER
+                HOUSE OF SAELYXE ATELIER
               </h3>
             </div>
             <Award className="w-8 h-8 text-amber-400" />

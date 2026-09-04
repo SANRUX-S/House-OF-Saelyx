@@ -1,8 +1,8 @@
-# SAELYX Luxury Atelier - Robots Configuration
+# SAELYXE Luxury Atelier - Robots Configuration
 User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /checkout
 Disallow: /api/
 
-Sitemap: https://saelyx.com/sitemap.xml
+Sitemap: https://saelyxe.com/sitemap.xml

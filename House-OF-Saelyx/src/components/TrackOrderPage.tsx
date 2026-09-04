@@ -275,7 +275,7 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
                 <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] font-semibold block">
                   COURIER FLEET ASSIGNMENT
                 </span>
-                <p className="text-sm font-semibold text-[#1A1816]">{order.courierName || 'House of Saelyx Direct Courier'}</p>
+                <p className="text-sm font-semibold text-[#1A1816]">{order.courierName || 'House of Saelyxe Direct Courier'}</p>
                 <p className="text-[#4A4036]">Tracking Ref: <span className="font-mono font-medium text-[#1A1816]">{order.trackingNumber}</span></p>
                 <p className="text-emerald-900 font-medium">ETA: {order.deliveryEta || 'Estimated in 1-2 Days'}</p>
               </div>

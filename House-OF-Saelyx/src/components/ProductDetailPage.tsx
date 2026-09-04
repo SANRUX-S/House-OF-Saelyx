@@ -456,7 +456,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                           )}
                           {inlineNotificationPermission === 'denied' && (
                             <p className="text-[10px] text-rose-600 font-sans leading-relaxed">
-                              ⚠️ Notifications are blocked. Please click the site icon in your browser's address bar and allow notifications for SAELYX.
+                              ⚠️ Notifications are blocked. Please click the site icon in your browser's address bar and allow notifications for SAELYXE.
                             </p>
                           )}
                           {inlineNotificationPermission === 'granted' && (

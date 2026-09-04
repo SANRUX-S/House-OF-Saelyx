@@ -22,7 +22,7 @@ export const CareSizeGuidePage: React.FC = () => {
         {/* Title */}
         <div className="space-y-2 border-b border-[#E3D9CD] pb-6">
           <span className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
-            HOUSE OF SAELYX • SARTORIAL PROPORTIONS
+            HOUSE OF SAELYXE • SARTORIAL PROPORTIONS
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
             Garment Sizing & Fit Architecture

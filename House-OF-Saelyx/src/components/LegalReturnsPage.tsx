@@ -36,7 +36,7 @@ export const LegalReturnsPage: React.FC = () => {
         <div className="space-y-4 border-b border-[#E3D9CD] pb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EFE9E0] border border-[#DCD0C0] text-[11px] font-semibold uppercase tracking-[0.25em] text-[#7A6E60]">
             <RotateCcw className="w-3.5 h-3.5 text-[#857768]" />
-            HOUSE OF SAELYX • OFFICIAL POLICIES
+            HOUSE OF SAELYXE • OFFICIAL POLICIES
           </div>
           <h1 className="font-serif text-3xl sm:text-5xl text-[#1A1816] font-normal tracking-tight leading-tight">
             Refund & Return Policy
@@ -200,7 +200,7 @@ export const LegalReturnsPage: React.FC = () => {
               </h2>
             </div>
             <p>
-              If your order arrives <strong className="font-semibold text-[#1A1816]">damaged, defective, or incorrect</strong>, please contact House of Saelyx customer support as soon as possible after delivery.
+              If your order arrives <strong className="font-semibold text-[#1A1816]">damaged, defective, or incorrect</strong>, please contact House of Saelyxe customer support as soon as possible after delivery.
             </p>
             <p>
               You may be required to provide clear photographs or other reasonable evidence of the issue so that we can review the claim.
@@ -227,7 +227,7 @@ export const LegalReturnsPage: React.FC = () => {
               For customer-requested returns that are not caused by a fault or error on our part, the customer may be responsible for the applicable return shipping costs.
             </p>
             <p>
-              Where the return is due to an incorrect item, defective product, or another confirmed error by House of Saelyx, we will determine the appropriate shipping arrangement.
+              Where the return is due to an incorrect item, defective product, or another confirmed error by House of Saelyxe, we will determine the appropriate shipping arrangement.
             </p>
           </section>
 
@@ -269,7 +269,7 @@ export const LegalReturnsPage: React.FC = () => {
               A payment is considered successfully received only when the payment has been successfully confirmed by the relevant payment processor.
             </p>
             <p>
-              House of Saelyx does not request or store customers' full card details for payment processing. Payment card information is handled through the applicable payment service provider.
+              House of Saelyxe does not request or store customers' full card details for payment processing. Payment card information is handled through the applicable payment service provider.
             </p>
             <p className="text-xs text-[#5C5042] leading-relaxed">
               Where a refund relates to a PayHere transaction, the refund will be handled through the applicable payment and payment-processing procedures. The time required for the refunded amount to appear in a customer's account may depend on the payment provider, issuing bank, or card issuer.
@@ -308,7 +308,7 @@ export const LegalReturnsPage: React.FC = () => {
               Customers should carefully check the <strong className="font-semibold text-[#1A1816]">size, colour, product details, delivery address, and contact information</strong> before completing an order.
             </p>
             <p>
-              House of Saelyx is not responsible for issues caused by incorrect or incomplete customer-provided information, subject to applicable consumer rights and law.
+              House of Saelyxe is not responsible for issues caused by incorrect or incomplete customer-provided information, subject to applicable consumer rights and law.
             </p>
             <p className="text-xs text-[#7A6E60] border-t border-[#F0E8DD] pt-3">
               Nothing in this Refund & Return Policy is intended to remove or limit any rights available to consumers under applicable Sri Lankan law.

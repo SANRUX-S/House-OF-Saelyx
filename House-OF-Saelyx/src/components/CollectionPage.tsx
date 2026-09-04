@@ -59,7 +59,7 @@ export const CollectionPage: React.FC<{ category: string }> = ({ category }) => 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <span className="text-[10px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
-                HOUSE OF SAELYX • CURATED SILHOUETTES
+                HOUSE OF SAELYXE • CURATED SILHOUETTES
               </span>
               <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#1A1816] font-normal tracking-tight mt-1">
                 {formattedCatTitle}

@@ -130,7 +130,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
               {user.name || 'Patron'}
             </h4>
             <p className="text-xs text-[#7A6E60] truncate mt-0.5 font-sans">
-              {user.email || 'patron@houseofsaelyx.com'}
+              {user.email || 'patron@saelyxe.com'}
             </p>
           </div>
         </div>

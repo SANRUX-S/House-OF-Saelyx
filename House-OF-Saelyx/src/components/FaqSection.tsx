@@ -50,7 +50,7 @@ const defaultFaqs: FaqItem[] = [
     question: "MORE QUESTIONS?",
     content: (
       <div className="text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
-        Reach out directly to our support team at support@saelyx.com or contact us via live chat anytime.
+        Reach out directly to our support team at support@saelyxe.com or contact us via live chat anytime.
       </div>
     )
   }

@@ -98,7 +98,7 @@ export const ProfilePage: React.FC = () => {
               AUTHENTICATION REQUIRED
             </h2>
             <p className="text-xs text-[#7A6E60] leading-relaxed max-w-md mx-auto">
-              Please sign in with your House of Saelyx account or Google profile to access your private client records.
+              Please sign in with your House of Saelyxe account or Google profile to access your private client records.
             </p>
           </div>
           <button

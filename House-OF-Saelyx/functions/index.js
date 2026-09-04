@@ -195,7 +195,7 @@ async function deliverRestockEmail(payload) {
   return {
     sent: true,
     to: payload.email,
-    subject: `SAELYX Atelier Restock: ${payload.productTitle} is now available`,
+    subject: `SAELYXE Atelier Restock: ${payload.productTitle} is now available`,
     timestamp: new Date().toISOString()
   };
 }

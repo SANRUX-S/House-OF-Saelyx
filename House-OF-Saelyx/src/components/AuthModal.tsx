@@ -127,7 +127,7 @@ export const AuthModal: React.FC = () => {
                         ? 'Super Admin / Master Key' 
                         : user.role === 'admin' 
                         ? 'Atelier Director' 
-                        : 'House of Saelyx Patron'}
+                        : 'House of Saelyxe Patron'}
                     </span>
                   </div>
                 </div>

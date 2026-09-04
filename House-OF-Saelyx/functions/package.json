@@ -1,6 +1,6 @@
 {
-  "name": "saelyx-functions",
-  "description": "Firebase Cloud Functions for House of SAELYX back-in-stock automated dispatches",
+  "name": "saelyxe-functions",
+  "description": "Firebase Cloud Functions for House of SAELYXE back-in-stock automated dispatches",
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
