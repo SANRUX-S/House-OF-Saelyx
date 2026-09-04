@@ -19,15 +19,24 @@ import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import { AppUser, UserRole } from '../types';
 
 const firebaseConfig = {
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-project',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || 'demo-app-id',
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo-project.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'demo-project.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '000000000000',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
   oAuthClientId: import.meta.env.VITE_FIREBASE_OAUTH_CLIENT_ID || '',
 };
+
+const PLACEHOLDER_VALUES = new Set(['', 'demo-project', 'demo-app-id', 'demo-api-key', '000000000000']);
+export const isFirebaseConfigured = [
+  firebaseConfig.projectId,
+  firebaseConfig.appId,
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.messagingSenderId
+].every(value => !PLACEHOLDER_VALUES.has(value) && !value.startsWith('replace-with-') && !value.startsWith('your-'));
 
 // Initialize Firebase App safely
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -53,6 +62,12 @@ export function getConfiguredAdminRole(email?: string | null): UserRole | undefi
 }
 
 export async function verifyAdminCredentials(username: string, pass: string): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
+  if (!isFirebaseConfigured) {
+    return {
+      valid: false,
+      error: 'Firebase is not configured. Copy .env.example to .env and add your Firebase Web App values before using Firebase administrator login.'
+    };
+  }
   try {
     const credential = await signInWithEmailAndPassword(auth, username.trim(), pass);
     const token = await credential.user.getIdTokenResult(true);

@@ -98,6 +98,7 @@ export interface DropSettings {
   spotlightDescription: string;
   spotlightPriceLKR: number;
   spotlightImages: string[];
+  spotlightBackgroundImage?: string;
   countdownTarget: string; // ISO String
   announcementText: string;
   freeShippingThresholdLKR: number;

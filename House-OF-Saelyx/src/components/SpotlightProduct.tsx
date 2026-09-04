@@ -46,7 +46,7 @@ export const SpotlightProduct: React.FC = () => {
       {/* Background Image Container - Height slightly extended for mobile */}
       <div className="relative w-full min-h-[680px] sm:min-h-[720px] md:min-h-[650px] lg:min-h-[750px] md:aspect-[16/9] flex items-center">
         <img
-          src="https://saelyxe.com/images/spotlight19201080.avif"
+          src={settings?.spotlightBackgroundImage || '/images/spotlight19201080.avif'}
           alt="THE SIGNATURE COORDINATES SET"
           className="absolute inset-0 w-full h-full object-cover object-[65%_center] md:object-center"
           referrerPolicy="no-referrer"

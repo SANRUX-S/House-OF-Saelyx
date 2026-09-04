@@ -14,6 +14,14 @@ const firebaseConfig = {
   messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '000000000000'
 };
 
+const firebaseConfigured = Boolean(
+  process.env.VITE_FIREBASE_PROJECT_ID &&
+  process.env.VITE_FIREBASE_APP_ID &&
+  process.env.FIREBASE_API_KEY &&
+  !process.env.VITE_FIREBASE_PROJECT_ID.startsWith('replace-with-') &&
+  !process.env.VITE_FIREBASE_PROJECT_ID.startsWith('your-')
+);
+
 const firebaseApp = initializeApp(firebaseConfig, "server-db-app");
 const fsDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || "(default)");
 
@@ -454,9 +462,13 @@ class StoreDB {
 
   constructor() {
     this.data = this.load();
-    this.syncFromFirestore();
-    this.syncSettingsFromFirestore();
-    this.syncProductsFromFirestore();
+    if (firebaseConfigured) {
+      this.syncFromFirestore();
+      this.syncSettingsFromFirestore();
+      this.syncProductsFromFirestore();
+    } else {
+      console.warn('[StoreDB] Firebase is not configured; using local data/saelyx_store.json.');
+    }
   }
 
   async syncFromFirestore() {

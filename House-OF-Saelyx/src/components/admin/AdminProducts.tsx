@@ -44,22 +44,18 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [form, setForm] = useState<Partial<Product>>({
     title: '',
     subtitle: '',
-    priceLKR: 38500,
+    priceLKR: 0,
     category: 'men',
-    images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80'],
+    images: [],
     hoverImage: '',
     completeTheSetProductId: '',
     description: '',
-    fabricDetails: '400 GSM Heavyweight Combed Cotton',
-    bulletDetails: [
-      'Heavyweight 400 GSM custom combed cotton',
-      'Structured, relaxed architectural fit',
-      'Wide-leg silhouette with continuous drape'
-    ],
-    sizes: ['S', 'M', 'L', 'XL'],
+    fabricDetails: '',
+    bulletDetails: [],
+    sizes: [],
     inStock: true,
-    stockCount: 50,
-    badge: 'DROP 001'
+    stockCount: 0,
+    badge: ''
   });
   const [bulletsText, setBulletsText] = useState('');
   const [imagesText, setImagesText] = useState('');
@@ -81,33 +77,26 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       setImagesText((prod.images || []).join('\n'));
     } else {
       setEditingProduct(null);
-      const defaultBullets = [
-        'Heavyweight 400 GSM custom combed cotton',
-        'Structured, relaxed architectural fit',
-        'Wide-leg silhouette with continuous drape',
-        'Multi-panel construction with flatlock reinforced seams',
-        'Tonal embroidered signature micro-emblem'
-      ];
       setForm({
         title: '',
         subtitle: '',
-        priceLKR: 38500,
+        priceLKR: 0,
         category: 'men',
-        images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80'],
+        images: [],
         hoverImage: '',
         completeTheSetProductId: '',
-        description: 'A structural, sculptural draping garment custom-crafted for the SAELYXE collection.',
-        fabricDetails: '400 GSM Heavyweight Combed Cotton',
-        bulletDetails: defaultBullets,
-        sizes: ['S', 'M', 'L', 'XL'],
+        description: '',
+        fabricDetails: '',
+        bulletDetails: [],
+        sizes: [],
         inStock: true,
-        stockCount: 50,
-        badge: 'DROP 001',
-        color: 'Noir Black',
-        fit: 'Architectural Relaxed'
+        stockCount: 0,
+        badge: '',
+        color: '',
+        fit: ''
       });
-      setBulletsText(defaultBullets.join('\n'));
-      setImagesText('https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80');
+      setBulletsText('');
+      setImagesText('');
     }
     setIsProductModalOpen(true);
   };
@@ -136,7 +125,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       const payload: Partial<Product> = {
         ...(editingProduct ? { id: editingProduct.id } : {}),
         ...form,
-        images: parsedImages.length > 0 ? parsedImages : form.images,
+        images: parsedImages,
         bulletDetails: parsedBullets,
         slug: form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       };
@@ -231,7 +220,9 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filteredProducts.map(prod => (
+          {[...filteredProducts].sort((a, b) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          ).map(prod => (
             <div 
               key={prod.id} 
               className="admin-card !p-0 overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all"
@@ -245,6 +236,14 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
+                  {(prod.hoverImage || prod.images?.[1]) && (
+                    <img
+                      src={prod.hoverImage || prod.images[1]}
+                      alt={`${prod.title} alternate view`}
+                      className="absolute inset-0 w-full h-full object-cover object-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      loading="lazy"
+                    />
+                  )}
                   {prod.badge && (
                     <div className="absolute top-3 left-3 bg-stone-900/80 backdrop-blur-xs text-white text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-md">
                       {prod.badge}
@@ -443,8 +442,23 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
               {/* Images URLs */}
               <div>
                 <label className="form-label-custom">
-                  Image URLs (One HTTPS URL per line)
+                  Product Images (HTTPS URL or drag and drop multiple images)
                 </label>
+                <div
+                  className="mb-2 border-2 border-dashed border-stone-200 rounded-xl p-4 text-center text-xs text-stone-500 hover:border-stone-400 transition-colors"
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => {
+                    e.preventDefault();
+                    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+                    files.forEach(file => {
+                      const reader = new FileReader();
+                      reader.onload = () => setImagesText(current => `${current}${current ? '\n' : ''}${String(reader.result)}`);
+                      reader.readAsDataURL(file);
+                    });
+                  }}
+                >
+                  Drop image files here. URLs and image data can be mixed, one per line.
+                </div>
                 <textarea
                   rows={3}
                   value={imagesText}

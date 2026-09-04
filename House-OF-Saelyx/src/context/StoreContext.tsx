@@ -20,6 +20,7 @@ import {
   facebookProvider, 
   verifyAdminCredentials,
   getConfiguredAdminRole,
+  isFirebaseConfigured,
 } from '../lib/firebase';
 import { 
   signInWithPopup, 
@@ -337,6 +338,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Save cart to localStorage
   useEffect(() => {
+    if (!isFirebaseConfigured) return;
     try {
       localStorage.setItem('saelyx_cart', JSON.stringify(cart));
     } catch (e) {
@@ -346,6 +348,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Save user to localStorage
   useEffect(() => {
+    if (!isFirebaseConfigured) return;
     try {
       if (user) {
         localStorage.setItem('saelyx_user', JSON.stringify(user));
@@ -538,7 +541,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 2. Orders real-time listener
   useEffect(() => {
-    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const colRef = collection(db, 'orders');
       const q = query(colRef, orderBy('createdAt', 'desc'));
@@ -571,7 +574,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 3. Stock Notifications real-time listener (Waitlists)
   useEffect(() => {
-    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const stockRef = collection(db, 'stock_notifications');
       const unsub = onSnapshot(stockRef, async (snap) => {
@@ -643,7 +646,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 4. Concierge Inquiries real-time listener
   useEffect(() => {
-    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const colRef = collection(db, 'concierge_inquiries');
       const unsub = onSnapshot(colRef, async (snap) => {
@@ -695,7 +698,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 5. Staff real-time listener
   useEffect(() => {
-    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const colRef = collection(db, 'staff');
       const unsub = onSnapshot(colRef, async (snap) => {
@@ -747,6 +750,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 6. Settings real-time listener
   useEffect(() => {
+    if (!isFirebaseConfigured) return;
     try {
       const docRef = doc(db, 'settings', 'drop_config');
       const unsub = onSnapshot(docRef, async (docSnap) => {
@@ -778,7 +782,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 7. Audit Logs real-time listener
   useEffect(() => {
-    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const colRef = collection(db, 'audit_logs');
       const unsub = onSnapshot(colRef, (snap) => {
@@ -1055,6 +1059,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsAuthLoading(true);
     setAuthError(null);
     try {
+      try {
+        const savedStaff = JSON.parse(localStorage.getItem('saelyxe_staff_credentials') || '[]') as Array<{
+          username: string;
+          password: string;
+          name: string;
+          email: string;
+          role: 'admin' | 'super_admin';
+          uid: string;
+        }>;
+        const localStaff = savedStaff.find(staff => staff.username.toLowerCase() === username.trim().toLowerCase() && staff.password === pass);
+        if (localStaff) {
+          const localUser: AppUser = {
+            uid: localStaff.uid,
+            name: localStaff.name,
+            email: localStaff.email,
+            role: localStaff.role,
+            joinedDate: new Date().toISOString()
+          };
+          setUser(localUser);
+          await logAuditEvent('ADMIN_LOGIN', `Admin user [${localUser.name}] logged in with role [${localUser.role}]`);
+          return { success: true };
+        }
+      } catch {}
+
       const verification = await verifyAdminCredentials(username, pass);
       if (verification.valid && verification.user) {
         setUser(verification.user);
@@ -1316,6 +1344,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createdAt: new Date().toISOString()
       };
       await setDoc(doc(db, 'staff', id), payload);
+      if (staffData.password) {
+        try {
+          const savedStaff = JSON.parse(localStorage.getItem('saelyxe_staff_credentials') || '[]');
+          const credentials = savedStaff.filter((staff: { username: string }) => staff.username.toLowerCase() !== staffData.username.toLowerCase());
+          credentials.push({
+            username: staffData.username,
+            password: staffData.password,
+            name: staffData.name || staffData.displayName || staffData.username,
+            email: staffData.email,
+            role: staffData.role,
+            uid: id
+          });
+          localStorage.setItem('saelyxe_staff_credentials', JSON.stringify(credentials));
+        } catch {}
+      }
       await logAuditEvent('STAFF_PROVISIONED', `Staff operator [${payload.displayName || payload.username}] provisioned with role [${payload.role}]`);
       return true;
     } catch (e) {

@@ -38,8 +38,8 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.username.trim() || !form.name.trim() || !form.email.trim()) {
-      setFormError('All fields are required.');
+    if (!form.username.trim() || !form.name.trim() || !form.email.trim() || !form.password.trim()) {
+      setFormError('Name, username, email, and passkey are required.');
       return;
     }
 
@@ -48,7 +48,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
 
     try {
       const success = await onAddStaff({
-        username: form.username.trim().toLowerCase(),
+        username: form.username.trim(),
         name: form.name.trim(),
         email: form.email.trim(),
         role: form.role,
@@ -285,15 +285,16 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
 
               <div>
                 <label className="form-label-custom">Initial Passkey Code</label>
-                <input
+                  <input
                   type="password"
+                    required
                   value={form.password}
                   onChange={e => setForm({ ...form, password: e.target.value })}
                   placeholder="Set initial passkey"
                   className="form-input-custom"
                 />
                 <p className="text-[10px] text-stone-400 mt-1">
-                  Default: set a strong passkey in your secure environment if left blank
+                  This passkey is required for the operator to sign in.
                 </p>
               </div>
 

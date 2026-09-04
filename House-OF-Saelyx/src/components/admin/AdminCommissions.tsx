@@ -88,7 +88,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
       o.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.phone?.includes(searchQuery) ||
       o.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.items?.some(i => i.productTitle.toLowerCase().includes(searchQuery.toLowerCase()));
+      o.items?.some(i => i.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
 
@@ -219,10 +219,10 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       {/* Product Info */}
                       <td>
                         <div className="text-xs font-semibold text-stone-900 line-clamp-1">
-                          {firstItem?.productTitle || 'Silhouette Garment'}
+                          {firstItem?.title || 'Silhouette Garment'}
                         </div>
                         <div className="text-[11px] text-stone-400">
-                          Size: {firstItem?.selectedSize || 'Standard'} {extraItemsCount > 0 ? `(+${extraItemsCount} more)` : ''}
+                          Size: {firstItem?.size || 'Standard'} {extraItemsCount > 0 ? `(+${extraItemsCount} more)` : ''}
                         </div>
                       </td>
 

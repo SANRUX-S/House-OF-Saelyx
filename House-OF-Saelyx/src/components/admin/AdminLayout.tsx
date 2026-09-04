@@ -14,17 +14,17 @@ import {
   ChevronDown, 
   ExternalLink, 
   Search, 
-  Lock, 
   Sparkles,
   Maximize,
   Minimize,
-  Sliders
+  Sliders,
+  GripVertical
 } from 'lucide-react';
 import { AppUser } from '../../types';
 
 export interface AdminLayoutProps {
-  activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config';
-  onSwitchTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config') => void;
+  activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings';
+  onSwitchTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings') => void;
   user: AppUser;
   isSuperAdmin: boolean;
   badges: {
@@ -60,6 +60,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [navOrder, setNavOrder] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('saelyxe_admin_nav_order') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [draggedNavItem, setDraggedNavItem] = useState<string | null>(null);
   
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -118,7 +126,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           label: 'Restock Waitlist', 
           icon: Bell, 
           badge: badges.restock 
-        }
+        },
+        { id: 'section-settings', label: 'Section Settings', icon: Sliders }
       ]
     },
     {
@@ -126,10 +135,29 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       items: [
         ...(isSuperAdmin ? [{ id: 'staff', label: 'Staff & Privileges', icon: Users }] : []),
         ...(isSuperAdmin ? [{ id: 'security', label: 'Security Hardening', icon: ShieldCheck }] : []),
-        ...(isSuperAdmin ? [{ id: 'drop-config', label: 'Drop Settings', icon: Settings }] : [])
       ]
     }
   ];
+
+  const orderNavItems = (items: typeof navGroups[number]['items']) => [...items].sort((a, b) => {
+    const aIndex = navOrder.indexOf(a.id);
+    const bIndex = navOrder.indexOf(b.id);
+    return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex);
+  });
+
+  const moveNavItem = (targetId: string) => {
+    if (!draggedNavItem || draggedNavItem === targetId) return;
+    const current = navOrder.length > 0 ? [...navOrder] : navGroups.flatMap(group => group.items.map(item => item.id));
+    const fromIndex = current.indexOf(draggedNavItem);
+    const toIndex = current.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    current.splice(fromIndex, 1);
+    current.splice(toIndex, 0, draggedNavItem);
+    setNavOrder(current);
+    try {
+      localStorage.setItem('saelyxe_admin_nav_order', JSON.stringify(current));
+    } catch {}
+  };
 
   return (
     <div className="saelyxe-admin-root">
@@ -157,18 +185,24 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             <div key={gIdx} className="sidebar-menu-section">
               <div className="sidebar-menu-title">{group.title}</div>
               <div className="space-y-1">
-                {group.items.map(item => {
+                {orderNavItems(group.items).map(item => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
                   return (
                     <button
                       key={item.id}
+                      draggable
+                      onDragStart={() => setDraggedNavItem(item.id)}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={() => moveNavItem(item.id)}
+                      onDragEnd={() => setDraggedNavItem(null)}
                       onClick={() => {
                         onSwitchTab(item.id as any);
                         setIsSidebarOpenMobile(false);
                       }}
                       className={`sidebar-menu-link ${isActive ? 'active' : ''}`}
                     >
+                      <GripVertical className="w-3.5 h-3.5 opacity-40" />
                       <Icon className="sidebar-menu-icon" />
                       <span>{item.label}</span>
                       {Boolean(item.badge) && (
@@ -354,29 +388,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                       <span>My Account</span>
                     </button>
                     
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          onSwitchTab('drop-config');
-                        }}
-                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
-                      >
-                        <Settings className="w-3.5 h-3.5 text-stone-400" />
-                        <span>Settings</span>
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        onLogout();
-                      }}
-                      className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
-                    >
-                      <Lock className="w-3.5 h-3.5 text-stone-400" />
-                      <span>Lock Screen</span>
-                    </button>
                   </div>
 
                   <div className="border-t border-stone-100 pt-1">

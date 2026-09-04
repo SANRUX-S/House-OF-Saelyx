@@ -303,7 +303,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               {order.customerName || 'VIP Patron'}
                             </div>
                             <div className="text-[11px] text-stone-500 font-mono">
-                              #{order.orderNumber} • {order.items?.[0]?.productTitle?.slice(0, 18) || 'Atelier Set'}
+                              #{order.orderNumber} • {order.items?.[0]?.title?.slice(0, 28) || 'Atelier Set'}
                             </div>
                           </div>
                         </div>

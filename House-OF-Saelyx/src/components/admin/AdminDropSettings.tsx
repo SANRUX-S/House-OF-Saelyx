@@ -30,6 +30,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(0);
   const [heroHeadline, setHeroHeadline] = useState('');
   const [heroSubhead, setHeroSubhead] = useState('');
+  const [spotlightBackgroundImage, setSpotlightBackgroundImage] = useState('');
   
   // Section visibility switches
   const [showHeroSection, setShowHeroSection] = useState(true);
@@ -52,6 +53,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
       setFreeShippingThreshold(settings.freeShippingThresholdLKR || 35000);
       setHeroHeadline(settings.heroHeadline || 'THE ATELIER COLLECTION');
       setHeroSubhead(settings.heroSubhead || 'A curation of our most refined heavyweight textures.');
+      setSpotlightBackgroundImage(settings.spotlightBackgroundImage || '');
       setShowHeroSection(settings.showHeroSection !== false);
       setShowSpotlightSection(settings.showSpotlightSection !== false);
       setShowCollectionSection(settings.showCollectionSection !== false);
@@ -76,6 +78,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
         freeShippingThresholdLKR: Number(freeShippingThreshold),
         heroHeadline,
         heroSubhead,
+        spotlightBackgroundImage,
         showHeroSection,
         showSpotlightSection,
         showCollectionSection,
@@ -177,6 +180,27 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
               className="form-textarea-custom"
               placeholder="Cut from 400 GSM custom combed cotton..."
             />
+          </div>
+
+          <div>
+            <label className="form-label-custom">Spotlight Background (1920 x 1080)</label>
+            <div
+              className="border-2 border-dashed border-stone-200 rounded-xl p-4 text-center text-xs text-stone-500 hover:border-stone-400 transition-colors"
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                e.preventDefault();
+                const file = Array.from(e.dataTransfer.files).find(item => item.type.startsWith('image/'));
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => setSpotlightBackgroundImage(String(reader.result));
+                reader.readAsDataURL(file);
+              }}
+            >
+              Drag and drop the 1920 x 1080 image here.
+            </div>
+            {spotlightBackgroundImage && (
+              <img src={spotlightBackgroundImage} alt="Spotlight background preview" className="mt-3 w-full aspect-video object-cover rounded-xl border border-stone-200" />
+            )}
           </div>
 
           <div className="form-section-title pt-4">Boutique Financial Thresholds & Hero</div>

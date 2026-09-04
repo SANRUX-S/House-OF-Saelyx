@@ -12,9 +12,10 @@ import { AdminRestock } from './admin/AdminRestock';
 import { AdminStaffView } from './admin/AdminStaff';
 import { AdminSecurity } from './admin/AdminSecurity';
 import { AdminDropSettings } from './admin/AdminDropSettings';
+import { AdminSectionSettings } from './admin/AdminSectionSettings';
 import { AdminLogin } from './admin/AdminLogin';
 
-type AdminTab = 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config';
+type AdminTab = 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings';
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -46,7 +47,7 @@ export const AdminPanel: React.FC = () => {
     try {
       const search = new URLSearchParams(window.location.search);
       const tabParam = search.get('tab') as AdminTab;
-      if (tabParam && ['overview', 'products', 'orders', 'messages', 'restock', 'staff', 'security', 'drop-config'].includes(tabParam)) {
+      if (tabParam && ['overview', 'products', 'orders', 'messages', 'restock', 'staff', 'security', 'drop-config', 'section-settings'].includes(tabParam)) {
         return tabParam;
       }
     } catch (e) {}
@@ -72,7 +73,7 @@ export const AdminPanel: React.FC = () => {
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
 
   useEffect(() => {
-    const superAdminOnlyTabs: AdminTab[] = ['staff', 'security', 'drop-config'];
+    const superAdminOnlyTabs: AdminTab[] = ['staff', 'security', 'drop-config', 'section-settings'];
     if (!isSuperAdmin && superAdminOnlyTabs.includes(activeTab)) {
       setActiveTab('overview');
       try {
@@ -252,8 +253,14 @@ export const AdminPanel: React.FC = () => {
       case 'drop-config':
         return {
           title: 'Drop Settings',
-          subtitle: 'Global Drop 001 configuration, spotlight garments, and homepage section controls.',
-          breadcrumb: [{ label: 'Administration' }, { label: 'Drop Settings' }]
+          subtitle: 'Spotlight garment copy, pricing, editorial story, and background imagery.',
+          breadcrumb: [{ label: 'Operations' }, { label: 'Drop Settings' }]
+        };
+      case 'section-settings':
+        return {
+          title: 'Section Settings',
+          subtitle: 'Control which homepage sections are visible to boutique visitors.',
+          breadcrumb: [{ label: 'Operations' }, { label: 'Section Settings' }]
         };
     }
   };
@@ -344,6 +351,13 @@ export const AdminPanel: React.FC = () => {
 
       {activeTab === 'drop-config' && (
         <AdminDropSettings
+          settings={settings}
+          onUpdateSettings={updateSettings}
+        />
+      )}
+
+      {activeTab === 'section-settings' && (
+        <AdminSectionSettings
           settings={settings}
           onUpdateSettings={updateSettings}
         />
