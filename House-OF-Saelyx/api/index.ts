@@ -408,6 +408,8 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
       update.inventoryReserved = false;
       update.inventoryCommitted = true;
       update.inventoryCommittedAt = current.inventoryCommittedAt || now;
+      update.requiresManualReview = false;
+      update.inventoryException = FieldValue.delete();
     } else if (current.inventoryCommitted !== true) {
       const items = Array.isArray(current.items) ? current.items : [];
       const quantityByProduct = new Map<string, number>();
@@ -506,6 +508,7 @@ async function markPayPalVerificationPending(
     const current: any = { id: snap.id, ...snap.data() };
     if (current.paymentStatus === 'verified') return;
     if (safeString(current.paymentProviderReference, 160) !== paypalOrderId) return;
+    if (current.status === 'cancelled' && current.inventoryReserved !== true) return;
 
     transaction.update(ref, {
       paymentStatus: 'pending_verification',
