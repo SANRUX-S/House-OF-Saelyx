@@ -290,18 +290,10 @@ export const AuthModal: React.FC = () => {
                     <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600 mt-0.5" />
                     <span>{authError}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={loginAsBypassPatron}
-                    className="w-full py-2 px-3 bg-[#1A1816] hover:bg-black text-white text-[11px] font-semibold tracking-wider rounded-xl uppercase flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>One-Click VIP Patron Sign In</span>
-                  </button>
                 </div>
               )}
 
-              {/* GOOGLE SIGN-IN & VIP BYPASS */}
+              {/* GOOGLE SIGN-IN */}
               <div className="py-2 space-y-3">
                 <button
                   type="button"
