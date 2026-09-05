@@ -98,10 +98,11 @@ async function readBearerToken(req: Request): Promise<DecodedIdToken | null> {
 function isAdminToken(token: DecodedIdToken | null) {
   if (!token) return false;
   const email = typeof token.email === 'string' ? token.email.toLowerCase() : '';
+  const verifiedAllowlistedEmail = token.email_verified === true && ADMIN_EMAILS.has(email);
   return token.admin === true ||
     token.role === 'admin' ||
     token.role === 'super_admin' ||
-    ADMIN_EMAILS.has(email);
+    verifiedAllowlistedEmail;
 }
 
 async function hasValidAppCheck(req: Request) {
