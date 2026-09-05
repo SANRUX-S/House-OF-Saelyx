@@ -42,6 +42,7 @@ import {
   onSnapshot, 
   query, 
   orderBy,
+  where,
   addDoc,
   arrayUnion
 } from 'firebase/firestore';
@@ -587,28 +588,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 2. Orders real-time listener
   useEffect(() => {
-    if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
+    if (!isFirebaseConfigured || !user || user.role === 'guest') return;
     try {
       const colRef = collection(db, 'orders');
-      const q = query(colRef, orderBy('createdAt', 'desc'));
-      const unsub = onSnapshot(q, async (snap) => {
+      const isAdminUser = user.role === 'admin' || user.role === 'super_admin';
+      const ordersQuery = isAdminUser
+        ? query(colRef, orderBy('createdAt', 'desc'))
+        : query(colRef, where('userId', '==', user.uid));
+
+      const unsub = onSnapshot(ordersQuery, async (snap) => {
         const list: Order[] = [];
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as Order);
         });
-        if (list.length > 0) {
-          setOrders(list);
-        } else {
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setOrders(list);
+
+        if (isAdminUser && list.length === 0) {
           try {
             const res = await fetchAdminApi('/api/orders');
             if (res.ok) {
               const data: Order[] = await res.json();
-              for (const order of data) {
-                await setDoc(doc(db, 'orders', order.id || order.orderNumber), order);
-              }
+              setOrders(data);
             }
           } catch (e) {
-            console.warn('Orders seed warn:', e);
+            console.warn('Orders load note:', e);
           }
         }
       }, (err) => {
@@ -616,7 +620,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       return () => unsub();
     } catch (e) {}
-  }, [fetchAdminApi, user?.role]);
+  }, [fetchAdminApi, user?.role, user?.uid]);
 
   // 3. Stock Notifications real-time listener (Waitlists)
   useEffect(() => {
@@ -1216,22 +1220,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
 
       if (res.ok) {
-        // Sync to Firestore
-        try {
-          const sanitizedDetails = JSON.parse(JSON.stringify(details));
-          const orderDocRef = doc(db, 'orders', orderId);
-          await updateDoc(orderDocRef, {
-            status,
-            ...sanitizedDetails
-          });
-        } catch (e) {
-          console.error('Firestore order status sync error details:', e);
-        }
-
+        const updatedOrder = await res.json() as Order;
+        setOrders(prev => prev.map(order => order.id === updatedOrder.id ? updatedOrder : order));
         await logAuditEvent('ORDER_STATUS_UPDATE', `Order ${orderId} updated to ${status}`);
-        await fetchData();
         return true;
       }
+      const payload = await res.json().catch(() => ({}));
+      console.warn('Order status update rejected:', payload?.error || res.statusText);
       return false;
     } catch (e) {
       console.error('Error updating order:', e);
