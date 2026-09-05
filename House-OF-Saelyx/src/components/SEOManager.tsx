@@ -9,7 +9,7 @@ export const SEOManager: React.FC = () => {
 
     let title = 'SAELYXE — Made for Presence | Luxury Streetwear & Ready-To-Wear';
     let description = 'Minimalist luxury streetwear and ready-to-wear drops crafted for understated presence. Handcrafted silhouettes, architectural tailoring, and exclusive limited drops.';
-    let imageUrl = 'https://saelyxe.com/images/spotlight19201080.jpg';
+    let imageUrl = 'https://www.saelyxe.com/images/spotlight19201080.jpg';
     let canonicalPath = '/';
     let dynamicSchema: object | null = null;
 
@@ -24,7 +24,7 @@ export const SEOManager: React.FC = () => {
           : `${product.title} - Handcrafted minimalist luxury streetwear by SAELYXE. Fabric: ${product.fabricDetails || 'Luxury blend'}.`;
         
         if (product.images && product.images.length > 0) {
-          imageUrl = product.images[0].startsWith('http') ? product.images[0] : `https://saelyxe.com${product.images[0]}`;
+          imageUrl = product.images[0].startsWith('http') ? product.images[0] : `https://www.saelyxe.com${product.images[0]}`;
         }
         canonicalPath = `/product/${product.slug || product.id}`;
 
@@ -44,7 +44,7 @@ export const SEOManager: React.FC = () => {
           },
           "offers": {
             "@type": "Offer",
-            "url": `https://saelyxe.com${canonicalPath}`,
+            "url": `https://www.saelyxe.com${canonicalPath}`,
             "priceCurrency": priceInfo.code || "LKR",
             "price": product.priceLKR,
             "priceValidUntil": "2027-12-31",
@@ -68,12 +68,12 @@ export const SEOManager: React.FC = () => {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
         "name": `${categoryName} Collection`,
-        "url": `https://saelyxe.com/collection/${category}`,
+        "url": `https://www.saelyxe.com/collection/${category}`,
         "description": description,
         "isPartOf": {
           "@type": "WebSite",
           "name": "SAELYXE",
-          "url": "https://saelyxe.com/"
+          "url": "https://www.saelyxe.com/"
         }
       };
     } else if (routeName === 'vip') {
@@ -148,7 +148,7 @@ export const SEOManager: React.FC = () => {
     setMetaContent('og:title', title, true);
     setMetaContent('og:description', description, true);
     setMetaContent('og:image', imageUrl, true);
-    setMetaContent('og:url', `https://saelyxe.com${canonicalPath}`, true);
+    setMetaContent('og:url', `https://www.saelyxe.com${canonicalPath}`, true);
     setMetaContent('twitter:title', title);
     setMetaContent('twitter:description', description);
     setMetaContent('twitter:image', imageUrl);
@@ -160,7 +160,7 @@ export const SEOManager: React.FC = () => {
       canonicalLink.setAttribute('rel', 'canonical');
       document.head.appendChild(canonicalLink);
     }
-    canonicalLink.setAttribute('href', `https://saelyxe.com${canonicalPath}`);
+    canonicalLink.setAttribute('href', `https://www.saelyxe.com${canonicalPath}`);
 
     // Dynamic JSON-LD script management
     const schemaScriptId = 'saelyxe-dynamic-jsonld';

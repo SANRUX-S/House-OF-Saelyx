@@ -5,4 +5,4 @@ Disallow: /admin
 Disallow: /checkout
 Disallow: /api/
 
-Sitemap: https://saelyxe.com/sitemap.xml
+Sitemap: https://www.saelyxe.com/sitemap.xml

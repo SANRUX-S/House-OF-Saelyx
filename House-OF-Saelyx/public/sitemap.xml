@@ -4,43 +4,43 @@
   
   <!-- Home Page -->
   <url>
-    <loc>https://saelyxe.com/</loc>
+    <loc>https://www.saelyxe.com/</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://saelyxe.com/images/spotlight19201080.jpg</image:loc>
+      <image:loc>https://www.saelyxe.com/images/spotlight19201080.jpg</image:loc>
       <image:title>SAELYXE — Made for Presence</image:title>
     </image:image>
   </url>
 
   <!-- Collections -->
   <url>
-    <loc>https://saelyxe.com/collection/all</loc>
+    <loc>https://www.saelyxe.com/collection/all</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/collection/men</loc>
+    <loc>https://www.saelyxe.com/collection/men</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/collection/women</loc>
+    <loc>https://www.saelyxe.com/collection/women</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/collection/new</loc>
+    <loc>https://www.saelyxe.com/collection/new</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/collection/knits</loc>
+    <loc>https://www.saelyxe.com/collection/knits</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -48,13 +48,13 @@
 
   <!-- Special Pages -->
   <url>
-    <loc>https://saelyxe.com/vip</loc>
+    <loc>https://www.saelyxe.com/vip</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/track</loc>
+    <loc>https://www.saelyxe.com/track</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -62,31 +62,31 @@
 
   <!-- Care & Support -->
   <url>
-    <loc>https://saelyxe.com/care-shipping</loc>
+    <loc>https://www.saelyxe.com/care-shipping</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/care-concierge</loc>
+    <loc>https://www.saelyxe.com/care-concierge</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/care-size-guide</loc>
+    <loc>https://www.saelyxe.com/care-size-guide</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/care-authenticity</loc>
+    <loc>https://www.saelyxe.com/care-authenticity</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/contact-support</loc>
+    <loc>https://www.saelyxe.com/contact-support</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -94,19 +94,19 @@
 
   <!-- Legal Pages -->
   <url>
-    <loc>https://saelyxe.com/legal-terms</loc>
+    <loc>https://www.saelyxe.com/legal-terms</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/legal-privacy</loc>
+    <loc>https://www.saelyxe.com/legal-privacy</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://saelyxe.com/legal-returns</loc>
+    <loc>https://www.saelyxe.com/legal-returns</loc>
     <lastmod>2026-09-03</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
