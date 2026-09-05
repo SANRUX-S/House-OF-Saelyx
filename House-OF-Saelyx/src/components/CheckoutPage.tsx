@@ -22,6 +22,7 @@ export const CheckoutPage: React.FC = () => {
     cart, 
     formatPrice, 
     selectedCurrency,
+    currencies,
     createOrder,
     createPayPalPayment,
     capturePayPalPayment,
@@ -183,6 +184,10 @@ export const CheckoutPage: React.FC = () => {
   const paypalCurrency = ['USD', 'EUR', 'GBP'].includes(selectedCurrency?.code || '')
     ? (selectedCurrency?.code || 'USD')
     : 'USD';
+  const usdRateFromLKR = currencies.find(currency => currency.code === 'USD')?.rateFromLKR || 0.0033;
+  const paypalDisplayAmount = paypalCurrency === selectedCurrency?.code
+    ? totalInCurrency
+    : Number((totalLKR * usdRateFromLKR).toFixed(2));
 
   // Empty Bag Guard
   if (cart.length === 0 && !confirmedOrder) {
@@ -622,7 +627,7 @@ export const CheckoutPage: React.FC = () => {
                     {paymentMethod === 'paypal' && (
                       <div className="mt-4 pt-3.5 border-t border-[#EAE3D9] space-y-3.5 animate-in fade-in">
                         <p className="text-[11px] leading-relaxed text-[#5A4E40]">
-                          Pay securely using your PayPal account or eligible international payment card in your selected currency ({selectedCurrency?.code || 'USD'} {totalInCurrency}).
+                          Pay securely using your PayPal account or eligible international payment card. PayPal will charge {paypalCurrency} {paypalDisplayAmount.toFixed(2)}.
                         </p>
 
                         {/* Customer-facing PayPal SDK UI; provider order creation and capture remain server-authoritative. */}
