@@ -13,7 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Product } from '../../types';
-import { auth } from '../../lib/firebase';
+import { auth, getAppCheckRequestHeaders } from '../../lib/firebase';
 
 export interface AdminProductsProps {
   products: Product[];
@@ -82,11 +82,13 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     }
 
     const idToken = await currentUser.getIdToken();
+    const appCheckHeaders = await getAppCheckRequestHeaders();
     const signatureResponse = await fetch('/api/media/cloudinary-signature', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${idToken}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...appCheckHeaders
       }
     });
 
