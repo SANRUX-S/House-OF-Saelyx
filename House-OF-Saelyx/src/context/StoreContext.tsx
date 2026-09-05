@@ -130,8 +130,6 @@ interface StoreContextType {
   createPayHereSession: (orderId: string) => Promise<{ action: string; fields: Record<string, string> }>;
   createPayPalPayment: (orderId: string) => Promise<{ paypalOrderId: string; order: Order }>;
   capturePayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
-  linkPayPalOrder: (orderId: string, paypalOrderId: string) => Promise<Order>;
-  verifyPayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
   cancelPayPalOrder: (orderId: string) => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
   
@@ -1299,32 +1297,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return updated;
   };
 
-  const linkPayPalOrder = async (orderId: string, paypalOrderId: string): Promise<Order> => {
-    const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/link/${encodeURIComponent(orderId)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paypalOrderId })
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(payload?.error || 'Unable to link PayPal order.');
-    const updated = payload as Order;
-    setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
-    return updated;
-  };
-
-  const verifyPayPalPayment = async (orderId: string, paypalOrderId: string): Promise<Order> => {
-    const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/verify/${encodeURIComponent(orderId)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paypalOrderId })
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(payload?.error || 'Unable to verify PayPal payment.');
-    const updated = payload as Order;
-    setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
-    return updated;
-  };
-
   const cancelPayPalOrder = async (orderId: string): Promise<void> => {
     const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/cancel/${encodeURIComponent(orderId)}`, {
       method: 'POST'
@@ -1650,8 +1622,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createPayHereSession,
         createPayPalPayment,
         capturePayPalPayment,
-        linkPayPalOrder,
-        verifyPayPalPayment,
         cancelPayPalOrder,
         updateOrderStatus,
         messages,
