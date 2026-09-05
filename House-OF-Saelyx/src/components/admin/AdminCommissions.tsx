@@ -276,8 +276,16 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       </td>
 
                       {/* Amount */}
-                      <td className="font-extrabold text-stone-900 text-xs whitespace-nowrap">
-                        {formatPrice(order.totalLKR)}
+                      <td className="text-xs whitespace-nowrap">
+                        <div className="font-extrabold text-stone-900">{formatPrice(order.totalLKR)}</div>
+                        <div className={`mt-1 text-[10px] font-bold uppercase ${
+                          order.paymentStatus === 'verified' ? 'text-emerald-700' :
+                          order.paymentStatus === 'refunded' ? 'text-blue-700' :
+                          order.paymentStatus === 'refund_pending' ? 'text-amber-700' :
+                          'text-stone-400'
+                        }`}>
+                          {order.paymentStatus || 'pending'}
+                        </div>
                       </td>
 
                       {/* Order Date */}
