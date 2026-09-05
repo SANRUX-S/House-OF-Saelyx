@@ -103,6 +103,57 @@ function calculateDiscount(codeRaw: unknown, subtotalLKR: number) {
   return { code: '', discountLKR: 0 };
 }
 
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function sendOrderConfirmationEmail(order: any) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from || !order?.email) return;
+
+  const itemLines = Array.isArray(order.items)
+    ? order.items.map((item: any) =>
+        `<li>${escapeHtml(item.title)} · Size ${escapeHtml(item.size)} · Qty ${Number(item.quantity) || 1}</li>`
+      ).join('')
+    : '';
+
+  const html = [
+    '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#181614">',
+    '<h2>SAELYXE — Made for Presence</h2>',
+    `<p>Thank you, ${escapeHtml(order.customerName)}. Your order has been securely recorded.</p>`,
+    `<p><strong>Order:</strong> ${escapeHtml(order.orderNumber)}</p>`,
+    `<ul>${itemLines}</ul>`,
+    `<p><strong>Total:</strong> LKR ${Number(order.totalLKR).toLocaleString('en-US')}</p>`,
+    `<p><strong>Payment status:</strong> ${escapeHtml(order.paymentStatus)}</p>`,
+    '<p>We will send a separate update when payment and dispatch are confirmed.</p>',
+    '</div>'
+  ].join('');
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from,
+      to: [order.email],
+      subject: `SAELYXE Order ${order.orderNumber}`,
+      html
+    })
+  });
+
+  if (!response.ok) {
+    console.error('Order confirmation email failed:', response.status);
+  }
+}
+
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
@@ -204,13 +255,13 @@ app.post('/api/orders', async (req, res) => {
       ? body.paymentMethod
       : 'payhere';
     const paymentProviderReference = safeString(body.paymentProviderReference, 160);
-    const orderNumber = `SOX-${Date.now()}-${crypto.randomInt(1000, 10000)}`;
+    const orderNumber = `SOX-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
     const orderRef = adminDb.collection('orders').doc(orderNumber);
 
     let responseOrder: any = null;
 
     await adminDb.runTransaction(async transaction => {
-      const productCache = new Map<string, { ref: FirebaseFirestore.DocumentReference; data: any }>();
+      const productCache = new Map<string, { ref: any; data: any }>();
       const quantityByProduct = new Map<string, number>();
 
       for (const item of requested) {
@@ -324,6 +375,11 @@ app.post('/api/orders', async (req, res) => {
 
       responseOrder = { ...order };
       delete responseOrder.serverCreatedAt;
+    });
+
+    // Email failure must never roll back a successfully committed order.
+    sendOrderConfirmationEmail(responseOrder).catch(error => {
+      console.error('Order confirmation email error:', error);
     });
 
     return res.status(201).json(responseOrder);
