@@ -164,7 +164,9 @@ interface StoreContextType {
   // Staff
   staffList: AdminStaff[];
   addStaff: (staff: Omit<AdminStaff, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
-  deleteStaff: (id: string) => Promise<boolean>;
+  activateStaff: (id: string) => Promise<{ success: boolean; error?: string }>;
+  updateStaffRole: (id: string, role: 'admin' | 'super_admin') => Promise<{ success: boolean; error?: string }>;
+  deleteStaff: (id: string) => Promise<{ success: boolean; error?: string }>;
 
   // Settings
   updateSettings: (newSettings: Partial<DropSettings>) => Promise<boolean>;
@@ -1315,34 +1317,64 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Staff mutations
+  // Staff provisioning mutations. Firebase Auth and Firestore are changed together by trusted server APIs.
   const addStaff = async (staffData: Omit<AdminStaff, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
     try {
-      const id = `staff-${Date.now().toString(36)}`;
-      const payload = {
-        ...staffData,
-        id,
-        status: 'active' as const,
-        createdAt: new Date().toISOString()
-      };
-      if (isFirebaseConfigured) await setDoc(doc(db, 'staff', id), payload);
-      setStaffList(prev => [payload as AdminStaff, ...prev.filter(staff => staff.username !== staffData.username)]);
-      await logAuditEvent('STAFF_PROFILE_ADDED', `Staff directory profile [${payload.displayName || payload.name || payload.username}] added with listed role [${payload.role}]`);
+      const response = await fetchAdminApi('/api/admin/staff/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(staffData)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Staff invitation failed:', payload?.error || response.status);
+        return false;
+      }
+      setStaffList(prev => [payload as AdminStaff, ...prev.filter(staff => staff.id !== payload.id)]);
       return true;
-    } catch (e) {
-      console.error('Error adding staff profile:', e);
+    } catch (error) {
+      console.error('Error inviting staff:', error);
       return false;
     }
   };
 
-  const deleteStaff = async (id: string): Promise<boolean> => {
+  const activateStaff = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      await deleteDoc(doc(db, 'staff', id));
-      await logAuditEvent('STAFF_PROFILE_REMOVED', `Staff directory profile ${id} removed.`);
-      return true;
-    } catch (e) {
-      console.error('Error deleting staff:', e);
-      return false;
+      const response = await fetchAdminApi(`/api/admin/staff/${encodeURIComponent(id)}/activate`, { method: 'POST' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return { success: false, error: payload?.error || 'Unable to activate staff access.' };
+      setStaffList(prev => prev.map(staff => staff.id === id ? { ...staff, ...payload } : staff));
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to activate staff access.' };
+    }
+  };
+
+  const updateStaffRole = async (id: string, role: 'admin' | 'super_admin'): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetchAdminApi(`/api/admin/staff/${encodeURIComponent(id)}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return { success: false, error: payload?.error || 'Unable to change staff role.' };
+      setStaffList(prev => prev.map(staff => staff.id === id ? { ...staff, ...payload } : staff));
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to change staff role.' };
+    }
+  };
+
+  const deleteStaff = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetchAdminApi(`/api/admin/staff/${encodeURIComponent(id)}/revoke`, { method: 'POST' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return { success: false, error: payload?.error || 'Unable to revoke staff access.' };
+      setStaffList(prev => prev.map(staff => staff.id === id ? { ...staff, ...payload } : staff));
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to revoke staff access.' };
     }
   };
 
@@ -1556,6 +1588,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteProduct,
         staffList,
         addStaff,
+        activateStaff,
+        updateStaffRole,
         deleteStaff,
         updateSettings,
         refetchData: fetchData
