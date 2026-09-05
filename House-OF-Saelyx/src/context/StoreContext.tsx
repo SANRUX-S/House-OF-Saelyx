@@ -38,7 +38,6 @@ import {
   setDoc, 
   getDocs, 
   updateDoc, 
-  deleteDoc, 
   onSnapshot, 
   query, 
   orderBy,
@@ -143,7 +142,6 @@ interface StoreContextType {
   // Back-in-Stock Notifications (Vercel API + Resend)
   stockNotifications: StockNotification[];
   subscribeToRestock: (entry: Omit<StockNotification, 'id' | 'createdAt' | 'notified' | 'status'>) => Promise<{ success: boolean; id?: string; error?: string }>;
-  deleteStockNotification: (id: string) => Promise<boolean>;
   triggerRestockDispatch: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
   isRestockModalOpen: boolean;
   setIsRestockModalOpen: (open: boolean) => void;
@@ -1474,17 +1472,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const deleteStockNotification = async (id: string): Promise<boolean> => {
-    try {
-      const docRef = doc(db, 'stock_notifications', id);
-      await deleteDoc(docRef);
-      return true;
-    } catch (e) {
-      console.error('Error deleting stock notification:', e);
-      return false;
-    }
-  };
-
   const triggerRestockDispatch = async (productId?: string) => {
     const productTitle = productId
       ? (products.find(p => p.id === productId)?.title || 'Selected Garment')
@@ -1597,7 +1584,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateMessageStatus,
         stockNotifications,
         subscribeToRestock,
-        deleteStockNotification,
         triggerRestockDispatch,
         isRestockModalOpen,
         setIsRestockModalOpen,
