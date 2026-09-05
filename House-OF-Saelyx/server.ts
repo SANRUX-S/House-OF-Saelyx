@@ -54,7 +54,6 @@ export function createApp() {
   app.all('/api/audit-logs', retiredMutation);
   app.all('/api/stock-notifications', retiredMutation);
   app.delete('/api/stock-notifications/:id', retiredMutation);
-  app.post('/api/functions/onStockReplenished', retiredMutation);
 
   // 1. Health check
   app.get('/api/health', (req, res) => {
@@ -480,21 +479,7 @@ export function createApp() {
     }
   });
 
-  // Retired legacy restock simulation endpoint
-  app.post('/api/functions/onStockReplenished', requireSuperAdmin, (req, res) => {
-    try {
-      const { productId } = req.body;
-      const result = db.triggerRestockCloudFunction(productId);
-      res.json({
-        success: true,
-        trigger: 'Retired legacy restock simulation',
-        timestamp: new Date().toISOString(),
-        ...result
-      });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
+
 
   return app;
 }
