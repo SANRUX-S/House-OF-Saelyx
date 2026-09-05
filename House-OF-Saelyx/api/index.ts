@@ -252,15 +252,30 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   const currencyMatches = safeString(amount?.currency_code, 10).toUpperCase() === expectedCurrency;
   const amountMatches = Number.isFinite(actualAmount) && Math.abs(actualAmount - expectedAmount) < 0.01;
   const statusMatches = safeString(payload?.status, 30).toUpperCase() === 'COMPLETED';
+  const expectedOrderNumber = safeString(order.orderNumber || order.id, 120);
+  const customId = safeString(purchaseUnit?.custom_id, 120);
+  const invoiceId = safeString(purchaseUnit?.invoice_id, 120);
+  const orderBindingMatches = Boolean(
+    expectedOrderNumber &&
+    customId === expectedOrderNumber &&
+    invoiceId === expectedOrderNumber
+  );
 
   return {
-    verified: statusMatches && currencyMatches && amountMatches,
-    reason: statusMatches ? (currencyMatches && amountMatches ? 'verified' : 'amount_mismatch') : 'not_completed',
+    verified: statusMatches && currencyMatches && amountMatches && orderBindingMatches,
+    reason: !statusMatches
+      ? 'not_completed'
+      : !orderBindingMatches
+        ? 'order_binding_mismatch'
+        : currencyMatches && amountMatches
+          ? 'verified'
+          : 'amount_mismatch',
     providerStatus: safeString(payload?.status, 30),
     expectedCurrency,
     expectedAmount,
     actualCurrency: safeString(amount?.currency_code, 10),
-    actualAmount
+    actualAmount,
+    orderBindingMatches
   };
 }
 
@@ -630,6 +645,10 @@ app.post('/api/payments/paypal/link/:orderId', async (req, res) => {
     if (order.status === 'cancelled') {
       return res.status(409).json({ error: 'Cancelled orders cannot be linked to a new PayPal payment.' });
     }
+    const existingProviderReference = safeString(order.paymentProviderReference, 160);
+    if (existingProviderReference && existingProviderReference !== paypalOrderId) {
+      return res.status(409).json({ error: 'This SAELYXE order is already linked to a different PayPal order.' });
+    }
 
     const now = new Date().toISOString();
     await ref.update({
@@ -668,6 +687,13 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     }
     if (order.paymentMethod !== 'paypal') {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
+    }
+    const linkedPayPalOrderId = safeString(order.paymentProviderReference, 160);
+    if (!linkedPayPalOrderId || linkedPayPalOrderId !== paypalOrderId) {
+      return res.status(409).json({ error: 'PayPal order reference does not match the linked SAELYXE checkout.' });
+    }
+    if (order.paymentStatus === 'verified') {
+      return res.json(order);
     }
 
     const verification = await verifyPayPalOrder(order, paypalOrderId);
