@@ -225,6 +225,11 @@ async function getPayPalAccessToken() {
   return payload?.access_token ? { token: String(payload.access_token), baseUrl } : null;
 }
 
+function getPayPalSettlementCurrency(orderCurrency: string) {
+  const normalized = safeString(orderCurrency, 10).toUpperCase();
+  return ['USD', 'EUR', 'GBP'].includes(normalized) ? normalized : 'USD';
+}
+
 async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   const access = await getPayPalAccessToken();
   if (!access || !paypalOrderId) return { verified: false, reason: 'paypal_not_configured' };
@@ -238,10 +243,10 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   const purchaseUnit = Array.isArray(payload?.purchase_units) ? payload.purchase_units[0] : null;
   const amount = purchaseUnit?.amount;
   const usd = CURRENCIES.find(item => item.code === 'USD')!;
-  const expectedCurrency = order.currencyUsed === 'LKR' ? 'USD' : order.currencyUsed;
-  const expectedAmount = order.currencyUsed === 'LKR'
-    ? Number((Number(order.totalLKR) * usd.rateFromLKR).toFixed(2))
-    : Number(Number(order.totalInCurrency).toFixed(2));
+  const expectedCurrency = getPayPalSettlementCurrency(order.currencyUsed);
+  const expectedAmount = expectedCurrency === order.currencyUsed
+    ? Number(Number(order.totalInCurrency).toFixed(2))
+    : Number((Number(order.totalLKR) * usd.rateFromLKR).toFixed(2));
 
   const actualAmount = Number(amount?.value);
   const currencyMatches = safeString(amount?.currency_code, 10).toUpperCase() === expectedCurrency;
@@ -543,6 +548,46 @@ app.get('/api/currencies', (_req, res) => {
   res.json(CURRENCIES);
 });
 
+
+app.get('/api/payments/config', (_req, res) => {
+  const payPalClientId = process.env.PAYPAL_CLIENT_ID || '';
+  const payPalServerConfigured = Boolean(payPalClientId && process.env.PAYPAL_CLIENT_SECRET);
+  const payHereConfigured = Boolean(process.env.PAYHERE_MERCHANT_ID && process.env.PAYHERE_MERCHANT_SECRET);
+  const binanceConfigured = Boolean(process.env.BINANCE_PAY_ID);
+
+  return res.json({
+    paypal: {
+      enabled: payPalServerConfigured,
+      clientId: payPalServerConfigured ? payPalClientId : '',
+      mode: process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox'
+    },
+    payhere: {
+      enabled: payHereConfigured
+    },
+    binance: {
+      enabled: binanceConfigured
+    }
+  });
+});
+
+app.get('/api/payments/paypal/status', async (_req, res) => {
+  const configured = Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
+  const mode = process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
+  if (!configured) {
+    return res.status(503).json({ configured: false, mode, apiReachable: false });
+  }
+
+  try {
+    const access = await getPayPalAccessToken();
+    return res.status(access ? 200 : 502).json({
+      configured: true,
+      mode,
+      apiReachable: Boolean(access)
+    });
+  } catch {
+    return res.status(502).json({ configured: true, mode, apiReachable: false });
+  }
+});
 
 app.post('/api/payments/payhere/session/:orderId', async (req, res) => {
   try {
