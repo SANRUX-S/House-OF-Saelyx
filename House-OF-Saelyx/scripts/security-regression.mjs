@@ -109,11 +109,38 @@ assert(adminProducts.includes('min={0}') && adminProducts.includes('min={1}'), '
 
 assert(adminOrders.includes("if (/^[=+\\-@]/.test(text))"), 'CSV export must neutralize spreadsheet formulas');
 assert(adminOrders.includes('isSuperAdmin &&'), 'PII CSV export must be Super Admin restricted');
-assert(adminPanel.includes("logAuditEvent('DATABASE_EXPORT'"), 'database export must create an audit event');
+assert(api.includes("app.get('/api/admin/export'"), 'database export must use a protected server endpoint');
+assert(api.includes('hasRecentAuthentication(token)'), 'database export must require recent administrator authentication');
+assert(api.includes("writeAdminAudit(adminDb, token, 'DATABASE_EXPORT'"), 'database export must create a trusted server audit event');
 
 assert(api.includes("app.get('/api/admin/health'"), 'detailed health diagnostics must be protected');
 assert(api.includes("res.json({ ok: true, service: 'saelyxe-api' });"), 'public health endpoint must expose only minimal status');
 assert(adminSecurity.includes('/api/admin/health'), 'Admin Security must use protected diagnostics');
+
+assert(api.includes("app.post('/api/admin/password-reset'"), 'admin password reset must use a protected server endpoint');
+assert(api.includes('admin-password-reset:'), 'admin password reset must be rate limited');
+assert(firebaseClient.includes('/api/admin/password-reset'), 'client password reset must use the protected server route');
+assert(!firebaseClient.includes('sendPasswordResetEmail('), 'admin reset must not call Firebase reset directly from the browser');
+
+assert(api.includes("collection('restock_dispatch_locks')"), 'restock dispatch must use a concurrency lock');
+assert(api.includes("status: 'sending'") && api.includes("status: 'failed'"), 'restock dispatch must track per-recipient delivery states');
+assert(api.includes("'Idempotency-Key':"), 'restock delivery must use an idempotency key');
+assert(api.includes('Some recipients failed. Retry will target failed recipients only.'), 'restock retry semantics must preserve successful recipients');
+assert(api.includes("writeAdminAudit(") && api.includes('RESTOCK_DISPATCH_PARTIAL'), 'restock dispatch must use trusted server audit logging');
+
+const adminMedia = read('src/lib/adminMedia.ts');
+assert(adminMedia.includes('createImageBitmap(file)'), 'admin media must decode images before upload');
+assert(adminMedia.includes('MAX_IMAGE_MEGAPIXELS'), 'admin media must enforce megapixel limits');
+assert(adminMedia.includes('ALLOWED_IMAGE_TYPES'), 'admin media must restrict accepted image formats');
+
+assert(fs.existsSync('scripts/firestore-rules.test.mjs'), 'Firestore emulator authorization tests must exist');
+assert(fs.existsSync('tests/e2e/admin-security.spec.mjs'), 'browser end-to-end security tests must exist');
+assert(fs.existsSync('playwright.config.mjs'), 'Playwright configuration must exist');
+
+assert(!adminPanel.includes('Firebase Cloud Function'), 'admin panel must not describe the retired Firebase Functions architecture');
+assert(!store.includes('triggerRestockCloudFunction'), 'store context must not expose retired Cloud Function naming');
+assert(!fs.existsSync('functions'), 'retired Firebase Functions directory must not remain');
+
 
 assert(localServer.includes('app.use(productionApi);'), 'local VS Code server must mount the production API');
 assert(localServer.includes('retiredMutation'), 'legacy local admin mutations must be retired');
