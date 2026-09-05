@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../styles/admin.css';
 import { useStore } from '../context/StoreContext';
 import { Product, Order, OrderStatus, AdminStaff } from '../types';
+import { auth, getAppCheckRequestHeaders } from '../lib/firebase';
 
 import { AdminLayout } from './admin/AdminLayout';
 import { AdminDashboard } from './admin/AdminDashboard';
