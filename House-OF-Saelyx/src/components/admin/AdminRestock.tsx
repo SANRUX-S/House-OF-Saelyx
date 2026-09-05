@@ -9,8 +9,7 @@ import {
   Zap, 
   Clock, 
   RefreshCw,
-  Mail,
-  Smartphone
+  Mail
 } from 'lucide-react';
 import { StockNotification, Product } from '../../types';
 
@@ -33,7 +32,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
 
   const totalRequests = stockNotifications.length;
   const pendingRequests = stockNotifications.filter(n => n.status === 'pending').length;
-  const dispatchedRequests = stockNotifications.filter(n => n.status === 'sent' || n.status === 'sent' || n.status === 'dispatched' || n.notified).length;
+  const dispatchedRequests = stockNotifications.filter(n => n.status === 'sent' || n.status === 'dispatched' || n.notified).length;
 
   const handleExecuteRestock = async () => {
     if (!selectedProductId) return;
