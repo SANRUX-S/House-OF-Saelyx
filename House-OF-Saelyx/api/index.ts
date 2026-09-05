@@ -301,6 +301,76 @@ async function capturePayPalProviderOrder(paypalOrderId: string) {
   return { ok: response.ok, status: response.status, payload };
 }
 
+async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrderId: string) {
+  const orderRef = adminDb.collection('orders').doc(orderId);
+  const now = new Date().toISOString();
+
+  await adminDb.runTransaction(async (transaction: any) => {
+    const orderSnap = await transaction.get(orderRef);
+    if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
+    const order: any = { id: orderSnap.id, ...orderSnap.data() };
+
+    if (order.paymentMethod !== 'paypal') {
+      throw Object.assign(new Error('This order is not a PayPal order.'), { statusCode: 400 });
+    }
+    if (safeString(order.paymentProviderReference, 160) !== paypalOrderId) {
+      throw Object.assign(new Error('PayPal order reference does not match the linked SAELYXE checkout.'), { statusCode: 409 });
+    }
+    if (order.status !== 'placed') {
+      throw Object.assign(new Error('This order is no longer eligible for PayPal capture.'), { statusCode: 409 });
+    }
+    if (order.paymentStatus === 'verified' || order.inventoryCommitted === true || order.inventoryReserved === true) {
+      return;
+    }
+
+    const items = Array.isArray(order.items) ? order.items : [];
+    const quantityByProduct = new Map<string, number>();
+    for (const item of items) {
+      const productId = safeString(item?.productId, 100);
+      const quantity = Number(item?.quantity);
+      if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+        throw Object.assign(new Error('Order inventory data is invalid.'), { statusCode: 409 });
+      }
+      quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+    }
+
+    const productSnapshots = new Map<string, { ref: any; data: any }>();
+    for (const productId of quantityByProduct.keys()) {
+      const productRef = adminDb.collection('products').doc(productId);
+      const productSnap = await transaction.get(productRef);
+      if (!productSnap.exists) {
+        throw Object.assign(new Error('A product in this order is no longer available.'), { statusCode: 409 });
+      }
+      productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
+    }
+
+    for (const [productId, quantity] of quantityByProduct.entries()) {
+      const cached = productSnapshots.get(productId);
+      if (!cached) throw Object.assign(new Error('Order inventory could not be reserved.'), { statusCode: 409 });
+      const stockCount = Number(cached.data.stockCount);
+      if (!Number.isFinite(stockCount) || stockCount < quantity) {
+        throw Object.assign(new Error(`${cached.data.title || 'A product'} is no longer available in the requested quantity.`), { statusCode: 409 });
+      }
+    }
+
+    for (const [productId, quantity] of quantityByProduct.entries()) {
+      const cached = productSnapshots.get(productId)!;
+      const nextStock = Number(cached.data.stockCount) - quantity;
+      transaction.update(cached.ref, {
+        stockCount: nextStock,
+        inStock: nextStock > 0,
+        updatedAt: now
+      });
+    }
+
+    transaction.update(orderRef, {
+      inventoryReserved: true,
+      inventoryReservedAt: now,
+      paymentUpdatedAt: now
+    });
+  });
+}
+
 async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrderId: string) {
   const ref = adminDb.collection('orders').doc(orderId);
   const now = new Date().toISOString();
@@ -321,6 +391,12 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
       paymentVerifiedAt: current.paymentVerifiedAt || now,
       paymentUpdatedAt: now
     };
+
+    if (current.inventoryReserved === true) {
+      update.inventoryReserved = false;
+      update.inventoryCommitted = true;
+      update.inventoryCommittedAt = current.inventoryCommittedAt || now;
+    }
 
     if (current.status === 'cancelled') {
       update.status = 'placed';
@@ -866,6 +942,8 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     if (order.paymentStatus === 'verified') {
       return res.json(order);
     }
+
+    await reservePayPalInventory(adminDb, orderId, paypalOrderId);
 
     let captureResult: any = null;
     try {
