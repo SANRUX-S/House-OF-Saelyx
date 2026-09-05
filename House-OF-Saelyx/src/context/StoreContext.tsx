@@ -21,6 +21,7 @@ import {
   verifyAdminCredentials,
   getConfiguredAdminRole,
   isFirebaseConfigured,
+  getAppCheckRequestHeaders,
 } from '../lib/firebase';
 import { 
   signInWithPopup, 
@@ -502,6 +503,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const token = currentUser ? await currentUser.getIdToken() : null;
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
     return fetch(input, { ...init, headers });
   }, []);
 
