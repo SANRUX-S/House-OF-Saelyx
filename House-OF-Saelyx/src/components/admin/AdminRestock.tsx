@@ -33,6 +33,8 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
   const totalRequests = stockNotifications.length;
   const pendingRequests = stockNotifications.filter(n => n.status === 'pending').length;
   const dispatchedRequests = stockNotifications.filter(n => n.status === 'sent' || n.status === 'dispatched' || n.notified).length;
+  const failedRequests = stockNotifications.filter(n => n.status === 'failed').length;
+  const sendingRequests = stockNotifications.filter(n => n.status === 'sending').length;
 
   const handleExecuteRestock = async () => {
     if (!selectedProductId) return;
@@ -87,11 +89,11 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
             <Zap className="w-3.5 h-3.5" />
             <span>Email Delivery</span>
           </div>
-          <div className="font-mono text-sm font-bold text-white mt-1 truncate">
-            Vercel API + Resend
+          <div className="font-mono text-sm font-bold text-white mt-1">
+            {sendingRequests} sending · {failedRequests} failed
           </div>
           <div className="text-[11px] text-stone-400">
-            Firestore waitlist connected
+            Failed recipients are safe to retry without re-sending successful entries.
           </div>
         </div>
       </div>
