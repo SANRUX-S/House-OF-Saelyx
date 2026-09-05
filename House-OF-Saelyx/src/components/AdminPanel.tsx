@@ -38,6 +38,8 @@ export const AdminPanel: React.FC = () => {
     deleteProduct,
     staffList,
     addStaff,
+    activateStaff,
+    updateStaffRole,
     deleteStaff,
     updateSettings
   } = useStore();
@@ -121,10 +123,18 @@ export const AdminPanel: React.FC = () => {
     if (!isSuperAdmin) return;
     setCustomDialog({
       type: 'confirm',
-      title: 'Remove Staff Directory Profile',
-      message: `Remove the directory profile for ${name}? This does not revoke Firebase administrator credentials or custom claims.`,
+      title: 'Revoke Administrator Access',
+      message: `Revoke administrator access for ${name}? This clears SAELYXE admin claims, revokes refresh tokens, and marks the staff record as revoked.`,
       onConfirm: async () => {
-        await deleteStaff(id);
+        const result = await deleteStaff(id);
+        if (!result.success) {
+          setCustomDialog({
+            type: 'alert',
+            title: 'Access Revoke Failed',
+            message: result.error || 'Unable to revoke this staff account.'
+          });
+          return;
+        }
         setCustomDialog(null);
       }
     });
@@ -331,6 +341,8 @@ export const AdminPanel: React.FC = () => {
           staffList={staffList}
           isSuperAdmin={isSuperAdmin}
           onAddStaff={addStaff}
+          onActivateStaff={activateStaff}
+          onUpdateStaffRole={updateStaffRole}
           onDeleteStaff={handleDeleteStaff}
         />
       )}
