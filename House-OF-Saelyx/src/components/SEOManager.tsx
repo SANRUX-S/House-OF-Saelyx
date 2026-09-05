@@ -45,7 +45,7 @@ export const SEOManager: React.FC = () => {
           "offers": {
             "@type": "Offer",
             "url": `https://www.saelyxe.com${canonicalPath}`,
-            "priceCurrency": priceInfo.code || "LKR",
+            "priceCurrency": "LKR",
             "price": product.priceLKR,
             "priceValidUntil": "2027-12-31",
             "itemCondition": "https://schema.org/NewCondition",
@@ -62,13 +62,13 @@ export const SEOManager: React.FC = () => {
       const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
       title = `${categoryName} Collection | SAELYXE Luxury Streetwear`;
       description = `Explore the SAELYXE ${categoryName} luxury streetwear collection. Crafted with architectural silhouettes, heavyweight luxury cottons, and refined drops.`;
-      canonicalPath = `/collection/${category}`;
+      canonicalPath = `/collections/${category}`;
 
       dynamicSchema = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
         "name": `${categoryName} Collection`,
-        "url": `https://www.saelyxe.com/collection/${category}`,
+        "url": `https://www.saelyxe.com/collections/${category}`,
         "description": description,
         "isPartOf": {
           "@type": "WebSite",
@@ -91,19 +91,19 @@ export const SEOManager: React.FC = () => {
     } else if (routeName === 'legal-terms') {
       title = 'Terms of Service | SAELYXE';
       description = 'Official terms of service and client governance for SAELYXE House.';
-      canonicalPath = '/legal-terms';
+      canonicalPath = '/legal/terms';
     } else if (routeName === 'legal-privacy') {
       title = 'Privacy Policy | SAELYXE Security & Data Care';
       description = 'SAELYXE privacy policy detailing client encryption, security protocols, and data rights.';
-      canonicalPath = '/legal-privacy';
+      canonicalPath = '/legal/privacy';
     } else if (routeName === 'legal-returns') {
       title = 'Returns & Exchanges | SAELYXE Concierge';
       description = 'Complimentary luxury return policy and client exchange instructions for SAELYXE garments.';
-      canonicalPath = '/legal-returns';
+      canonicalPath = '/legal/returns';
     } else if (routeName === 'care-shipping') {
       title = 'Worldwide Delivery & Shipping | SAELYXE';
       description = 'Global express courier delivery, insured dispatch, and luxury custom packaging options.';
-      canonicalPath = '/care-shipping';
+      canonicalPath = '/care/shipping';
     } else if (routeName === 'care-concierge') {
       title = 'Atelier Concierge | SAELYXE';
       description = 'Personal styling assistance, garment care advice, and private client service.';
@@ -111,11 +111,11 @@ export const SEOManager: React.FC = () => {
     } else if (routeName === 'care-size-guide') {
       title = 'Garment Fit & Size Guide | SAELYXE';
       description = 'Detailed measurement charts and drape guidance for SAELYXE architectural fits.';
-      canonicalPath = '/care-size-guide';
+      canonicalPath = '/care/size-guide';
     } else if (routeName === 'care-authenticity') {
       title = 'Authenticity & Craftsmanship | SAELYXE';
       description = 'Verification of custom weave fabrics, serial numbers, and genuine SAELYXE garment craft.';
-      canonicalPath = '/care-authenticity';
+      canonicalPath = '/care/authenticity';
     } else if (routeName === 'admin') {
       title = 'Admin Atelier | SAELYXE Console';
       description = 'Internal atelier administration and inventory management.';
@@ -152,6 +152,9 @@ export const SEOManager: React.FC = () => {
     setMetaContent('twitter:title', title);
     setMetaContent('twitter:description', description);
     setMetaContent('twitter:image', imageUrl);
+
+    const privateRouteNames = new Set(['admin', 'checkout', 'profile', 'orders', 'track-order', 'track']);
+    setMetaContent('robots', privateRouteNames.has(routeName) ? 'noindex, nofollow' : 'index, follow, max-image-preview:large');
 
     // Update canonical link
     let canonicalLink = document.head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
