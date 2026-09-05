@@ -14,7 +14,6 @@ function assert(condition, message) {
 const api = read('api/index.ts');
 const store = read('src/context/StoreContext.tsx');
 const rules = read('firestore.rules');
-const storageRules = read('storage.rules');
 const firebaseClient = read('src/lib/firebase.ts');
 const serverAuth = read('server/auth.ts');
 const vercel = read('vercel.json');
@@ -51,7 +50,6 @@ assert(store.includes('if (!fbUser) {\n        setUser(null);'), 'sign-out/sessi
 
 assert(api.includes('token.email_verified === true && ADMIN_EMAILS.has(email)'), 'API allowlisted admin email must be verified');
 assert(rules.includes('request.auth.token.email_verified == true'), 'Firestore admin email allowlist must require verified ownership');
-assert(storageRules.includes('request.auth.token.email_verified == true'), 'Storage admin email allowlist must require verified ownership');
 assert(firebaseClient.includes('credential.user.emailVerified ? allowlistedRole : undefined'), 'admin credential flow must require verified allowlisted email');
 assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified allowlisted admin must receive a verification path');
 assert(serverAuth.includes('tokenClaims.email_verified === true'), 'legacy server admin allowlist must require verified email');
@@ -60,6 +58,9 @@ assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enf
 assert(!vercel.includes('Content-Security-Policy-Report-Only'), 'report-only CSP must not remain');
 assert(vercel.includes('https://www.google.com/recaptcha/'), 'CSP must allow reCAPTCHA Enterprise used by App Check');
 assert(vercel.includes('https://*.paypal.com'), 'CSP must allow PayPal SDK resources');
+assert(!firebaseClient.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'client must not depend on Firebase Storage');
+assert(!fallbackDb.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'server fallback must not depend on Firebase Storage');
+assert(api.includes('CLOUDINARY_CLOUD_NAME') && api.includes('CLOUDINARY_API_SECRET'), 'media uploads must use server-signed Cloudinary configuration');
 
 for (const [name, source] of [
   ['checkout', checkout],
