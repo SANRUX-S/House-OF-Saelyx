@@ -1187,9 +1187,45 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
         throw Object.assign(new Error('PayPal linkage changed during cancellation. The order was not cancelled.'), { statusCode: 409 });
       }
 
+      const quantityByProduct = new Map<string, number>();
+      const items = Array.isArray(current.items) ? current.items : [];
+      if (current.inventoryReserved === true) {
+        for (const item of items) {
+          const productId = safeString(item?.productId, 100);
+          const quantity = Number(item?.quantity);
+          if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+            throw Object.assign(new Error('Order inventory reservation data is invalid.'), { statusCode: 409 });
+          }
+          quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+        }
+      }
+
+      const productSnapshots = new Map<string, { ref: any; data: any }>();
+      for (const productId of quantityByProduct.keys()) {
+        const productRef = adminDb.collection('products').doc(productId);
+        const productSnap = await transaction.get(productRef);
+        if (!productSnap.exists) {
+          throw Object.assign(new Error('Reserved inventory could not be restored safely.'), { statusCode: 409 });
+        }
+        productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
+      }
+
+      for (const [productId, quantity] of quantityByProduct.entries()) {
+        const cached = productSnapshots.get(productId)!;
+        const stockCount = Number(cached.data.stockCount);
+        const nextStock = (Number.isFinite(stockCount) ? stockCount : 0) + quantity;
+        transaction.update(cached.ref, {
+          stockCount: nextStock,
+          inStock: nextStock > 0,
+          updatedAt: now
+        });
+      }
+
       transaction.update(ref, {
         status: 'cancelled',
         paymentStatus: 'cancelled',
+        inventoryReserved: false,
+        inventoryReservationReleasedAt: current.inventoryReserved === true ? now : current.inventoryReservationReleasedAt || null,
         updatedAt: now,
         paymentUpdatedAt: now,
         statusHistory: [
@@ -1197,7 +1233,9 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
           {
             status: 'cancelled',
             timestamp: now,
-            note: 'PayPal checkout was cancelled before payment completion.',
+            note: current.inventoryReserved === true
+              ? 'PayPal checkout was cancelled before payment completion and reserved inventory was released.'
+              : 'PayPal checkout was cancelled before payment completion.',
             location: 'SAELYXE Online Store'
           }
         ]
