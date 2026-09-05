@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
   ShieldCheck, 
@@ -122,6 +122,7 @@ export const CheckoutPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [paypalPendingOrder, setPaypalPendingOrder] = useState<Order | null>(null);
+  const paypalPendingOrderRef = useRef<Order | null>(null);
 
   // Sync details if user state loads or changes
   useEffect(() => {
@@ -364,9 +365,9 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handlePaypalApprovedOrder = async (details: any) => {
-    const pendingOrder = paypalPendingOrder;
-    const paypalOrderId = String(details?.id || '').trim();
+  const handlePaypalApprovedOrder = async (details: any, fallbackPayPalOrderId?: string) => {
+    const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
+    const paypalOrderId = String(details?.id || fallbackPayPalOrderId || pendingOrder?.paymentProviderReference || '').trim();
 
     if (!pendingOrder || !paypalOrderId) {
       alert('PayPal payment was captured, but the SAELYXE order reference is unavailable. Please contact support with your PayPal receipt.');
@@ -380,6 +381,7 @@ export const CheckoutPage: React.FC = () => {
         paypalOrderId
       );
       setConfirmedOrder(verifiedOrder);
+      paypalPendingOrderRef.current = null;
       setPaypalPendingOrder(null);
       clearCart();
     } catch (err) {
@@ -778,7 +780,7 @@ export const CheckoutPage: React.FC = () => {
                                   throw new Error('Checkout details are incomplete.');
                                 }
 
-                                let localOrder = paypalPendingOrder;
+                                let localOrder = paypalPendingOrderRef.current || paypalPendingOrder;
                                 if (!localOrder || localOrder.status === 'cancelled') {
                                   localOrder = await createOrder({
                                     customerName,
@@ -802,6 +804,7 @@ export const CheckoutPage: React.FC = () => {
                                     checkoutAttemptId: `paypal-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                                     notes
                                   });
+                                  paypalPendingOrderRef.current = localOrder;
                                   setPaypalPendingOrder(localOrder);
                                 }
 
@@ -820,31 +823,40 @@ export const CheckoutPage: React.FC = () => {
                                   ],
                                 });
 
-                                await linkPayPalOrder(
+                                localOrder = await linkPayPalOrder(
                                   localOrder.id || localOrder.orderNumber,
                                   paypalOrderId
                                 );
+                                paypalPendingOrderRef.current = localOrder;
+                                setPaypalPendingOrder(localOrder);
                                 return paypalOrderId;
                               }}
-                              onApprove={async (_data, actions) => {
+                              onApprove={async (data, actions) => {
                                 try {
                                   const details = await actions.order?.capture();
-                                  await handlePaypalApprovedOrder(details);
+                                  await handlePaypalApprovedOrder(details, data.orderID);
                                 } catch (err) {
                                   console.error('PayPal Capture Exception:', err);
-                                  if (paypalPendingOrder) {
-                                    alert(`Payment verification is incomplete. SAELYXE order ${paypalPendingOrder.orderNumber} is recorded; please do not submit another payment until its status is checked.`);
+                                  const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
+                                  if (pendingOrder) {
+                                    alert(`Payment verification is incomplete. SAELYXE order ${pendingOrder.orderNumber} is recorded; please do not submit another payment until its status is checked.`);
                                   } else {
                                     alert('PayPal payment verification failed. Please contact support.');
                                   }
                                 }
                               }}
                               onCancel={async () => {
-                                if (paypalPendingOrder) {
+                                const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
+                                if (!pendingOrder) return;
+                                try {
                                   await cancelPayPalOrder(
-                                    paypalPendingOrder.id || paypalPendingOrder.orderNumber
+                                    pendingOrder.id || pendingOrder.orderNumber
                                   );
+                                  paypalPendingOrderRef.current = null;
                                   setPaypalPendingOrder(null);
+                                } catch (err) {
+                                  console.error('PayPal cancellation sync failed:', err);
+                                  alert(`PayPal checkout was cancelled, but SAELYXE order ${pendingOrder.orderNumber} still needs cancellation confirmation. Please contact support if it remains pending.`);
                                 }
                               }}
                               onError={(err) => {
