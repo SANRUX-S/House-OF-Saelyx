@@ -196,9 +196,14 @@ export interface StockNotification {
   channel?: 'email' | 'app' | 'both';
   notified: boolean;
   notifiedAt?: string;
-  status: 'pending' | 'sent' | 'cancelled' | 'dispatched';
+  status: 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled' | 'dispatched';
   createdAt: string;
   dispatchExecutionId?: string;
+  dispatchAttempts?: number;
+  dispatchStartedAt?: string;
+  dispatchFinishedAt?: string;
+  lastDispatchError?: string;
+  resendEmailId?: string;
 }
 
 export interface AuditLog {
