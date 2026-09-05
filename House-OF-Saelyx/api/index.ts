@@ -571,21 +571,31 @@ app.get('/api/payments/config', (_req, res) => {
 });
 
 app.get('/api/payments/paypal/status', async (_req, res) => {
-  const configured = Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
+  const clientId = process.env.PAYPAL_CLIENT_ID || '';
+  const configured = Boolean(clientId && process.env.PAYPAL_CLIENT_SECRET);
   const mode = process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
   if (!configured) {
-    return res.status(503).json({ configured: false, mode, apiReachable: false });
+    return res.status(503).json({ configured: false, mode, apiReachable: false, sdkReachable: false });
   }
 
   try {
-    const access = await getPayPalAccessToken();
-    return res.status(access ? 200 : 502).json({
+    const [access, sdkResponse] = await Promise.all([
+      getPayPalAccessToken(),
+      fetch(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture`, {
+        headers: { 'User-Agent': 'SAELYXE-PayPal-Health/1.0' }
+      }).catch(() => null)
+    ]);
+
+    const apiReachable = Boolean(access);
+    const sdkReachable = Boolean(sdkResponse?.ok);
+    return res.status(apiReachable && sdkReachable ? 200 : 502).json({
       configured: true,
       mode,
-      apiReachable: Boolean(access)
+      apiReachable,
+      sdkReachable
     });
   } catch {
-    return res.status(502).json({ configured: true, mode, apiReachable: false });
+    return res.status(502).json({ configured: true, mode, apiReachable: false, sdkReachable: false });
   }
 });
 
