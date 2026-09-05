@@ -28,25 +28,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNavigateToTab,
   onOpenProductModal
 }) => {
-  const [dateRange, setDateRange] = useState('January 12, 2026 - January 23, 2026');
+  const [startDate, setStartDate] = useState('2026-01-12');
+  const [endDate, setEndDate] = useState('2026-01-23');
   const [activeRevenueRange, setActiveRevenueRange] = useState<'weekly' | 'monthly'>('monthly');
 
   // Derive live statistics
-  const totalRevenueLKR = orders.reduce((sum, o) => sum + (o.totalLKR || 0), 0);
-  const pendingOrdersCount = orders.filter(o => o.status !== 'delivered').length;
-  const completedOrdersCount = orders.filter(o => o.status === 'delivered').length;
+  const rangeOrders = orders.filter(order => {
+    const created = order.createdAt?.slice(0, 10);
+    return (!startDate || created >= startDate) && (!endDate || created <= endDate);
+  });
+  const totalRevenueLKR = rangeOrders.reduce((sum, o) => sum + (o.totalLKR || 0), 0);
+  const pendingOrdersCount = rangeOrders.filter(o => o.status !== 'delivered').length;
+  const completedOrdersCount = rangeOrders.filter(o => o.status === 'delivered').length;
   const totalStockCount = products.reduce((sum, p) => sum + (p.stockCount || 25), 0);
 
   // Reference visual overview values with live dynamic fallback
   const productLaunched = products.length > 0 ? 233 : 0;
   const ongoingProduct = products.length > 0 ? 23 : 0;
-  const productSold = orders.length > 0 ? 482 : 0;
+  const productSold = rangeOrders.length > 0 ? 482 : 0;
   const productReturned = 8;
   const productInStock = totalStockCount > 200 ? totalStockCount : 1420;
   const pendingShipment = pendingOrdersCount > 0 ? pendingOrdersCount * 8 : 64;
 
   // Recent orders sorted by newest
-  const recentOrders = [...orders].slice(0, 5);
+  const recentOrders = [...rangeOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -62,11 +67,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="btn-date-range">
-            <Calendar className="w-4 h-4 text-stone-500" />
-            <span>{dateRange}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-          </button>
+          <div className="btn-date-range">
+            <Calendar className="h-4 w-4 text-stone-500" />
+            <input aria-label="Start date" type="date" value={startDate} onChange={event => setStartDate(event.target.value)} className="bg-transparent text-xs outline-none" />
+            <span className="text-stone-400">to</span>
+            <input aria-label="End date" type="date" value={endDate} onChange={event => setEndDate(event.target.value)} className="bg-transparent text-xs outline-none" />
+            <ChevronDown className="h-3.5 w-3.5 text-stone-400" />
+          </div>
           
           <button 
             onClick={onOpenProductModal}
@@ -249,7 +256,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       {/* Dark Forest Bar (Income) */}
                       <div 
                         style={{ height: `${item.income}%` }}
-                        className="w-1/2 max-w-[18px] bg-[#072F1F] rounded-t-sm group-hover:brightness-125 transition-all relative"
+                        className="w-1/2 max-w-4.5 bg-[#072F1F] rounded-t-sm group-hover:brightness-125 transition-all relative"
                       >
                         <span className="opacity-0 group-hover:opacity-100 absolute -top-7 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[10px] py-0.5 px-1.5 rounded pointer-events-none transition-opacity font-mono">
                           {item.income}%
@@ -258,7 +265,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       {/* Lime Bar (Expense) */}
                       <div 
                         style={{ height: `${item.expense}%` }}
-                        className="w-1/2 max-w-[18px] bg-[#B4F105] rounded-t-sm group-hover:brightness-110 transition-all"
+                        className="w-1/2 max-w-4.5 bg-[#B4F105] rounded-t-sm group-hover:brightness-110 transition-all"
                       />
                     </div>
                     <span className="text-[11px] font-semibold text-stone-500">

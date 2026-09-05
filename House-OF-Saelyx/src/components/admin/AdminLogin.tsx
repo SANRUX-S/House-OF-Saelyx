@@ -102,7 +102,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         {/* Error Notification */}
         {errorMsg && (
           <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -137,7 +137,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="form-input-custom !pr-10"
+                className="form-input-custom pr-10!"
               />
               <button
                 type="button"

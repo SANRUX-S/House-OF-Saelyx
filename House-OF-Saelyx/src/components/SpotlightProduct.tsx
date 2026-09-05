@@ -44,7 +44,7 @@ export const SpotlightProduct: React.FC = () => {
   return (
     <section id="spotlight-section" className="relative w-full overflow-hidden bg-[#bfae98]">
       {/* Background Image Container - Height slightly extended for mobile */}
-      <div className="relative w-full min-h-[680px] sm:min-h-[720px] md:min-h-[650px] lg:min-h-[750px] md:aspect-[16/9] flex items-center">
+      <div className="relative w-full min-h-170 sm:min-h-180 md:min-h-162.5 lg:min-h-187.5 md:aspect-video flex items-center">
         <img
           src={settings?.spotlightBackgroundImage || '/images/spotlight19201080.avif'}
           alt="THE SIGNATURE COORDINATES SET"
@@ -92,7 +92,7 @@ export const SpotlightProduct: React.FC = () => {
             <div className="pt-1 sm:pt-2">
               <div className="flex items-baseline gap-2 sm:gap-4 text-white">
                 {/* Days */}
-                <div className="flex flex-col items-center min-w-[32px] sm:min-w-[36px]">
+                <div className="flex flex-col items-center min-w-8 sm:min-w-9">
                   <span className="text-lg sm:text-2xl md:text-3xl font-serif tracking-wider font-normal">
                     {pad(timeLeft.days)}
                   </span>
@@ -104,7 +104,7 @@ export const SpotlightProduct: React.FC = () => {
                 <span className="text-base sm:text-xl text-white/70">:</span>
 
                 {/* Hours */}
-                <div className="flex flex-col items-center min-w-[32px] sm:min-w-[36px]">
+                <div className="flex flex-col items-center min-w-8 sm:min-w-9">
                   <span className="text-lg sm:text-2xl md:text-3xl font-serif tracking-wider font-normal">
                     {pad(timeLeft.hours)}
                   </span>
@@ -116,7 +116,7 @@ export const SpotlightProduct: React.FC = () => {
                 <span className="text-base sm:text-xl text-white/70">:</span>
 
                 {/* Minutes */}
-                <div className="flex flex-col items-center min-w-[32px] sm:min-w-[36px]">
+                <div className="flex flex-col items-center min-w-8 sm:min-w-9">
                   <span className="text-lg sm:text-2xl md:text-3xl font-serif tracking-wider font-normal">
                     {pad(timeLeft.minutes)}
                   </span>
@@ -128,7 +128,7 @@ export const SpotlightProduct: React.FC = () => {
                 <span className="text-base sm:text-xl text-white/70">:</span>
 
                 {/* Seconds */}
-                <div className="flex flex-col items-center min-w-[32px] sm:min-w-[36px]">
+                <div className="flex flex-col items-center min-w-8 sm:min-w-9">
                   <span className="text-lg sm:text-2xl md:text-3xl font-serif tracking-wider font-normal">
                     {pad(timeLeft.seconds)}
                   </span>

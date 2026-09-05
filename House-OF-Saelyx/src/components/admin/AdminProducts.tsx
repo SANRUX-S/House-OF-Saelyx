@@ -158,9 +158,9 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Search & Category Filter Controls */}
-      <div className="admin-card !p-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-          <div className="table-search-box !max-w-md w-full">
+      <div className="admin-card p-4! flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3 flex-1 min-w-70">
+          <div className="table-search-box max-w-md! w-full">
             <Search className="w-4 h-4 text-stone-400" />
             <input
               type="text"
@@ -225,7 +225,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
           ).map(prod => (
             <div 
               key={prod.id} 
-              className="admin-card !p-0 overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all"
+              className="admin-card p-0! overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all"
             >
               <div>
                 {/* Image Aspect Box */}
@@ -240,7 +240,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     <img
                       src={prod.hoverImage || prod.images[1]}
                       alt={`${prod.title} alternate view`}
-                      className="absolute inset-0 w-full h-full object-cover object-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      className="absolute inset-0 h-full w-full object-cover object-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                       loading="lazy"
                     />
                   )}
@@ -333,7 +333,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
             <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
               {formError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{formError}</span>
                 </div>
               )}
@@ -445,16 +445,17 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                   Product Images (HTTPS URL or drag and drop multiple images)
                 </label>
                 <div
-                  className="mb-2 border-2 border-dashed border-stone-200 rounded-xl p-4 text-center text-xs text-stone-500 hover:border-stone-400 transition-colors"
+                  className="mb-2 rounded-xl border-2 border-dashed border-stone-200 p-4 text-center text-xs text-stone-500 transition-colors hover:border-stone-400"
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => {
                     e.preventDefault();
-                    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
-                    files.forEach(file => {
-                      const reader = new FileReader();
-                      reader.onload = () => setImagesText(current => `${current}${current ? '\n' : ''}${String(reader.result)}`);
-                      reader.readAsDataURL(file);
-                    });
+                    (Array.from(e.dataTransfer.files as FileList) as File[])
+                      .filter(file => file.type.startsWith('image/'))
+                      .forEach(file => {
+                        const reader = new FileReader();
+                        reader.onload = () => setImagesText(current => `${current}${current ? '\n' : ''}${String(reader.result)}`);
+                        reader.readAsDataURL(file);
+                      });
                   }}
                 >
                   Drop image files here. URLs and image data can be mixed, one per line.

@@ -184,23 +184,10 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
 
           <div>
             <label className="form-label-custom">Spotlight Background (1920 x 1080)</label>
-            <div
-              className="border-2 border-dashed border-stone-200 rounded-xl p-4 text-center text-xs text-stone-500 hover:border-stone-400 transition-colors"
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => {
-                e.preventDefault();
-                const file = Array.from(e.dataTransfer.files).find(item => item.type.startsWith('image/'));
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => setSpotlightBackgroundImage(String(reader.result));
-                reader.readAsDataURL(file);
-              }}
-            >
+            <div className="rounded-xl border-2 border-dashed border-stone-200 p-4 text-center text-xs text-stone-500 hover:border-stone-400" onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const file = (Array.from(event.dataTransfer.files as FileList) as File[]).find(item => item.type.startsWith('image/')); if (!file) return; const reader = new FileReader(); reader.onload = () => setSpotlightBackgroundImage(String(reader.result)); reader.readAsDataURL(file); }}>
               Drag and drop the 1920 x 1080 image here.
             </div>
-            {spotlightBackgroundImage && (
-              <img src={spotlightBackgroundImage} alt="Spotlight background preview" className="mt-3 w-full aspect-video object-cover rounded-xl border border-stone-200" />
-            )}
+            {spotlightBackgroundImage && <img src={spotlightBackgroundImage} alt="Spotlight background preview" className="mt-3 aspect-video w-full rounded-xl border border-stone-200 object-cover" />}
           </div>
 
           <div className="form-section-title pt-4">Boutique Financial Thresholds & Hero</div>

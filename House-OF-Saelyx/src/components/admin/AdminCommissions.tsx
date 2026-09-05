@@ -267,7 +267,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       <td className="text-center whitespace-nowrap">
                         <button
                           onClick={() => handleOpenDispatchModal(order)}
-                          className="btn-saelyxe-primary !py-1.5 !px-3 text-xs"
+                          className="btn-saelyxe-primary py-1.5! px-3! text-xs"
                           title="Update Logistics & Dispatch"
                         >
                           <Truck className="w-3.5 h-3.5" />

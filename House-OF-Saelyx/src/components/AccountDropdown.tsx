@@ -104,7 +104,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
     <div
       ref={dropdownRef}
       onClick={(e) => e.stopPropagation()}
-      className="absolute right-0 top-full mt-3 w-[340px] sm:w-[370px] bg-white text-[#1A1816] rounded-2xl border border-[#E8E1D5] shadow-[0_22px_55px_rgba(0,0,0,0.14)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 transform-gpu select-none"
+      className="absolute right-0 top-full mt-3 w-85 sm:w-92.5 bg-white text-[#1A1816] rounded-2xl border border-[#E8E1D5] shadow-[0_22px_55px_rgba(0,0,0,0.14)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 transform-gpu select-none"
     >
       {/* Top Header with Authenticated Customer Info */}
       <div className="p-4 sm:p-5 border-b border-[#EDE6DC] bg-[#FAF8F5]/90">
@@ -118,7 +118,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
         </div>
 
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-full bg-white text-[#1A1816] border border-[#D5CBBF] flex items-center justify-center font-serif text-lg font-semibold flex-shrink-0 shadow-sm overflow-hidden transition-transform duration-200 hover:scale-105">
+          <div className="w-12 h-12 rounded-full bg-white text-[#1A1816] border border-[#D5CBBF] flex items-center justify-center font-serif text-lg font-semibold shrink-0 shadow-sm overflow-hidden transition-transform duration-200 hover:scale-105">
             {user.avatarUrl ? (
               <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
             ) : (
@@ -163,7 +163,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
                 className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#FAF8F5] active:bg-[#F2ECE2] active:scale-[0.98] transition-all duration-200 text-left group cursor-pointer"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-[#FAF8F5] border border-[#EAE3D9] group-hover:bg-[#F2EDE4] group-hover:border-[#DDD3C5] group-hover:scale-105 flex items-center justify-center text-[#1A1816] transition-all duration-200 flex-shrink-0 shadow-2xs">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF8F5] border border-[#EAE3D9] group-hover:bg-[#F2EDE4] group-hover:border-[#DDD3C5] group-hover:scale-105 flex items-center justify-center text-[#1A1816] transition-all duration-200 shrink-0 shadow-2xs">
                     <Icon className="w-4.5 h-4.5 stroke-[1.5]" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -175,7 +175,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
                     </div>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-[#B8ADA0] group-hover:text-[#1A1816] group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 ml-1.5" />
+                <ChevronRight className="w-4 h-4 text-[#B8ADA0] group-hover:text-[#1A1816] group-hover:translate-x-1 transition-all duration-200 shrink-0 ml-1.5" />
               </button>
             </div>
           );

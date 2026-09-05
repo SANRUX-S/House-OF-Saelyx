@@ -253,7 +253,7 @@ export const AdminPanel: React.FC = () => {
       case 'drop-config':
         return {
           title: 'Drop Settings',
-          subtitle: 'Spotlight garment copy, pricing, editorial story, and background imagery.',
+          subtitle: 'Spotlight copy, pricing, editorial story, and background imagery.',
           breadcrumb: [{ label: 'Operations' }, { label: 'Drop Settings' }]
         };
       case 'section-settings':
@@ -356,12 +356,7 @@ export const AdminPanel: React.FC = () => {
         />
       )}
 
-      {activeTab === 'section-settings' && (
-        <AdminSectionSettings
-          settings={settings}
-          onUpdateSettings={updateSettings}
-        />
-      )}
+      {activeTab === 'section-settings' && <AdminSectionSettings settings={settings} onUpdateSettings={updateSettings} />}
 
       {/* Reusable Confirmation / Alert Dialog Modal */}
       {customDialog && (
@@ -388,7 +383,7 @@ export const AdminPanel: React.FC = () => {
                     setCustomDialog(null);
                   }
                 }}
-                className="btn-saelyxe-primary !bg-rose-700 hover:!bg-rose-800"
+                className="btn-saelyxe-primary bg-rose-700! hover:bg-rose-800!"
               >
                 Confirm
               </button>

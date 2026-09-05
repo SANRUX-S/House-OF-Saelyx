@@ -23,8 +23,8 @@ import {
 import { AppUser } from '../../types';
 
 export interface AdminLayoutProps {
-  activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings';
-  onSwitchTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings') => void;
+  activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config';
+  onSwitchTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config') => void;
   user: AppUser;
   isSuperAdmin: boolean;
   badges: {
@@ -61,11 +61,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [navOrder, setNavOrder] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('saelyxe_admin_nav_order') || '[]');
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem('saelyxe_admin_nav_order') || '[]'); } catch { return []; }
   });
   const [draggedNavItem, setDraggedNavItem] = useState<string | null>(null);
   
@@ -135,6 +131,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       items: [
         ...(isSuperAdmin ? [{ id: 'staff', label: 'Staff & Privileges', icon: Users }] : []),
         ...(isSuperAdmin ? [{ id: 'security', label: 'Security Hardening', icon: ShieldCheck }] : []),
+        ...(isSuperAdmin ? [{ id: 'drop-config', label: 'Drop Settings', icon: Settings }] : [])
       ]
     }
   ];
@@ -142,21 +139,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const orderNavItems = (items: typeof navGroups[number]['items']) => [...items].sort((a, b) => {
     const aIndex = navOrder.indexOf(a.id);
     const bIndex = navOrder.indexOf(b.id);
-    return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex);
+    return (aIndex < 0 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex < 0 ? Number.MAX_SAFE_INTEGER : bIndex);
   });
 
   const moveNavItem = (targetId: string) => {
     if (!draggedNavItem || draggedNavItem === targetId) return;
-    const current = navOrder.length > 0 ? [...navOrder] : navGroups.flatMap(group => group.items.map(item => item.id));
-    const fromIndex = current.indexOf(draggedNavItem);
-    const toIndex = current.indexOf(targetId);
-    if (fromIndex === -1 || toIndex === -1) return;
-    current.splice(fromIndex, 1);
-    current.splice(toIndex, 0, draggedNavItem);
-    setNavOrder(current);
-    try {
-      localStorage.setItem('saelyxe_admin_nav_order', JSON.stringify(current));
-    } catch {}
+    const order = navOrder.length ? [...navOrder] : navGroups.flatMap(group => group.items.map(item => item.id));
+    const from = order.indexOf(draggedNavItem);
+    const to = order.indexOf(targetId);
+    if (from < 0 || to < 0) return;
+    order.splice(from, 1);
+    order.splice(to, 0, draggedNavItem);
+    setNavOrder(order);
+    localStorage.setItem('saelyxe_admin_nav_order', JSON.stringify(order));
   };
 
   return (
@@ -202,7 +197,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                       }}
                       className={`sidebar-menu-link ${isActive ? 'active' : ''}`}
                     >
-                      <GripVertical className="w-3.5 h-3.5 opacity-40" />
+                      <GripVertical className="h-3.5 w-3.5 opacity-40" />
                       <Icon className="sidebar-menu-icon" />
                       <span>{item.label}</span>
                       {Boolean(item.badge) && (
@@ -218,7 +213,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
         {/* Sidebar Profile Card */}
         <div className="sidebar-profile">
-          <div className="w-9 h-9 rounded-full bg-stone-800 text-stone-200 border border-stone-700 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-stone-800 text-stone-200 border border-stone-700 flex items-center justify-center font-bold text-xs uppercase shrink-0">
             {user.name?.slice(0, 2) || 'AD'}
           </div>
           <div className="sidebar-profile-info">
@@ -246,7 +241,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
             {/* Quick Search */}
             <div className="navbar-search-container hidden sm:flex">
-              <Search className="w-4 h-4 text-stone-400 flex-shrink-0" />
+              <Search className="w-4 h-4 text-stone-400 shrink-0" />
               <input
                 type="text"
                 placeholder="Search anything in Saelyxe..."
@@ -388,6 +383,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                       <span>My Account</span>
                     </button>
                     
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          onSwitchTab('drop-config');
+                        }}
+                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-stone-400" />
+                        <span>Settings</span>
+                      </button>
+                    )}
+
                   </div>
 
                   <div className="border-t border-stone-100 pt-1">

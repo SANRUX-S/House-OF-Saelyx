@@ -190,7 +190,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
                         ) : (
                           <button
                             onClick={() => onDeleteStaff(staff.id, staff.name)}
-                            className="btn-table-action !text-rose-600 hover:!bg-rose-50 !py-1 !px-2.5 text-xs"
+                            className="btn-table-action text-rose-600! hover:bg-rose-50! py-1! px-2.5! text-xs"
                             title="Revoke Access"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -285,9 +285,9 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
 
               <div>
                 <label className="form-label-custom">Initial Passkey Code</label>
-                  <input
+                <input
                   type="password"
-                    required
+                  required
                   value={form.password}
                   onChange={e => setForm({ ...form, password: e.target.value })}
                   placeholder="Set initial passkey"

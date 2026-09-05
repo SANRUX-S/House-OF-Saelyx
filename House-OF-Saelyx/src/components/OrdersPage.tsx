@@ -236,7 +236,7 @@ export const OrdersPage: React.FC = () => {
                   {ord.items && ord.items.length > 0 && (
                     <div className="flex items-center gap-3 mt-4 pt-4 border-t border-[#F5EFE6] overflow-x-auto">
                       {ord.items.slice(0, 4).map((item, idx) => (
-                        <div key={idx} className="w-12 h-14 bg-[#FAF8F5] rounded-lg border border-[#EAE3D9] overflow-hidden flex-shrink-0">
+                        <div key={idx} className="w-12 h-14 bg-[#FAF8F5] rounded-lg border border-[#EAE3D9] overflow-hidden shrink-0">
                           <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                         </div>
                       ))}
@@ -323,7 +323,7 @@ export const OrdersPage: React.FC = () => {
                       {selectedOrder.items?.map((item, idx) => (
                         <div key={idx} className="py-3.5 flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3.5">
-                            <div className="w-14 h-16 rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] overflow-hidden flex-shrink-0">
+                            <div className="w-14 h-16 rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] overflow-hidden shrink-0">
                               <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                             </div>
                             <div>

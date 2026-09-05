@@ -17,7 +17,7 @@ const firebaseConfig = {
 const firebaseConfigured = Boolean(
   process.env.VITE_FIREBASE_PROJECT_ID &&
   process.env.VITE_FIREBASE_APP_ID &&
-  process.env.FIREBASE_API_KEY &&
+  (process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY) &&
   !process.env.VITE_FIREBASE_PROJECT_ID.startsWith('replace-with-') &&
   !process.env.VITE_FIREBASE_PROJECT_ID.startsWith('your-')
 );

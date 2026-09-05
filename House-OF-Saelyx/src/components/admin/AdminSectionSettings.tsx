@@ -8,12 +8,7 @@ export interface AdminSectionSettingsProps {
 }
 
 export const AdminSectionSettings: React.FC<AdminSectionSettingsProps> = ({ settings, onUpdateSettings }) => {
-  const [sections, setSections] = useState({
-    hero: true,
-    spotlight: true,
-    collection: true,
-    socialFaq: true
-  });
+  const [sections, setSections] = useState({ hero: true, spotlight: true, collection: true, socialFaq: true });
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -36,10 +31,7 @@ export const AdminSectionSettings: React.FC<AdminSectionSettingsProps> = ({ sett
       showSocialFAQSection: sections.socialFaq
     });
     setIsSaving(false);
-    if (success) {
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 3000);
-    }
+    if (success) { setSaved(true); window.setTimeout(() => setSaved(false), 3000); }
   };
 
   const rows = [
@@ -52,25 +44,11 @@ export const AdminSectionSettings: React.FC<AdminSectionSettingsProps> = ({ sett
   return (
     <form onSubmit={save} className="admin-card space-y-5 animate-in fade-in duration-300">
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <h3 className="text-base font-extrabold text-stone-900">Homepage Section Controls</h3>
-          <p className="text-xs text-stone-500 mt-1">Show or hide public homepage sections instantly.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {saved && <span className="text-xs font-bold text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Saved</span>}
-          <button type="submit" disabled={isSaving} className="btn-saelyxe-lime text-xs"><Save className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save Changes'}</button>
-        </div>
+        <div><h3 className="text-base font-extrabold text-stone-900">Homepage Section Controls</h3><p className="mt-1 text-xs text-stone-500">Show or hide public homepage sections instantly.</p></div>
+        <div className="flex items-center gap-3">{saved && <span className="flex items-center gap-1 text-xs font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />Saved</span>}<button type="submit" disabled={isSaving} className="btn-saelyxe-lime text-xs"><Save className="h-4 w-4" />{isSaving ? 'Saving...' : 'Save Changes'}</button></div>
       </div>
       <div className="space-y-3">
-        {rows.map(([key, title, description]) => (
-          <div key={key} className="flex items-center justify-between gap-4 p-4 bg-stone-50 rounded-xl border border-stone-100">
-            <div><h5 className="text-sm font-bold text-stone-900">{title}</h5><p className="text-xs text-stone-500">{description}</p></div>
-            <label className="ios-switch">
-              <input type="checkbox" checked={sections[key]} onChange={event => setSections(current => ({ ...current, [key]: event.target.checked }))} />
-              <span className="ios-slider" />
-            </label>
-          </div>
-        ))}
+        {rows.map(([key, title, description]) => <div key={key} className="flex items-center justify-between gap-4 rounded-xl border border-stone-100 bg-stone-50 p-4"><div><h5 className="text-sm font-bold text-stone-900">{title}</h5><p className="text-xs text-stone-500">{description}</p></div><label className="ios-switch"><input type="checkbox" checked={sections[key]} onChange={event => setSections(current => ({ ...current, [key]: event.target.checked }))} /><span className="ios-slider" /></label></div>)}
       </div>
     </form>
   );
