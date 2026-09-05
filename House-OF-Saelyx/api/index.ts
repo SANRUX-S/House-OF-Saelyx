@@ -18,6 +18,7 @@ app.use((_req, res, next) => {
   next();
 });
 app.use(express.json({ limit: '64kb' }));
+const payHereFormParser = express.urlencoded({ extended: false, limit: '32kb' });
 
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
 const ADMIN_EMAILS = new Set([
@@ -200,6 +201,64 @@ function escapeHtml(value: unknown) {
     .replace(/'/g, '&#039;');
 }
 
+function md5Upper(value: string) {
+  return crypto.createHash('md5').update(value).digest('hex').toUpperCase();
+}
+
+async function getPayPalAccessToken() {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  const baseUrl = process.env.PAYPAL_MODE === 'live'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+  if (!response.ok) return null;
+  const payload: any = await response.json();
+  return payload?.access_token ? { token: String(payload.access_token), baseUrl } : null;
+}
+
+async function verifyPayPalOrder(order: any, paypalOrderId: string) {
+  const access = await getPayPalAccessToken();
+  if (!access || !paypalOrderId) return { verified: false, reason: 'paypal_not_configured' };
+
+  const response = await fetch(`${access.baseUrl}/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}`, {
+    headers: { Authorization: `Bearer ${access.token}` }
+  });
+  if (!response.ok) return { verified: false, reason: 'paypal_lookup_failed' };
+
+  const payload: any = await response.json();
+  const purchaseUnit = Array.isArray(payload?.purchase_units) ? payload.purchase_units[0] : null;
+  const amount = purchaseUnit?.amount;
+  const usd = CURRENCIES.find(item => item.code === 'USD')!;
+  const expectedCurrency = order.currencyUsed === 'LKR' ? 'USD' : order.currencyUsed;
+  const expectedAmount = order.currencyUsed === 'LKR'
+    ? Number((Number(order.totalLKR) * usd.rateFromLKR).toFixed(2))
+    : Number(Number(order.totalInCurrency).toFixed(2));
+
+  const actualAmount = Number(amount?.value);
+  const currencyMatches = safeString(amount?.currency_code, 10).toUpperCase() === expectedCurrency;
+  const amountMatches = Number.isFinite(actualAmount) && Math.abs(actualAmount - expectedAmount) < 0.01;
+  const statusMatches = safeString(payload?.status, 30).toUpperCase() === 'COMPLETED';
+
+  return {
+    verified: statusMatches && currencyMatches && amountMatches,
+    reason: statusMatches ? (currencyMatches && amountMatches ? 'verified' : 'amount_mismatch') : 'not_completed',
+    providerStatus: safeString(payload?.status, 30),
+    expectedCurrency,
+    expectedAmount,
+    actualCurrency: safeString(amount?.currency_code, 10),
+    actualAmount
+  };
+}
+
 async function sendOrderConfirmationEmail(order: any) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
@@ -254,7 +313,9 @@ app.get('/api/health', (_req, res) => {
       process.env.CLOUDINARY_API_SECRET
     ),
     appCheckEnforced: process.env.FIREBASE_APP_CHECK_ENFORCE === 'true',
-    abuseProtectionConfigured: true
+    abuseProtectionConfigured: true,
+    payHereConfigured: Boolean(process.env.PAYHERE_MERCHANT_ID && process.env.PAYHERE_MERCHANT_SECRET),
+    payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
   });
 });
 
@@ -482,6 +543,140 @@ app.get('/api/currencies', (_req, res) => {
   res.json(CURRENCIES);
 });
 
+
+app.post('/api/payments/payhere/session/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+
+    const merchantId = process.env.PAYHERE_MERCHANT_ID;
+    const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
+    if (!merchantId || !merchantSecret) {
+      return res.status(503).json({ error: 'PayHere is not configured yet.' });
+    }
+
+    const orderId = safeString(req.params.orderId, 120);
+    const snap = await adminDb.collection('orders').doc(orderId).get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const order: any = { id: snap.id, ...snap.data() };
+    if (order.userId !== token.uid && !isAdminToken(token)) {
+      return res.status(403).json({ error: 'Order access denied.' });
+    }
+    if (order.paymentMethod !== 'payhere') {
+      return res.status(400).json({ error: 'This order is not a PayHere order.' });
+    }
+
+    const amount = Number(order.totalLKR).toFixed(2);
+    const currency = 'LKR';
+    const hashedSecret = md5Upper(merchantSecret);
+    const hash = md5Upper(`${merchantId}${order.orderNumber}${amount}${currency}${hashedSecret}`);
+    const nameParts = safeString(order.customerName, 120).split(/\s+/).filter(Boolean);
+    const firstName = nameParts.shift() || 'SAELYXE';
+    const lastName = nameParts.join(' ') || 'Customer';
+    const baseUrl = 'https://www.saelyxe.com';
+
+    return res.json({
+      action: process.env.PAYHERE_MODE === 'sandbox'
+        ? 'https://sandbox.payhere.lk/pay/checkout'
+        : 'https://www.payhere.lk/pay/checkout',
+      fields: {
+        merchant_id: merchantId,
+        return_url: `${baseUrl}/orders/${encodeURIComponent(order.orderNumber)}`,
+        cancel_url: `${baseUrl}/checkout?payment=cancelled&order=${encodeURIComponent(order.orderNumber)}`,
+        notify_url: `${baseUrl}/api/payments/payhere/notify`,
+        first_name: firstName,
+        last_name: lastName,
+        email: order.email,
+        phone: order.phone,
+        address: order.address,
+        city: order.city,
+        country: order.country,
+        order_id: order.orderNumber,
+        items: `SAELYXE Order ${order.orderNumber}`,
+        currency,
+        amount,
+        hash
+      }
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to start PayHere payment.' });
+  }
+});
+
+app.post('/api/payments/payhere/notify', payHereFormParser, async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    const merchantIdExpected = process.env.PAYHERE_MERCHANT_ID;
+    const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
+    if (!adminDb || !merchantIdExpected || !merchantSecret) return res.status(503).send('not configured');
+
+    const merchantId = safeString(req.body?.merchant_id, 80);
+    const orderId = safeString(req.body?.order_id, 120);
+    const paymentId = safeString(req.body?.payment_id, 160);
+    const amount = safeString(req.body?.payhere_amount, 40);
+    const currency = safeString(req.body?.payhere_currency, 10).toUpperCase();
+    const statusCode = safeString(req.body?.status_code, 10);
+    const md5sig = safeString(req.body?.md5sig, 80).toUpperCase();
+
+    if (!merchantId || merchantId !== merchantIdExpected || !orderId || !md5sig) {
+      return res.status(400).send('invalid');
+    }
+
+    const localSig = md5Upper(
+      `${merchantId}${orderId}${amount}${currency}${statusCode}${md5Upper(merchantSecret)}`
+    );
+    if (!crypto.timingSafeEqual(Buffer.from(localSig), Buffer.from(md5sig))) {
+      return res.status(400).send('invalid signature');
+    }
+
+    const ref = adminDb.collection('orders').doc(orderId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).send('order not found');
+    const order: any = snap.data() || {};
+    if (order.paymentMethod !== 'payhere') return res.status(400).send('wrong payment method');
+
+    const expectedAmount = Number(order.totalLKR).toFixed(2);
+    if (currency !== 'LKR' || Number(amount).toFixed(2) !== expectedAmount) {
+      await ref.update({
+        paymentStatus: 'verification_mismatch',
+        paymentProviderReference: paymentId || null,
+        paymentVerificationSource: 'payhere_notify',
+        paymentVerificationError: 'amount_or_currency_mismatch',
+        paymentUpdatedAt: new Date().toISOString()
+      });
+      return res.status(200).send('ignored');
+    }
+
+    const statusMap: Record<string, string> = {
+      '2': 'verified',
+      '0': 'pending_verification',
+      '-1': 'cancelled',
+      '-2': 'failed',
+      '-3': 'chargeback_review'
+    };
+    const paymentStatus = statusMap[statusCode] || 'pending_verification';
+    const now = new Date().toISOString();
+    await ref.update({
+      paymentStatus,
+      paymentProviderReference: paymentId || order.paymentProviderReference || null,
+      paymentVerificationSource: 'payhere_notify',
+      paymentVerifiedAt: paymentStatus === 'verified' ? now : order.paymentVerifiedAt || null,
+      paymentUpdatedAt: now,
+      payhereStatusCode: statusCode
+    });
+
+    return res.status(200).send('ok');
+  } catch {
+    return res.status(200).send('ignored');
+  }
+});
+
 app.post('/api/orders', async (req, res) => {
   try {
     const adminDb = getAdminDb();
@@ -679,6 +874,30 @@ app.post('/api/orders', async (req, res) => {
       const existing = await adminDb.collection('orders').doc(replayOrderNumber).get();
       if (existing.exists) {
         return res.status(200).setHeader('X-Idempotent-Replay', 'true').json({ id: existing.id, ...existing.data() });
+      }
+    }
+
+    if (paymentMethod === 'paypal' && paymentProviderReference && responseOrder) {
+      const verification = await verifyPayPalOrder(responseOrder, paymentProviderReference).catch(() => ({ verified: false, reason: 'verification_error' }));
+      if (verification.verified) {
+        const verifiedAt = new Date().toISOString();
+        responseOrder.paymentStatus = 'verified';
+        responseOrder.paymentVerificationSource = 'paypal_orders_api';
+        responseOrder.paymentVerifiedAt = verifiedAt;
+        await orderRef.update({
+          paymentStatus: 'verified',
+          paymentVerificationSource: 'paypal_orders_api',
+          paymentVerifiedAt: verifiedAt,
+          paymentUpdatedAt: verifiedAt
+        });
+      } else {
+        responseOrder.paymentVerificationSource = 'paypal_orders_api';
+        responseOrder.paymentVerificationError = verification.reason;
+        await orderRef.update({
+          paymentVerificationSource: 'paypal_orders_api',
+          paymentVerificationError: verification.reason,
+          paymentUpdatedAt: new Date().toISOString()
+        });
       }
     }
 
