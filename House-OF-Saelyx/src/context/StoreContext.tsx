@@ -24,6 +24,7 @@ import {
 } from '../lib/firebase';
 import { 
   signInWithPopup, 
+  signInWithRedirect,
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
@@ -930,6 +931,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setAuthError('The Google Sign-In popup was closed or blocked by browser settings. You can allow popups, or continue using the "VIP Test-Drive" below.');
       } else if (err.code === 'auth/network-request-failed') {
         setAuthError('Network error connecting to authentication server. Please check your connection or continue via the VIP Test-Drive.');
+      } else if (err.code === 'auth/internal-error') {
+        setAuthError('Google popup login is blocked in this browser. Redirect login is being opened instead.');
+        await signInWithRedirect(auth, googleProvider);
       } else {
         setAuthError(err.message || 'Google authentication encountered an issue. You can continue via the VIP Test-Drive session below.');
       }
