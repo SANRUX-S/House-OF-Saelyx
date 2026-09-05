@@ -2539,13 +2539,18 @@ app.put('/api/orders/:id/status', async (req, res) => {
 });
 
 app.post('/api/restock/dispatch', async (req, res) => {
+  const adminDb = getAdminDb();
+  let lockRef: any = null;
+  let executionId = '';
   try {
-    const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Restock service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `restock-dispatch:${token.uid}`, 12, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many restock dispatch attempts. Please wait before retrying.' });
+    }
 
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
@@ -2559,21 +2564,98 @@ app.post('/api/restock/dispatch', async (req, res) => {
     const productSnap = await adminDb.collection('products').doc(productId).get();
     if (!productSnap.exists) return res.status(404).json({ error: 'Product not found.' });
     const product: any = { id: productSnap.id, ...productSnap.data() };
+    if (product.inStock !== true || Math.max(0, Number(product.stockCount) || 0) < 1) {
+      return res.status(409).json({ error: 'Restock alerts can only be sent while this product is currently in stock.' });
+    }
 
-    const notificationSnap = await adminDb.collection('stock_notifications')
+    executionId = `restock-${crypto.randomBytes(8).toString('hex')}`;
+    lockRef = adminDb.collection('restock_dispatch_locks').doc(productId);
+    const nowMs = Date.now();
+    const lockTtlMs = 10 * 60_000;
+
+    await adminDb.runTransaction(async transaction => {
+      const lockSnap = await transaction.get(lockRef);
+      const lockData: any = lockSnap.exists ? lockSnap.data() || {} : {};
+      if (lockSnap.exists && Number(lockData.expiresAtMs) > nowMs) {
+        throw Object.assign(new Error('A restock dispatch for this product is already in progress.'), { statusCode: 409 });
+      }
+      transaction.set(lockRef, {
+        productId,
+        executionId,
+        ownerUid: token.uid,
+        createdAt: new Date(nowMs).toISOString(),
+        expiresAtMs: nowMs + lockTtlMs
+      });
+    });
+
+    const allNotifications = await adminDb.collection('stock_notifications')
       .where('productId', '==', productId)
-      .where('status', '==', 'pending')
+      .limit(500)
       .get();
 
-    const executionId = `restock-${crypto.randomBytes(6).toString('hex')}`;
+    const staleSendingThreshold = nowMs - 15 * 60_000;
+    const candidates = allNotifications.docs
+      .filter(docSnap => {
+        const data: any = docSnap.data() || {};
+        if (data.status === 'pending' || data.status === 'failed') return true;
+        if (data.status === 'sending') {
+          const started = Date.parse(safeString(data.dispatchStartedAt, 80));
+          return Number.isFinite(started) && started < staleSendingThreshold;
+        }
+        return false;
+      })
+      .slice(0, 200);
+
+    if (candidates.length === 0) {
+      await lockRef.delete().catch(() => undefined);
+      lockRef = null;
+      await writeAdminAudit(adminDb, token, 'RESTOCK_DISPATCH_NOOP', `No pending or failed restock recipients for ${product.title || productId}.`);
+      return res.json({
+        success: true,
+        productTitle: product.title || 'Selected Garment',
+        dispatchedCount: 0,
+        failedCount: 0,
+        processedCount: 0,
+        recipients: [],
+        executionId
+      });
+    }
+
+    const dispatchStartedAt = new Date().toISOString();
+    const claimBatch = adminDb.batch();
+    for (const docSnap of candidates) {
+      const data: any = docSnap.data() || {};
+      claimBatch.update(docSnap.ref, {
+        status: 'sending',
+        dispatchExecutionId: executionId,
+        dispatchStartedAt,
+        dispatchFinishedAt: FieldValue.delete(),
+        lastDispatchError: FieldValue.delete(),
+        dispatchAttempts: Math.max(0, Number(data.dispatchAttempts) || 0) + 1
+      });
+    }
+    await claimBatch.commit();
+
     const recipients: string[] = [];
+    const failedRecipients: string[] = [];
+    const productUrl = `https://www.saelyxe.com/product/${encodeURIComponent(safeString(product.slug, 160) || productId)}`;
 
-    for (const docSnap of notificationSnap.docs) {
-      const subscriber: any = docSnap.data();
+    for (const docSnap of candidates) {
+      const subscriber: any = docSnap.data() || {};
       const email = safeString(subscriber.customerEmail, 254).toLowerCase();
-      if (!isEmail(email)) continue;
+      const finishedAt = new Date().toISOString();
 
-      const productUrl = `https://www.saelyxe.com/product/${encodeURIComponent(safeString(product.slug, 160) || productId)}`;
+      if (!isEmail(email)) {
+        failedRecipients.push(email || docSnap.id);
+        await docSnap.ref.update({
+          status: 'failed',
+          notified: false,
+          dispatchFinishedAt: finishedAt,
+          lastDispatchError: 'Invalid subscriber email address.'
+        });
+        continue;
+      }
+
       const html = [
         '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#181614">',
         '<h2>SAELYXE — Back in Stock</h2>',
@@ -2585,61 +2667,82 @@ app.post('/api/restock/dispatch', async (req, res) => {
         '</div>'
       ].join('');
 
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from,
-          to: [email],
-          subject: `Back in stock: ${product.title || 'SAELYXE Garment'}`,
-          html
-        })
-      });
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `saelyxe-restock-${docSnap.id}`
+          },
+          body: JSON.stringify({
+            from,
+            to: [email],
+            subject: `Back in stock: ${product.title || 'SAELYXE Garment'}`,
+            html
+          })
+        });
 
-      if (!response.ok) {
-        console.error('Restock email failed:', response.status);
-        return res.status(502).json({ error: 'One or more restock emails could not be delivered.' });
+        const payload: any = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          failedRecipients.push(email);
+          await docSnap.ref.update({
+            status: 'failed',
+            notified: false,
+            dispatchFinishedAt: finishedAt,
+            lastDispatchError: `Resend HTTP ${response.status}`
+          });
+          continue;
+        }
+
+        recipients.push(email);
+        await docSnap.ref.update({
+          status: 'sent',
+          notified: true,
+          notifiedAt: finishedAt,
+          dispatchFinishedAt: finishedAt,
+          resendEmailId: safeString(payload?.id, 160),
+          lastDispatchError: FieldValue.delete()
+        });
+      } catch (error) {
+        failedRecipients.push(email);
+        await docSnap.ref.update({
+          status: 'failed',
+          notified: false,
+          dispatchFinishedAt: finishedAt,
+          lastDispatchError: safeString(error instanceof Error ? error.message : 'Email transport failed.', 240)
+        });
       }
-
-      recipients.push(email);
     }
 
-    const batch = adminDb.batch();
-    for (const docSnap of notificationSnap.docs) {
-      const subscriber: any = docSnap.data();
-      const email = safeString(subscriber.customerEmail, 254).toLowerCase();
-      if (!recipients.includes(email)) continue;
-      batch.update(docSnap.ref, {
-        status: 'sent',
-        notified: true,
-        notifiedAt: new Date().toISOString(),
-        dispatchExecutionId: executionId
-      });
-    }
-    await batch.commit();
+    await writeAdminAudit(
+      adminDb,
+      token,
+      failedRecipients.length ? 'RESTOCK_DISPATCH_PARTIAL' : 'RESTOCK_ALERT_DISPATCHED',
+      `Restock dispatch ${executionId} for ${product.title || productId}: ${recipients.length} sent, ${failedRecipients.length} failed.`
+    );
 
-    await adminDb.collection('audit_logs').add({
-      timestamp: new Date().toISOString(),
-      actor: typeof token?.email === 'string' ? token.email : token?.uid || 'admin',
-      role: typeof token?.role === 'string' ? token.role : 'admin',
-      action: 'RESTOCK_ALERT_DISPATCHED',
-      details: `Dispatched ${recipients.length} restock emails for [${product.title || productId}] (Execution: ${executionId})`
-    });
-
-    return res.json({
-      success: true,
+    return res.status(failedRecipients.length ? 207 : 200).json({
+      success: failedRecipients.length === 0,
       productTitle: product.title || 'Selected Garment',
       dispatchedCount: recipients.length,
-      processedCount: notificationSnap.size,
+      failedCount: failedRecipients.length,
+      processedCount: candidates.length,
       recipients,
-      executionId
+      failedRecipients,
+      executionId,
+      error: failedRecipients.length ? 'Some recipients failed. Retry will target failed recipients only.' : undefined
     });
-  } catch (error) {
+  } catch (error: any) {
+    const statusCode = Number(error?.statusCode) || 500;
     console.error('Restock dispatch failed:', error);
-    return res.status(500).json({ error: 'Unable to dispatch restock alerts.' });
+    return res.status(statusCode).json({
+      error: safeString(error?.message, 240) || 'Unable to dispatch restock alerts.'
+    });
+  } finally {
+    if (lockRef) {
+      await lockRef.delete().catch(() => undefined);
+    }
   }
 });
 
