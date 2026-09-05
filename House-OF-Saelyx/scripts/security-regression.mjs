@@ -40,6 +40,8 @@ assert(trackingRoute.includes('order.userId !== token.uid && !isAdminToken(token
 assert(!trackingRoute.includes('customerName:'), 'tracking response must not expose customer name');
 assert(!trackingRoute.includes('phone:'), 'tracking response must not expose phone number');
 assert(!trackingRoute.includes('address:'), 'tracking response must not expose street address');
+assert(!trackingRoute.includes('note: safeString(entry?.note'), 'tracking response must not expose operational notes');
+assert(!trackingRoute.includes('location: safeString(entry?.location'), 'tracking response must not expose detailed status locations');
 
 assert(rules.includes("request.resource.data.role == 'patron'"), 'new customer profiles must not self-assign privileged roles');
 assert(rules.includes('request.resource.data.role == resource.data.role'), 'customer profile updates must preserve role');
