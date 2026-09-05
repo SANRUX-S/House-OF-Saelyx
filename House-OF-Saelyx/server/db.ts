@@ -10,7 +10,6 @@ const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
   authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'gen-lang-client-0800900976.firebaseapp.com',
   firestoreDatabaseId: process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41',
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'gen-lang-client-0800900976.firebasestorage.app',
   messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '915679491947'
 };
 
