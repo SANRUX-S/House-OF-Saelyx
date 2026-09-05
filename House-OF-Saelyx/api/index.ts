@@ -2101,6 +2101,34 @@ app.post('/api/admin/audit', async (req, res) => {
   }
 });
 
+app.get('/api/admin/orders/page', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const requestedLimit = Number(req.query.limit);
+    const pageSize = Number.isInteger(requestedLimit) ? Math.min(100, Math.max(10, requestedLimit)) : 100;
+    const before = safeString(req.query.before, 80);
+
+    let queryRef: any = adminDb.collection('orders').orderBy('createdAt', 'desc');
+    if (before) queryRef = queryRef.where('createdAt', '<', before);
+    const snapshot = await queryRef.limit(pageSize + 1).get();
+    const docs = snapshot.docs.slice(0, pageSize);
+    const items = docs.map((docSnap: any) => ({ id: docSnap.id, ...docSnap.data() }));
+    const hasMore = snapshot.docs.length > pageSize;
+    return res.json({
+      items,
+      hasMore,
+      nextCursor: hasMore && docs.length ? safeString(docs[docs.length - 1].data()?.createdAt, 80) : null
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to load older orders.' });
+  }
+});
+
 app.get('/api/orders', async (req, res) => {
   try {
     const adminDb = getAdminDb();
