@@ -2,11 +2,24 @@
   "products": [
     {
       "id": "prod-01",
-      "inStock": true,
-      "category": "new",
-      "createdAt": "2026-09-02T06:07:48.408Z",
       "subCategory": "Tops",
+      "fabricDetails": "100% Organic Heavyweight Cotton. Pre-shrunk, garment-dyed for ultra-soft tactile finish.",
+      "badge": "DROP 001",
+      "priceLKR": 79000,
+      "inStock": true,
+      "description": "Constructed from custom-developed 280 GSM heavyweight combed cotton. Features a relaxed drop-shoulder silhouette with micro-embroidered SÆ chest signature.",
+      "hoverImage": "",
+      "category": "new",
       "bulletDetails": [],
+      "subtitle": "Heavyweight Sand Khaki / 280 GSM Pure Combed Cotton",
+      "stockCount": 42,
+      "title": "SÆ SIGNATURE OVERSIZED TEE",
+      "color": "Sand Khaki",
+      "slug": "s-signature-oversized-tee",
+      "images": [
+        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85",
+        "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=1200&q=85"
+      ],
       "sizes": [
         "S",
         "M",
@@ -14,27 +27,38 @@
         "XL"
       ],
       "completeTheSetProductId": "",
-      "slug": "s-signature-oversized-tee",
-      "subtitle": "Heavyweight Sand Khaki / 280 GSM Pure Combed Cotton",
       "fit": "Relaxed Oversized Fit",
-      "images": [
-        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85",
-        "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=1200&q=85"
-      ],
-      "stockCount": 42,
-      "title": "SÆ SIGNATURE OVERSIZED TEE",
-      "priceLKR": 79000,
-      "color": "Sand Khaki",
-      "fabricDetails": "100% Organic Heavyweight Cotton. Pre-shrunk, garment-dyed for ultra-soft tactile finish.",
-      "badge": "DROP 001",
-      "description": "Constructed from custom-developed 280 GSM heavyweight combed cotton. Features a relaxed drop-shoulder silhouette with micro-embroidered SÆ chest signature.",
-      "hoverImage": ""
+      "createdAt": "2026-09-02T06:07:48.408Z"
     },
     {
       "id": "prod-02",
+      "description": "Designed for effortless movement with an architectural straight-leg drape, tonal woven drawstring, and deep concealed side welt pockets.",
+      "category": "new",
+      "subtitle": "Relaxed Wide Drape / French Terry Weave",
+      "stockCount": 38,
       "subCategory": "Bottoms",
-      "fit": "Fluid Straight Leg",
+      "priceLKR": 7900,
+      "fabricDetails": "420 GSM Loopback French Terry. Custom dyed in organic desert sandstone.",
       "slug": "s-lounge-pants",
+      "badge": "DROP 001",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "color": "Sandstone",
+      "fit": "Fluid Straight Leg",
+      "inStock": true,
+      "title": "SÆ LOUNGE PANTS",
+      "images": [
+        "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=1200&q=85",
+        "https://images.unsplash.com/photo-1517445312882-bc9910d016b7?auto=format&fit=crop&w=1200&q=85"
+      ]
+    },
+    {
+      "id": "prod-03",
+      "color": "Oatmeal Heather",
       "inStock": true,
       "sizes": [
         "S",
@@ -42,126 +66,101 @@
         "L",
         "XL"
       ],
-      "priceLKR": 7900,
-      "badge": "DROP 001",
-      "fabricDetails": "420 GSM Loopback French Terry. Custom dyed in organic desert sandstone.",
-      "subtitle": "Relaxed Wide Drape / French Terry Weave",
-      "title": "SÆ LOUNGE PANTS",
-      "stockCount": 38,
-      "description": "Designed for effortless movement with an architectural straight-leg drape, tonal woven drawstring, and deep concealed side welt pockets.",
-      "color": "Sandstone",
-      "images": [
-        "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=1200&q=85",
-        "https://images.unsplash.com/photo-1517445312882-bc9910d016b7?auto=format&fit=crop&w=1200&q=85"
-      ],
-      "category": "new"
-    },
-    {
-      "id": "prod-03",
       "title": "SÆ KNIT ZIP HOODIE",
-      "color": "Oatmeal Heather",
-      "priceLKR": 7900,
-      "fabricDetails": "500 GSM Double-knit Cotton Blend with brushed interior fleece.",
-      "badge": "DROP 001",
       "stockCount": 29,
-      "description": "Heavyweight knit zip hoodie crafted with double-faced ribbing and dual-direction matte metal zipper. Minimalist warmth engineered for trans-seasonal presence.",
-      "inStock": true,
-      "fit": "Boxy Structured Fit",
       "category": "new",
-      "subCategory": "Knits",
+      "description": "Heavyweight knit zip hoodie crafted with double-faced ribbing and dual-direction matte metal zipper. Minimalist warmth engineered for trans-seasonal presence.",
       "slug": "s-knit-zip-hoodie",
+      "subtitle": "Double-Weave Thermal Knit / Custom Matte Hardware",
+      "fabricDetails": "500 GSM Double-knit Cotton Blend with brushed interior fleece.",
+      "subCategory": "Knits",
+      "badge": "DROP 001",
+      "fit": "Boxy Structured Fit",
       "images": [
         "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85",
         "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1200&q=85"
       ],
-      "subtitle": "Double-Weave Thermal Knit / Custom Matte Hardware",
+      "priceLKR": 7900
+    },
+    {
+      "id": "prod-04",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
-      ]
-    },
-    {
-      "id": "prod-04",
-      "description": "The definitive SAELYX ensemble. Combines our signature 280 GSM heavyweight tee with tailored 420 GSM French Terry drape trousers.",
-      "isSpotlight": true,
-      "badge": "LIMITED DROP",
+      ],
+      "color": "Desert Sand",
       "fit": "Coordinated Oversized",
+      "stockCount": 19,
+      "inStock": true,
+      "title": "THE SIGNATURE COORDINATES SET",
+      "subCategory": "Sets",
+      "subtitle": "Signature Oversized Tee + Lounge Pants Duo",
       "images": [
         "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85",
         "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85"
       ],
-      "stockCount": 19,
-      "slug": "the-signature-coordinates-set",
-      "color": "Desert Sand",
-      "priceLKR": 15800,
-      "title": "THE SIGNATURE COORDINATES SET",
-      "sizes": [
-        "S",
-        "M",
-        "L",
-        "XL"
-      ],
-      "subtitle": "Signature Oversized Tee + Lounge Pants Duo",
-      "inStock": true,
-      "subCategory": "Sets",
+      "category": "collections",
       "fabricDetails": "Heavyweight Combed Cotton & Luxury Loopback Terry.",
-      "category": "collections"
+      "description": "The definitive SAELYX ensemble. Combines our signature 280 GSM heavyweight tee with tailored 420 GSM French Terry drape trousers.",
+      "isSpotlight": true,
+      "slug": "the-signature-coordinates-set",
+      "priceLKR": 15800,
+      "badge": "LIMITED DROP"
     },
     {
       "id": "prod-05",
-      "title": "SÆ HEAVYWEIGHT CREWNECK",
-      "fit": "Boxy Classic",
-      "color": "Chalk Beige",
-      "priceLKR": 8400,
-      "slug": "s-heavyweight-crewneck",
-      "fabricDetails": "100% Ring-Spun Heavyweight Cotton Fleece.",
       "badge": "ESSENTIAL",
-      "description": "Sculpted crewneck with reinforced cross-grain side panels and high-density ribbed collar that maintains shape wear after wear.",
-      "subCategory": "Tops",
       "stockCount": 24,
-      "inStock": true,
       "category": "men",
       "subtitle": "Monochrome Drop-Shoulder / 450 GSM Fleece",
+      "slug": "s-heavyweight-crewneck",
+      "fit": "Boxy Classic",
+      "priceLKR": 8400,
+      "inStock": true,
+      "subCategory": "Tops",
+      "title": "SÆ HEAVYWEIGHT CREWNECK",
+      "description": "Sculpted crewneck with reinforced cross-grain side panels and high-density ribbed collar that maintains shape wear after wear.",
+      "images": [
+        "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=1200&q=85"
+      ],
+      "fabricDetails": "100% Ring-Spun Heavyweight Cotton Fleece.",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
       ],
-      "images": [
-        "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=1200&q=85"
-      ]
+      "color": "Chalk Beige"
     },
     {
       "id": "prod-06",
       "subtitle": "Seamless Form Weave / Minimalist Embroidered Logo",
+      "description": "High-neck cropped tank with engineered micro-ribbing for sculpted support and zero chafing. Subtle tonal SÆ logo at center back neckline.",
+      "category": "women",
+      "subCategory": "Tops",
+      "fabricDetails": "95% Modal Cotton, 5% Elastane.",
+      "images": [
+        "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85"
+      ],
+      "slug": "s-ribbed-cropped-tank",
+      "priceLKR": 5900,
+      "badge": "NEW",
+      "inStock": true,
+      "fit": "Fitted Contour",
       "sizes": [
         "XS",
         "S",
         "M",
         "L"
       ],
-      "fit": "Fitted Contour",
-      "images": [
-        "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85"
-      ],
-      "category": "women",
-      "description": "High-neck cropped tank with engineered micro-ribbing for sculpted support and zero chafing. Subtle tonal SÆ logo at center back neckline.",
-      "fabricDetails": "95% Modal Cotton, 5% Elastane.",
-      "subCategory": "Tops",
-      "badge": "NEW",
-      "priceLKR": 5900,
+      "color": "Vanilla Cream",
       "stockCount": 35,
-      "slug": "s-ribbed-cropped-tank",
-      "title": "SÆ RIBBED CROPPED TANK",
-      "inStock": true,
-      "color": "Vanilla Cream"
+      "title": "SÆ RIBBED CROPPED TANK"
     },
     {
       "id": "prod-07",
-      "fabricDetails": "380 GSM Organic French Terry.",
       "stockCount": 31,
       "sizes": [
         "S",
@@ -169,75 +168,82 @@
         "L",
         "XL"
       ],
-      "priceLKR": 6900,
-      "description": "Mid-thigh casual luxury sweatshorts with deep slash pockets, heavy cotton cords, and custom matte eyelets.",
-      "fit": "Relaxed 6.5\" Inseam",
       "inStock": true,
-      "subtitle": "Relaxed Inseam / Raw-Edge Hemming",
-      "slug": "s-tailored-sweatshorts",
-      "badge": "NEW",
-      "subCategory": "Bottoms",
+      "fabricDetails": "380 GSM Organic French Terry.",
       "color": "Sandstone",
       "title": "SÆ TAILORED SWEATSHORTS",
+      "description": "Mid-thigh casual luxury sweatshorts with deep slash pockets, heavy cotton cords, and custom matte eyelets.",
+      "subCategory": "Bottoms",
       "images": [
         "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=1200&q=85"
       ],
-      "category": "men"
+      "category": "men",
+      "fit": "Relaxed 6.5\" Inseam",
+      "subtitle": "Relaxed Inseam / Raw-Edge Hemming",
+      "slug": "s-tailored-sweatshorts",
+      "badge": "NEW",
+      "priceLKR": 6900
     },
     {
       "id": "prod-08",
-      "subtitle": "Water-Resistant Cotton Canvas / Tuscan Leather Accents",
+      "hoverImage": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85",
+      "completeTheSetProductId": "",
       "title": "SÆ MINIMALIST DUFFLE BAG",
+      "bulletDetails": [],
+      "sizes": [
+        "ONE SIZE"
+      ],
+      "fabricDetails": "Heavyweight Waxed Canvas & Vegetable Tanned Leather.",
+      "color": "Matte Dune",
+      "slug": "s-minimalist-duffle-bag",
+      "fit": "35L Capacity",
+      "stockCount": 14,
+      "category": "collections",
+      "badge": "LIMITED",
+      "subtitle": "Water-Resistant Cotton Canvas / Tuscan Leather Accents",
+      "priceLKR": 14500,
+      "subCategory": "Accessories",
       "images": [
         "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=1200&q=85"
       ],
-      "color": "Matte Dune",
-      "category": "collections",
-      "subCategory": "Accessories",
-      "fabricDetails": "Heavyweight Waxed Canvas & Vegetable Tanned Leather.",
-      "badge": "LIMITED",
-      "slug": "s-minimalist-duffle-bag",
-      "stockCount": 14,
       "description": "Understated travel essential. High-density woven canvas with brushed stainless hardware and magnetic quick-access pockets.",
-      "completeTheSetProductId": "",
-      "fit": "35L Capacity",
-      "inStock": true,
-      "bulletDetails": [],
-      "hoverImage": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85",
-      "priceLKR": 14500,
-      "sizes": [
-        "ONE SIZE"
-      ]
+      "inStock": true
     },
     {
       "id": "prod-mtiy4opf",
-      "slug": "test",
+      "badge": "DROP 001",
+      "stockCount": 50,
+      "inStock": true,
+      "description": "test test testtest test testtest test testtest test testtest test testtest test testtest test test",
       "title": "Test",
       "category": "men",
-      "badge": "DROP 001",
+      "slug": "test",
       "subtitle": "test test test",
       "images": [
         "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80"
       ],
-      "description": "test test testtest test testtest test testtest test testtest test testtest test testtest test test",
       "priceLKR": 38500,
-      "inStock": true,
-      "fabricDetails": "280 GSM Heavyweight Combed Cotton",
-      "stockCount": 50,
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
-      ]
+      ],
+      "fabricDetails": "280 GSM Heavyweight Combed Cotton"
     },
     {
       "id": "prod-mtj5ymhb",
-      "images": [
-        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80"
-      ],
-      "description": "A structural, sculptural draping garment custom-crafted for the SAELYX collection.",
+      "stockCount": 50,
+      "title": "TEST 002",
       "createdAt": "2026-09-01T21:12:48.719Z",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "color": "Noir Black",
+      "hoverImage": "",
       "bulletDetails": [
         "Heavyweight 400 GSM custom combed cotton",
         "Structured, relaxed architectural fit",
@@ -245,59 +251,53 @@
         "Multi-panel construction with flatlock reinforced seams",
         "Tonal embroidered signature micro-emblem"
       ],
-      "badge": "TEST DROP 002",
-      "subtitle": "400 GSM Heavyweight",
-      "slug": "test-002",
-      "color": "Noir Black",
-      "category": "men",
-      "title": "TEST 002",
-      "completeTheSetProductId": "",
-      "sizes": [
-        "S",
-        "M",
-        "L",
-        "XL"
+      "images": [
+        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80"
       ],
+      "subtitle": "400 GSM Heavyweight",
+      "description": "A structural, sculptural draping garment custom-crafted for the SAELYX collection.",
+      "fit": "Architectural Relaxed",
+      "badge": "TEST DROP 002",
+      "category": "men",
+      "priceLKR": 38500,
       "inStock": true,
       "fabricDetails": "400 GSM Heavyweight Combed Cotton",
-      "stockCount": 50,
-      "fit": "Architectural Relaxed",
-      "hoverImage": "",
-      "priceLKR": 38500
+      "slug": "test-002",
+      "completeTheSetProductId": ""
     },
     {
       "id": "prod-mtmk3gor",
+      "title": "Test Item 09-04-2026",
       "category": "men",
-      "description": "A structural, sculptural draping garment custom-crafted for the SAELYX collection.",
+      "slug": "test-item-09-04-2026",
+      "subtitle": "Test Subtitle (09-04-2026) Test Subtitle (09-04-2026) Test Subtitle (09-04-2026) Test Subtitle (09-04-2026) Test Subtitle (09-04-2026) ",
+      "createdAt": "2026-09-04T06:11:47.643Z",
+      "inStock": true,
       "fit": "Architectural Relaxed",
-      "images": [
-        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80"
-      ],
+      "color": "Noir Black",
+      "priceLKR": 38500,
+      "completeTheSetProductId": "",
       "sizes": [
         "S",
         "M",
         "L",
         "XL"
       ],
-      "subtitle": "Test Subtitle (09-04-2026) Test Subtitle (09-04-2026) Test Subtitle (09-04-2026) Test Subtitle (09-04-2026) Test Subtitle (09-04-2026) ",
+      "stockCount": 50,
+      "description": "A structural, sculptural draping garment custom-crafted for the SAELYX collection.",
+      "badge": "DROP 001",
+      "fabricDetails": "400 GSM Heavyweight Combed Cotton",
+      "images": [
+        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80"
+      ],
+      "hoverImage": "",
       "bulletDetails": [
         "Heavyweight 400 GSM custom combed cotton",
         "Structured, relaxed architectural fit",
         "Wide-leg silhouette with continuous drape",
         "Multi-panel construction with flatlock reinforced seams",
         "Tonal embroidered signature micro-emblem"
-      ],
-      "createdAt": "2026-09-04T06:11:47.643Z",
-      "badge": "DROP 001",
-      "priceLKR": 38500,
-      "hoverImage": "",
-      "completeTheSetProductId": "",
-      "slug": "test-item-09-04-2026",
-      "title": "Test Item 09-04-2026",
-      "color": "Noir Black",
-      "inStock": true,
-      "stockCount": 50,
-      "fabricDetails": "400 GSM Heavyweight Combed Cotton"
+      ]
     }
   ],
   "orders": [

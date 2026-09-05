@@ -5,13 +5,13 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'demo-project',
-  appId: process.env.VITE_FIREBASE_APP_ID || 'demo-app-id',
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'gen-lang-client-0800900976',
+  appId: process.env.VITE_FIREBASE_APP_ID || '1:915679491947:web:e4a01bb7e854eca503fe2e',
   apiKey: process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo-project.firebaseapp.com',
-  firestoreDatabaseId: process.env.VITE_FIREBASE_DATABASE_ID || '(default)',
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'demo-project.appspot.com',
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '000000000000'
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'gen-lang-client-0800900976.firebaseapp.com',
+  firestoreDatabaseId: process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41',
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'gen-lang-client-0800900976.firebasestorage.app',
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '915679491947'
 };
 
 const firebaseConfigured = Boolean(

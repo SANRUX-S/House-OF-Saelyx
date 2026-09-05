@@ -11,18 +11,50 @@ const ADMIN_ROLES: Record<string, 'admin' | 'super_admin'> = {
 function getAdminAuth() {
   if (!getApps().length) {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    if (!process.env.FIREBASE_CLIENT_EMAIL || !privateKey || !process.env.VITE_FIREBASE_PROJECT_ID) {
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const hasPlaceholder = (value?: string) => !value || value.startsWith('replace-with-') || value.startsWith('your-');
+    if (hasPlaceholder(clientEmail) || hasPlaceholder(privateKey) || hasPlaceholder(projectId)) {
       return null;
     }
     initializeApp({
       credential: cert({
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        projectId,
+        clientEmail,
         privateKey
       })
     });
   }
   return getAuth();
+}
+
+function getFirebaseApiKey() {
+  const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey || apiKey.startsWith('replace-with-') || apiKey.startsWith('your-')) return null;
+  return apiKey;
+}
+
+async function verifyWithFirebaseApi(idToken: string) {
+  const apiKey = getFirebaseApiKey();
+  if (!apiKey) return null;
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    }
+  );
+  if (!response.ok) return null;
+
+  const payload = await response.json() as { users?: Array<{ localId?: string; email?: string }> };
+  const firebaseUser = payload.users?.[0];
+  if (!firebaseUser?.email) return null;
+  return {
+    uid: firebaseUser.localId || '',
+    email: firebaseUser.email
+  };
 }
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -33,13 +65,17 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 
   try {
     const adminAuth = getAdminAuth();
-    if (!adminAuth) return res.status(503).json({ error: 'Server authentication is not configured' });
-    const token = await adminAuth.verifyIdToken(authorization.slice(7).trim());
-    const configuredRole = token.email ? ADMIN_ROLES[token.email.toLowerCase()] : undefined;
-    if (token.admin !== true && token.role !== 'admin' && token.role !== 'super_admin' && !configuredRole) {
+    const idToken = authorization.slice(7).trim();
+    const token = adminAuth
+      ? await adminAuth.verifyIdToken(idToken)
+      : await verifyWithFirebaseApi(idToken);
+    if (!token) return res.status(503).json({ error: 'Firebase server authentication is not configured' });
+    const tokenClaims = token as { uid?: string; email?: string; admin?: boolean; role?: string; [key: string]: unknown };
+    const configuredRole = tokenClaims.email ? ADMIN_ROLES[tokenClaims.email.toLowerCase()] : undefined;
+    if (tokenClaims.admin !== true && tokenClaims.role !== 'admin' && tokenClaims.role !== 'super_admin' && !configuredRole) {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    (req as Request & { auth?: typeof token }).auth = token;
+    (req as Request & { auth?: typeof tokenClaims }).auth = tokenClaims;
     return next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired authentication token' });
