@@ -30,7 +30,8 @@ const firebaseConfig = {
 };
 
 const placeholderFirebaseValues = new Set(['', 'demo-project', 'demo-app-id', 'demo-api-key', '000000000000']);
-export const isFirebaseConfigured = [
+const isRealtimeFirebaseEnabled = (import.meta.env.VITE_FIREBASE_ENABLE_REALTIME || '').toLowerCase() === 'true';
+export const isFirebaseConfigured = isRealtimeFirebaseEnabled && [
   firebaseConfig.projectId,
   firebaseConfig.appId,
   firebaseConfig.apiKey,

@@ -14,7 +14,7 @@ const firebaseConfig = {
   messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '915679491947'
 };
 
-const firebaseConfigured = Boolean(
+const firebaseConfigured = (process.env.VITE_FIREBASE_ENABLE_REALTIME || '').toLowerCase() === 'true' && Boolean(
   process.env.VITE_FIREBASE_PROJECT_ID &&
   process.env.VITE_FIREBASE_APP_ID &&
   (process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY) &&
