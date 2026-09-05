@@ -115,6 +115,7 @@ interface StoreContextType {
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
   loginAsGuest: () => void;
+  loginAdmin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
 
@@ -1115,7 +1116,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Orders Management
-  const createOrder = async (orderData: CreateOrderInput): Promise<Order> => {{
+  const createOrder = async (orderData: CreateOrderInput): Promise<Order> => {
     const orderPayload = {
       ...orderData,
       userId: user?.role === 'guest' ? undefined : user?.uid
@@ -1472,7 +1473,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithEmail,
         signupWithEmail,
         loginAsGuest,
-          loginAdmin,
+        loginAdmin,
         logout,
         updateUserProfile,
         orders,
