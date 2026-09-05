@@ -457,18 +457,10 @@ class StoreDB {
   updateProduct(id: string, updates: Partial<Product>): Product | null {
     const idx = this.data.products.findIndex(p => p.id === id);
     if (idx === -1) return null;
-    const prev = { ...this.data.products[idx] };
     const updated = { ...this.data.products[idx], ...updates };
     this.data.products[idx] = updated;
     this.saveData(this.data);
     this.saveProductToFirestore(updated);
-
-    // Auto-trigger Cloud Function logic if garment is restocked
-    const wasOutOfStock = !prev.inStock || (prev.stockCount || 0) <= 0;
-    const isNowInStock = updated.inStock === true && (updated.stockCount || 0) > 0;
-    if (wasOutOfStock && isNowInStock) {
-      this.triggerRestockCloudFunction(id);
-    }
 
     return this.data.products[idx];
   }
@@ -670,7 +662,7 @@ class StoreDB {
     this.saveData(this.data);
     return log;
   }
-  // Back-In-Stock Notifications & Cloud Functions Operations
+  // Back-In-Stock waitlist compatibility operations
   getStockNotifications(): StockNotification[] {
     if (!this.data.stockNotifications) {
       this.data.stockNotifications = [];
@@ -714,59 +706,7 @@ class StoreDB {
     return false;
   }
 
-  triggerRestockCloudFunction(productId?: string): {
-    success: boolean;
-    productTitle: string;
-    dispatchedCount: number;
-    recipients: string[];
-    executionId: string;
-  } {
-    if (!this.data.stockNotifications) {
-      this.data.stockNotifications = [...INITIAL_STOCK_NOTIFICATIONS];
-    }
 
-    const executionId = `fn-exec-${Date.now().toString(36)}`;
-    let targetProductTitle = 'All Restocked Garments';
-    if (productId) {
-      const prod = this.getProductById(productId);
-      if (prod) targetProductTitle = prod.title;
-    }
-
-    const matchingPending = this.data.stockNotifications.filter(n => {
-      if (n.status !== 'pending') return false;
-      if (productId && n.productId !== productId) return false;
-      return true;
-    });
-
-    const recipients: string[] = [];
-
-    matchingPending.forEach(item => {
-      item.status = 'sent';
-      item.notified = true;
-      item.notifiedAt = new Date().toISOString();
-      item.cloudFunctionExecutionId = executionId;
-      recipients.push(`${item.customerEmail} (${item.selectedSize || 'Std'})`);
-    });
-
-    this.saveData(this.data);
-
-    if (matchingPending.length > 0) {
-      this.addAuditLog({
-        actor: 'Firebase Cloud Functions (onStockReplenished)',
-        role: 'super_admin',
-        action: 'CLOUD_FUNCTION_RESTOCK_DISPATCH',
-        details: `Dispatched ${matchingPending.length} automated alerts for [${targetProductTitle}] to: ${recipients.join(', ')}`
-      });
-    }
-
-    return {
-      success: true,
-      productTitle: targetProductTitle,
-      dispatchedCount: matchingPending.length,
-      recipients,
-      executionId
-    };
-  }
 }
 
 export const db = new StoreDB();
