@@ -76,7 +76,7 @@ export const CollectionGrid: React.FC = () => {
       if ((activeCategory === 'women' || activeCategory === 'womens') && p.category !== 'women' && p.category !== 'new' && p.category !== 'collections') {
         return false;
       }
-      if (activeCategory === 'accessories' && p.category !== 'accessories' && p.subCategory !== 'Accessories') {
+      if (activeCategory === 'accessories' && (p.category as string) !== 'accessories' && p.subCategory !== 'Accessories') {
         return false;
       }
       if (activeCategory === 'collections' && p.category !== 'collections' && !p.isSpotlight) {
