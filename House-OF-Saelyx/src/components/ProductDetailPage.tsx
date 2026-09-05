@@ -277,6 +277,9 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                 alt={product.title}
                 className="w-full h-full object-cover object-center transition-all duration-500"
                 referrerPolicy="no-referrer"
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
               />
               {product.badge && (
                 <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-[#1A1816] text-white text-[9px] sm:text-[10px] uppercase font-bold tracking-widest px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full shadow-lg">
@@ -298,7 +301,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                         : 'border-transparent opacity-60 hover:opacity-100'
                     }`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   </button>
                 ))}
               </div>
@@ -609,6 +612,8 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                       alt={matchingSetProduct.title} 
                       className="w-full h-full object-cover hover:scale-105 transition-transform"
                       referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
 
@@ -813,6 +818,8 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                       alt={p.title}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                   <div className="p-4 space-y-1">

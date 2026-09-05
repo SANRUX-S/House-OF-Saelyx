@@ -255,7 +255,7 @@ app.post('/api/orders', async (req, res) => {
 
     const requestedCurrency = safeString(body.currencyUsed, 10).toUpperCase();
     const currency = CURRENCIES.find(item => item.code === requestedCurrency) || CURRENCIES[0];
-    const paymentMethod = ['paypal', 'payhere', 'binance_qr', 'cod'].includes(body.paymentMethod)
+    const paymentMethod = ['paypal', 'payhere', 'binance_qr'].includes(body.paymentMethod)
       ? body.paymentMethod
       : 'payhere';
     const paymentProviderReference = safeString(body.paymentProviderReference, 160);
@@ -347,8 +347,9 @@ app.post('/api/orders', async (req, res) => {
         totalInCurrency,
         status: 'placed',
         paymentMethod,
-        paymentStatus: paymentMethod === 'cod' ? 'pending_delivery' : 'pending_verification',
+        paymentStatus: 'pending_verification',
         paymentProviderReference: paymentProviderReference || null,
+        inventoryCommitted: false,
         trackingNumber: '',
         courierName: '',
         deliveryEta: '',
@@ -365,17 +366,8 @@ app.post('/api/orders', async (req, res) => {
 
       transaction.set(orderRef, order);
 
-      for (const [productId, totalQuantity] of quantityByProduct.entries()) {
-        const entry = productCache.get(productId);
-        if (!entry) continue;
-        const currentStock = Number(entry.data.stockCount);
-        const nextStock = Math.max(0, currentStock - totalQuantity);
-        transaction.update(entry.ref, {
-          stockCount: nextStock,
-          inStock: nextStock > 0,
-          updatedAt: now
-        });
-      }
+      // Stock is committed only after an authenticated admin confirms the paid order.
+      // This prevents unpaid or forged payment references from draining inventory.
 
       responseOrder = { ...order };
       delete responseOrder.serverCreatedAt;
@@ -452,31 +444,89 @@ app.put('/api/orders/:id/status', async (req, res) => {
     if (!ORDER_STATUSES.has(status)) return res.status(400).json({ error: 'Invalid order status.' });
 
     const ref = adminDb.collection('orders').doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
-
-    const current: any = snap.data() || {};
     const now = new Date().toISOString();
-    const update: Record<string, unknown> = {
-      status,
-      updatedAt: now,
-      statusHistory: [
-        ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
-        {
-          status,
-          timestamp: now,
-          note: safeString(req.body?.note, 300) || `Order status updated to ${status}.`,
-          location: safeString(req.body?.location, 160) || 'SAELYXE Operations'
+
+    await adminDb.runTransaction(async transaction => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists) throw new Error('Order not found.');
+
+      const current: any = snap.data() || {};
+      const update: Record<string, unknown> = {
+        status,
+        updatedAt: now,
+        statusHistory: [
+          ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
+          {
+            status,
+            timestamp: now,
+            note: safeString(req.body?.note, 300) || `Order status updated to ${status}.`,
+            location: safeString(req.body?.location, 160) || 'SAELYXE Operations'
+          }
+        ]
+      };
+
+      for (const key of ['trackingNumber', 'courierName', 'deliveryEta'] as const) {
+        const value = safeString(req.body?.[key], 160);
+        if (value) update[key] = value;
+      }
+
+      if (status === 'confirmed' && current.inventoryCommitted !== true) {
+        const items = Array.isArray(current.items) ? current.items : [];
+        const quantityByProduct = new Map<string, number>();
+        for (const item of items) {
+          const productId = safeString(item?.productId, 100);
+          const quantity = Number(item?.quantity);
+          if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+            throw new Error('Order inventory data is invalid.');
+          }
+          quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
         }
-      ]
-    };
 
-    for (const key of ['trackingNumber', 'courierName', 'deliveryEta'] as const) {
-      const value = safeString(req.body?.[key], 160);
-      if (value) update[key] = value;
-    }
+        for (const [productId, quantity] of quantityByProduct.entries()) {
+          const productRef = adminDb.collection('products').doc(productId);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists) throw new Error('A product in this order is no longer available.');
+          const product: any = productSnap.data() || {};
+          const stockCount = Number(product.stockCount);
+          if (!Number.isFinite(stockCount) || stockCount < quantity) {
+            throw new Error(`${product.title || 'A product'} does not have enough stock to confirm this order.`);
+          }
+          const nextStock = stockCount - quantity;
+          transaction.update(productRef, {
+            stockCount: nextStock,
+            inStock: nextStock > 0,
+            updatedAt: now
+          });
+        }
 
-    await ref.update(update);
+        update.inventoryCommitted = true;
+        update.paymentStatus = 'verified';
+      }
+
+      if (status === 'cancelled' && current.inventoryCommitted === true) {
+        const items = Array.isArray(current.items) ? current.items : [];
+        for (const item of items) {
+          const productId = safeString(item?.productId, 100);
+          const quantity = Number(item?.quantity);
+          if (!productId || !Number.isInteger(quantity) || quantity < 1) continue;
+          const productRef = adminDb.collection('products').doc(productId);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists) continue;
+          const product: any = productSnap.data() || {};
+          const nextStock = Math.max(0, Number(product.stockCount || 0)) + quantity;
+          transaction.update(productRef, {
+            stockCount: nextStock,
+            inStock: nextStock > 0,
+            updatedAt: now
+          });
+        }
+        update.inventoryCommitted = false;
+        update.paymentStatus = current.paymentStatus === 'verified' ? 'refund_required' : 'cancelled';
+      }
+
+      transaction.update(ref, update);
+    });
+
     const updated = await ref.get();
     return res.json({ id: updated.id, ...updated.data() });
   } catch {

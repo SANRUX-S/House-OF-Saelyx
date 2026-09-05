@@ -220,6 +220,90 @@ exports.dispatchRestockAlerts = onRequest({
 });
 
 /**
+ * Callable variant used by the authenticated admin dashboard.
+ * It performs real email delivery first and only then marks notifications as sent.
+ */
+exports.dispatchRestockAlertsCallable = onCall({
+  secrets: [resendApiKey, resendFromEmail]
+}, async (request) => {
+  const token = request.auth?.token || {};
+  const email = String(token.email || "").toLowerCase();
+  const adminEmails = new Set([
+    "saelyx.co@gmail.com",
+    "saelyx.co+super@gmail.com",
+    "saelyx.co+admin@gmail.com"
+  ]);
+  const isAdmin = token.admin === true ||
+    token.role === "admin" ||
+    token.role === "super_admin" ||
+    adminEmails.has(email);
+
+  if (!request.auth || !isAdmin) {
+    throw new HttpsError("permission-denied", "Admin access required.");
+  }
+
+  const productId = String(request.data?.productId || "").trim();
+  if (!productId) {
+    throw new HttpsError("invalid-argument", "Product ID is required.");
+  }
+
+  const productDoc = await db.collection("products").doc(productId).get();
+  if (!productDoc.exists) {
+    throw new HttpsError("not-found", "Product not found.");
+  }
+
+  const productData = productDoc.data();
+  const snapshot = await db.collection("stock_notifications")
+    .where("productId", "==", productId)
+    .where("status", "==", "pending")
+    .get();
+
+  const executionId = `manual-exec-${Date.now().toString(36)}`;
+  const deliveries = snapshot.docs.map((docSnap) => {
+    const subscriber = docSnap.data();
+    return deliverRestockEmail({
+      email: subscriber.customerEmail,
+      name: subscriber.customerName || "Valued Patron",
+      productTitle: productData.title,
+      productSlug: productData.slug || productId,
+      productPrice: productData.priceLKR,
+      productImage: productData.images?.[0] || "",
+      size: subscriber.selectedSize || "Standard",
+      executionId
+    });
+  });
+
+  await Promise.all(deliveries);
+
+  const batch = db.batch();
+  snapshot.docs.forEach((docSnap) => {
+    batch.update(docSnap.ref, {
+      status: "sent",
+      notified: true,
+      notifiedAt: new Date().toISOString(),
+      cloudFunctionExecutionId: executionId
+    });
+  });
+  await batch.commit();
+
+  await db.collection("audit_logs").add({
+    timestamp: new Date().toISOString(),
+    actor: email || request.auth.uid,
+    role: String(token.role || "admin"),
+    action: "MANUAL_RESTOCK_DISPATCH",
+    details: `Dispatched ${snapshot.size} restock alerts for [${productData.title}] (Execution ID: ${executionId})`
+  });
+
+  return {
+    success: true,
+    productTitle: productData.title,
+    dispatchedCount: snapshot.size,
+    recipients: snapshot.docs.map(docSnap => docSnap.data().customerEmail),
+    executionId
+  };
+});
+
+/**
  * Transactional restock email delivery via Resend.
  * Configure RESEND_API_KEY and RESEND_FROM_EMAIL as Firebase Function secrets/env vars.
  */
