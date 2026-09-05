@@ -198,7 +198,7 @@ export interface StockNotification {
   notifiedAt?: string;
   status: 'pending' | 'sent' | 'cancelled' | 'dispatched';
   createdAt: string;
-  cloudFunctionExecutionId?: string;
+  dispatchExecutionId?: string;
 }
 
 export interface AuditLog {
