@@ -14,6 +14,9 @@ function assert(condition, message) {
 const api = read('api/index.ts');
 const store = read('src/context/StoreContext.tsx');
 const rules = read('firestore.rules');
+const storageRules = read('storage.rules');
+const firebaseClient = read('src/lib/firebase.ts');
+const serverAuth = read('server/auth.ts');
 const vercel = read('vercel.json');
 const checkout = read('src/components/CheckoutPage.tsx');
 const tracker = read('src/components/TrackOrderPage.tsx');
@@ -41,6 +44,13 @@ assert(rules.includes('request.resource.data.role == resource.data.role'), 'cust
 assert(!store.includes('configuredAdminRole || data.role'), 'client session must not trust users/{uid}.role');
 assert(store.includes("role: trustedRole"), 'client session must use a trusted role source');
 assert(store.includes('if (!fbUser) {\n        setUser(null);'), 'sign-out/session loss must clear local user state');
+
+assert(api.includes('token.email_verified === true && ADMIN_EMAILS.has(email)'), 'API allowlisted admin email must be verified');
+assert(rules.includes('request.auth.token.email_verified == true'), 'Firestore admin email allowlist must require verified ownership');
+assert(storageRules.includes('request.auth.token.email_verified == true'), 'Storage admin email allowlist must require verified ownership');
+assert(firebaseClient.includes('credential.user.emailVerified ? allowlistedRole : undefined'), 'admin credential flow must require verified allowlisted email');
+assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified allowlisted admin must receive a verification path');
+assert(serverAuth.includes('tokenClaims.email_verified === true'), 'legacy server admin allowlist must require verified email');
 
 assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enforced');
 assert(!vercel.includes('Content-Security-Policy-Report-Only'), 'report-only CSP must not remain');
