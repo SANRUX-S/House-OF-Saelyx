@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 export interface AdminSecurityProps {
-  onExportDatabase: () => void;
+  onExportDatabase: () => Promise<void>;
 }
 
 interface HealthStatus {
@@ -126,7 +126,7 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({
           </button>
 
           <button
-            onClick={onExportDatabase}
+            onClick={() => void onExportDatabase()}
             className="btn-saelyxe-lime text-xs"
           >
             <Download className="w-3.5 h-3.5" />
