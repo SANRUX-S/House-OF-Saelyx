@@ -383,7 +383,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       try {
-        const configuredAdminRole = getConfiguredAdminRole(fbUser.email);
+        const configuredAdminRole = fbUser.emailVerified ? getConfiguredAdminRole(fbUser.email) : undefined;
         const [tokenResult, userSnap, adminSnap] = await Promise.all([
           fbUser.getIdTokenResult(true),
           getDoc(doc(db, 'users', fbUser.uid)),
@@ -444,7 +444,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
           email: fbUser.email || '',
           phoneNumber: fbUser.phoneNumber || '',
-          role: getConfiguredAdminRole(fbUser.email) || 'patron',
+          role: (fbUser.emailVerified ? getConfiguredAdminRole(fbUser.email) : undefined) || 'patron',
           country: 'Sri Lanka'
         });
       }
