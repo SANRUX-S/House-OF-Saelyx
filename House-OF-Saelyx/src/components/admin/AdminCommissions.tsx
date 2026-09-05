@@ -42,9 +42,9 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   const handleOpenDispatchModal = (order: Order) => {
     setSelectedOrder(order);
     setNewStatus(order.status);
-    setNewCourier(order.courierName || 'Saelyxe White-Glove Van 04');
-    setNewTracking(order.trackingNumber || `EXP-${Math.floor(100000 + Math.random() * 900000)}`);
-    setNewEta(order.deliveryEta || 'Same-day VIP Doorstep Delivery');
+    setNewCourier(order.courierName || '');
+    setNewTracking(order.trackingNumber || '');
+    setNewEta(order.deliveryEta || '');
   };
 
   const handleSaveDispatch = async (e: React.FormEvent) => {
