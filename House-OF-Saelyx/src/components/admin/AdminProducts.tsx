@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Product } from '../../types';
+import { auth } from '../../lib/firebase';
 
 export interface AdminProductsProps {
   products: Product[];
@@ -60,7 +61,87 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [bulletsText, setBulletsText] = useState('');
   const [imagesText, setImagesText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [formError, setFormError] = useState('');
+
+  const appendImageUrl = (url: string) => {
+    setImagesText(current => `${current}${current ? '\n' : ''}${url}`);
+  };
+
+  const uploadImageFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Only image files can be uploaded.');
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error(`${file.name} is larger than the 10 MB image limit.`);
+    }
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Admin session expired. Please sign in again.');
+    }
+
+    const idToken = await currentUser.getIdToken();
+    const signatureResponse = await fetch('/api/media/cloudinary-signature', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!signatureResponse.ok) {
+      const payload = await signatureResponse.json().catch(() => ({}));
+      throw new Error(payload?.error || 'Unable to authorize image upload.');
+    }
+
+    const config = await signatureResponse.json();
+    const body = new FormData();
+    body.append('file', file);
+    body.append('api_key', config.apiKey);
+    body.append('timestamp', String(config.timestamp));
+    body.append('folder', config.folder);
+    body.append('signature', config.signature);
+
+    const uploadResponse = await fetch(
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/image/upload`,
+      { method: 'POST', body }
+    );
+
+    if (!uploadResponse.ok) {
+      const payload = await uploadResponse.json().catch(() => ({}));
+      throw new Error(payload?.error?.message || 'Cloud image upload failed.');
+    }
+
+    const uploaded = await uploadResponse.json();
+    const secureUrl = String(uploaded.secure_url || '');
+    if (!secureUrl.startsWith('https://')) {
+      throw new Error('Cloudinary did not return a secure image URL.');
+    }
+
+    return secureUrl.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
+  };
+
+  const handleImageFiles = async (files: File[]) => {
+    const images = files.filter(file => file.type.startsWith('image/'));
+    if (!images.length) {
+      setFormError('Please select image files only.');
+      return;
+    }
+
+    setIsUploadingImages(true);
+    setFormError('');
+    try {
+      for (const file of images) {
+        const url = await uploadImageFile(file);
+        appendImageUrl(url);
+      }
+    } catch (err: any) {
+      setFormError(err?.message || 'Image upload failed.');
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
 
   // Open Add/Edit Modal
   const handleOpenModal = (prod?: Product) => {
@@ -439,32 +520,64 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 </div>
               </div>
 
-              {/* Images URLs */}
+              {/* Product Images */}
               <div>
                 <label className="form-label-custom">
-                  Product Images (HTTPS URL or drag and drop multiple images)
+                  Product Images
                 </label>
                 <div
                   className="mb-2 rounded-xl border-2 border-dashed border-stone-200 p-4 text-center text-xs text-stone-500 transition-colors hover:border-stone-400"
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => {
                     e.preventDefault();
-                    (Array.from(e.dataTransfer.files as FileList) as File[])
-                      .filter(file => file.type.startsWith('image/'))
-                      .forEach(file => {
-                        const reader = new FileReader();
-                        reader.onload = () => setImagesText(current => `${current}${current ? '\n' : ''}${String(reader.result)}`);
-                        reader.readAsDataURL(file);
-                      });
+                    if (!isUploadingImages) {
+                      void handleImageFiles(Array.from(e.dataTransfer.files as FileList) as File[]);
+                    }
                   }}
                 >
-                  Drop image files here. URLs and image data can be mixed, one per line.
+                  <p className="font-semibold text-stone-700">
+                    {isUploadingImages ? 'Uploading to SAELYXE Cloud Media...' : 'Drop product images here'}
+                  </p>
+                  <p className="mt-1 text-[10px] text-stone-400">
+                    JPG, PNG, WEBP, AVIF and other image formats · max 10 MB each
+                  </p>
+                  <label className={`mt-3 inline-flex cursor-pointer items-center rounded-lg border border-stone-200 bg-white px-3 py-2 text-[11px] font-bold text-stone-700 shadow-xs ${isUploadingImages ? 'pointer-events-none opacity-50' : 'hover:bg-stone-50'}`}>
+                    Choose images from PC
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      disabled={isUploadingImages}
+                      onChange={e => {
+                        const files = Array.from(e.target.files || []);
+                        e.target.value = '';
+                        void handleImageFiles(files);
+                      }}
+                    />
+                  </label>
                 </div>
+
+                {imagesText && (
+                  <div className="mb-2 grid grid-cols-3 gap-2">
+                    {imagesText
+                      .split('\n')
+                      .map(url => url.trim())
+                      .filter(url => url.startsWith('https://'))
+                      .slice(0, 6)
+                      .map((url, index) => (
+                        <div key={`${url}-${index}`} className="aspect-4/5 overflow-hidden rounded-lg bg-stone-100">
+                          <img src={url} alt={`Product upload preview ${index + 1}`} className="h-full w-full object-cover" />
+                        </div>
+                      ))}
+                  </div>
+                )}
+
                 <textarea
                   rows={3}
                   value={imagesText}
                   onChange={e => setImagesText(e.target.value)}
-                  placeholder="https://..."
+                  placeholder="Cloudinary image URLs appear here automatically. HTTPS URLs can also be pasted manually."
                   className="form-textarea-custom font-mono text-xs"
                 />
               </div>
@@ -506,10 +619,10 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving}
+                  disabled={isSaving || isUploadingImages}
                   className="btn-saelyxe-primary"
                 >
-                  {isSaving ? 'Persisting...' : 'Save & Publish Garment'}
+                  {isUploadingImages ? 'Uploading Images...' : isSaving ? 'Persisting...' : 'Save & Publish Garment'}
                 </button>
               </div>
             </form>
