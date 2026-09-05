@@ -10,6 +10,7 @@ import {
   LayoutTemplate
 } from 'lucide-react';
 import { DropSettings } from '../../types';
+import { uploadAdminImage } from '../../lib/adminMedia';
 
 export interface AdminDropSettingsProps {
   settings: DropSettings | null;
@@ -40,6 +41,8 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
+  const [isUploadingBackground, setIsUploadingBackground] = useState(false);
+  const [backgroundError, setBackgroundError] = useState('');
 
   useEffect(() => {
     if (settings) {
@@ -60,6 +63,20 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
       setShowSocialFAQSection(settings.showSocialFAQSection !== false);
     }
   }, [settings]);
+
+  const handleBackgroundImage = async (file?: File) => {
+    if (!file) return;
+    setIsUploadingBackground(true);
+    setBackgroundError('');
+    try {
+      const url = await uploadAdminImage(file, 'settings');
+      setSpotlightBackgroundImage(url);
+    } catch (error) {
+      setBackgroundError(error instanceof Error ? error.message : 'Background image upload failed.');
+    } finally {
+      setIsUploadingBackground(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +136,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
             )}
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isUploadingBackground}
               className="btn-saelyxe-lime text-xs"
             >
               <Save className="w-4 h-4" />
@@ -184,9 +201,32 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
 
           <div>
             <label className="form-label-custom">Spotlight Background (1920 x 1080)</label>
-            <div className="rounded-xl border-2 border-dashed border-stone-200 p-4 text-center text-xs text-stone-500 hover:border-stone-400" onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const file = (Array.from(event.dataTransfer.files as FileList) as File[]).find(item => item.type.startsWith('image/')); if (!file) return; const reader = new FileReader(); reader.onload = () => setSpotlightBackgroundImage(String(reader.result)); reader.readAsDataURL(file); }}>
-              Drag and drop the 1920 x 1080 image here.
+            <div
+              className="rounded-xl border-2 border-dashed border-stone-200 p-4 text-center text-xs text-stone-500 hover:border-stone-400"
+              onDragOver={event => event.preventDefault()}
+              onDrop={event => {
+                event.preventDefault();
+                const file = Array.from(event.dataTransfer.files || []).find(item => item.type.startsWith('image/'));
+                void handleBackgroundImage(file);
+              }}
+            >
+              <p className="font-semibold text-stone-700">{isUploadingBackground ? 'Uploading to Cloudinary...' : 'Drag and drop the 1920 x 1080 image here.'}</p>
+              <label className={`mt-3 inline-flex cursor-pointer rounded-lg border border-stone-200 bg-white px-3 py-2 text-[11px] font-bold text-stone-700 ${isUploadingBackground ? 'pointer-events-none opacity-50' : 'hover:bg-stone-50'}`}>
+                Choose image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={isUploadingBackground}
+                  onChange={event => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    void handleBackgroundImage(file);
+                  }}
+                />
+              </label>
             </div>
+            {backgroundError && <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{backgroundError}</div>}
             {spotlightBackgroundImage && <img src={spotlightBackgroundImage} alt="Spotlight background preview" className="mt-3 aspect-video w-full rounded-xl border border-stone-200 object-cover" />}
           </div>
 
