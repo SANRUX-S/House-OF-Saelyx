@@ -38,6 +38,7 @@ export interface AdminLayoutProps {
   subtitle: string;
   breadcrumb?: { label: string; tab?: string }[];
   headerAction?: React.ReactNode;
+  globalSearchItems?: Array<{ id: string; label: string; meta: string; tab: 'products' | 'orders' | 'messages' | 'staff' }>;
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({
@@ -52,13 +53,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   title,
   subtitle,
   breadcrumb = [],
-  headerAction
+  headerAction,
+  globalSearchItems = []
 }) => {
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const searchResults = searchQuery.trim().length >= 2
+    ? globalSearchItems.filter(item => `${item.label} ${item.meta}`.toLowerCase().includes(searchQuery.trim().toLowerCase())).slice(0, 8)
+    : [];
   const [navOrder, setNavOrder] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('saelyxe_admin_nav_order') || '[]'); } catch { return []; }
   });
@@ -238,15 +243,35 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </button>
 
             {/* Quick Search */}
-            <div className="navbar-search-container hidden sm:flex">
+            <div className="navbar-search-container hidden sm:flex relative">
               <Search className="w-4 h-4 text-stone-400 shrink-0" />
               <input
                 type="text"
-                placeholder="Search anything in Saelyxe..."
+                placeholder="Search orders, products, inquiries, staff..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="navbar-search-input"
               />
+              {searchQuery.trim().length >= 2 && (
+                <div className="absolute left-0 top-full mt-2 w-[min(32rem,80vw)] rounded-xl border border-stone-200 bg-white p-2 shadow-xl z-50">
+                  {searchResults.length ? searchResults.map(item => (
+                    <button
+                      key={`${item.tab}:${item.id}`}
+                      type="button"
+                      onClick={() => {
+                        onSwitchTab(item.tab);
+                        setSearchQuery('');
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-left hover:bg-stone-50"
+                    >
+                      <div className="text-xs font-bold text-stone-800">{item.label}</div>
+                      <div className="text-[10px] text-stone-500">{item.meta}</div>
+                    </button>
+                  )) : (
+                    <div className="px-3 py-4 text-center text-xs text-stone-400">No admin records match this search.</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
