@@ -89,8 +89,8 @@ const ADMIN_ROLES: Record<string, UserRole> = {
   'saelyx.co+admin@gmail.com': 'admin'
 };
 
-export function getConfiguredAdminRole(email?: string | null): UserRole | undefined {
-  return email ? ADMIN_ROLES[email.toLowerCase()] : undefined;
+export function getConfiguredAdminRole(email?: string | null, emailVerified = false): UserRole | undefined {
+  return email && emailVerified ? ADMIN_ROLES[email.toLowerCase()] : undefined;
 }
 
 export async function verifyAdminCredentials(username: string, pass: string): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
