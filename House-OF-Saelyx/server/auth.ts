@@ -57,7 +57,7 @@ async function verifyWithFirebaseApi(idToken: string) {
   };
 }
 
-export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+export async function requireAuthenticated(req: Request, res: Response, next: NextFunction) {
   const authorization = req.headers.authorization || '';
   if (!authorization.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -71,15 +71,27 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
       : await verifyWithFirebaseApi(idToken);
     if (!token) return res.status(503).json({ error: 'Firebase server authentication is not configured' });
     const tokenClaims = token as { uid?: string; email?: string; admin?: boolean; role?: string; [key: string]: unknown };
-    const configuredRole = tokenClaims.email ? ADMIN_ROLES[tokenClaims.email.toLowerCase()] : undefined;
-    if (tokenClaims.admin !== true && tokenClaims.role !== 'admin' && tokenClaims.role !== 'super_admin' && !configuredRole) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
     (req as Request & { auth?: typeof tokenClaims }).auth = tokenClaims;
     return next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired authentication token' });
   }
+}
+
+export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  return requireAuthenticated(req, res, () => {
+    const tokenClaims = (req as Request & { auth?: { uid?: string; email?: string; admin?: boolean; role?: string } }).auth;
+    const configuredRole = tokenClaims?.email ? ADMIN_ROLES[tokenClaims.email.toLowerCase()] : undefined;
+    if (
+      tokenClaims?.admin !== true &&
+      tokenClaims?.role !== 'admin' &&
+      tokenClaims?.role !== 'super_admin' &&
+      !configuredRole
+    ) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    return next();
+  });
 }
 
 export async function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
