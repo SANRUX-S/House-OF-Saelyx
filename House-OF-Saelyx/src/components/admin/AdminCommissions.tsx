@@ -19,12 +19,16 @@ export interface AdminCommissionsProps {
   orders: Order[];
   formatPrice: (priceLKR: number) => string;
   onUpdateOrderStatus: (orderId: string, status: OrderStatus, details: Partial<Order>) => Promise<boolean>;
+  isSuperAdmin: boolean;
+  onAudit?: (action: string, details: string) => Promise<void>;
 }
 
 export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   orders,
   formatPrice,
-  onUpdateOrderStatus
+  onUpdateOrderStatus,
+  isSuperAdmin,
+  onAudit
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -73,19 +77,38 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
     }
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
-    const headers = ['Order Number,Customer Name,Email,Phone,City,Total LKR,Status,Date,Tracking'];
-    const rows = orders.map(o => 
-      `"${o.orderNumber}","${o.customerName}","${o.customerEmail || ''}","${o.phone}","${o.city}",${o.totalLKR},"${o.status}","${o.createdAt}","${o.trackingNumber || ''}"`
-    );
-    const csvContent = headers.concat(rows).join('\n');
+  const csvCell = (value: unknown) => {
+    let text = String(value ?? '').replace(/\r?\n/g, ' ');
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const handleExportCSV = async () => {
+    if (!isSuperAdmin) return;
+    if (!window.confirm('Export customer order data to CSV? This file contains personal information and must be handled securely.')) return;
+
+    const headers = ['Order Number', 'Customer Name', 'Email', 'Phone', 'City', 'Total LKR', 'Payment Status', 'Order Status', 'Date', 'Tracking'];
+    const rows = orders.map(order => [
+      order.orderNumber,
+      order.customerName,
+      order.customerEmail || order.email || '',
+      order.phone,
+      order.city,
+      order.totalLKR,
+      order.paymentStatus || '',
+      order.status,
+      order.createdAt,
+      order.trackingNumber || ''
+    ].map(csvCell).join(','));
+    const csvContent = [headers.map(csvCell).join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `saelyxe_commissions_${new Date().toISOString().slice(0, 10)}.csv`);
     link.click();
+    URL.revokeObjectURL(url);
+    await onAudit?.('ORDER_CSV_EXPORT', `Exported ${orders.length} order records to CSV.`);
   };
 
   // Filter orders
@@ -165,14 +188,16 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
               )}
             </div>
 
-            <button
-              onClick={handleExportCSV}
-              className="btn-table-action"
-              type="button"
-            >
-              <FileDown className="w-3.5 h-3.5 text-stone-500" />
-              <span>Export CSV</span>
-            </button>
+            {isSuperAdmin && (
+              <button
+                onClick={() => void handleExportCSV()}
+                className="btn-table-action"
+                type="button"
+              >
+                <FileDown className="w-3.5 h-3.5 text-stone-500" />
+                <span>Export CSV</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -333,7 +358,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   <option value="dispatched">Dispatched (Courier Collected)</option>
                   <option value="out_for_delivery">Out for Delivery</option>
                   <option value="delivered">Delivered (Handover Complete)</option>
-                  <option value="cancelled">Cancelled / Refunded</option>
+                  <option value="cancelled">Cancelled / Refund Required if Paid</option>
                 </select>
               </div>
 
