@@ -181,7 +181,7 @@ export function createApp() {
 
       const subtotalLKR = validatedItems.reduce((sum: number, item: any) => sum + item.priceLKR * item.quantity, 0);
       const shippingLKR = subtotalLKR > 50000 ? 0 : 2500;
-      const paymentMethod = ['cod', 'paypal', 'payhere', 'binance_qr'].includes(body.paymentMethod) ? body.paymentMethod : 'cod';
+      const paymentMethod = ['paypal', 'payhere', 'binance_qr'].includes(body.paymentMethod) ? body.paymentMethod : 'payhere';
       const safeOrder = {
         ...body,
         items: validatedItems,
@@ -189,7 +189,7 @@ export function createApp() {
         shippingLKR,
         totalLKR: subtotalLKR + shippingLKR,
         paymentMethod,
-        paymentStatus: paymentMethod === 'cod' ? 'pending_delivery' : 'pending_verification',
+        paymentStatus: 'pending_verification',
         status: 'placed',
         trackingNumber: undefined,
         orderNumber: undefined
