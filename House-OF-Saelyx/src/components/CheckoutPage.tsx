@@ -78,7 +78,7 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [user]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'payhere' | 'paypal' | 'binance_qr' | 'cod'>('payhere');
+  const [paymentMethod, setPaymentMethod] = useState<'payhere' | 'paypal' | 'binance_qr'>('payhere');
   
   // PayPal Client ID loaded quietly in the background - never exposed to customer
   const paypalClientId = (import.meta as any).env?.VITE_PAYPAL_CLIENT_ID || '';
@@ -874,52 +874,6 @@ export const CheckoutPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* 4. Doorstep COD */}
-                  <div 
-                    onClick={() => setPaymentMethod('cod')}
-                    className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
-                      paymentMethod === 'cod'
-                        ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
-                        : 'border-[#EAE3D9] bg-[#FCFBF9]/60 hover:border-[#D5CBBF] hover:bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-9 h-9 rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] flex items-center justify-center flex-shrink-0 text-[#1A1816]">
-                          <Truck className="w-4 h-4 stroke-[1.5]" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs uppercase font-semibold tracking-wider text-[#1A1816]">
-                              Doorstep COD
-                            </span>
-                            <span className="text-[9px] uppercase tracking-wider bg-[#F2EDE4] text-[#5A4E40] px-2 py-0.5 rounded font-medium">
-                              Hand-Delivery
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[#7A6E60] mt-0.5">
-                            Cash or Card swipe upon verified recipient delivery
-                          </p>
-                        </div>
-                      </div>
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                        paymentMethod === 'cod' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'
-                      }`}>
-                        {paymentMethod === 'cod' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}
-                      </div>
-                    </div>
-
-                    {paymentMethod === 'cod' && (
-                      <div className="mt-4 pt-3.5 border-t border-[#EAE3D9] text-xs text-[#5A4E40] space-y-1 animate-in fade-in">
-                        <span className="font-semibold text-[#1A1816] block">
-                          Complimentary White-Glove Hand-Delivery
-                        </span>
-                        <p className="text-[11px] leading-relaxed text-[#635545]">
-                          Settle securely with our dedicated courier via cash or wireless card terminal upon doorstep verification.
-                        </p>
-                      </div>
-                    )}
-                  </div>
 
                 </div>
               </div>
