@@ -2271,8 +2271,11 @@ app.post('/api/admin/orders/:id/refund', async (req, res) => {
       if (!orderSnap.exists) throw new Error('Order not found.');
       const current: any = orderSnap.data() || {};
 
+      const canAutoRestoreInventory =
+        current.inventoryCommitted === true &&
+        ['placed', 'confirmed', 'packed'].includes(safeString(current.status, 40));
       const quantityByProduct = new Map<string, number>();
-      if (current.inventoryCommitted === true) {
+      if (canAutoRestoreInventory) {
         for (const item of Array.isArray(current.items) ? current.items : []) {
           const productId = safeString(item?.productId, 100);
           const quantity = Number(item?.quantity);
@@ -2304,11 +2307,22 @@ app.post('/api/admin/orders/:id/refund', async (req, res) => {
         refundId: refund.id,
         refundStatus: 'COMPLETED',
         refundedAt: now,
-        inventoryCommitted: false,
+        inventoryCommitted: canAutoRestoreInventory ? false : current.inventoryCommitted === true,
+        requiresManualReview: current.inventoryCommitted === true && !canAutoRestoreInventory,
+        inventoryException: current.inventoryCommitted === true && !canAutoRestoreInventory
+          ? 'Refund completed after dispatch; returned inventory requires manual physical review before restocking.'
+          : FieldValue.delete(),
         updatedAt: now,
         statusHistory: [
           ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
-          { status: 'cancelled', timestamp: now, note: 'PayPal refund completed and order cancelled.', location: 'SAELYXE Payments' }
+          {
+            status: 'cancelled',
+            timestamp: now,
+            note: canAutoRestoreInventory
+              ? 'PayPal refund completed, order cancelled, and pre-dispatch inventory restored.'
+              : 'PayPal refund completed. Dispatched inventory requires manual return review.',
+            location: 'SAELYXE Payments'
+          }
         ]
       });
     });
