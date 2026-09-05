@@ -140,5 +140,9 @@ service cloud.firestore {
     match /order_idempotency/{docId} {
       allow read, write: if false;
     }
+
+    match /restock_dispatch_locks/{docId} {
+      allow read, write: if false;
+    }
   }
 }
