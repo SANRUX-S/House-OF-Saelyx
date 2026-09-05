@@ -230,6 +230,119 @@ function getPayPalSettlementCurrency(orderCurrency: string) {
   return ['USD', 'EUR', 'GBP'].includes(normalized) ? normalized : 'USD';
 }
 
+function getExpectedPayPalPayment(order: any) {
+  const usd = CURRENCIES.find(item => item.code === 'USD')!;
+  const currency = getPayPalSettlementCurrency(order.currencyUsed);
+  const amount = currency === order.currencyUsed
+    ? Number(Number(order.totalInCurrency).toFixed(2))
+    : Number((Number(order.totalLKR) * usd.rateFromLKR).toFixed(2));
+  return { currency, amount };
+}
+
+function getPayPalRequestId(prefix: string, value: string) {
+  const digest = crypto.createHash('sha256').update(value).digest('hex').slice(0, 64);
+  return `saelyxe-${prefix}-${digest}`;
+}
+
+async function createPayPalProviderOrder(order: any) {
+  const access = await getPayPalAccessToken();
+  if (!access) throw new Error('PayPal is not configured.');
+  const orderNumber = safeString(order.orderNumber || order.id, 120);
+  const expected = getExpectedPayPalPayment(order);
+  if (!orderNumber || !Number.isFinite(expected.amount) || expected.amount <= 0) {
+    throw new Error('PayPal order amount is invalid.');
+  }
+
+  const response = await fetch(`${access.baseUrl}/v2/checkout/orders`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${access.token}`,
+      'Content-Type': 'application/json',
+      'PayPal-Request-Id': getPayPalRequestId('create', orderNumber),
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify({
+      intent: 'CAPTURE',
+      purchase_units: [{
+        reference_id: orderNumber,
+        custom_id: orderNumber,
+        invoice_id: orderNumber,
+        description: `SAELYXE Order ${orderNumber}`,
+        amount: {
+          currency_code: expected.currency,
+          value: expected.amount.toFixed(2)
+        }
+      }]
+    })
+  });
+
+  const payload: any = await response.json().catch(() => ({}));
+  const paypalOrderId = safeString(payload?.id, 160);
+  if (!response.ok || !paypalOrderId) {
+    throw new Error(safeString(payload?.message, 240) || 'PayPal order creation failed.');
+  }
+  return { paypalOrderId, providerStatus: safeString(payload?.status, 30), expected };
+}
+
+async function capturePayPalProviderOrder(paypalOrderId: string) {
+  const access = await getPayPalAccessToken();
+  if (!access) throw new Error('PayPal is not configured.');
+  const response = await fetch(`${access.baseUrl}/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}/capture`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${access.token}`,
+      'Content-Type': 'application/json',
+      'PayPal-Request-Id': getPayPalRequestId('capture', paypalOrderId),
+      Prefer: 'return=representation'
+    },
+    body: '{}'
+  });
+  const payload: any = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, payload };
+}
+
+async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrderId: string) {
+  const ref = adminDb.collection('orders').doc(orderId);
+  const now = new Date().toISOString();
+
+  await adminDb.runTransaction(async (transaction: any) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) throw new Error('Order not found.');
+    const current: any = { id: snap.id, ...snap.data() };
+    if (current.paymentMethod !== 'paypal') throw new Error('This order is not a PayPal order.');
+    if (safeString(current.paymentProviderReference, 160) !== paypalOrderId) {
+      throw new Error('PayPal order reference does not match the linked SAELYXE checkout.');
+    }
+
+    const update: Record<string, unknown> = {
+      paymentStatus: 'verified',
+      paymentVerificationSource: 'paypal_orders_api',
+      paymentVerificationError: FieldValue.delete(),
+      paymentVerifiedAt: current.paymentVerifiedAt || now,
+      paymentUpdatedAt: now
+    };
+
+    if (current.status === 'cancelled') {
+      update.status = 'placed';
+      update.updatedAt = now;
+      update.statusHistory = [
+        ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
+        {
+          status: 'placed',
+          timestamp: now,
+          note: 'PayPal payment completed after a checkout cancellation request; order restored for fulfilment or refund review.',
+          location: 'SAELYXE Payment Verification'
+        }
+      ];
+    }
+
+    transaction.update(ref, update);
+  });
+
+  const updated = await ref.get();
+  return { id: updated.id, ...updated.data() };
+}
+
 async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   const access = await getPayPalAccessToken();
   if (!access || !paypalOrderId) return { verified: false, reason: 'paypal_not_configured' };
@@ -242,11 +355,9 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   const payload: any = await response.json();
   const purchaseUnit = Array.isArray(payload?.purchase_units) ? payload.purchase_units[0] : null;
   const amount = purchaseUnit?.amount;
-  const usd = CURRENCIES.find(item => item.code === 'USD')!;
-  const expectedCurrency = getPayPalSettlementCurrency(order.currencyUsed);
-  const expectedAmount = expectedCurrency === order.currencyUsed
-    ? Number(Number(order.totalInCurrency).toFixed(2))
-    : Number((Number(order.totalLKR) * usd.rateFromLKR).toFixed(2));
+  const expected = getExpectedPayPalPayment(order);
+  const expectedCurrency = expected.currency;
+  const expectedAmount = expected.amount;
 
   const actualAmount = Number(amount?.value);
   const currencyMatches = safeString(amount?.currency_code, 10).toUpperCase() === expectedCurrency;
