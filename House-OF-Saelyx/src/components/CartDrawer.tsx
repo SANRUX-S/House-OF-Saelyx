@@ -44,15 +44,15 @@ export const CartDrawer: React.FC = () => {
     email: '',
     phone: '',
     address: '',
-    city: 'Colombo',
+    city: '',
     postalCode: '',
     country: 'Sri Lanka',
-    notes: 'Please call before arrival.'
+    notes: ''
   });
 
   const subtotalLKR = cart.reduce((acc, item) => acc + item.priceLKR * item.quantity, 0);
-  const isFreeShipping = subtotalLKR >= 15000 || subtotalLKR === 0;
-  const shippingLKR = isFreeShipping ? 0 : 650;
+  const isFreeShipping = subtotalLKR >= 50000 || subtotalLKR === 0;
+  const shippingLKR = isFreeShipping ? 0 : 2500;
   const totalLKR = subtotalLKR + shippingLKR;
 
   const handleClose = () => {
@@ -87,8 +87,6 @@ export const CartDrawer: React.FC = () => {
         currencyUsed: selectedCurrency.code,
         totalInCurrency: totalLKR * selectedCurrency.rateFromLKR,
         notes: formData.notes,
-        courierName: 'SAELYXE Express Concierge',
-        deliveryEta: 'Tomorrow by 3:00 PM (Direct Hand Delivery)'
       };
 
       const placed = await createOrder(orderPayload as any);
