@@ -64,6 +64,14 @@ try {
     email: 'customer@example.com',
     email_verified: true
   }).firestore();
+  const newCustomerDb = testEnv.authenticatedContext('customer-new', {
+    email: 'new@example.com',
+    email_verified: true
+  }).firestore();
+  const escalationDb = testEnv.authenticatedContext('customer-escalation', {
+    email: 'evil@example.com',
+    email_verified: true
+  }).firestore();
   const otherDb = testEnv.authenticatedContext('customer-2', {
     email: 'other@example.com',
     email_verified: true
@@ -83,15 +91,15 @@ try {
 
   await assertSucceeds(getDoc(doc(publicDb, 'products', 'prod-1')));
 
-  await assertSucceeds(setDoc(doc(customerDb, 'users', 'customer-new'), {
-    uid: 'customer-1',
-    email: 'customer@example.com',
+  await assertSucceeds(setDoc(doc(newCustomerDb, 'users', 'customer-new'), {
+    uid: 'customer-new',
+    email: 'new@example.com',
     role: 'patron',
     name: 'Allowed Patron'
   }));
-  await assertFails(setDoc(doc(customerDb, 'users', 'customer-escalation'), {
-    uid: 'customer-1',
-    email: 'customer@example.com',
+  await assertFails(setDoc(doc(escalationDb, 'users', 'customer-escalation'), {
+    uid: 'customer-escalation',
+    email: 'evil@example.com',
     role: 'admin',
     name: 'Escalation Attempt'
   }));
