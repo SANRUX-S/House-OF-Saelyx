@@ -13,7 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Product } from '../../types';
-import { auth, getAppCheckRequestHeaders } from '../../lib/firebase';
+import { getAdminMediaUploadConfig, uploadAdminImageWithConfig } from '../../lib/adminMedia';
 
 export interface AdminProductsProps {
   products: Product[];
@@ -68,73 +68,6 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setImagesText(current => `${current}${current ? '\n' : ''}${url}`);
   };
 
-  type CloudinaryUploadConfig = {
-    cloudName: string;
-    apiKey: string;
-    timestamp: number;
-    folder: string;
-    signature: string;
-  };
-
-  const getCloudinaryUploadConfig = async (): Promise<CloudinaryUploadConfig> => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      throw new Error('Admin session expired. Please sign in again.');
-    }
-
-    const idToken = await currentUser.getIdToken();
-    const appCheckHeaders = await getAppCheckRequestHeaders();
-    const signatureResponse = await fetch('/api/media/cloudinary-signature', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-        'Content-Type': 'application/json',
-        ...appCheckHeaders
-      }
-    });
-
-    if (!signatureResponse.ok) {
-      const payload = await signatureResponse.json().catch(() => ({}));
-      throw new Error(payload?.error || 'Unable to authorize image upload.');
-    }
-
-    return await signatureResponse.json() as CloudinaryUploadConfig;
-  };
-
-  const uploadImageFile = async (file: File, config: CloudinaryUploadConfig) => {
-    if (!file.type.startsWith('image/')) {
-      throw new Error('Only image files can be uploaded.');
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error(`${file.name} is larger than the 10 MB image limit.`);
-    }
-
-    const body = new FormData();
-    body.append('file', file);
-    body.append('api_key', config.apiKey);
-    body.append('timestamp', String(config.timestamp));
-    body.append('folder', config.folder);
-    body.append('signature', config.signature);
-
-    const uploadResponse = await fetch(
-      `https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/image/upload`,
-      { method: 'POST', body }
-    );
-
-    if (!uploadResponse.ok) {
-      const payload = await uploadResponse.json().catch(() => ({}));
-      throw new Error(payload?.error?.message || 'Cloud image upload failed.');
-    }
-
-    const uploaded = await uploadResponse.json();
-    const secureUrl = String(uploaded.secure_url || '');
-    if (!secureUrl.startsWith('https://')) {
-      throw new Error('Cloudinary did not return a secure image URL.');
-    }
-
-    return secureUrl.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
-  };
-
   const handleImageFiles = async (files: File[]) => {
     const images = files.filter(file => file.type.startsWith('image/'));
     if (!images.length) {
@@ -145,11 +78,9 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setIsUploadingImages(true);
     setFormError('');
     try {
-      // One authenticated backend signature is reused for the whole batch.
-      // This keeps Vercel API traffic low even when an admin uploads many product images at once.
-      const config = await getCloudinaryUploadConfig();
+      const config = await getAdminMediaUploadConfig('products');
       for (const file of images) {
-        const url = await uploadImageFile(file, config);
+        const url = await uploadAdminImageWithConfig(file, config);
         appendImageUrl(url);
       }
     } catch (err: any) {
@@ -204,6 +135,16 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       setFormError('Product title is required.');
       return;
     }
+    const price = Number(form.priceLKR);
+    const stock = Number(form.stockCount);
+    if (!Number.isFinite(price) || price <= 0) {
+      setFormError('Price must be greater than zero.');
+      return;
+    }
+    if (!Number.isInteger(stock) || stock < 0) {
+      setFormError('Stock must be a whole number of zero or more.');
+      return;
+    }
 
     setIsSaving(true);
     setFormError('');
@@ -219,12 +160,29 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         .map(i => i.trim())
         .filter(i => i.length > 0);
 
+      if (!parsedImages.length || parsedImages.some(url => !url.startsWith('https://'))) {
+        setFormError('Add at least one secure HTTPS product image.');
+        return;
+      }
+
+      const slug = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const collision = products.find(product => product.slug === slug && product.id !== editingProduct?.id);
+      if (collision) {
+        setFormError('Another product already uses this title/slug. Choose a distinct title.');
+        return;
+      }
+
+      const normalizedSizes = (form.sizes || []).map(size => size.trim()).filter(Boolean);
       const payload: Partial<Product> = {
         ...(editingProduct ? { id: editingProduct.id } : {}),
         ...form,
+        priceLKR: price,
+        stockCount: stock,
+        inStock: stock > 0 && form.inStock !== false,
         images: parsedImages,
+        sizes: normalizedSizes,
         bulletDetails: parsedBullets,
-        slug: form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        slug
       };
 
       const success = await onSaveProduct(payload);
@@ -352,7 +310,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                         ? 'bg-emerald-500 text-white' 
                         : 'bg-rose-500 text-white'
                     }`}>
-                      {prod.inStock ? `${prod.stockCount || 50} in stock` : 'Sold Out'}
+                      {prod.inStock ? `${prod.stockCount ?? 0} in stock` : 'Sold Out'}
                     </span>
                   </div>
                 </div>
@@ -467,7 +425,9 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                   <input
                     type="number"
                     required
-                    value={form.priceLKR || 0}
+                    min={1}
+                    step={1}
+                    value={form.priceLKR ?? 0}
                     onChange={e => setForm({ ...form, priceLKR: Number(e.target.value) })}
                     className="form-input-custom"
                   />
@@ -513,7 +473,9 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                   <label className="form-label-custom">Stock Units Available</label>
                   <input
                     type="number"
-                    value={form.stockCount || 50}
+                    min={0}
+                    step={1}
+                    value={form.stockCount ?? 0}
                     onChange={e => setForm({ ...form, stockCount: Number(e.target.value) })}
                     className="form-input-custom"
                   />
@@ -533,6 +495,65 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                       {form.inStock ? 'Available' : 'Sold Out'}
                     </span>
                   </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="form-label-custom">Sizes (comma separated)</label>
+                  <input
+                    type="text"
+                    value={(form.sizes || []).join(', ')}
+                    onChange={e => setForm({ ...form, sizes: e.target.value.split(',').map(value => value.trim()).filter(Boolean) })}
+                    placeholder="S, M, L, XL"
+                    className="form-input-custom"
+                  />
+                </div>
+                <div>
+                  <label className="form-label-custom">Color</label>
+                  <input
+                    type="text"
+                    value={form.color || ''}
+                    onChange={e => setForm({ ...form, color: e.target.value })}
+                    placeholder="Midnight Navy"
+                    className="form-input-custom"
+                  />
+                </div>
+                <div>
+                  <label className="form-label-custom">Fit</label>
+                  <input
+                    type="text"
+                    value={form.fit || ''}
+                    onChange={e => setForm({ ...form, fit: e.target.value })}
+                    placeholder="Structured Boxy Fit"
+                    className="form-input-custom"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="form-label-custom">Hover Image URL</label>
+                  <input
+                    type="url"
+                    value={form.hoverImage || ''}
+                    onChange={e => setForm({ ...form, hoverImage: e.target.value.trim() })}
+                    placeholder="https://..."
+                    className="form-input-custom"
+                  />
+                </div>
+                <div>
+                  <label className="form-label-custom">Complete-the-set Product ID</label>
+                  <select
+                    value={form.completeTheSetProductId || ''}
+                    onChange={e => setForm({ ...form, completeTheSetProductId: e.target.value })}
+                    className="form-input-custom"
+                  >
+                    <option value="">None</option>
+                    {products.filter(product => product.id !== editingProduct?.id).map(product => (
+                      <option key={product.id} value={product.id}>{product.title}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
