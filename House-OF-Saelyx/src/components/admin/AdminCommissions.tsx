@@ -345,6 +345,12 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
             </div>
 
             <form onSubmit={handleSaveDispatch} className="p-6 space-y-4">
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-[11px] text-stone-600">
+                Payment: <strong>{selectedOrder.paymentStatus || 'pending'}</strong>
+                {selectedOrder.refundStatus ? <> · Refund: <strong>{selectedOrder.refundStatus}</strong></> : null}
+                {selectedOrder.paymentCaptureId ? <> · Capture: <span className="font-mono">{selectedOrder.paymentCaptureId}</span></> : null}
+              </div>
+
               <div>
                 <label className="form-label-custom">Commission Status</label>
                 <select
@@ -353,12 +359,19 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   className="form-input-custom font-semibold"
                 >
                   <option value="placed">Placed (Pending Review)</option>
-                  <option value="confirmed">Confirmed (Payment Manually Verified)</option>
+                  <option value="confirmed">Confirmed (Payment Verified)</option>
                   <option value="packed">Packed (Ready for Dispatch)</option>
                   <option value="dispatched">Dispatched (Courier Collected)</option>
                   <option value="out_for_delivery">Out for Delivery</option>
                   <option value="delivered">Delivered (Handover Complete)</option>
-                  <option value="cancelled">Cancelled / Refund Required if Paid</option>
+                  <option
+                    value="cancelled"
+                    disabled={!isSuperAdmin && selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || '')}
+                  >
+                    {selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || '')
+                      ? 'Cancel & Refund PayPal Payment (Super Admin)'
+                      : 'Cancelled'}
+                  </option>
                 </select>
               </div>
 
