@@ -60,7 +60,7 @@ export const LegalReturnsPage: React.FC = () => {
             <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
               <CreditCard className="w-4 h-4" />
             </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">PayHere & Card Refunds</h4>
+            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">PayPal Refunds</h4>
             <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Processed securely to your original payment method.</p>
           </div>
 
@@ -132,7 +132,7 @@ export const LegalReturnsPage: React.FC = () => {
               Once we receive and inspect the returned item, we will notify you whether the return has been approved.
             </p>
             <p>
-              If approved, the eligible refund will be processed through the original payment method or the applicable payment processor, including <strong className="font-semibold text-[#1A1816]">PayHere where applicable</strong>.
+              If approved, the eligible refund will be processed through the original payment method or the applicable payment processor, through PayPal where applicable.
             </p>
             <p>
               Any shipping or delivery charges paid for the original order may be non-refundable, except where the return is caused by an error on our part, such as sending the wrong item or an item that arrived damaged or defective.
@@ -252,18 +252,18 @@ export const LegalReturnsPage: React.FC = () => {
             </p>
           </section>
 
-          {/* Payment Method & PayHere */}
+          {/* Payment Method & PayPal */}
           <section className="bg-[#FAF6F0] border border-[#DFD5C6] p-6 sm:p-8 rounded-2xl space-y-4">
             <div className="flex items-center gap-3 border-b border-[#E3D8C8] pb-4">
               <div className="p-2 rounded-lg bg-[#EAE0D2] text-[#4A3E30]">
                 <CreditCard className="w-5 h-5" />
               </div>
               <h2 className="font-serif text-xl font-semibold text-[#1A1816]">
-                Payment Method & PayHere
+                Payment Method & PayPal
               </h2>
             </div>
             <p>
-              Saelyxe uses <strong className="font-semibold text-[#1A1816]">PayHere and other authorised payment methods</strong> for applicable online payments.
+              SAELYXE uses <strong className="font-semibold text-[#1A1816]">PayPal</strong> for online checkout payments.
             </p>
             <p>
               A payment is considered successfully received only when the payment has been successfully confirmed by the relevant payment processor.
@@ -272,7 +272,7 @@ export const LegalReturnsPage: React.FC = () => {
               House of Saelyxe does not request or store customers' full card details for payment processing. Payment card information is handled through the applicable payment service provider.
             </p>
             <p className="text-xs text-[#5C5042] leading-relaxed">
-              Where a refund relates to a PayHere transaction, the refund will be handled through the applicable payment and payment-processing procedures. The time required for the refunded amount to appear in a customer's account may depend on the payment provider, issuing bank, or card issuer.
+              Where a refund relates to a PayPal transaction, the refund will be handled through the applicable payment and payment-processing procedures. The time required for the refunded amount to appear in a customer's account may depend on the payment provider, issuing bank, or card issuer.
             </p>
           </section>
 
@@ -290,7 +290,7 @@ export const LegalReturnsPage: React.FC = () => {
               Approved returns, exchanges, and refunds will be processed within a reasonable business period after the returned item has been received and inspected.
             </p>
             <p className="text-xs text-[#7A6E60]">
-              The actual time for a refunded amount to appear in your account may vary depending on your bank, card issuer, PayHere, or other applicable payment provider.
+              The actual time for a refunded amount to appear in your account may vary depending on your bank, card issuer, PayPal, or other applicable payment provider.
             </p>
           </section>
 

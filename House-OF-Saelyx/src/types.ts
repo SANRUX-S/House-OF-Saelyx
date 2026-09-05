@@ -90,6 +90,20 @@ export interface Order {
   userId?: string;
   paymentMethod?: string;
   paymentStatus?: string;
+  paymentProviderReference?: string;
+  paymentVerificationSource?: string;
+  paymentVerificationError?: string;
+  paymentVerifiedAt?: string;
+  paymentCaptureStartedAt?: string;
+  paymentCaptureCompletedAt?: string;
+  paymentCaptureState?: 'pending' | 'capturing' | 'needs_recovery' | 'completed';
+  requiresManualReview?: boolean;
+  inventoryException?: string;
+  inventoryCommitted?: boolean;
+  inventoryCommittedAt?: string;
+  inventoryReserved?: boolean;
+  inventoryReservedAt?: string;
+  inventoryReservationReleasedAt?: string;
 }
 
 export interface DropSettings {

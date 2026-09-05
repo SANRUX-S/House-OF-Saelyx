@@ -18,7 +18,6 @@ app.use((_req, res, next) => {
   next();
 });
 app.use(express.json({ limit: '64kb' }));
-const payHereFormParser = express.urlencoded({ extended: false, limit: '32kb' });
 
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
 const ADMIN_EMAILS = new Set([
@@ -201,9 +200,6 @@ function escapeHtml(value: unknown) {
     .replace(/'/g, '&#039;');
 }
 
-function md5Upper(value: string) {
-  return crypto.createHash('md5').update(value).digest('hex').toUpperCase();
-}
 
 async function getPayPalAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -230,6 +226,296 @@ function getPayPalSettlementCurrency(orderCurrency: string) {
   return ['USD', 'EUR', 'GBP'].includes(normalized) ? normalized : 'USD';
 }
 
+function getExpectedPayPalPayment(order: any) {
+  const usd = CURRENCIES.find(item => item.code === 'USD')!;
+  const currency = getPayPalSettlementCurrency(order.currencyUsed);
+  const amount = currency === order.currencyUsed
+    ? Number(Number(order.totalInCurrency).toFixed(2))
+    : Number((Number(order.totalLKR) * usd.rateFromLKR).toFixed(2));
+  return { currency, amount };
+}
+
+function getPayPalRequestId(prefix: string, value: string) {
+  const digest = crypto.createHash('sha256').update(value).digest('hex').slice(0, 64);
+  return `saelyxe-${prefix}-${digest}`;
+}
+
+async function createPayPalProviderOrder(order: any) {
+  const access = await getPayPalAccessToken();
+  if (!access) throw new Error('PayPal is not configured.');
+  const orderNumber = safeString(order.orderNumber || order.id, 120);
+  const expected = getExpectedPayPalPayment(order);
+  if (!orderNumber || !Number.isFinite(expected.amount) || expected.amount <= 0) {
+    throw new Error('PayPal order amount is invalid.');
+  }
+
+  const response = await fetch(`${access.baseUrl}/v2/checkout/orders`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${access.token}`,
+      'Content-Type': 'application/json',
+      'PayPal-Request-Id': getPayPalRequestId('create', orderNumber),
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify({
+      intent: 'CAPTURE',
+      purchase_units: [{
+        reference_id: orderNumber,
+        custom_id: orderNumber,
+        invoice_id: orderNumber,
+        description: `SAELYXE Order ${orderNumber}`,
+        amount: {
+          currency_code: expected.currency,
+          value: expected.amount.toFixed(2)
+        }
+      }]
+    })
+  });
+
+  const payload: any = await response.json().catch(() => ({}));
+  const paypalOrderId = safeString(payload?.id, 160);
+  if (!response.ok || !paypalOrderId) {
+    throw new Error(safeString(payload?.message, 240) || 'PayPal order creation failed.');
+  }
+  return { paypalOrderId, providerStatus: safeString(payload?.status, 30), expected };
+}
+
+async function capturePayPalProviderOrder(paypalOrderId: string) {
+  const access = await getPayPalAccessToken();
+  if (!access) throw new Error('PayPal is not configured.');
+  const response = await fetch(`${access.baseUrl}/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}/capture`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${access.token}`,
+      'Content-Type': 'application/json',
+      'PayPal-Request-Id': getPayPalRequestId('capture', paypalOrderId),
+      Prefer: 'return=representation'
+    },
+    body: '{}'
+  });
+  const payload: any = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, payload };
+}
+
+async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrderId: string) {
+  const orderRef = adminDb.collection('orders').doc(orderId);
+  const now = new Date().toISOString();
+
+  await adminDb.runTransaction(async (transaction: any) => {
+    const orderSnap = await transaction.get(orderRef);
+    if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
+    const order: any = { id: orderSnap.id, ...orderSnap.data() };
+
+    if (order.paymentMethod !== 'paypal') {
+      throw Object.assign(new Error('This order is not a PayPal order.'), { statusCode: 400 });
+    }
+    if (safeString(order.paymentProviderReference, 160) !== paypalOrderId) {
+      throw Object.assign(new Error('PayPal order reference does not match the linked SAELYXE checkout.'), { statusCode: 409 });
+    }
+    if (order.status !== 'placed') {
+      throw Object.assign(new Error('This order is no longer eligible for PayPal capture.'), { statusCode: 409 });
+    }
+    if (order.paymentStatus === 'verified' || order.inventoryCommitted === true) {
+      return;
+    }
+    if (order.inventoryReserved === true) {
+      transaction.update(orderRef, {
+        paymentCaptureState: 'capturing',
+        paymentCaptureStartedAt: order.paymentCaptureStartedAt || now,
+        paymentUpdatedAt: now
+      });
+      return;
+    }
+
+    const items = Array.isArray(order.items) ? order.items : [];
+    const quantityByProduct = new Map<string, number>();
+    for (const item of items) {
+      const productId = safeString(item?.productId, 100);
+      const quantity = Number(item?.quantity);
+      if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+        throw Object.assign(new Error('Order inventory data is invalid.'), { statusCode: 409 });
+      }
+      quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+    }
+
+    const productSnapshots = new Map<string, { ref: any; data: any }>();
+    for (const productId of quantityByProduct.keys()) {
+      const productRef = adminDb.collection('products').doc(productId);
+      const productSnap = await transaction.get(productRef);
+      if (!productSnap.exists) {
+        throw Object.assign(new Error('A product in this order is no longer available.'), { statusCode: 409 });
+      }
+      productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
+    }
+
+    for (const [productId, quantity] of quantityByProduct.entries()) {
+      const cached = productSnapshots.get(productId);
+      if (!cached) throw Object.assign(new Error('Order inventory could not be reserved.'), { statusCode: 409 });
+      const stockCount = Number(cached.data.stockCount);
+      if (!Number.isFinite(stockCount) || stockCount < quantity) {
+        throw Object.assign(new Error(`${cached.data.title || 'A product'} is no longer available in the requested quantity.`), { statusCode: 409 });
+      }
+    }
+
+    for (const [productId, quantity] of quantityByProduct.entries()) {
+      const cached = productSnapshots.get(productId)!;
+      const nextStock = Number(cached.data.stockCount) - quantity;
+      transaction.update(cached.ref, {
+        stockCount: nextStock,
+        inStock: nextStock > 0,
+        updatedAt: now
+      });
+    }
+
+    transaction.update(orderRef, {
+      inventoryReserved: true,
+      inventoryReservedAt: now,
+      paymentCaptureState: 'capturing',
+      paymentCaptureStartedAt: order.paymentCaptureStartedAt || now,
+      paymentUpdatedAt: now
+    });
+  });
+}
+
+async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrderId: string) {
+  const ref = adminDb.collection('orders').doc(orderId);
+  const now = new Date().toISOString();
+
+  await adminDb.runTransaction(async (transaction: any) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) throw new Error('Order not found.');
+    const current: any = { id: snap.id, ...snap.data() };
+    if (current.paymentMethod !== 'paypal') throw new Error('This order is not a PayPal order.');
+    if (safeString(current.paymentProviderReference, 160) !== paypalOrderId) {
+      throw new Error('PayPal order reference does not match the linked SAELYXE checkout.');
+    }
+
+    const update: Record<string, unknown> = {
+      paymentStatus: 'verified',
+      paymentVerificationSource: 'paypal_orders_api',
+      paymentVerificationError: FieldValue.delete(),
+      paymentVerifiedAt: current.paymentVerifiedAt || now,
+      paymentCaptureState: 'completed',
+      paymentCaptureCompletedAt: current.paymentCaptureCompletedAt || now,
+      paymentUpdatedAt: now
+    };
+
+    if (current.inventoryReserved === true) {
+      update.inventoryReserved = false;
+      update.inventoryCommitted = true;
+      update.inventoryCommittedAt = current.inventoryCommittedAt || now;
+      update.requiresManualReview = false;
+      update.inventoryException = FieldValue.delete();
+    } else if (current.inventoryCommitted !== true) {
+      const items = Array.isArray(current.items) ? current.items : [];
+      const quantityByProduct = new Map<string, number>();
+      let inventoryDataValid = items.length > 0;
+
+      for (const item of items) {
+        const productId = safeString(item?.productId, 100);
+        const quantity = Number(item?.quantity);
+        if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+          inventoryDataValid = false;
+          break;
+        }
+        quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+      }
+
+      const productSnapshots = new Map<string, { ref: any; data: any }>();
+      if (inventoryDataValid) {
+        for (const productId of quantityByProduct.keys()) {
+          const productRef = adminDb.collection('products').doc(productId);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists) {
+            inventoryDataValid = false;
+            break;
+          }
+          productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
+        }
+      }
+
+      let inventoryAvailable = inventoryDataValid;
+      if (inventoryAvailable) {
+        for (const [productId, quantity] of quantityByProduct.entries()) {
+          const cached = productSnapshots.get(productId);
+          const stockCount = Number(cached?.data?.stockCount);
+          if (!cached || !Number.isFinite(stockCount) || stockCount < quantity) {
+            inventoryAvailable = false;
+            break;
+          }
+        }
+      }
+
+      if (inventoryAvailable) {
+        for (const [productId, quantity] of quantityByProduct.entries()) {
+          const cached = productSnapshots.get(productId)!;
+          const nextStock = Number(cached.data.stockCount) - quantity;
+          transaction.update(cached.ref, {
+            stockCount: nextStock,
+            inStock: nextStock > 0,
+            updatedAt: now
+          });
+        }
+        update.inventoryCommitted = true;
+        update.inventoryCommittedAt = now;
+        update.requiresManualReview = false;
+        update.inventoryException = FieldValue.delete();
+      } else {
+        update.inventoryCommitted = false;
+        update.requiresManualReview = true;
+        update.inventoryException = 'paid_without_available_inventory';
+      }
+    }
+
+    if (current.status === 'cancelled') {
+      update.status = 'placed';
+      update.updatedAt = now;
+      update.statusHistory = [
+        ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
+        {
+          status: 'placed',
+          timestamp: now,
+          note: current.inventoryReserved === true || update.inventoryCommitted === true
+            ? 'PayPal payment completed after a checkout cancellation request; order restored for fulfilment.'
+            : 'PayPal payment completed after cancellation, but inventory requires manual fulfilment or refund review.',
+          location: 'SAELYXE Payment Verification'
+        }
+      ];
+    }
+
+    transaction.update(ref, update);
+  });
+
+  const updated = await ref.get();
+  return { id: updated.id, ...updated.data() };
+}
+
+async function markPayPalVerificationPending(
+  adminDb: any,
+  orderId: string,
+  paypalOrderId: string,
+  reason: string
+) {
+  const ref = adminDb.collection('orders').doc(orderId);
+  const now = new Date().toISOString();
+  await adminDb.runTransaction(async (transaction: any) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) return;
+    const current: any = { id: snap.id, ...snap.data() };
+    if (current.paymentStatus === 'verified') return;
+    if (safeString(current.paymentProviderReference, 160) !== paypalOrderId) return;
+    if (current.status === 'cancelled' && current.inventoryReserved !== true) return;
+
+    transaction.update(ref, {
+      paymentStatus: 'pending_verification',
+      paymentVerificationSource: 'paypal_orders_api',
+      paymentVerificationError: reason,
+      paymentCaptureState: current.inventoryReserved === true ? 'needs_recovery' : (current.paymentCaptureState || 'pending'),
+      paymentUpdatedAt: now
+    });
+  });
+}
+
 async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   const access = await getPayPalAccessToken();
   if (!access || !paypalOrderId) return { verified: false, reason: 'paypal_not_configured' };
@@ -242,25 +528,61 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   const payload: any = await response.json();
   const purchaseUnit = Array.isArray(payload?.purchase_units) ? payload.purchase_units[0] : null;
   const amount = purchaseUnit?.amount;
-  const usd = CURRENCIES.find(item => item.code === 'USD')!;
-  const expectedCurrency = getPayPalSettlementCurrency(order.currencyUsed);
-  const expectedAmount = expectedCurrency === order.currencyUsed
-    ? Number(Number(order.totalInCurrency).toFixed(2))
-    : Number((Number(order.totalLKR) * usd.rateFromLKR).toFixed(2));
+  const expected = getExpectedPayPalPayment(order);
+  const expectedCurrency = expected.currency;
+  const expectedAmount = expected.amount;
 
   const actualAmount = Number(amount?.value);
   const currencyMatches = safeString(amount?.currency_code, 10).toUpperCase() === expectedCurrency;
   const amountMatches = Number.isFinite(actualAmount) && Math.abs(actualAmount - expectedAmount) < 0.01;
   const statusMatches = safeString(payload?.status, 30).toUpperCase() === 'COMPLETED';
 
+  const captures = Array.isArray(purchaseUnit?.payments?.captures) ? purchaseUnit.payments.captures : [];
+  const completedCapture = captures.find((capture: any) => safeString(capture?.status, 30).toUpperCase() === 'COMPLETED') || null;
+  const captureStatusMatches = Boolean(completedCapture);
+  const captureAmount = completedCapture?.amount;
+  const actualCaptureAmount = Number(captureAmount?.value);
+  const captureCurrencyMatches = safeString(captureAmount?.currency_code, 10).toUpperCase() === expectedCurrency;
+  const captureAmountMatches = Number.isFinite(actualCaptureAmount) && Math.abs(actualCaptureAmount - expectedAmount) < 0.01;
+
+  const expectedOrderNumber = safeString(order.orderNumber || order.id, 120);
+  const customId = safeString(purchaseUnit?.custom_id, 120);
+  const invoiceId = safeString(purchaseUnit?.invoice_id, 120);
+  const orderBindingMatches = Boolean(
+    expectedOrderNumber &&
+    customId === expectedOrderNumber &&
+    invoiceId === expectedOrderNumber
+  );
+
   return {
-    verified: statusMatches && currencyMatches && amountMatches,
-    reason: statusMatches ? (currencyMatches && amountMatches ? 'verified' : 'amount_mismatch') : 'not_completed',
+    verified:
+      statusMatches &&
+      currencyMatches &&
+      amountMatches &&
+      orderBindingMatches &&
+      captureStatusMatches &&
+      captureCurrencyMatches &&
+      captureAmountMatches,
+    reason: !statusMatches
+      ? 'not_completed'
+      : !orderBindingMatches
+        ? 'order_binding_mismatch'
+        : !currencyMatches || !amountMatches
+          ? 'amount_mismatch'
+          : !captureStatusMatches
+            ? 'capture_not_completed'
+            : !captureCurrencyMatches || !captureAmountMatches
+              ? 'capture_amount_mismatch'
+              : 'verified',
     providerStatus: safeString(payload?.status, 30),
+    captureStatus: safeString(completedCapture?.status, 30),
     expectedCurrency,
     expectedAmount,
     actualCurrency: safeString(amount?.currency_code, 10),
-    actualAmount
+    actualAmount,
+    actualCaptureCurrency: safeString(captureAmount?.currency_code, 10),
+    actualCaptureAmount,
+    orderBindingMatches
   };
 }
 
@@ -319,7 +641,6 @@ app.get('/api/health', (_req, res) => {
     ),
     appCheckEnforced: process.env.FIREBASE_APP_CHECK_ENFORCE === 'true',
     abuseProtectionConfigured: true,
-    payHereConfigured: Boolean(process.env.PAYHERE_MERCHANT_ID && process.env.PAYHERE_MERCHANT_SECRET),
     payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
   });
 });
@@ -552,20 +873,12 @@ app.get('/api/currencies', (_req, res) => {
 app.get('/api/payments/config', (_req, res) => {
   const payPalClientId = process.env.PAYPAL_CLIENT_ID || '';
   const payPalServerConfigured = Boolean(payPalClientId && process.env.PAYPAL_CLIENT_SECRET);
-  const payHereConfigured = Boolean(process.env.PAYHERE_MERCHANT_ID && process.env.PAYHERE_MERCHANT_SECRET);
-  const binanceConfigured = Boolean(process.env.BINANCE_PAY_ID);
 
   return res.json({
     paypal: {
       enabled: payPalServerConfigured,
       clientId: payPalServerConfigured ? payPalClientId : '',
       mode: process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox'
-    },
-    payhere: {
-      enabled: payHereConfigured
-    },
-    binance: {
-      enabled: binanceConfigured
     }
   });
 });
@@ -599,7 +912,7 @@ app.get('/api/payments/paypal/status', async (_req, res) => {
   }
 });
 
-app.post('/api/payments/paypal/link/:orderId', async (req, res) => {
+app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
   try {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
@@ -611,36 +924,165 @@ app.post('/api/payments/paypal/link/:orderId', async (req, res) => {
     }
 
     const orderId = safeString(req.params.orderId, 120);
-    const paypalOrderId = safeString(req.body?.paypalOrderId, 160);
-    if (!paypalOrderId) return res.status(400).json({ error: 'PayPal order reference is required.' });
+    if (!(await enforceRateLimit(adminDb, `paypal-create:${token.uid}:${orderId}`, 6, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal payment attempts. Please wait and try again.' });
+    }
+    const ref = adminDb.collection('orders').doc(orderId);
+    const initialSnap = await ref.get();
+    if (!initialSnap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const initialOrder: any = { id: initialSnap.id, ...initialSnap.data() };
 
+    if (initialOrder.userId !== token.uid && !isAdminToken(token)) {
+      return res.status(403).json({ error: 'Order access denied.' });
+    }
+    if (initialOrder.paymentMethod !== 'paypal') {
+      return res.status(400).json({ error: 'This order is not a PayPal order.' });
+    }
+    if (initialOrder.paymentStatus === 'verified') {
+      return res.status(409).json({ error: 'Payment is already verified.' });
+    }
+    if (initialOrder.status === 'cancelled') {
+      return res.status(409).json({ error: 'Cancelled orders cannot start a new PayPal payment.' });
+    }
+
+    let paypalOrderId = safeString(initialOrder.paymentProviderReference, 160);
+    let providerStatus = '';
+
+    if (!paypalOrderId) {
+      const created = await createPayPalProviderOrder(initialOrder);
+      paypalOrderId = created.paypalOrderId;
+      providerStatus = created.providerStatus;
+    }
+
+    const guardRef = adminDb.collection('paypal_order_links').doc(paypalOrderId);
+    const now = new Date().toISOString();
+
+    await adminDb.runTransaction(async transaction => {
+      const orderSnap = await transaction.get(ref);
+      const guardSnap = await transaction.get(guardRef);
+      if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
+
+      const current: any = { id: orderSnap.id, ...orderSnap.data() };
+      if (current.userId !== token.uid && !isAdminToken(token)) {
+        throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
+      }
+      if (current.paymentMethod !== 'paypal') {
+        throw Object.assign(new Error('This order is not a PayPal order.'), { statusCode: 400 });
+      }
+      if (current.paymentStatus === 'verified') {
+        throw Object.assign(new Error('Payment is already verified.'), { statusCode: 409 });
+      }
+      if (current.status === 'cancelled') {
+        throw Object.assign(new Error('Cancelled orders cannot start a new PayPal payment.'), { statusCode: 409 });
+      }
+
+      const currentProviderReference = safeString(current.paymentProviderReference, 160);
+      if (currentProviderReference && currentProviderReference !== paypalOrderId) {
+        throw Object.assign(new Error('This SAELYXE order is already linked to a different PayPal order.'), { statusCode: 409 });
+      }
+
+      if (guardSnap.exists) {
+        const guard: any = guardSnap.data() || {};
+        if (safeString(guard.orderId, 120) !== orderId) {
+          throw Object.assign(new Error('This PayPal order is already linked to another SAELYXE order.'), { statusCode: 409 });
+        }
+      } else {
+        transaction.set(guardRef, {
+          paypalOrderId,
+          orderId,
+          orderNumber: safeString(current.orderNumber || current.id, 120),
+          userId: current.userId,
+          createdAt: now,
+          serverCreatedAt: FieldValue.serverTimestamp()
+        });
+      }
+
+      transaction.update(ref, {
+        paymentProviderReference: paypalOrderId,
+        paymentVerificationSource: 'paypal_server_created',
+        paymentUpdatedAt: now
+      });
+    });
+
+    const updated = await ref.get();
+    return res.json({
+      paypalOrderId,
+      providerStatus,
+      order: { id: updated.id, ...updated.data() }
+    });
+  } catch (error: any) {
+    const status = Number(error?.statusCode) || 502;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to create PayPal payment.' });
+  }
+});
+
+app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+
+    const orderId = safeString(req.params.orderId, 120);
+    if (!(await enforceRateLimit(adminDb, `paypal-capture:${token.uid}:${orderId}`, 12, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal capture attempts. Please wait and try again.' });
+    }
+    const requestedPayPalOrderId = safeString(req.body?.paypalOrderId, 160);
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
+
     if (order.userId !== token.uid && !isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
     }
-    if (order.paymentStatus === 'verified') {
-      return res.status(409).json({ error: 'Payment is already verified.' });
+
+    const paypalOrderId = safeString(order.paymentProviderReference, 160);
+    if (!paypalOrderId) {
+      return res.status(409).json({ error: 'This SAELYXE order is not linked to a PayPal order.' });
     }
-    if (order.status === 'cancelled') {
-      return res.status(409).json({ error: 'Cancelled orders cannot be linked to a new PayPal payment.' });
+    if (requestedPayPalOrderId && requestedPayPalOrderId !== paypalOrderId) {
+      return res.status(409).json({ error: 'PayPal order reference does not match the linked SAELYXE checkout.' });
     }
 
-    const now = new Date().toISOString();
-    await ref.update({
-      paymentProviderReference: paypalOrderId,
-      paymentVerificationSource: 'paypal_created',
-      paymentUpdatedAt: now
-    });
-    const updated = await ref.get();
-    return res.json({ id: updated.id, ...updated.data() });
-  } catch {
-    return res.status(500).json({ error: 'Unable to link PayPal payment.' });
+    const guardSnap = await adminDb.collection('paypal_order_links').doc(paypalOrderId).get();
+    if (!guardSnap.exists || safeString(guardSnap.data()?.orderId, 120) !== orderId) {
+      return res.status(409).json({ error: 'PayPal order linkage could not be verified.' });
+    }
+    if (order.paymentStatus === 'verified') {
+      return res.json(order);
+    }
+
+    await reservePayPalInventory(adminDb, orderId, paypalOrderId);
+
+    let captureResult: any = null;
+    try {
+      captureResult = await capturePayPalProviderOrder(paypalOrderId);
+    } catch {
+      captureResult = null;
+    }
+
+    const verification = await verifyPayPalOrder(order, paypalOrderId);
+    if (!verification.verified) {
+      await markPayPalVerificationPending(adminDb, orderId, paypalOrderId, verification.reason);
+      return res.status(captureResult && !captureResult.ok ? 409 : 502).json({
+        error: 'PayPal capture could not be confirmed.',
+        verification
+      });
+    }
+
+    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+    return res.json(updated);
+  } catch (error: any) {
+    const status = Number(error?.statusCode) || 500;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to capture PayPal payment.' });
   }
 });
 
@@ -656,13 +1098,15 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     }
 
     const orderId = safeString(req.params.orderId, 120);
-    const paypalOrderId = safeString(req.body?.paypalOrderId, 160);
-    if (!paypalOrderId) return res.status(400).json({ error: 'PayPal order reference is required.' });
-
+    if (!(await enforceRateLimit(adminDb, `paypal-verify:${token.uid}:${orderId}`, 12, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal verification attempts. Please wait and try again.' });
+    }
+    const requestedPayPalOrderId = safeString(req.body?.paypalOrderId, 160);
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
+
     if (order.userId !== token.uid && !isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
@@ -670,32 +1114,32 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
     }
 
+    const paypalOrderId = safeString(order.paymentProviderReference, 160);
+    if (!paypalOrderId) {
+      return res.status(409).json({ error: 'This SAELYXE order is not linked to a PayPal order.' });
+    }
+    if (requestedPayPalOrderId && requestedPayPalOrderId !== paypalOrderId) {
+      return res.status(409).json({ error: 'PayPal order reference does not match the linked SAELYXE checkout.' });
+    }
+
+    const guardSnap = await adminDb.collection('paypal_order_links').doc(paypalOrderId).get();
+    if (!guardSnap.exists || safeString(guardSnap.data()?.orderId, 120) !== orderId) {
+      return res.status(409).json({ error: 'PayPal order linkage could not be verified.' });
+    }
+    if (order.paymentStatus === 'verified') {
+      return res.json(order);
+    }
+
     const verification = await verifyPayPalOrder(order, paypalOrderId);
-    const now = new Date().toISOString();
     if (!verification.verified) {
-      await ref.update({
-        paymentProviderReference: paypalOrderId,
-        paymentStatus: 'pending_verification',
-        paymentVerificationSource: 'paypal_orders_api',
-        paymentVerificationError: verification.reason,
-        paymentUpdatedAt: now
-      });
+      await markPayPalVerificationPending(adminDb, orderId, paypalOrderId, verification.reason);
       return res.status(409).json({ error: 'PayPal payment could not be verified yet.', verification });
     }
 
-    await ref.update({
-      paymentProviderReference: paypalOrderId,
-      paymentStatus: 'verified',
-      paymentVerificationSource: 'paypal_orders_api',
-      paymentVerificationError: FieldValue.delete(),
-      paymentVerifiedAt: now,
-      paymentUpdatedAt: now
-    });
-
-    const updated = await ref.get();
-    return res.json({ id: updated.id, ...updated.data() });
-  } catch {
-    return res.status(500).json({ error: 'Unable to verify PayPal payment.' });
+    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+    return res.json(updated);
+  } catch (error: any) {
+    return res.status(500).json({ error: safeString(error?.message, 240) || 'Unable to verify PayPal payment.' });
   }
 });
 
@@ -711,10 +1155,14 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
     }
 
     const orderId = safeString(req.params.orderId, 120);
+    if (!(await enforceRateLimit(adminDb, `paypal-cancel:${token.uid}:${orderId}`, 6, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal cancellation attempts. Please wait and try again.' });
+    }
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
+
     if (order.userId !== token.uid && !isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
@@ -722,167 +1170,138 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
     }
     if (order.paymentStatus === 'verified') {
-      return res.status(409).json({ error: 'A verified payment cannot be cancelled here.' });
+      return res.status(409).json({ error: 'A verified payment cannot be cancelled from checkout.' });
     }
     if (order.status !== 'placed') {
       return res.status(409).json({ error: 'This order can no longer be cancelled from checkout.' });
     }
 
+    const paypalOrderId = safeString(order.paymentProviderReference, 160);
+    if (paypalOrderId) {
+      const guardSnap = await adminDb.collection('paypal_order_links').doc(paypalOrderId).get();
+      if (!guardSnap.exists || safeString(guardSnap.data()?.orderId, 120) !== orderId) {
+        return res.status(409).json({ error: 'PayPal order linkage could not be verified for cancellation.' });
+      }
+
+      const verification = await verifyPayPalOrder(order, paypalOrderId);
+      if (verification.verified) {
+        const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+        return res.status(409).json({
+          error: 'PayPal payment is already completed, so checkout cancellation was blocked.',
+          order: updated
+        });
+      }
+
+      if (verification.reason === 'paypal_lookup_failed' || verification.reason === 'paypal_not_configured') {
+        return res.status(503).json({ error: 'PayPal status is temporarily unavailable. The order was not cancelled.' });
+      }
+
+      const providerStatus = safeString(verification.providerStatus, 30).toUpperCase();
+      const approvedButCaptureNotStarted =
+        providerStatus === 'APPROVED' &&
+        order.inventoryReserved !== true &&
+        !order.paymentCaptureStartedAt;
+      const safeToCancel =
+        ['CREATED', 'SAVED', 'PAYER_ACTION_REQUIRED', 'VOIDED'].includes(providerStatus) ||
+        approvedButCaptureNotStarted;
+      if (!safeToCancel) {
+        return res.status(409).json({
+          error: `PayPal checkout is in ${providerStatus || 'an uncertain'} state. The order was not cancelled to avoid losing a completed payment.`
+        });
+      }
+    }
+
     const now = new Date().toISOString();
-    await ref.update({
-      status: 'cancelled',
-      paymentStatus: 'cancelled',
-      updatedAt: now,
-      paymentUpdatedAt: now,
-      statusHistory: [
-        ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
-        {
-          status: 'cancelled',
-          timestamp: now,
-          note: 'PayPal checkout was cancelled before payment verification.',
-          location: 'SAELYXE Online Store'
+    await adminDb.runTransaction(async transaction => {
+      const currentSnap = await transaction.get(ref);
+      if (!currentSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
+      const current: any = { id: currentSnap.id, ...currentSnap.data() };
+
+      if (current.paymentStatus === 'verified') {
+        throw Object.assign(new Error('A verified payment cannot be cancelled from checkout.'), { statusCode: 409 });
+      }
+      if (current.status !== 'placed') {
+        throw Object.assign(new Error('This order can no longer be cancelled from checkout.'), { statusCode: 409 });
+      }
+      if (safeString(current.paymentProviderReference, 160) !== paypalOrderId) {
+        throw Object.assign(new Error('PayPal linkage changed during cancellation. The order was not cancelled.'), { statusCode: 409 });
+      }
+      const captureState = safeString(current.paymentCaptureState, 40);
+      if (
+        current.inventoryReserved === true ||
+        Boolean(current.paymentCaptureStartedAt) ||
+        captureState === 'capturing' ||
+        captureState === 'needs_recovery'
+      ) {
+        throw Object.assign(
+          new Error('PayPal capture has started or needs recovery. The order was not cancelled to protect a possible completed payment.'),
+          { statusCode: 409 }
+        );
+      }
+
+      const quantityByProduct = new Map<string, number>();
+      const items = Array.isArray(current.items) ? current.items : [];
+      if (current.inventoryReserved === true) {
+        for (const item of items) {
+          const productId = safeString(item?.productId, 100);
+          const quantity = Number(item?.quantity);
+          if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+            throw Object.assign(new Error('Order inventory reservation data is invalid.'), { statusCode: 409 });
+          }
+          quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
         }
-      ]
+      }
+
+      const productSnapshots = new Map<string, { ref: any; data: any }>();
+      for (const productId of quantityByProduct.keys()) {
+        const productRef = adminDb.collection('products').doc(productId);
+        const productSnap = await transaction.get(productRef);
+        if (!productSnap.exists) {
+          throw Object.assign(new Error('Reserved inventory could not be restored safely.'), { statusCode: 409 });
+        }
+        productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
+      }
+
+      for (const [productId, quantity] of quantityByProduct.entries()) {
+        const cached = productSnapshots.get(productId)!;
+        const stockCount = Number(cached.data.stockCount);
+        const nextStock = (Number.isFinite(stockCount) ? stockCount : 0) + quantity;
+        transaction.update(cached.ref, {
+          stockCount: nextStock,
+          inStock: nextStock > 0,
+          updatedAt: now
+        });
+      }
+
+      transaction.update(ref, {
+        status: 'cancelled',
+        paymentStatus: 'cancelled',
+        inventoryReserved: false,
+        inventoryReservationReleasedAt: current.inventoryReserved === true ? now : current.inventoryReservationReleasedAt || null,
+        updatedAt: now,
+        paymentUpdatedAt: now,
+        statusHistory: [
+          ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
+          {
+            status: 'cancelled',
+            timestamp: now,
+            note: current.inventoryReserved === true
+              ? 'PayPal checkout was cancelled before payment completion and reserved inventory was released.'
+              : 'PayPal checkout was cancelled before payment completion.',
+            location: 'SAELYXE Online Store'
+          }
+        ]
+      });
     });
+
     const updated = await ref.get();
     return res.json({ id: updated.id, ...updated.data() });
-  } catch {
-    return res.status(500).json({ error: 'Unable to cancel PayPal checkout order.' });
+  } catch (error: any) {
+    const status = Number(error?.statusCode) || 500;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to cancel PayPal checkout order.' });
   }
 });
 
-app.post('/api/payments/payhere/session/:orderId', async (req, res) => {
-  try {
-    const adminDb = getAdminDb();
-    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
-
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
-    if (!(await hasValidAppCheck(req))) {
-      return res.status(401).json({ error: 'App integrity check failed.' });
-    }
-
-    const merchantId = process.env.PAYHERE_MERCHANT_ID;
-    const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
-    if (!merchantId || !merchantSecret) {
-      return res.status(503).json({ error: 'PayHere is not configured yet.' });
-    }
-
-    const orderId = safeString(req.params.orderId, 120);
-    const snap = await adminDb.collection('orders').doc(orderId).get();
-    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
-    const order: any = { id: snap.id, ...snap.data() };
-    if (order.userId !== token.uid && !isAdminToken(token)) {
-      return res.status(403).json({ error: 'Order access denied.' });
-    }
-    if (order.paymentMethod !== 'payhere') {
-      return res.status(400).json({ error: 'This order is not a PayHere order.' });
-    }
-
-    const amount = Number(order.totalLKR).toFixed(2);
-    const currency = 'LKR';
-    const hashedSecret = md5Upper(merchantSecret);
-    const hash = md5Upper(`${merchantId}${order.orderNumber}${amount}${currency}${hashedSecret}`);
-    const nameParts = safeString(order.customerName, 120).split(/\s+/).filter(Boolean);
-    const firstName = nameParts.shift() || 'SAELYXE';
-    const lastName = nameParts.join(' ') || 'Customer';
-    const baseUrl = 'https://www.saelyxe.com';
-
-    return res.json({
-      action: process.env.PAYHERE_MODE === 'sandbox'
-        ? 'https://sandbox.payhere.lk/pay/checkout'
-        : 'https://www.payhere.lk/pay/checkout',
-      fields: {
-        merchant_id: merchantId,
-        return_url: `${baseUrl}/orders/${encodeURIComponent(order.orderNumber)}`,
-        cancel_url: `${baseUrl}/checkout?payment=cancelled&order=${encodeURIComponent(order.orderNumber)}`,
-        notify_url: `${baseUrl}/api/payments/payhere/notify`,
-        first_name: firstName,
-        last_name: lastName,
-        email: order.email,
-        phone: order.phone,
-        address: order.address,
-        city: order.city,
-        country: order.country,
-        order_id: order.orderNumber,
-        items: `SAELYXE Order ${order.orderNumber}`,
-        currency,
-        amount,
-        hash
-      }
-    });
-  } catch {
-    return res.status(500).json({ error: 'Unable to start PayHere payment.' });
-  }
-});
-
-app.post('/api/payments/payhere/notify', payHereFormParser, async (req, res) => {
-  try {
-    const adminDb = getAdminDb();
-    const merchantIdExpected = process.env.PAYHERE_MERCHANT_ID;
-    const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
-    if (!adminDb || !merchantIdExpected || !merchantSecret) return res.status(503).send('not configured');
-
-    const merchantId = safeString(req.body?.merchant_id, 80);
-    const orderId = safeString(req.body?.order_id, 120);
-    const paymentId = safeString(req.body?.payment_id, 160);
-    const amount = safeString(req.body?.payhere_amount, 40);
-    const currency = safeString(req.body?.payhere_currency, 10).toUpperCase();
-    const statusCode = safeString(req.body?.status_code, 10);
-    const md5sig = safeString(req.body?.md5sig, 80).toUpperCase();
-
-    if (!merchantId || merchantId !== merchantIdExpected || !orderId || !md5sig) {
-      return res.status(400).send('invalid');
-    }
-
-    const localSig = md5Upper(
-      `${merchantId}${orderId}${amount}${currency}${statusCode}${md5Upper(merchantSecret)}`
-    );
-    if (!crypto.timingSafeEqual(Buffer.from(localSig), Buffer.from(md5sig))) {
-      return res.status(400).send('invalid signature');
-    }
-
-    const ref = adminDb.collection('orders').doc(orderId);
-    const snap = await ref.get();
-    if (!snap.exists) return res.status(404).send('order not found');
-    const order: any = snap.data() || {};
-    if (order.paymentMethod !== 'payhere') return res.status(400).send('wrong payment method');
-
-    const expectedAmount = Number(order.totalLKR).toFixed(2);
-    if (currency !== 'LKR' || Number(amount).toFixed(2) !== expectedAmount) {
-      await ref.update({
-        paymentStatus: 'verification_mismatch',
-        paymentProviderReference: paymentId || null,
-        paymentVerificationSource: 'payhere_notify',
-        paymentVerificationError: 'amount_or_currency_mismatch',
-        paymentUpdatedAt: new Date().toISOString()
-      });
-      return res.status(200).send('ignored');
-    }
-
-    const statusMap: Record<string, string> = {
-      '2': 'verified',
-      '0': 'pending_verification',
-      '-1': 'cancelled',
-      '-2': 'failed',
-      '-3': 'chargeback_review'
-    };
-    const paymentStatus = statusMap[statusCode] || 'pending_verification';
-    const now = new Date().toISOString();
-    await ref.update({
-      paymentStatus,
-      paymentProviderReference: paymentId || order.paymentProviderReference || null,
-      paymentVerificationSource: 'payhere_notify',
-      paymentVerifiedAt: paymentStatus === 'verified' ? now : order.paymentVerifiedAt || null,
-      paymentUpdatedAt: now,
-      payhereStatusCode: statusCode
-    });
-
-    return res.status(200).send('ok');
-  } catch {
-    return res.status(200).send('ignored');
-  }
-});
 
 app.post('/api/orders', async (req, res) => {
   try {
@@ -931,10 +1350,12 @@ app.post('/api/orders', async (req, res) => {
 
     const requestedCurrency = safeString(body.currencyUsed, 10).toUpperCase();
     const currency = CURRENCIES.find(item => item.code === requestedCurrency) || CURRENCIES[0];
-    const paymentMethod = ['paypal', 'payhere', 'binance_qr'].includes(body.paymentMethod)
-      ? body.paymentMethod
-      : 'payhere';
-    const paymentProviderReference = safeString(body.paymentProviderReference, 160);
+    const paymentMethod = safeString(body.paymentMethod, 30);
+    if (paymentMethod !== 'paypal') {
+      return res.status(400).json({ error: 'PayPal is the only supported payment method.' });
+    }
+    // The PayPal provider reference is created and linked server-side after the local order exists.
+    const paymentProviderReference = '';
     const checkoutAttemptId = safeString(body.checkoutAttemptId, 120);
     const duplicateFingerprint = crypto.createHash('sha256').update(JSON.stringify({
       uid: authToken.uid,
@@ -948,6 +1369,7 @@ app.post('/api/orders', async (req, res) => {
       country
     })).digest('hex');
     const guardRef = adminDb.collection('order_idempotency').doc(duplicateFingerprint);
+    const idempotencyWindowMs = checkoutAttemptId ? 24 * 60 * 60_000 : 2 * 60_000;
     const orderNumber = `SOX-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
     const orderRef = adminDb.collection('orders').doc(orderNumber);
 
@@ -958,7 +1380,7 @@ app.post('/api/orders', async (req, res) => {
       const guardSnap = await transaction.get(guardRef);
       const guardData: any = guardSnap.exists ? guardSnap.data() || {} : {};
       const guardCreatedAtMs = Number(guardData.createdAtMs) || 0;
-      if (guardSnap.exists && guardCreatedAtMs > Date.now() - 2 * 60_000 && guardData.orderNumber) {
+      if (guardSnap.exists && guardCreatedAtMs > Date.now() - idempotencyWindowMs && guardData.orderNumber) {
         replayOrderNumber = safeString(guardData.orderNumber, 120);
         return;
       }
@@ -1063,7 +1485,7 @@ app.post('/api/orders', async (req, res) => {
       };
 
       transaction.set(orderRef, order);
-      const guardExpiresAtMs = Date.now() + 2 * 60_000;
+      const guardExpiresAtMs = Date.now() + idempotencyWindowMs;
       transaction.set(guardRef, {
         orderNumber,
         userId: authToken.uid,
@@ -1072,7 +1494,7 @@ app.post('/api/orders', async (req, res) => {
         expiresAt: Timestamp.fromMillis(guardExpiresAtMs)
       });
 
-      // Stock is committed only after an authenticated admin confirms the paid order.
+      // Stock is committed only after verified payment and a valid order lifecycle transition.
       // This prevents unpaid or forged payment references from draining inventory.
 
       responseOrder = { ...order };
@@ -1258,7 +1680,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
       }
 
       if (needsInventoryCommit) {
-        if ((current.paymentMethod === 'paypal' || current.paymentMethod === 'payhere') && current.paymentStatus !== 'verified') {
+        if (current.paymentMethod === 'paypal' && current.paymentStatus !== 'verified') {
           throw new Error('Payment must be verified by the payment provider before confirming this order.');
         }
 
@@ -1278,12 +1700,6 @@ app.put('/api/orders/:id/status', async (req, res) => {
         }
 
         update.inventoryCommitted = true;
-        if (current.paymentMethod === 'binance_qr' && current.paymentStatus !== 'verified') {
-          update.paymentStatus = 'verified';
-          update.paymentVerificationSource = 'admin_manual_crypto_verification';
-          update.paymentVerifiedAt = now;
-          update.paymentVerifiedBy = token?.uid || 'admin';
-        }
       }
 
       if (needsInventoryRestore) {

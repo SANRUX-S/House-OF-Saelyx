@@ -76,8 +76,8 @@ export const LegalTermsPage: React.FC = () => {
             <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
               <CreditCard className="w-4 h-4" />
             </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">PayHere Payments</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Authorised online payments with zero card storage.</p>
+            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">PayPal Payments</h4>
+            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Authorised online payments with no full card storage on SAELYXE servers.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -227,7 +227,7 @@ export const LegalTermsPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Section 13, 14, 15, 16 & 17 - Payment Methods & PayHere */}
+          {/* Section 13, 14, 15, 16 & 17 - Payment Methods & PayPal */}
           <section className="bg-[#FAF6F0] border border-[#DFD5C6] p-6 sm:p-8 rounded-2xl space-y-6">
             <div className="space-y-3">
               <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
@@ -235,17 +235,17 @@ export const LegalTermsPage: React.FC = () => {
                 Payment Methods & No COD Policy
               </h3>
               <p className="text-xs sm:text-sm text-[#4A3E30]">
-                SAELYXE accepts authorised online payment methods displayed on the website, including <strong className="font-semibold text-[#1A1816]">PayHere</strong>. SAELYXE does <strong className="font-semibold text-[#1A1816]">NOT accept Cash on Delivery (COD)</strong> unless expressly displayed on the website.
+                SAELYXE accepts authorised online payment methods displayed on the website, including <strong className="font-semibold text-[#1A1816]">PayPal</strong>. SAELYXE does <strong className="font-semibold text-[#1A1816]">NOT accept Cash on Delivery (COD)</strong> unless expressly displayed on the website.
               </p>
             </div>
 
             <div className="space-y-3 border-t border-[#E3D8C8] pt-6">
               <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-mono flex items-center justify-center">14</span>
-                PayHere Payments & Zero Card Storage
+                PayPal Payments & Zero Card Storage
               </h3>
               <p className="text-xs sm:text-sm text-[#4A3E30]">
-                Payments are processed through PayHere's infrastructure. An order is considered successfully paid only upon confirmation from the payment processor. SAELYXE does not intentionally store full credit/debit card numbers or security codes on its servers.
+                Payments are processed through PayPal's infrastructure. An order is considered successfully paid only upon confirmation from the payment processor. SAELYXE does not intentionally store full credit/debit card numbers or security codes on its servers.
               </p>
             </div>
 
@@ -384,7 +384,7 @@ export const LegalTermsPage: React.FC = () => {
               <div className="space-y-2">
                 <h4 className="font-serif text-sm font-semibold text-[#1A1816]">28. Third-Party Services</h4>
                 <p className="text-xs text-[#5C5042]">
-                  Services rely on trusted partners (PayHere, couriers, cloud hosting) operating under their respective privacy terms.
+                  Services rely on trusted partners (PayPal, couriers, cloud hosting) operating under their respective privacy terms.
                 </p>
               </div>
 

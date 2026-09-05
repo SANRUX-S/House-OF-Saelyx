@@ -127,9 +127,8 @@ interface StoreContextType {
   // Orders
   orders: Order[];
   createOrder: (orderData: CreateOrderInput) => Promise<Order>;
-  createPayHereSession: (orderId: string) => Promise<{ action: string; fields: Record<string, string> }>;
-  linkPayPalOrder: (orderId: string, paypalOrderId: string) => Promise<Order>;
-  verifyPayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
+  createPayPalPayment: (orderId: string) => Promise<{ paypalOrderId: string; order: Order }>;
+  capturePayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
   cancelPayPalOrder: (orderId: string) => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
   
@@ -320,6 +319,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const userRef = useRef(user);
+  const paypalRecoveryInFlightRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     userRef.current = user;
@@ -609,6 +609,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setOrders(list);
 
+        for (const order of list) {
+          const paypalOrderId = order.paymentProviderReference || '';
+          const needsPayPalRecovery =
+            order.paymentMethod === 'paypal' &&
+            order.paymentStatus === 'pending_verification' &&
+            order.inventoryReserved === true &&
+            Boolean(paypalOrderId);
+
+          if (!needsPayPalRecovery) continue;
+          const recoveryKey = `${order.id}:${paypalOrderId}`;
+          if (paypalRecoveryInFlightRef.current.has(recoveryKey)) continue;
+          paypalRecoveryInFlightRef.current.add(recoveryKey);
+
+          void (async () => {
+            try {
+              for (let attempt = 0; attempt < 3; attempt += 1) {
+                try {
+                  const response = await fetchAuthenticatedPublicApi(
+                    `/api/payments/paypal/capture/${encodeURIComponent(order.id || order.orderNumber)}`,
+                    {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ paypalOrderId })
+                    }
+                  );
+                  const payload = await response.json().catch(() => ({}));
+                  if (response.ok) {
+                    const recovered = payload as Order;
+                    setOrders(prev => prev.map(item => item.id === recovered.id ? recovered : item));
+                    break;
+                  }
+                  if (response.status < 500) break;
+                } catch {
+                  // Retry transient network failures only.
+                }
+                if (attempt < 2) {
+                  await new Promise(resolve => window.setTimeout(resolve, 1500 * (attempt + 1)));
+                }
+              }
+            } finally {
+              paypalRecoveryInFlightRef.current.delete(recoveryKey);
+            }
+          })();
+        }
+
         if (isAdminUser && list.length === 0) {
           try {
             const res = await fetchAdminApi('/api/orders');
@@ -625,7 +670,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       return () => unsub();
     } catch (e) {}
-  }, [fetchAdminApi, user?.role, user?.uid]);
+  }, [fetchAdminApi, fetchAuthenticatedPublicApi, user?.role, user?.uid]);
 
   // 3. Stock Notifications real-time listener (Waitlists)
   useEffect(() => {
@@ -1213,36 +1258,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return placedOrder;
   };
 
-  const createPayHereSession = async (orderId: string): Promise<{ action: string; fields: Record<string, string> }> => {
-    const res = await fetchAuthenticatedPublicApi(`/api/payments/payhere/session/${encodeURIComponent(orderId)}`, {
+  const createPayPalPayment = async (orderId: string): Promise<{ paypalOrderId: string; order: Order }> => {
+    const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/create/${encodeURIComponent(orderId)}`, {
       method: 'POST'
     });
     const payload = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(payload?.error || 'Unable to start PayHere payment.');
-    return payload;
+    if (!res.ok) throw new Error(payload?.error || 'Unable to start PayPal payment.');
+    const updated = payload?.order as Order;
+    if (updated?.id) {
+      setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
+    }
+    return {
+      paypalOrderId: String(payload?.paypalOrderId || ''),
+      order: updated
+    };
   };
 
-  const linkPayPalOrder = async (orderId: string, paypalOrderId: string): Promise<Order> => {
-    const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/link/${encodeURIComponent(orderId)}`, {
+  const capturePayPalPayment = async (orderId: string, paypalOrderId: string): Promise<Order> => {
+    const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/capture/${encodeURIComponent(orderId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paypalOrderId })
     });
     const payload = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(payload?.error || 'Unable to link PayPal order.');
-    const updated = payload as Order;
-    setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
-    return updated;
-  };
-
-  const verifyPayPalPayment = async (orderId: string, paypalOrderId: string): Promise<Order> => {
-    const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/verify/${encodeURIComponent(orderId)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paypalOrderId })
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(payload?.error || 'Unable to verify PayPal payment.');
+    if (!res.ok) throw new Error(payload?.error || 'Unable to capture PayPal payment.');
     const updated = payload as Order;
     setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
     return updated;
@@ -1252,8 +1291,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/cancel/${encodeURIComponent(orderId)}`, {
       method: 'POST'
     });
-    if (!res.ok) return;
-    const updated = await res.json() as Order;
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload?.error || 'Unable to cancel PayPal checkout order.');
+    const updated = payload as Order;
     setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
   };
 
@@ -1569,9 +1609,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateUserProfile,
         orders,
         createOrder,
-        createPayHereSession,
-        linkPayPalOrder,
-        verifyPayPalPayment,
+            createPayPalPayment,
+        capturePayPalPayment,
         cancelPayPalOrder,
         updateOrderStatus,
         messages,
