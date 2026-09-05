@@ -52,7 +52,7 @@ export function createApp() {
   app.get('/api/messages', retiredMutation);
   app.put('/api/messages/:id/status', retiredMutation);
   app.all('/api/audit-logs', retiredMutation);
-  app.get('/api/stock-notifications', retiredMutation);
+  app.all('/api/stock-notifications', retiredMutation);
   app.delete('/api/stock-notifications/:id', retiredMutation);
   app.post('/api/functions/onStockReplenished', retiredMutation);
 
