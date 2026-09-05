@@ -14,7 +14,10 @@ import {
   User as FirebaseUser,
   RecaptchaVerifier,
   signInWithPhoneNumber,
-  ConfirmationResult
+  ConfirmationResult,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
 } from 'firebase/auth';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import {
@@ -92,30 +95,31 @@ export function getConfiguredAdminRole(email?: string | null, emailVerified = fa
   return email && emailVerified ? ADMIN_ROLES[email.toLowerCase()] : undefined;
 }
 
-export async function verifyAdminCredentials(username: string, pass: string): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
+export async function verifyAdminCredentials(username: string, pass: string, rememberMe = true): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
   if (!isFirebaseConfigured) {
     return { valid: false, error: 'Firebase administrator authentication is not configured.' };
   }
   try {
+    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
     const credential = await signInWithEmailAndPassword(auth, username.trim(), pass);
-    const token = await credential.user.getIdTokenResult(true);
-    const claimRole: UserRole | undefined = token.claims.role === 'super_admin'
-      ? 'super_admin'
-      : token.claims.role === 'admin' || token.claims.admin === true
-        ? 'admin'
-        : undefined;
     const adminDoc = await getDoc(doc(db, 'admins', credential.user.uid));
     const adminData = adminDoc.exists() ? adminDoc.data() : null;
-    const adminDocRole: UserRole | undefined = adminData?.role === 'super_admin'
-      ? 'super_admin'
-      : adminData?.role === 'admin'
-        ? 'admin'
-        : undefined;
-    const allowlistedRole = credential.user.email
-      ? ADMIN_ROLES[credential.user.email.toLowerCase()]
+    const email = credential.user.email?.toLowerCase() || '';
+    const adminRecordMatches =
+      credential.user.emailVerified &&
+      adminData?.status === 'active' &&
+      typeof adminData?.email === 'string' &&
+      adminData.email.toLowerCase() === email;
+    const adminDocRole: UserRole | undefined = adminRecordMatches
+      ? adminData?.role === 'super_admin'
+        ? 'super_admin'
+        : adminData?.role === 'admin'
+          ? 'admin'
+          : undefined
       : undefined;
+    const allowlistedRole = email ? ADMIN_ROLES[email] : undefined;
     const configuredRole = credential.user.emailVerified ? allowlistedRole : undefined;
-    const trustedRole = claimRole || adminDocRole || configuredRole;
+    const trustedRole = configuredRole || adminDocRole;
 
     if (!trustedRole) {
       if (allowlistedRole && !credential.user.emailVerified) {
@@ -131,8 +135,17 @@ export async function verifyAdminCredentials(username: string, pass: string): Pr
         };
       }
 
+      if (adminData?.status === 'invited') {
+        await fbSignOut(auth);
+        return { valid: false, error: 'Administrator invitation is pending activation by a Super Admin after email verification.' };
+      }
+      if (adminData?.status === 'revoked' || adminData?.status === 'suspended') {
+        await fbSignOut(auth);
+        return { valid: false, error: 'Administrator access has been revoked or suspended.' };
+      }
+
       await fbSignOut(auth);
-      return { valid: false, error: 'Access denied. This Firebase account is not an administrator.' };
+      return { valid: false, error: 'Access denied. This Firebase account is not an active administrator.' };
     }
 
     return {
