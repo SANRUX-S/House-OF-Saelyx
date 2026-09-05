@@ -22,7 +22,8 @@ export const AdminPanel: React.FC = () => {
     products, 
     orders, 
     messages, 
-    auditLogs, 
+    auditLogs,
+    logAuditEvent,
     settings, 
     stockNotifications,
     triggerStockReplenishedFunction,
@@ -169,6 +170,8 @@ export const AdminPanel: React.FC = () => {
 
   // Export JSON Database
   const handleExportDatabase = () => {
+    if (!isSuperAdmin) return;
+    if (!window.confirm('Export the administrator database snapshot? This file contains customer and operational personal data.')) return;
     const backupData = {
       exportedAt: new Date().toISOString(),
       products,
@@ -184,6 +187,8 @@ export const AdminPanel: React.FC = () => {
     a.href = url;
     a.download = `saelyxe_atelier_backup_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
+    URL.revokeObjectURL(url);
+    void logAuditEvent('DATABASE_EXPORT', 'Exported administrator database snapshot from Security & Audit.');
   };
 
   // If not authenticated as Admin, show luxury Login Screen
@@ -318,6 +323,8 @@ export const AdminPanel: React.FC = () => {
           orders={orders}
           formatPrice={formatPrice}
           onUpdateOrderStatus={updateOrderStatus}
+          isSuperAdmin={isSuperAdmin}
+          onAudit={logAuditEvent}
         />
       )}
 
