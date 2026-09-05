@@ -701,7 +701,8 @@ class StoreDB {
   }
 
   getOrderById(id: string): Order | undefined {
-    return this.data.orders.find(o => o.id === id || o.orderNumber.toLowerCase() === id.toLowerCase() || o.phone.replace(/\s+/g, '') === id.replace(/\s+/g, ''));
+    const normalizedId = id.trim().toLowerCase();
+    return this.data.orders.find(o => o.id.toLowerCase() === normalizedId || o.orderNumber.toLowerCase() === normalizedId);
   }
 
   createOrder(orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'> & { orderNumber?: string }): Order {

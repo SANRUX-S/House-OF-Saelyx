@@ -203,7 +203,7 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-4 text-neutral-400 pt-1">
               <a 
                 href="https://instagram.com" 
-                target="_blank" 
+                target="_blank"
                 rel="noopener noreferrer" 
                 className="hover:text-white transition-colors"
                 aria-label="Instagram"
@@ -212,7 +212,7 @@ export const Footer: React.FC = () => {
               </a>
               <a 
                 href="https://twitter.com" 
-                target="_blank" 
+                target="_blank"
                 rel="noopener noreferrer" 
                 className="hover:text-white transition-colors"
                 aria-label="Twitter"

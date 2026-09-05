@@ -297,12 +297,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // User state
   const [user, setUser] = useState<AppUser | null>(() => {
-    try {
-      const saved = localStorage.getItem('saelyx_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+    return null;
   });
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -362,11 +357,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      // If current user is an admin with custom password login and not firebase auth, preserve it
-      if (userRef.current && (userRef.current.role === 'super_admin' || userRef.current.role === 'admin') && !fbUser) {
-        return;
-      }
-
       if (fbUser) {
         try {
           const configuredAdminRole = getConfiguredAdminRole(fbUser.email);
@@ -1167,7 +1157,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     let placedOrder: Order;
     try {
-      const res = await fetch('/api/orders', {
+      const res = await fetchAdminApi('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload)
@@ -1324,20 +1314,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addStaff = async (staffData: Omit<AdminStaff, 'id' | 'createdAt' | 'status'> & { password?: string }): Promise<boolean> => {
     try {
       const id = `staff-${Date.now().toString(36)}`;
+      const { password: _password, ...safeStaffData } = staffData;
       const payload = {
-        ...staffData,
+        ...safeStaffData,
         id,
         status: 'active' as const,
         createdAt: new Date().toISOString()
       };
       if (isFirebaseConfigured) await setDoc(doc(db, 'staff', id), payload);
-      if (staffData.password) {
-        const savedStaff = JSON.parse(localStorage.getItem('saelyxe_staff_credentials') || '[]');
-        localStorage.setItem('saelyxe_staff_credentials', JSON.stringify([
-          ...savedStaff.filter((staff: { username: string }) => staff.username.toLowerCase() !== staffData.username.toLowerCase()),
-          { username: staffData.username, password: staffData.password, name: staffData.name || staffData.username, email: staffData.email, role: staffData.role, uid: id }
-        ]));
-      }
       setStaffList(prev => [{ ...payload, password: undefined } as AdminStaff, ...prev.filter(staff => staff.username !== staffData.username)]);
       await logAuditEvent('STAFF_PROVISIONED', `Staff operator [${payload.displayName || payload.username}] provisioned with role [${payload.role}]`);
       return true;

@@ -81,3 +81,14 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     return res.status(401).json({ error: 'Invalid or expired authentication token' });
   }
 }
+
+export async function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
+  return requireAdmin(req, res, () => {
+    const auth = (req as Request & { auth?: { email?: string; role?: string; admin?: boolean } }).auth;
+    const email = auth?.email?.toLowerCase();
+    if (auth?.role !== 'super_admin' && email !== 'saelyx.co@gmail.com' && email !== 'saelyx.co+super@gmail.com') {
+      return res.status(403).json({ error: 'Super administrator access required' });
+    }
+    return next();
+  });
+}

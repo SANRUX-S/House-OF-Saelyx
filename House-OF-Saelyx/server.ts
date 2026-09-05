@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { db } from './server/db.js';
-import { requireAdmin } from './server/auth.js';
+import { requireAdmin, requireSuperAdmin } from './server/auth.js';
 
 export function createApp() {
   const app = express();
@@ -146,19 +146,7 @@ export function createApp() {
   // Helper: Automated Order Confirmation Email Dispatch
   function sendOrderConfirmationEmail(order: any) {
     try {
-      console.log(`\n======================================================`);
-      console.log(`[SAELYXE LUXURY EMAIL DISPATCH]`);
-      console.log(`To: ${order.email}`);
-      console.log(`Subject: Your SAELYXE Order #${order.orderNumber} is Confirmed`);
-      console.log(`Customer: ${order.customerName}`);
-      console.log(`Order Number: #${order.orderNumber}`);
-      console.log(`Date: ${order.createdAt}`);
-      console.log(`Payment Method: ${order.paymentMethod || 'Cash on Delivery'} (${order.paymentStatus || 'Pending'})`);
-      console.log(`Delivery Address: ${order.address}, ${order.city} ${order.postalCode}`);
-      console.log(`Total: ${order.currencyUsed || 'LKR'} ${order.totalInCurrency || order.totalLKR}`);
-      console.log(`Items: ${order.items?.map((i: any) => `${i.title} (${i.size}) × ${i.quantity}`).join(', ')}`);
-      console.log(`Tracking Link: https://saelyxe.com/track-order?id=${order.orderNumber}`);
-      console.log(`======================================================\n`);
+      console.log(`[SAELYXE] Order confirmation queued for order ${order.orderNumber}`);
     } catch (e) {
       console.error('Email dispatch error:', e);
     }
@@ -257,7 +245,10 @@ export function createApp() {
   // 5. Newsletter API
   app.post('/api/newsletter', (req, res) => {
     try {
-      const { email } = req.body;
+      const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+        return res.status(400).json({ error: 'Valid email address required.' });
+      }
       const result = db.subscribeNewsletter(email);
       res.json(result);
     } catch (e: any) {
@@ -292,7 +283,7 @@ export function createApp() {
     }
   });
 
-  app.post('/api/staff', adminOnly, (req, res) => {
+  app.post('/api/staff', requireSuperAdmin, (req, res) => {
     try {
       const newStaff = db.addStaff(req.body);
       db.addAuditLog({
@@ -308,7 +299,7 @@ export function createApp() {
     }
   });
 
-  app.put('/api/staff/:id', adminOnly, (req, res) => {
+  app.put('/api/staff/:id', requireSuperAdmin, (req, res) => {
     try {
       const updated = db.updateStaff(req.params.id, req.body);
       if (!updated) return res.status(404).json({ error: 'Staff member not found' });
@@ -325,7 +316,7 @@ export function createApp() {
     }
   });
 
-  app.delete('/api/staff/:id', adminOnly, (req, res) => {
+  app.delete('/api/staff/:id', requireSuperAdmin, (req, res) => {
     try {
       const ok = db.deleteStaff(req.params.id);
       if (!ok) return res.status(404).json({ error: 'Staff member not found' });
@@ -353,7 +344,15 @@ export function createApp() {
 
   app.post('/api/messages', (req, res) => {
     try {
-      const msg = db.addMessage(req.body);
+      const body = req.body || {};
+      const topicValues = ['order_inquiry', 'bespoke_sizing', 'concierge', 'press', 'authenticity', 'other'];
+      const name = typeof body.name === 'string' ? body.name.trim().slice(0, 120) : '';
+      const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+      const message = typeof body.message === 'string' ? body.message.trim().slice(0, 5000) : '';
+      if (!name || !message || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !topicValues.includes(body.topic)) {
+        return res.status(400).json({ error: 'Name, valid email, topic, and message are required.' });
+      }
+      const msg = db.addMessage({ name, email, message, topic: body.topic, phone: typeof body.phone === 'string' ? body.phone.trim().slice(0, 30) : '' });
       res.status(201).json(msg);
     } catch (e: any) {
       res.status(400).json({ error: e.message });
@@ -380,7 +379,7 @@ export function createApp() {
     }
   });
 
-  app.post('/api/audit-logs', adminOnly, (req, res) => {
+  app.post('/api/audit-logs', requireSuperAdmin, (req, res) => {
     try {
       const log = db.addAuditLog({
         ...req.body,
@@ -403,7 +402,24 @@ export function createApp() {
 
   app.post('/api/stock-notifications', (req, res) => {
     try {
-      const notification = db.addStockNotification(req.body);
+      const body = req.body || {};
+      const email = typeof body.customerEmail === 'string' ? body.customerEmail.trim().toLowerCase() : '';
+      const productId = typeof body.productId === 'string' ? body.productId.trim() : '';
+      const product = db.getProductById(productId);
+      if (!product || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Valid product and email are required.' });
+      }
+      const notification = db.addStockNotification({
+        productId: product.id,
+        productTitle: product.title,
+        productSlug: product.slug,
+        productImage: product.images?.[0],
+        selectedSize: typeof body.selectedSize === 'string' ? body.selectedSize.slice(0, 20) : 'Any Size',
+        customerEmail: email,
+        customerName: typeof body.customerName === 'string' ? body.customerName.slice(0, 120) : '',
+        phone: typeof body.phone === 'string' ? body.phone.slice(0, 30) : '',
+        channel: ['email', 'app', 'both'].includes(body.channel) ? body.channel : 'email'
+      });
       res.status(201).json(notification);
     } catch (e: any) {
       res.status(400).json({ error: e.message });
@@ -421,7 +437,7 @@ export function createApp() {
   });
 
   // Firebase Cloud Function trigger simulation & execution endpoint
-  app.post('/api/functions/onStockReplenished', adminOnly, (req, res) => {
+  app.post('/api/functions/onStockReplenished', requireSuperAdmin, (req, res) => {
     try {
       const { productId } = req.body;
       const result = db.triggerRestockCloudFunction(productId);

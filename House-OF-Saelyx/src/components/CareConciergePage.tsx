@@ -72,7 +72,7 @@ export const CareConciergePage: React.FC = () => {
                 <a
                   href="https://wa.me/94771234567"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 bg-[#25D366]/10 text-[#128C7E] rounded-xl hover:bg-[#25D366]/20 transition-all font-semibold"
                 >
                   <MessageCircle className="w-5 h-5 text-[#25D366]" />
