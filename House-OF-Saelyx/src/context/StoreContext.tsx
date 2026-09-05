@@ -186,6 +186,11 @@ const DEFAULT_CURRENCY: CurrencyRate = {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+function cryptoSafeClientId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // Helper to parse current window location into AppRoute
 function parseRouteFromUrl(): AppRoute {
   try {
@@ -1268,51 +1273,62 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateMessageStatus = async (id: string, status: 'unread' | 'read' | 'replied', notes?: string): Promise<boolean> => {
     try {
-      try {
-        const update = { status, ...(notes ? { replyNotes: notes } : {}) };
-        await Promise.all([
-          updateDoc(doc(db, 'messages', id), update),
-          updateDoc(doc(db, 'concierge_inquiries', id), update)
-        ]);
-      } catch (e) {
-        console.warn('Firestore message update note:', e);
+      const response = await fetchAdminApi(`/api/admin/messages/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, replyNotes: notes || '' })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Message update failed:', payload?.error || response.status);
+        return false;
       }
-
-      setMessages(prev => prev.map(m => m.id === id ? { ...m, status, ...(notes ? { replyNotes: notes } : {}) } : m));
+      setMessages(prev => prev.map(message => message.id === id ? { ...message, ...payload } : message));
       return true;
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error('Message update failed:', error);
       return false;
     }
   };
 
-  // Products mutations
+  // Products mutations use the trusted API for validation, authorization, and audit logging.
   const saveProduct = async (productData: Partial<Product>): Promise<boolean> => {
     try {
-      const id = productData.id || `prod-${Date.now().toString(36)}`;
+      const id = productData.id || `prod-${cryptoSafeClientId()}`;
       const slug = productData.slug || productData.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `product-${id}`;
-      const payload = {
-        ...productData,
-        id,
-        slug,
-        createdAt: productData.createdAt || new Date().toISOString()
-      };
-      await setDoc(doc(db, 'products', id), payload, { merge: true });
-      await logAuditEvent('PRODUCT_SAVED', `Product [${payload.title}] (${id}) crafted or updated in atelier catalog.`);
+      const response = await fetchAdminApi(`/api/admin/products/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...productData, id, slug })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Product save failed:', payload?.error || response.status);
+        return false;
+      }
+      setProducts(prev => {
+        const exists = prev.some(product => product.id === id);
+        return exists ? prev.map(product => product.id === id ? payload as Product : product) : [payload as Product, ...prev];
+      });
       return true;
-    } catch (e) {
-      console.error('Error saving product:', e);
+    } catch (error) {
+      console.error('Error saving product:', error);
       return false;
     }
   };
 
   const deleteProduct = async (id: string): Promise<boolean> => {
     try {
-      await deleteDoc(doc(db, 'products', id));
-      await logAuditEvent('PRODUCT_RETIRED', `Product ${id} retired from boutique catalog.`);
+      const response = await fetchAdminApi(`/api/admin/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Product delete failed:', payload?.error || response.status);
+        return false;
+      }
+      setProducts(prev => prev.filter(product => product.id !== id));
       return true;
-    } catch (e) {
-      console.error('Error deleting product:', e);
+    } catch (error) {
+      console.error('Error deleting product:', error);
       return false;
     }
   };
@@ -1378,27 +1394,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Settings mutation
+  // Settings mutations are Super-Admin validated by the trusted API.
   const updateSettings = async (newSettings: Partial<DropSettings>): Promise<boolean> => {
     try {
-      // Optimistic local state + localStorage update (instant 0ms response)
-      setSettings(prev => {
-        const merged = { ...(prev || {}), ...newSettings } as DropSettings;
-        try {
-          localStorage.setItem('saelyx_settings', JSON.stringify(merged));
-        } catch (e) {}
-        return merged;
+      const response = await fetchAdminApi('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
       });
-
-      const docRef = doc(db, 'settings', 'drop_config');
-      await setDoc(docRef, newSettings, { merge: true });
-      await logAuditEvent('SETTINGS_UPDATED', 'Global Drop 001 and hero configurations updated in Firestore.');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Settings update failed:', payload?.error || response.status);
+        return false;
+      }
+      setSettings(payload as DropSettings);
+      try { localStorage.setItem('saelyx_settings', JSON.stringify(payload)); } catch {}
       return true;
-    } catch (e) {
-      console.error('Error updating settings:', e);
+    } catch (error) {
+      console.error('Error updating settings:', error);
       return false;
     }
   };
+
   // Audit Logs
   const logAuditEvent = async (action: string, details: string) => {
     const entry: AuditLog = {
@@ -1409,17 +1426,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       action,
       details
     };
-
     setAuditLogs(prev => [entry, ...prev.slice(0, 49)]);
 
-    // Only privileged operator activity is written to the security audit collection.
-    // Customer/guest activity remains local to avoid allowing arbitrary clients to forge audit records.
-    if (user?.role === 'admin' || user?.role === 'super_admin') {
+    if ((user?.role === 'admin' || user?.role === 'super_admin') &&
+        ['ADMIN_LOGIN', 'ORDER_CSV_EXPORT', 'DATABASE_EXPORT'].includes(action)) {
       try {
-        const logsCol = collection(db, 'audit_logs');
-        await addDoc(logsCol, entry);
+        await fetchAdminApi('/api/admin/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, details })
+        });
       } catch {
-        // Non-blocking
+        // Operational actions must not fail only because audit transport is unavailable.
       }
     }
   };
