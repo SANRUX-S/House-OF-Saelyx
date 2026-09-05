@@ -94,6 +94,8 @@ export interface Order {
   paymentVerificationSource?: string;
   paymentVerificationError?: string;
   paymentVerifiedAt?: string;
+  paymentCaptureStartedAt?: string;
+  paymentCaptureCompletedAt?: string;
   inventoryCommitted?: boolean;
   inventoryCommittedAt?: string;
   inventoryReserved?: boolean;
