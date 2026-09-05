@@ -799,6 +799,7 @@ export const CheckoutPage: React.FC = () => {
                                     currencyUsed: selectedCurrency?.code || 'USD',
                                     paymentMethod: 'paypal',
                                     promoCode: appliedPromo?.code,
+                                    checkoutAttemptId: `paypal-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                                     notes
                                   });
                                   setPaypalPendingOrder(localOrder);
