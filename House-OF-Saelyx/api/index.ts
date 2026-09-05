@@ -599,6 +599,158 @@ app.get('/api/payments/paypal/status', async (_req, res) => {
   }
 });
 
+app.post('/api/payments/paypal/link/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+
+    const orderId = safeString(req.params.orderId, 120);
+    const paypalOrderId = safeString(req.body?.paypalOrderId, 160);
+    if (!paypalOrderId) return res.status(400).json({ error: 'PayPal order reference is required.' });
+
+    const ref = adminDb.collection('orders').doc(orderId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const order: any = { id: snap.id, ...snap.data() };
+    if (order.userId !== token.uid && !isAdminToken(token)) {
+      return res.status(403).json({ error: 'Order access denied.' });
+    }
+    if (order.paymentMethod !== 'paypal') {
+      return res.status(400).json({ error: 'This order is not a PayPal order.' });
+    }
+    if (order.paymentStatus === 'verified') {
+      return res.status(409).json({ error: 'Payment is already verified.' });
+    }
+    if (order.status === 'cancelled') {
+      return res.status(409).json({ error: 'Cancelled orders cannot be linked to a new PayPal payment.' });
+    }
+
+    const now = new Date().toISOString();
+    await ref.update({
+      paymentProviderReference: paypalOrderId,
+      paymentVerificationSource: 'paypal_created',
+      paymentUpdatedAt: now
+    });
+    const updated = await ref.get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch {
+    return res.status(500).json({ error: 'Unable to link PayPal payment.' });
+  }
+});
+
+app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+
+    const orderId = safeString(req.params.orderId, 120);
+    const paypalOrderId = safeString(req.body?.paypalOrderId, 160);
+    if (!paypalOrderId) return res.status(400).json({ error: 'PayPal order reference is required.' });
+
+    const ref = adminDb.collection('orders').doc(orderId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const order: any = { id: snap.id, ...snap.data() };
+    if (order.userId !== token.uid && !isAdminToken(token)) {
+      return res.status(403).json({ error: 'Order access denied.' });
+    }
+    if (order.paymentMethod !== 'paypal') {
+      return res.status(400).json({ error: 'This order is not a PayPal order.' });
+    }
+
+    const verification = await verifyPayPalOrder(order, paypalOrderId);
+    const now = new Date().toISOString();
+    if (!verification.verified) {
+      await ref.update({
+        paymentProviderReference: paypalOrderId,
+        paymentStatus: 'pending_verification',
+        paymentVerificationSource: 'paypal_orders_api',
+        paymentVerificationError: verification.reason,
+        paymentUpdatedAt: now
+      });
+      return res.status(409).json({ error: 'PayPal payment could not be verified yet.', verification });
+    }
+
+    await ref.update({
+      paymentProviderReference: paypalOrderId,
+      paymentStatus: 'verified',
+      paymentVerificationSource: 'paypal_orders_api',
+      paymentVerificationError: FieldValue.delete(),
+      paymentVerifiedAt: now,
+      paymentUpdatedAt: now
+    });
+
+    const updated = await ref.get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch {
+    return res.status(500).json({ error: 'Unable to verify PayPal payment.' });
+  }
+});
+
+app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+
+    const orderId = safeString(req.params.orderId, 120);
+    const ref = adminDb.collection('orders').doc(orderId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const order: any = { id: snap.id, ...snap.data() };
+    if (order.userId !== token.uid && !isAdminToken(token)) {
+      return res.status(403).json({ error: 'Order access denied.' });
+    }
+    if (order.paymentMethod !== 'paypal') {
+      return res.status(400).json({ error: 'This order is not a PayPal order.' });
+    }
+    if (order.paymentStatus === 'verified') {
+      return res.status(409).json({ error: 'A verified payment cannot be cancelled here.' });
+    }
+    if (order.status !== 'placed') {
+      return res.status(409).json({ error: 'This order can no longer be cancelled from checkout.' });
+    }
+
+    const now = new Date().toISOString();
+    await ref.update({
+      status: 'cancelled',
+      paymentStatus: 'cancelled',
+      updatedAt: now,
+      paymentUpdatedAt: now,
+      statusHistory: [
+        ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
+        {
+          status: 'cancelled',
+          timestamp: now,
+          note: 'PayPal checkout was cancelled before payment verification.',
+          location: 'SAELYXE Online Store'
+        }
+      ]
+    });
+    const updated = await ref.get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch {
+    return res.status(500).json({ error: 'Unable to cancel PayPal checkout order.' });
+  }
+});
+
 app.post('/api/payments/payhere/session/:orderId', async (req, res) => {
   try {
     const adminDb = getAdminDb();
@@ -783,11 +935,13 @@ app.post('/api/orders', async (req, res) => {
       ? body.paymentMethod
       : 'payhere';
     const paymentProviderReference = safeString(body.paymentProviderReference, 160);
+    const checkoutAttemptId = safeString(body.checkoutAttemptId, 120);
     const duplicateFingerprint = crypto.createHash('sha256').update(JSON.stringify({
       uid: authToken.uid,
       items: [...requested].sort((a, b) => `${a.productId}:${a.size}`.localeCompare(`${b.productId}:${b.size}`)),
       paymentMethod,
       paymentProviderReference,
+      checkoutAttemptId,
       address,
       city,
       postalCode,
@@ -1104,6 +1258,10 @@ app.put('/api/orders/:id/status', async (req, res) => {
       }
 
       if (needsInventoryCommit) {
+        if ((current.paymentMethod === 'paypal' || current.paymentMethod === 'payhere') && current.paymentStatus !== 'verified') {
+          throw new Error('Payment must be verified by the payment provider before confirming this order.');
+        }
+
         for (const [productId, quantity] of quantityByProduct.entries()) {
           const cached = productSnapshots.get(productId);
           if (!cached) throw new Error('Order inventory could not be verified.');
@@ -1120,11 +1278,9 @@ app.put('/api/orders/:id/status', async (req, res) => {
         }
 
         update.inventoryCommitted = true;
-        // Until provider webhooks are implemented in payment hardening, an authenticated
-        // admin confirmation is the explicit manual payment-verification action.
-        if (current.paymentStatus !== 'verified') {
+        if (current.paymentMethod === 'binance_qr' && current.paymentStatus !== 'verified') {
           update.paymentStatus = 'verified';
-          update.paymentVerificationSource = 'admin_confirmation';
+          update.paymentVerificationSource = 'admin_manual_crypto_verification';
           update.paymentVerifiedAt = now;
           update.paymentVerifiedBy = token?.uid || 'admin';
         }
