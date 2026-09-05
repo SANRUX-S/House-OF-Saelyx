@@ -1103,9 +1103,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const userRef = doc(db, 'users', user.uid);
         await setDoc(userRef, {
           ...JSON.parse(JSON.stringify(profileUpdates)),
-          uid: user.uid,
-          email: user.email,
-          role: 'patron',
           updatedAt: new Date().toISOString()
         }, { merge: true });
       } catch (e) {
