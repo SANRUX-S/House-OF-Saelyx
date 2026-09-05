@@ -1848,7 +1848,7 @@ app.post('/api/orders', async (req, res) => {
     }
 
     if (paymentMethod === 'paypal' && paymentProviderReference && responseOrder) {
-      const verification = await verifyPayPalOrder(responseOrder, paymentProviderReference).catch(() => ({ verified: false, reason: 'verification_error' }));
+      const verification: any = await verifyPayPalOrder(responseOrder, paymentProviderReference).catch(() => ({ verified: false, reason: 'verification_error' }));
       if (verification.verified) {
         const verifiedAt = new Date().toISOString();
         responseOrder.paymentStatus = 'verified';
