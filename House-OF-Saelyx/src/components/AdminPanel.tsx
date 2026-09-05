@@ -169,27 +169,59 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  // Export JSON Database
-  const handleExportDatabase = () => {
+  // Protected server-side database backup
+  const handleExportDatabase = async () => {
     if (!isSuperAdmin) return;
-    if (!window.confirm('Export the administrator database snapshot? This file contains customer and operational personal data.')) return;
-    const backupData = {
-      exportedAt: new Date().toISOString(),
-      products,
-      orders,
-      messages,
-      auditLogs,
-      staff: staffList,
-      settings
-    };
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `saelyxe_atelier_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    void logAuditEvent('DATABASE_EXPORT', 'Exported administrator database snapshot from Security & Audit.');
+    if (!window.confirm('Export a protected administrator database snapshot? This file contains personal and operational data.')) return;
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setCustomDialog({
+          type: 'alert',
+          title: 'Authentication Required',
+          message: 'Sign in again before exporting a backup.'
+        });
+        return;
+      }
+
+      const token = await currentUser.getIdToken(true);
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const response = await fetch('/api/admin/export', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...appCheckHeaders
+        },
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        setCustomDialog({
+          type: 'alert',
+          title: 'Backup Export Blocked',
+          message: payload?.error || 'Unable to export the administrator backup.'
+        });
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `saelyxe-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setCustomDialog({
+        type: 'alert',
+        title: 'Backup Export Failed',
+        message: error instanceof Error ? error.message : 'Unable to export the administrator backup.'
+      });
+    }
   };
 
   // If not authenticated as Admin, show luxury Login Screen
