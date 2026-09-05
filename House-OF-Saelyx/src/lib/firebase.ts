@@ -172,11 +172,8 @@ export async function sendAdminPasswordReset(email: string): Promise<{ success: 
     await sendPasswordResetEmail(auth, email.trim());
     return { success: true };
   } catch (err: any) {
-    return {
-      success: false,
-      error: err?.code === 'auth/user-not-found'
-        ? 'No Firebase account was found for that email address.'
-        : 'Unable to send the Firebase password reset email.'
-    };
+    // Do not reveal whether an administrator email exists.
+    if (err?.code === 'auth/user-not-found') return { success: true };
+    return { success: false, error: 'Unable to request a password reset right now.' };
   }
 }
