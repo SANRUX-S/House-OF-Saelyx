@@ -267,6 +267,35 @@ export const AdminPanel: React.FC = () => {
 
   const headerMeta = getHeaderMeta();
 
+  const globalSearchItems = [
+    ...products.map(product => ({
+      id: product.id,
+      label: product.title,
+      meta: `Product · ${product.category} · ${product.stockCount ?? 0} in stock`,
+      tab: 'products' as const
+    })),
+    ...orders.map(order => ({
+      id: order.id,
+      label: order.orderNumber,
+      meta: `Order · ${order.customerName} · ${order.status}`,
+      tab: 'orders' as const
+    })),
+    ...messages.map(message => ({
+      id: message.id,
+      label: message.name || message.email,
+      meta: `Inquiry · ${message.email} · ${message.status}`,
+      tab: 'messages' as const
+    })),
+    ...staffList.map(staff => ({
+      id: staff.id,
+      label: staff.name || staff.displayName || staff.username,
+      meta: `Staff · ${staff.email} · ${staff.status}`,
+      tab: 'staff' as const
+    }))
+  ];
+
+
+
   return (
     <AdminLayout
       activeTab={activeTab}
@@ -282,6 +311,7 @@ export const AdminPanel: React.FC = () => {
       title={headerMeta.title}
       subtitle={headerMeta.subtitle}
       breadcrumb={headerMeta.breadcrumb}
+      globalSearchItems={globalSearchItems}
     >
       {/* Tab Content Routers */}
       {activeTab === 'overview' && (
