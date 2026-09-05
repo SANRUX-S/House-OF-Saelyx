@@ -146,7 +146,10 @@ export function createApp() {
         trackingNumber: order.trackingNumber || '',
         courierName: order.courierName || '',
         deliveryEta: order.deliveryEta || '',
-        statusHistory: order.statusHistory || [],
+        statusHistory: (order.statusHistory || []).map(entry => ({
+          status: entry.status,
+          timestamp: entry.timestamp
+        })),
         createdAt: order.createdAt,
         city: order.city || '',
         country: order.country || '',
