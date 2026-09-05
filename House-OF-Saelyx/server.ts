@@ -4,6 +4,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { db } from './server/db.js';
 import { requireAdmin, requireAuthenticated, requireSuperAdmin } from './server/auth.js';
+import productionApi from './api/index.js';
 
 export function createApp() {
   const app = express();
@@ -35,6 +36,22 @@ export function createApp() {
     return next();
   });
   const adminOnly = requireAdmin;
+
+  // Use the same production API implementation during local VS Code development.
+  // Legacy routes below remain only for non-overlapping local compatibility.
+  app.use(productionApi);
+
+  const retiredMutation = (_req: express.Request, res: express.Response) =>
+    res.status(410).json({ error: 'This legacy admin endpoint is retired. Use the protected /api/admin API.' });
+  app.post('/api/products', retiredMutation);
+  app.put('/api/products/:id', retiredMutation);
+  app.delete('/api/products/:id', retiredMutation);
+  app.put('/api/settings', retiredMutation);
+  app.all('/api/staff', retiredMutation);
+  app.all('/api/staff/:id', retiredMutation);
+  app.put('/api/messages/:id/status', retiredMutation);
+  app.post('/api/audit-logs', retiredMutation);
+  app.post('/api/functions/onStockReplenished', retiredMutation);
 
   // 1. Health check
   app.get('/api/health', (req, res) => {
