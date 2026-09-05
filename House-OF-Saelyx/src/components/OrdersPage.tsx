@@ -68,9 +68,7 @@ export const OrdersPage: React.FC = () => {
 
   const formatPaymentMethodName = (method?: string) => {
     switch (method) {
-      case 'payhere': return 'PayHere Online';
       case 'paypal': return 'PayPal';
-      case 'binance_qr': return 'Binance Pay / Crypto';
       case 'cod': return 'Cash on Delivery';
       default: return 'Atelier Commission';
     }
