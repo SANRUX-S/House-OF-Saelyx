@@ -5,7 +5,6 @@ import {
   FacebookAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 
-  sendPasswordResetEmail,
   sendEmailVerification,
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
@@ -169,11 +168,21 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
 
 export async function sendAdminPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await sendPasswordResetEmail(auth, email.trim());
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    const response = await fetch('/api/admin/password-reset', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...appCheckHeaders
+      },
+      body: JSON.stringify({ email: email.trim().toLowerCase() })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: payload?.error || 'Unable to request a password reset right now.' };
+    }
     return { success: true };
-  } catch (err: any) {
-    // Do not reveal whether an administrator email exists.
-    if (err?.code === 'auth/user-not-found') return { success: true };
+  } catch {
     return { success: false, error: 'Unable to request a password reset right now.' };
   }
 }
