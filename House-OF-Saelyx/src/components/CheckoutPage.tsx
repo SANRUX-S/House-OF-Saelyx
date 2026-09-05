@@ -123,6 +123,7 @@ export const CheckoutPage: React.FC = () => {
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [paypalPendingOrder, setPaypalPendingOrder] = useState<Order | null>(null);
   const paypalPendingOrderRef = useRef<Order | null>(null);
+  const paypalCheckoutAttemptIdRef = useRef<string | null>(null);
 
   // Sync details if user state loads or changes
   useEffect(() => {
@@ -376,6 +377,7 @@ export const CheckoutPage: React.FC = () => {
       );
       setConfirmedOrder(verifiedOrder);
       paypalPendingOrderRef.current = null;
+      paypalCheckoutAttemptIdRef.current = null;
       setPaypalPendingOrder(null);
       clearCart();
     } catch (err) {
@@ -795,7 +797,9 @@ export const CheckoutPage: React.FC = () => {
                                     currencyUsed: selectedCurrency?.code || 'USD',
                                     paymentMethod: 'paypal',
                                     promoCode: appliedPromo?.code,
-                                    checkoutAttemptId: `paypal-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                    checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (
+                                      paypalCheckoutAttemptIdRef.current = `paypal-${Date.now()}-${Math.random().toString(36).slice(2)}`
+                                    ),
                                     notes
                                   });
                                   paypalPendingOrderRef.current = localOrder;
@@ -823,6 +827,7 @@ export const CheckoutPage: React.FC = () => {
                                     pendingOrder.id || pendingOrder.orderNumber
                                   );
                                   paypalPendingOrderRef.current = null;
+                                  paypalCheckoutAttemptIdRef.current = null;
                                   setPaypalPendingOrder(null);
                                 } catch (err) {
                                   console.error('PayPal cancellation sync failed:', err);
