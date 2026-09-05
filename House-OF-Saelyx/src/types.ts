@@ -96,6 +96,9 @@ export interface Order {
   paymentVerifiedAt?: string;
   paymentCaptureStartedAt?: string;
   paymentCaptureCompletedAt?: string;
+  paymentCaptureState?: 'pending' | 'capturing' | 'needs_recovery' | 'completed';
+  requiresManualReview?: boolean;
+  inventoryException?: string;
   inventoryCommitted?: boolean;
   inventoryCommittedAt?: string;
   inventoryReserved?: boolean;
