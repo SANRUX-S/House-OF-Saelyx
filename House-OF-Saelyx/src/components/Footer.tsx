@@ -235,7 +235,7 @@ export const Footer: React.FC = () => {
 
           {/* Payment Badges */}
           <div className="flex items-center flex-wrap gap-2 text-xs opacity-80">
-            {['Apple Pay', 'Google Pay', 'VISA', 'Mastercard', 'AMEX', 'COD'].map((badge) => (
+            {['PayHere', 'PayPal', 'Binance Pay'].map((badge) => (
               <span 
                 key={badge} 
                 className="px-2 py-0.5 rounded bg-white/10 text-neutral-200 text-[10px] font-mono"
