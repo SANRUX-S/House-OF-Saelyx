@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { auth, getAppCheckRequestHeaders } from '../../lib/firebase';
 import {
   ShieldCheck,
   Download,
@@ -32,9 +33,17 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({
     setIsRefreshing(true);
     setHealthError('');
     try {
-      const response = await fetch('/api/health', {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error('Admin session expired.');
+      const token = await currentUser.getIdToken();
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const response = await fetch('/api/admin/health', {
         method: 'GET',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...appCheckHeaders
+        },
         cache: 'no-store'
       });
       if (!response.ok) {
