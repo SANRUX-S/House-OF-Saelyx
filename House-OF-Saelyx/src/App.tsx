@@ -13,22 +13,31 @@ import { SearchModal } from './components/SearchModal';
 import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { AuthModal } from './components/AuthModal';
 import { BackInStockModal } from './components/BackInStockModal';
-import { AdminPanel } from './components/AdminPanel';
-import { ProductDetailPage } from './components/ProductDetailPage';
-import { CollectionPage } from './components/CollectionPage';
-import { CheckoutPage } from './components/CheckoutPage';
-import { LegalTermsPage } from './components/LegalTermsPage';
-import { LegalPrivacyPage } from './components/LegalPrivacyPage';
-import { LegalReturnsPage } from './components/LegalReturnsPage';
-import { CareShippingPage } from './components/CareShippingPage';
-import { CareConciergePage } from './components/CareConciergePage';
-import { CareSizeGuidePage } from './components/CareSizeGuidePage';
-import { CareAuthenticityPage } from './components/CareAuthenticityPage';
-import { ProfilePage } from './components/ProfilePage';
-import { OrdersPage } from './components/OrdersPage';
-import { TrackOrderPage } from './components/TrackOrderPage';
-import { VipPage } from './components/VipPage';
-import { ContactSupportPage } from './components/ContactSupportPage';
+const AdminPanel = React.lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
+const ProductDetailPage = React.lazy(() => import('./components/ProductDetailPage').then(module => ({ default: module.ProductDetailPage })));
+const CollectionPage = React.lazy(() => import('./components/CollectionPage').then(module => ({ default: module.CollectionPage })));
+const CheckoutPage = React.lazy(() => import('./components/CheckoutPage').then(module => ({ default: module.CheckoutPage })));
+const LegalTermsPage = React.lazy(() => import('./components/LegalTermsPage').then(module => ({ default: module.LegalTermsPage })));
+const LegalPrivacyPage = React.lazy(() => import('./components/LegalPrivacyPage').then(module => ({ default: module.LegalPrivacyPage })));
+const LegalReturnsPage = React.lazy(() => import('./components/LegalReturnsPage').then(module => ({ default: module.LegalReturnsPage })));
+const CareShippingPage = React.lazy(() => import('./components/CareShippingPage').then(module => ({ default: module.CareShippingPage })));
+const CareConciergePage = React.lazy(() => import('./components/CareConciergePage').then(module => ({ default: module.CareConciergePage })));
+const CareSizeGuidePage = React.lazy(() => import('./components/CareSizeGuidePage').then(module => ({ default: module.CareSizeGuidePage })));
+const CareAuthenticityPage = React.lazy(() => import('./components/CareAuthenticityPage').then(module => ({ default: module.CareAuthenticityPage })));
+const ProfilePage = React.lazy(() => import('./components/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const OrdersPage = React.lazy(() => import('./components/OrdersPage').then(module => ({ default: module.OrdersPage })));
+const TrackOrderPage = React.lazy(() => import('./components/TrackOrderPage').then(module => ({ default: module.TrackOrderPage })));
+const VipPage = React.lazy(() => import('./components/VipPage').then(module => ({ default: module.VipPage })));
+const ContactSupportPage = React.lazy(() => import('./components/ContactSupportPage').then(module => ({ default: module.ContactSupportPage })));
+
+const RouteLoading: React.FC = () => (
+  <div className="min-h-[55vh] flex items-center justify-center bg-[#F8F6F2] px-6">
+    <div className="text-center">
+      <div className="mx-auto h-7 w-7 rounded-full border border-[#B9AC9E] border-t-[#1A1816] animate-spin" />
+      <p className="mt-4 text-[10px] uppercase tracking-[0.24em] text-[#7A6E60]">Loading SAELYXE</p>
+    </div>
+  </div>
+);
 import { ScrollToTop } from './components/ScrollToTop';
 import { SEOManager } from './components/SEOManager';
 
@@ -75,7 +84,9 @@ const StoreContent: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#F4F6F5] text-stone-900 selection:bg-[#B4F105] selection:text-black font-sans antialiased">
         <SEOManager />
-        <AdminPanel />
+        <React.Suspense fallback={<RouteLoading />}>
+          <AdminPanel />
+        </React.Suspense>
         <BackInStockModal 
           isOpen={isRestockModalOpen} 
           onClose={closeRestockModal} 
@@ -153,7 +164,9 @@ const StoreContent: React.FC = () => {
 
       {/* Main Viewport Router with proper spacing */}
       <main className="flex-grow">
-        {renderRoute()}
+        <React.Suspense fallback={<RouteLoading />}>
+          {renderRoute()}
+        </React.Suspense>
       </main>
 
       {/* Section 6: Minimalist Footer */}

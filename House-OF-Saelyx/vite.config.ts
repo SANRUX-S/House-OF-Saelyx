@@ -32,12 +32,12 @@ export default defineConfig(({ mode }) => {
             const normalizedId = id.replace(/\\/g, '/');
             if (id.includes('node_modules')) {
               if (normalizedId.includes('firebase')) return 'vendor-firebase';
+              if (normalizedId.includes('@paypal/react-paypal-js')) return 'vendor-paypal';
               if (
                 normalizedId.includes('/react/') ||
                 normalizedId.includes('/react-dom/') ||
                 normalizedId.includes('/motion/') ||
-                normalizedId.includes('lucide-react') ||
-                normalizedId.includes('@paypal/react-paypal-js')
+                normalizedId.includes('lucide-react')
               ) return 'vendor-react';
               return undefined;
             }
