@@ -2196,7 +2196,7 @@ app.post('/api/admin/orders/:id/refund', async (req, res) => {
     let snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     let order: any = { id: snap.id, ...snap.data() };
-    if (order.paymentMethod !== 'paypal' || order.paymentStatus !== 'verified') {
+    if (order.paymentMethod !== 'paypal' || !['verified', 'refund_pending'].includes(order.paymentStatus)) {
       if (order.paymentStatus === 'refunded') return res.json(order);
       return res.status(409).json({ error: 'Only verified PayPal payments can be refunded.' });
     }
