@@ -93,8 +93,6 @@ export function getConfiguredAdminRole(email?: string | null): UserRole | undefi
 }
 
 export async function verifyAdminCredentials(username: string, pass: string): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
-  const normalizedEmail = username.trim().toLowerCase();
-
   if (!isFirebaseConfigured) {
     return { valid: false, error: 'Firebase administrator authentication is not configured.' };
   }
@@ -120,8 +118,7 @@ export async function verifyAdminCredentials(username: string, pass: string): Pr
         name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Atelier Operator',
         email: credential.user.email || '',
         role: role || adminDocRole || configuredRole || 'admin',
-        joinedDate: new Date().toISOString().slice(0, 10),
-        ordersCount: (role || adminDocRole) === 'super_admin' ? 99 : 45
+        joinedDate: new Date().toISOString().slice(0, 10)
       }
     };
 
