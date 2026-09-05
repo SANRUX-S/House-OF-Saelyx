@@ -17,7 +17,6 @@ export interface AdminRestockProps {
   stockNotifications: StockNotification[];
   products: Product[];
   onTriggerRestock: (productId?: string) => Promise<{ success: boolean; message: string }>;
-  onDeleteNotification?: (id: string) => Promise<boolean>;
 }
 
 export const AdminRestock: React.FC<AdminRestockProps> = ({
