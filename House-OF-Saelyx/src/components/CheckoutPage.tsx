@@ -303,6 +303,24 @@ export const CheckoutPage: React.FC = () => {
         notes
       });
 
+      if (paymentMethod === 'payhere') {
+        const session = await createPayHereSession(order.id || order.orderNumber);
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = session.action;
+        Object.entries(session.fields).forEach(([name, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = String(value);
+          form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        clearCart();
+        form.submit();
+        return;
+      }
+
       setConfirmedOrder(order);
       clearCart();
     } catch (err) {
@@ -859,11 +877,12 @@ export const CheckoutPage: React.FC = () => {
 
                           <div>
                             <label className="block text-[10px] uppercase tracking-wider font-medium text-neutral-400 mb-1">
-                              Transaction Hash / Binance Order ID (Optional)
+                              Transaction Hash / Binance Order ID (Required for manual verification)
                             </label>
                             <input
                               type="text"
                               placeholder="e.g. 0x7f48... or Binance Order ID"
+                              required={paymentMethod === 'binance_qr'}
                               value={binanceTxHash}
                               onChange={e => setBinanceTxHash(e.target.value)}
                               className="w-full h-10 bg-white/5 border border-white/15 rounded-lg px-3 text-xs text-white placeholder:text-neutral-600 font-mono focus:outline-none focus:border-amber-400"
