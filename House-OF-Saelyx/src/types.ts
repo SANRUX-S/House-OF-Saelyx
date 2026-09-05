@@ -13,7 +13,7 @@ export interface Product {
   title: string;
   subtitle: string;
   priceLKR: number;
-  category: 'men' | 'women' | 'new' | 'collections' | 'knits';
+  category: 'men' | 'women' | 'new' | 'collections' | 'knits' | 'sets' | 'accessories';
   subCategory?: string;
   images: string[];
   hoverImage?: string;
@@ -40,7 +40,12 @@ export interface AdminStaff {
   name?: string;
   email: string;
   role: 'super_admin' | 'admin';
-  status: 'active' | 'suspended';
+  status: 'invited' | 'active' | 'suspended' | 'revoked';
+  firebaseUid?: string;
+  emailVerified?: boolean;
+  invitedAt?: string;
+  activatedAt?: string;
+  revokedAt?: string;
   createdAt: string;
   lastLogin?: string;
 }
@@ -91,6 +96,12 @@ export interface Order {
   paymentMethod?: string;
   paymentStatus?: string;
   paymentProviderReference?: string;
+  paymentCaptureId?: string;
+  paymentCaptureAmount?: number;
+  paymentCaptureCurrency?: string;
+  refundId?: string;
+  refundStatus?: string;
+  refundedAt?: string;
   paymentVerificationSource?: string;
   paymentVerificationError?: string;
   paymentVerifiedAt?: string;
