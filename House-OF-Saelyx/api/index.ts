@@ -249,6 +249,10 @@ app.post('/api/orders', async (req, res) => {
     }
 
     const authToken = await readBearerToken(req);
+    if (!authToken) {
+      return res.status(401).json({ error: 'Please sign in before placing an order.' });
+    }
+
     const requestedCurrency = safeString(body.currencyUsed, 10).toUpperCase();
     const currency = CURRENCIES.find(item => item.code === requestedCurrency) || CURRENCIES[0];
     const paymentMethod = ['paypal', 'payhere', 'binance_qr', 'cod'].includes(body.paymentMethod)
@@ -325,7 +329,7 @@ app.post('/api/orders', async (req, res) => {
       const order = {
         id: orderNumber,
         orderNumber,
-        userId: authToken?.uid || null,
+        userId: authToken.uid,
         customerName,
         email,
         phone,
