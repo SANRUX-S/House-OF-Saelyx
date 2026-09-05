@@ -90,6 +90,15 @@ export interface Order {
   userId?: string;
   paymentMethod?: string;
   paymentStatus?: string;
+  paymentProviderReference?: string;
+  paymentVerificationSource?: string;
+  paymentVerificationError?: string;
+  paymentVerifiedAt?: string;
+  inventoryCommitted?: boolean;
+  inventoryCommittedAt?: string;
+  inventoryReserved?: boolean;
+  inventoryReservedAt?: string;
+  inventoryReservationReleasedAt?: string;
 }
 
 export interface DropSettings {
