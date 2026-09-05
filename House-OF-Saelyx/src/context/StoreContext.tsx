@@ -505,6 +505,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return fetch(input, { ...init, headers });
   }, []);
 
+  const fetchAuthenticatedPublicApi = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const currentUser = auth.currentUser;
+    const token = currentUser ? await currentUser.getIdToken() : null;
+    const headers = new Headers(init.headers);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
+    return fetch(input, { ...init, headers });
+  }, []);
+
   const fetchAdminApi = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const currentUser = auth.currentUser;
     const token = currentUser ? await currentUser.getIdToken() : null;
@@ -1162,7 +1172,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       userId: user?.role === 'guest' ? undefined : user?.uid
     };
 
-    const res = await fetchAdminApi('/api/orders', {
+    const res = await fetchAuthenticatedPublicApi('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(orderPayload)
