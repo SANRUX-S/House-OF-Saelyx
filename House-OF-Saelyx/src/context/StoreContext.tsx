@@ -29,10 +29,7 @@ import {
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
   updateProfile,
-  onAuthStateChanged,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult
+  onAuthStateChanged
 } from 'firebase/auth';
 import { 
   collection, 
@@ -52,6 +49,14 @@ import {
 interface CartItem extends OrderItem {
   product: Product;
 }
+
+type CreateOrderInput = Pick<
+  Order,
+  'customerName' | 'email' | 'phone' | 'address' | 'city' | 'postalCode' | 'country' | 'items' | 'currencyUsed' | 'paymentMethod' | 'notes'
+> & {
+  promoCode?: string;
+  paymentProviderReference?: string;
+};
 
 interface StoreContextType {
   // Navigation & Routing
@@ -115,7 +120,7 @@ interface StoreContextType {
 
   // Orders
   orders: Order[];
-  createOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'>) => Promise<Order>;
+  createOrder: (orderData: CreateOrderInput) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
   
   // Contact & Messages
@@ -1110,7 +1115,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Orders Management
-  const createOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'> & { orderNumber?: string; promoCode?: string }): Promise<Order> => {
+  const createOrder = async (orderData: CreateOrderInput): Promise<Order> => {{
     const orderPayload = {
       ...orderData,
       userId: user?.role === 'guest' ? undefined : user?.uid
