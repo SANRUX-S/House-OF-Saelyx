@@ -96,6 +96,7 @@ assert(!fs.existsSync('storage.rules'), 'Firebase Storage rules must not remain 
 assert(!fs.existsSync('functions/index.js'), 'duplicate Firebase Functions runtime must be retired');
 assert(api.includes('CLOUDINARY_CLOUD_NAME') && api.includes('CLOUDINARY_API_SECRET'), 'media uploads must use server-signed Cloudinary configuration');
 assert(api.includes('media-signature:'), 'Cloudinary signing must be rate limited per admin');
+assert(api.includes("createHash('sha256')"), 'Cloudinary signatures must use SHA-256');
 assert(adminDrop.includes("uploadAdminImage(file, 'settings')"), 'drop background must use Cloudinary instead of Firestore base64');
 assert(!adminDrop.includes('readAsDataURL'), 'drop settings must not store base64 images in Firestore');
 
