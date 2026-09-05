@@ -1252,8 +1252,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/cancel/${encodeURIComponent(orderId)}`, {
       method: 'POST'
     });
-    if (!res.ok) return;
-    const updated = await res.json() as Order;
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload?.error || 'Unable to cancel PayPal checkout order.');
+    const updated = payload as Order;
     setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
   };
 
