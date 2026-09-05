@@ -116,21 +116,13 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Safe delete staff (Super Admin Only)
+  // Staff directory removal (Super Admin Only). This does not alter Firebase Auth access.
   const handleDeleteStaff = (id: string, name: string) => {
     if (!isSuperAdmin) return;
-    if (id === 'staff-01' || id === 'staff-001' || name === 'Atelier Director General') {
-      setCustomDialog({
-        type: 'alert',
-        title: 'Action Prohibited',
-        message: 'Cannot delete or revoke the root Super Admin director account.'
-      });
-      return;
-    }
     setCustomDialog({
       type: 'confirm',
-      title: 'Revoke Operator Privileges',
-      message: `Are you absolutely certain you want to revoke atelier access for ${name}? This operation takes effect immediately.`,
+      title: 'Remove Staff Directory Profile',
+      message: `Remove the directory profile for ${name}? This does not revoke Firebase administrator credentials or custom claims.`,
       onConfirm: async () => {
         await deleteStaff(id);
         setCustomDialog(null);
