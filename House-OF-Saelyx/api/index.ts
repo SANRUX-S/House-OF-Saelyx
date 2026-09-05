@@ -1098,7 +1098,7 @@ app.post('/api/orders', async (req, res) => {
         expiresAt: Timestamp.fromMillis(guardExpiresAtMs)
       });
 
-      // Stock is committed only after an authenticated admin confirms the paid order.
+      // Stock is committed only after verified payment and a valid order lifecycle transition.
       // This prevents unpaid or forged payment references from draining inventory.
 
       responseOrder = { ...order };
