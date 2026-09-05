@@ -24,7 +24,8 @@ export const CheckoutPage: React.FC = () => {
   const { 
     cart, 
     formatPrice, 
-    selectedCurrency, 
+    selectedCurrency,
+    currencies,
     createOrder, 
     clearCart, 
     navigateTo, 
@@ -155,7 +156,8 @@ export const CheckoutPage: React.FC = () => {
   const shippingLKR = discountedSubtotalLKR > 50000 ? 0 : 2500;
   const totalLKR = discountedSubtotalLKR + shippingLKR;
   const totalInCurrency = Number((totalLKR * (selectedCurrency?.rateFromLKR || 1)).toFixed(2));
-  const totalUSDT = (totalLKR / 310).toFixed(2); // approximate USDT conversion
+  const usdRateFromLKR = currencies.find(currency => currency.code === 'USD')?.rateFromLKR || 0.0033;
+  const totalUSDT = (totalLKR * usdRateFromLKR).toFixed(2); // display estimate only
 
   // Empty Bag Guard
   if (cart.length === 0 && !confirmedOrder) {
@@ -748,8 +750,8 @@ export const CheckoutPage: React.FC = () => {
                               style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
                               createOrder={(data, actions) => {
                                 const paypalCurrency = selectedCurrency?.code === 'LKR' ? 'USD' : (selectedCurrency?.code || 'USD');
-                                const paypalAmount = selectedCurrency?.code === 'LKR' 
-                                  ? (totalLKR / 310).toFixed(2) 
+                                const paypalAmount = selectedCurrency?.code === 'LKR'
+                                  ? (totalLKR * usdRateFromLKR).toFixed(2)
                                   : totalInCurrency.toFixed(2);
                                 return actions.order.create({
                                   intent: 'CAPTURE',
