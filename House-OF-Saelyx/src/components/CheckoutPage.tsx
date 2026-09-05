@@ -382,7 +382,15 @@ export const CheckoutPage: React.FC = () => {
       clearCart();
     } catch (err) {
       console.error('PayPal server capture exception:', err);
-      alert(`Your PayPal payment outcome needs verification. SAELYXE order ${pendingOrder.orderNumber} is already recorded. Please do not pay again.`);
+      try {
+        await cancelPayPalOrder(pendingOrder.id || pendingOrder.orderNumber);
+        paypalPendingOrderRef.current = null;
+        paypalCheckoutAttemptIdRef.current = null;
+        setPaypalPendingOrder(null);
+        alert('PayPal payment was not captured and the pending SAELYXE order was safely cancelled. You can try checkout again.');
+      } catch {
+        alert(`Your PayPal payment outcome needs verification. SAELYXE order ${pendingOrder.orderNumber} is already recorded. Please do not pay again.`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -834,11 +842,20 @@ export const CheckoutPage: React.FC = () => {
                                   alert(`PayPal checkout was closed, but SAELYXE order ${pendingOrder.orderNumber} was kept pending because payment status could not be safely ruled out. Please do not pay again until its status is checked.`);
                                 }
                               }}
-                              onError={(err) => {
+                              onError={async (err) => {
                                 console.error('PayPal Button Error:', err);
                                 const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
-                                if (pendingOrder) {
-                                  alert(`PayPal checkout encountered an error. SAELYXE order ${pendingOrder.orderNumber} is already recorded. Please do not create another payment until this order is checked.`);
+                                if (!pendingOrder) return;
+                                try {
+                                  await cancelPayPalOrder(
+                                    pendingOrder.id || pendingOrder.orderNumber
+                                  );
+                                  paypalPendingOrderRef.current = null;
+                                  paypalCheckoutAttemptIdRef.current = null;
+                                  setPaypalPendingOrder(null);
+                                  alert('PayPal checkout could not continue, so the pending SAELYXE order was safely cancelled. You can try again.');
+                                } catch {
+                                  alert(`PayPal checkout encountered an error. SAELYXE order ${pendingOrder.orderNumber} was kept pending because payment status could not be safely ruled out. Please do not create another payment until this order is checked.`);
                                 }
                               }}
                             />
