@@ -113,6 +113,15 @@ try {
     executionId: 'forged-client-lock',
     expiresAtMs: Date.now() + 60_000
   }));
+  await assertFails(setDoc(doc(adminDb, 'stock_notifications', 'forged-waitlist'), {
+    productId: 'prod-1',
+    customerEmail: 'forged@example.com',
+    status: 'pending'
+  }));
+  await assertFails(setDoc(doc(adminDb, 'subscribers', 'forged-subscriber'), {
+    email: 'forged@example.com',
+    status: 'subscribed'
+  }));
 
   await assertSucceeds(setDoc(doc(superDb, 'admins', 'new-admin'), {
     email: 'new-admin@saelyxe.com',
