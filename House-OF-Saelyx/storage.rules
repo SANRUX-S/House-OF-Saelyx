@@ -29,7 +29,11 @@ service firebase.storage {
     }
 
     match /users/{userId}/{fileName=**} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
     }
 
     match /banners/{fileName=**} {

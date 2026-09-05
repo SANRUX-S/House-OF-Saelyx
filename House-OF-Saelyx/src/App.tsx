@@ -58,15 +58,12 @@ const StoreContent: React.FC = () => {
   }, [refetchData]);
 
   React.useEffect(() => {
+    // Firestore listeners provide live updates. A focus refresh covers stale tabs without background polling.
     window.addEventListener('focus', safeRefetch);
-    // Faster sync for admin management (20s), relaxed cadence for consumer browsing (60s)
-    const pollInterval = currentRoute.name === 'admin' ? 20000 : 60000;
-    const interval = setInterval(safeRefetch, pollInterval);
     return () => {
       window.removeEventListener('focus', safeRefetch);
-      clearInterval(interval);
     };
-  }, [safeRefetch, currentRoute.name]);
+  }, [safeRefetch]);
 
   // Fix: Automatically scroll window to top whenever current route/page changes in SPA mode
   React.useEffect(() => {

@@ -28,10 +28,7 @@ import {
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
   updateProfile,
-  onAuthStateChanged,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult
+  onAuthStateChanged
 } from 'firebase/auth';
 import { 
   collection, 
@@ -51,6 +48,14 @@ import {
 interface CartItem extends OrderItem {
   product: Product;
 }
+
+type CreateOrderInput = Pick<
+  Order,
+  'customerName' | 'email' | 'phone' | 'address' | 'city' | 'postalCode' | 'country' | 'items' | 'currencyUsed' | 'paymentMethod' | 'notes'
+> & {
+  promoCode?: string;
+  paymentProviderReference?: string;
+};
 
 type AuthMode = 'signin' | 'signup';
 
@@ -112,14 +117,13 @@ interface StoreContextType {
   loginWithFacebook: () => Promise<boolean>;
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
-  loginAsGuest: () => void;
   loginAdmin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
 
   // Orders
   orders: Order[];
-  createOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'>) => Promise<Order>;
+  createOrder: (orderData: CreateOrderInput) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
   
   // Contact & Messages
@@ -544,6 +548,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  // Settings real-time listener
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    const settingsRef = doc(db, 'settings', 'drop_config');
+    const unsub = onSnapshot(settingsRef, snap => {
+      if (!snap.exists()) return;
+      const nextSettings = snap.data() as DropSettings;
+      setSettings(nextSettings);
+      try {
+        localStorage.setItem('saelyx_settings', JSON.stringify(nextSettings));
+      } catch {
+        // Storage is optional.
+      }
+    }, err => {
+      console.warn('Settings listener note:', err);
+    });
+    return () => unsub();
+  }, []);
+
   // 2. Orders real-time listener
   useEffect(() => {
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
@@ -900,6 +923,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
+  // Authentication flows create a session only after Firebase returns a verified credential.
   const getCustomerAuthError = (error: unknown, flow: 'Google sign-in' | 'Facebook sign-in' | 'sign-in' | 'account creation') => {
     const code = typeof error === 'object' && error && 'code' in error
       ? String((error as { code?: string }).code || '')
@@ -1038,16 +1062,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const loginAsGuest = () => {
-    setUser({
-      uid: `guest-${Math.random().toString(36).substr(2, 9)}`,
-      name: 'Guest Collector',
-      email: 'guest@saelyxe.com',
-      role: 'guest'
-    });
-    setIsAuthOpen(false);
-  };
-
   const closeRestockModal = () => setIsRestockModalOpen(false);
 
   const loginAdmin = async (username: string, pass: string): Promise<{ success: boolean; error?: string }> => {
@@ -1134,64 +1148,41 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Orders Management
-  const createOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'> & { orderNumber?: string }): Promise<Order> => {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    const orderNum = orderData.orderNumber || `SOX-${yyyy}${mm}${dd}-${rand}`;
-
+  const createOrder = async (orderData: CreateOrderInput): Promise<Order> => {
     const orderPayload = {
       ...orderData,
-      id: orderNum,
-      orderNumber: orderNum,
-      userId: user?.uid
+      userId: user?.role === 'guest' ? undefined : user?.uid
     };
 
-    let placedOrder: Order;
-    try {
-      const res = await fetchAdminApi('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload)
-      });
+    const res = await fetchAdminApi('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderPayload)
+    });
 
-      if (res.ok) {
-        placedOrder = await res.json();
-      } else {
-        throw new Error('API creation failed');
+    if (!res.ok) {
+      let message = 'Unable to create order.';
+      try {
+        const payload = await res.json();
+        if (payload?.error) message = String(payload.error);
+      } catch {
+        // Keep safe generic message.
       }
-    } catch (apiErr) {
-      console.warn('API order fallback:', apiErr);
-      placedOrder = {
-        ...orderPayload,
-        createdAt: new Date().toISOString(),
-        status: 'placed',
-        statusHistory: [
-          {
-            status: 'placed',
-            timestamp: new Date().toISOString(),
-            note: 'Order placed by customer.',
-            location: 'SAELYXE Online System'
-          }
-        ]
-      } as Order;
+      throw new Error(message);
     }
 
-    // Always persist into Firestore
-    try {
-      const sanitizedOrder = JSON.parse(JSON.stringify(placedOrder));
-      const ordersRef = doc(db, 'orders', placedOrder.id || placedOrder.orderNumber);
-      await setDoc(ordersRef, sanitizedOrder);
-    } catch (e) {
-      console.error('Firestore order sync error details:', e);
-    }
+    const placedOrder = await res.json() as Order;
 
-    // Immediately prepend to local orders state so My Orders displays it right away
-    setOrders(prev => [placedOrder, ...prev.filter(o => o.id !== placedOrder.id && o.orderNumber !== placedOrder.orderNumber)]);
+    // Server is the source of truth. Do not create a second client-side order document.
+    setOrders(prev => [
+      placedOrder,
+      ...prev.filter(o => o.id !== placedOrder.id && o.orderNumber !== placedOrder.orderNumber)
+    ]);
 
-    await logAuditEvent('ORDER_CREATED', `Order ${placedOrder.orderNumber} created for ${placedOrder.customerName} (${placedOrder.currencyUsed} ${placedOrder.totalInCurrency})`);
+    await logAuditEvent(
+      'ORDER_CREATED',
+      `Order ${placedOrder.orderNumber} created for ${placedOrder.customerName} (${placedOrder.currencyUsed} ${placedOrder.totalInCurrency})`
+    );
     return placedOrder;
   };
 
@@ -1370,11 +1361,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setAuditLogs(prev => [entry, ...prev.slice(0, 49)]);
 
-    try {
-      const logsCol = collection(db, 'audit_logs');
-      await addDoc(logsCol, entry);
-    } catch (e) {
-      // Non-blocking
+    // Only privileged operator activity is written to the security audit collection.
+    // Customer/guest activity remains local to avoid allowing arbitrary clients to forge audit records.
+    if (user?.role === 'admin' || user?.role === 'super_admin') {
+      try {
+        const logsCol = collection(db, 'audit_logs');
+        await addDoc(logsCol, entry);
+      } catch {
+        // Non-blocking
+      }
     }
   };
 
@@ -1511,7 +1506,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithFacebook,
         loginWithEmail,
         signupWithEmail,
-        loginAsGuest,
         loginAdmin,
         logout,
         updateUserProfile,

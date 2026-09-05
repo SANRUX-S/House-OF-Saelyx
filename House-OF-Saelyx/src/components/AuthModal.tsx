@@ -30,7 +30,6 @@ export const AuthModal: React.FC = () => {
     loginWithFacebook,
     loginWithEmail,
     signupWithEmail,
-    loginAsGuest,
     isAuthLoading,
     authError,
     setAuthError,
@@ -297,15 +296,6 @@ export const AuthModal: React.FC = () => {
               <span>Continue with Facebook</span>
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={loginAsGuest}
-            disabled={isAuthLoading}
-            className="mt-5 w-full py-2 text-[10px] font-semibold uppercase tracking-[0.19em] text-[#6E6256] transition-colors hover:text-[#25211D] disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            Continue as guest
-          </button>
 
           <p className="mt-5 text-center text-xs leading-relaxed text-[#7B7166]">
             {isSignUp ? 'Already have an account?' : 'New to SAELYXE?'}{' '}

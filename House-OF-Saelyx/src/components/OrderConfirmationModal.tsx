@@ -60,7 +60,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
                 COMMISSION REGISTERED & SEALED
               </span>
               <h2 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
-                ORDER CONFIRMED
+                ORDER PLACED
               </h2>
               <p className="text-xs text-[#7A6E60] leading-relaxed max-w-sm mx-auto">
                 Thank you for shopping with SAELYXE. Your bespoke order has been successfully placed in our atelier ledger.
@@ -77,9 +77,12 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
               </div>
 
               <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2.5">
-                <span className="text-[#7A6E60] uppercase tracking-wider text-[10px] font-medium">Payment Method</span>
-                <span className="font-medium text-[#1A1816]">
+                <span className="text-[#7A6E60] uppercase tracking-wider text-[10px] font-medium">Payment</span>
+                <span className="font-medium text-[#1A1816] text-right">
                   {formatPaymentMethod(order.paymentMethod)}
+                  <span className="block text-[9px] uppercase tracking-wider text-[#7A6E60] mt-0.5">
+                    {order.paymentStatus === 'paid' || order.paymentStatus === 'verified' ? 'Verified' : 'Pending verification'}
+                  </span>
                 </span>
               </div>
 

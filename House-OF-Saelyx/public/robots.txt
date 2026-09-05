@@ -4,5 +4,9 @@ Allow: /
 Disallow: /admin
 Disallow: /checkout
 Disallow: /api/
+Disallow: /track-order
+Disallow: /track
+Disallow: /orders
+Disallow: /profile
 
 Sitemap: https://www.saelyxe.com/sitemap.xml
