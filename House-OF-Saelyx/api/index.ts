@@ -439,6 +439,15 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   const currencyMatches = safeString(amount?.currency_code, 10).toUpperCase() === expectedCurrency;
   const amountMatches = Number.isFinite(actualAmount) && Math.abs(actualAmount - expectedAmount) < 0.01;
   const statusMatches = safeString(payload?.status, 30).toUpperCase() === 'COMPLETED';
+
+  const captures = Array.isArray(purchaseUnit?.payments?.captures) ? purchaseUnit.payments.captures : [];
+  const completedCapture = captures.find((capture: any) => safeString(capture?.status, 30).toUpperCase() === 'COMPLETED') || null;
+  const captureStatusMatches = Boolean(completedCapture);
+  const captureAmount = completedCapture?.amount;
+  const actualCaptureAmount = Number(captureAmount?.value);
+  const captureCurrencyMatches = safeString(captureAmount?.currency_code, 10).toUpperCase() === expectedCurrency;
+  const captureAmountMatches = Number.isFinite(actualCaptureAmount) && Math.abs(actualCaptureAmount - expectedAmount) < 0.01;
+
   const expectedOrderNumber = safeString(order.orderNumber || order.id, 120);
   const customId = safeString(purchaseUnit?.custom_id, 120);
   const invoiceId = safeString(purchaseUnit?.invoice_id, 120);
@@ -449,19 +458,33 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   );
 
   return {
-    verified: statusMatches && currencyMatches && amountMatches && orderBindingMatches,
+    verified:
+      statusMatches &&
+      currencyMatches &&
+      amountMatches &&
+      orderBindingMatches &&
+      captureStatusMatches &&
+      captureCurrencyMatches &&
+      captureAmountMatches,
     reason: !statusMatches
       ? 'not_completed'
       : !orderBindingMatches
         ? 'order_binding_mismatch'
-        : currencyMatches && amountMatches
-          ? 'verified'
-          : 'amount_mismatch',
+        : !currencyMatches || !amountMatches
+          ? 'amount_mismatch'
+          : !captureStatusMatches
+            ? 'capture_not_completed'
+            : !captureCurrencyMatches || !captureAmountMatches
+              ? 'capture_amount_mismatch'
+              : 'verified',
     providerStatus: safeString(payload?.status, 30),
+    captureStatus: safeString(completedCapture?.status, 30),
     expectedCurrency,
     expectedAmount,
     actualCurrency: safeString(amount?.currency_code, 10),
     actualAmount,
+    actualCaptureCurrency: safeString(captureAmount?.currency_code, 10),
+    actualCaptureAmount,
     orderBindingMatches
   };
 }
@@ -972,7 +995,8 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
     return res.json(updated);
   } catch (error: any) {
-    return res.status(500).json({ error: safeString(error?.message, 240) || 'Unable to capture PayPal payment.' });
+    const status = Number(error?.statusCode) || 500;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to capture PayPal payment.' });
   }
 });
 
