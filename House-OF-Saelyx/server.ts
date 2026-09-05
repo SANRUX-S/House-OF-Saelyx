@@ -435,7 +435,7 @@ export function createApp() {
     }
   });
 
-  // 10. Back-in-Stock Notifications & Firebase Cloud Functions API
+  // 10. Legacy Back-in-Stock compatibility routes (retired)
   app.get('/api/stock-notifications', adminOnly, (req, res) => {
     try {
       res.json(db.getStockNotifications());
@@ -480,14 +480,14 @@ export function createApp() {
     }
   });
 
-  // Firebase Cloud Function trigger simulation & execution endpoint
+  // Retired legacy restock simulation endpoint
   app.post('/api/functions/onStockReplenished', requireSuperAdmin, (req, res) => {
     try {
       const { productId } = req.body;
       const result = db.triggerRestockCloudFunction(productId);
       res.json({
         success: true,
-        trigger: 'Firebase Cloud Functions (onStockReplenished / onDocumentUpdated)',
+        trigger: 'Retired legacy restock simulation',
         timestamp: new Date().toISOString(),
         ...result
       });
