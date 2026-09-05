@@ -17,14 +17,13 @@ import {
   Sparkles,
   Maximize,
   Minimize,
-  Sliders,
   GripVertical
 } from 'lucide-react';
 import { AppUser } from '../../types';
 
 export interface AdminLayoutProps {
-  activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings';
-  onSwitchTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings') => void;
+  activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config';
+  onSwitchTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config') => void;
   user: AppUser;
   isSuperAdmin: boolean;
   badges: {
@@ -122,8 +121,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           label: 'Restock Waitlist', 
           icon: Bell, 
           badge: badges.restock 
-        },
-        { id: 'section-settings', label: 'Section Settings', icon: Sliders }
+        }
       ]
     },
     {
