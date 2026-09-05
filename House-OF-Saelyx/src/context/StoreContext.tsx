@@ -120,7 +120,7 @@ interface StoreContextType {
   loginWithFacebook: () => Promise<boolean>;
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
-  loginAdmin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  loginAdmin: (username: string, pass: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
 
@@ -384,21 +384,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         const configuredAdminRole = getConfiguredAdminRole(fbUser.email, fbUser.emailVerified);
-        const [tokenResult, userSnap, adminSnap] = await Promise.all([
-          fbUser.getIdTokenResult(true),
+        const [userSnap, adminSnap] = await Promise.all([
           getDoc(doc(db, 'users', fbUser.uid)),
           getDoc(doc(db, 'admins', fbUser.uid))
         ]);
 
-        const claimRole = tokenResult.claims.role === 'super_admin'
-          ? 'super_admin'
-          : tokenResult.claims.role === 'admin' || tokenResult.claims.admin === true
-            ? 'admin'
-            : undefined;
-        const adminDocRole = adminSnap.exists()
-          ? (adminSnap.data()?.role === 'super_admin' ? 'super_admin' : 'admin')
+        const adminData = adminSnap.exists() ? adminSnap.data() : null;
+        const email = fbUser.email?.toLowerCase() || '';
+        const activeAdminRecord =
+          fbUser.emailVerified &&
+          adminData?.status === 'active' &&
+          typeof adminData?.email === 'string' &&
+          adminData.email.toLowerCase() === email;
+        const adminDocRole: UserRole | undefined = activeAdminRecord
+          ? adminData?.role === 'super_admin'
+            ? 'super_admin'
+            : adminData?.role === 'admin'
+              ? 'admin'
+              : undefined
           : undefined;
-        const trustedRole: UserRole = configuredAdminRole || claimRole || adminDocRole || 'patron';
+        const trustedRole: UserRole = configuredAdminRole || adminDocRole || 'patron';
 
         if (userSnap.exists()) {
           const data = userSnap.data();
@@ -540,6 +545,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const token = currentUser ? await currentUser.getIdToken() : null;
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
     return fetch(input, { ...init, headers });
   }, []);
 
@@ -1041,11 +1048,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const closeRestockModal = () => setIsRestockModalOpen(false);
 
-  const loginAdmin = async (username: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+  const loginAdmin = async (username: string, pass: string, rememberMe = true): Promise<{ success: boolean; error?: string }> => {
     setIsAuthLoading(true);
     setAuthError(null);
     try {
-      const verification = await verifyAdminCredentials(username, pass);
+      const verification = await verifyAdminCredentials(username, pass, rememberMe);
       if (verification.valid && verification.user) {
         setUser(verification.user);
         await logAuditEvent('ADMIN_LOGIN', `Admin user [${verification.user.name}] logged in with role [${verification.user.role}]`);
