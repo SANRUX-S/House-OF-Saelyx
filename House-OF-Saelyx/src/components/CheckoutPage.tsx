@@ -26,7 +26,10 @@ export const CheckoutPage: React.FC = () => {
     formatPrice, 
     selectedCurrency,
     currencies,
-    createOrder, 
+    createOrder,
+    linkPayPalOrder,
+    verifyPayPalPayment,
+    cancelPayPalOrder,
     clearCart, 
     navigateTo, 
     user,
@@ -118,6 +121,7 @@ export const CheckoutPage: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+  const [paypalPendingOrder, setPaypalPendingOrder] = useState<Order | null>(null);
 
   // Sync details if user state loads or changes
   useEffect(() => {
@@ -361,56 +365,26 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const handlePaypalApprovedOrder = async (details: any) => {
+    const pendingOrder = paypalPendingOrder;
+    const paypalOrderId = String(details?.id || '').trim();
+
+    if (!pendingOrder || !paypalOrderId) {
+      alert('PayPal payment was captured, but the SAELYXE order reference is unavailable. Please contact support with your PayPal receipt.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const detailsToSave = {
-        customerName,
-        email,
-        phone,
-        address,
-        city,
-        postalCode,
-        country,
-        notes
-      };
-
-      if (!savedDetailsObj && rememberDetails) {
-        localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(detailsToSave));
-        setSavedDetailsObj(detailsToSave);
-        setHasSavedDetails(true);
-      } else if (savedDetailsObj && isDetailsChanged && updateSavedDetails) {
-        localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(detailsToSave));
-        setSavedDetailsObj(detailsToSave);
-      }
-
-      const order = await createOrder({
-        customerName: details?.payer?.name?.given_name ? `${details.payer.name.given_name} ${details.payer.name.surname || ''}` : (customerName || 'PayPal Customer'),
-        email: details?.payer?.email_address || email,
-        phone,
-        address,
-        city,
-        postalCode,
-        country,
-        items: cart.map(item => ({
-          productId: item.productId,
-          title: item.title,
-          image: item.image,
-          priceLKR: item.priceLKR,
-          size: item.size,
-          quantity: item.quantity
-        })),
-        currencyUsed: selectedCurrency?.code || 'USD',
-        paymentMethod: 'paypal',
-        promoCode: appliedPromo?.code,
-        paymentProviderReference: details?.id || undefined,
-        notes
-      });
-
-      setConfirmedOrder(order);
+      const verifiedOrder = await verifyPayPalPayment(
+        pendingOrder.id || pendingOrder.orderNumber,
+        paypalOrderId
+      );
+      setConfirmedOrder(verifiedOrder);
+      setPaypalPendingOrder(null);
       clearCart();
     } catch (err) {
-      console.error('PayPal Order Capture Exception:', err);
-      alert('Unable to process order after PayPal payment. Please contact support.');
+      console.error('PayPal server verification exception:', err);
+      alert(`Your PayPal payment needs verification. SAELYXE order ${pendingOrder.orderNumber} is already recorded. Please do not pay again.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -798,27 +772,78 @@ export const CheckoutPage: React.FC = () => {
                           >
                             <PayPalButtons
                               style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
-                              createOrder={(data, actions) => {
-                                return actions.order.create({
+                              createOrder={async (_data, actions) => {
+                                if (!customerName || !email || phone.replace(/\D/g, '').length < 9 || !address || !city || !country) {
+                                  alert('Please complete your delivery and contact details before continuing to PayPal.');
+                                  throw new Error('Checkout details are incomplete.');
+                                }
+
+                                let localOrder = paypalPendingOrder;
+                                if (!localOrder || localOrder.status === 'cancelled') {
+                                  localOrder = await createOrder({
+                                    customerName,
+                                    email,
+                                    phone,
+                                    address,
+                                    city,
+                                    postalCode,
+                                    country,
+                                    items: cart.map(item => ({
+                                      productId: item.productId,
+                                      title: item.title,
+                                      image: item.image,
+                                      priceLKR: item.priceLKR,
+                                      size: item.size,
+                                      quantity: item.quantity
+                                    })),
+                                    currencyUsed: selectedCurrency?.code || 'USD',
+                                    paymentMethod: 'paypal',
+                                    promoCode: appliedPromo?.code,
+                                    notes
+                                  });
+                                  setPaypalPendingOrder(localOrder);
+                                }
+
+                                const paypalOrderId = await actions.order.create({
                                   intent: 'CAPTURE',
                                   purchase_units: [
                                     {
+                                      custom_id: localOrder.orderNumber,
+                                      invoice_id: localOrder.orderNumber,
                                       amount: {
                                         currency_code: paypalCurrency,
                                         value: paypalAmount,
                                       },
-                                      description: `House of Saelyxe Couture Commission`,
+                                      description: `SAELYXE Order ${localOrder.orderNumber}`,
                                     },
                                   ],
                                 });
+
+                                await linkPayPalOrder(
+                                  localOrder.id || localOrder.orderNumber,
+                                  paypalOrderId
+                                );
+                                return paypalOrderId;
                               }}
-                              onApprove={async (data, actions) => {
+                              onApprove={async (_data, actions) => {
                                 try {
                                   const details = await actions.order?.capture();
                                   await handlePaypalApprovedOrder(details);
                                 } catch (err) {
                                   console.error('PayPal Capture Exception:', err);
-                                  alert('PayPal payment verification failed. Please try again.');
+                                  if (paypalPendingOrder) {
+                                    alert(`Payment verification is incomplete. SAELYXE order ${paypalPendingOrder.orderNumber} is recorded; please do not submit another payment until its status is checked.`);
+                                  } else {
+                                    alert('PayPal payment verification failed. Please contact support.');
+                                  }
+                                }
+                              }}
+                              onCancel={async () => {
+                                if (paypalPendingOrder) {
+                                  await cancelPayPalOrder(
+                                    paypalPendingOrder.id || paypalPendingOrder.orderNumber
+                                  );
+                                  setPaypalPendingOrder(null);
                                 }
                               }}
                               onError={(err) => {
