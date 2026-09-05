@@ -725,6 +725,179 @@ app.get('/api/payments/paypal/status', async (_req, res) => {
   }
 });
 
+app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+
+    const orderId = safeString(req.params.orderId, 120);
+    const ref = adminDb.collection('orders').doc(orderId);
+    const initialSnap = await ref.get();
+    if (!initialSnap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const initialOrder: any = { id: initialSnap.id, ...initialSnap.data() };
+
+    if (initialOrder.userId !== token.uid && !isAdminToken(token)) {
+      return res.status(403).json({ error: 'Order access denied.' });
+    }
+    if (initialOrder.paymentMethod !== 'paypal') {
+      return res.status(400).json({ error: 'This order is not a PayPal order.' });
+    }
+    if (initialOrder.paymentStatus === 'verified') {
+      return res.status(409).json({ error: 'Payment is already verified.' });
+    }
+    if (initialOrder.status === 'cancelled') {
+      return res.status(409).json({ error: 'Cancelled orders cannot start a new PayPal payment.' });
+    }
+
+    let paypalOrderId = safeString(initialOrder.paymentProviderReference, 160);
+    let providerStatus = '';
+
+    if (!paypalOrderId) {
+      const created = await createPayPalProviderOrder(initialOrder);
+      paypalOrderId = created.paypalOrderId;
+      providerStatus = created.providerStatus;
+    }
+
+    const guardRef = adminDb.collection('paypal_order_links').doc(paypalOrderId);
+    const now = new Date().toISOString();
+
+    await adminDb.runTransaction(async transaction => {
+      const orderSnap = await transaction.get(ref);
+      const guardSnap = await transaction.get(guardRef);
+      if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
+
+      const current: any = { id: orderSnap.id, ...orderSnap.data() };
+      if (current.userId !== token.uid && !isAdminToken(token)) {
+        throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
+      }
+      if (current.paymentMethod !== 'paypal') {
+        throw Object.assign(new Error('This order is not a PayPal order.'), { statusCode: 400 });
+      }
+      if (current.paymentStatus === 'verified') {
+        throw Object.assign(new Error('Payment is already verified.'), { statusCode: 409 });
+      }
+      if (current.status === 'cancelled') {
+        throw Object.assign(new Error('Cancelled orders cannot start a new PayPal payment.'), { statusCode: 409 });
+      }
+
+      const currentProviderReference = safeString(current.paymentProviderReference, 160);
+      if (currentProviderReference && currentProviderReference !== paypalOrderId) {
+        throw Object.assign(new Error('This SAELYXE order is already linked to a different PayPal order.'), { statusCode: 409 });
+      }
+
+      if (guardSnap.exists) {
+        const guard: any = guardSnap.data() || {};
+        if (safeString(guard.orderId, 120) !== orderId) {
+          throw Object.assign(new Error('This PayPal order is already linked to another SAELYXE order.'), { statusCode: 409 });
+        }
+      } else {
+        transaction.set(guardRef, {
+          paypalOrderId,
+          orderId,
+          orderNumber: safeString(current.orderNumber || current.id, 120),
+          userId: current.userId,
+          createdAt: now,
+          serverCreatedAt: FieldValue.serverTimestamp()
+        });
+      }
+
+      transaction.update(ref, {
+        paymentProviderReference: paypalOrderId,
+        paymentVerificationSource: 'paypal_server_created',
+        paymentUpdatedAt: now
+      });
+    });
+
+    const updated = await ref.get();
+    return res.json({
+      paypalOrderId,
+      providerStatus,
+      order: { id: updated.id, ...updated.data() }
+    });
+  } catch (error: any) {
+    const status = Number(error?.statusCode) || 502;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to create PayPal payment.' });
+  }
+});
+
+app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+
+    const orderId = safeString(req.params.orderId, 120);
+    const requestedPayPalOrderId = safeString(req.body?.paypalOrderId, 160);
+    const ref = adminDb.collection('orders').doc(orderId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const order: any = { id: snap.id, ...snap.data() };
+
+    if (order.userId !== token.uid && !isAdminToken(token)) {
+      return res.status(403).json({ error: 'Order access denied.' });
+    }
+    if (order.paymentMethod !== 'paypal') {
+      return res.status(400).json({ error: 'This order is not a PayPal order.' });
+    }
+
+    const paypalOrderId = safeString(order.paymentProviderReference, 160);
+    if (!paypalOrderId) {
+      return res.status(409).json({ error: 'This SAELYXE order is not linked to a PayPal order.' });
+    }
+    if (requestedPayPalOrderId && requestedPayPalOrderId !== paypalOrderId) {
+      return res.status(409).json({ error: 'PayPal order reference does not match the linked SAELYXE checkout.' });
+    }
+
+    const guardSnap = await adminDb.collection('paypal_order_links').doc(paypalOrderId).get();
+    if (!guardSnap.exists || safeString(guardSnap.data()?.orderId, 120) !== orderId) {
+      return res.status(409).json({ error: 'PayPal order linkage could not be verified.' });
+    }
+    if (order.paymentStatus === 'verified') {
+      return res.json(order);
+    }
+
+    let captureResult: any = null;
+    try {
+      captureResult = await capturePayPalProviderOrder(paypalOrderId);
+    } catch {
+      captureResult = null;
+    }
+
+    const verification = await verifyPayPalOrder(order, paypalOrderId);
+    if (!verification.verified) {
+      const now = new Date().toISOString();
+      if (order.status !== 'cancelled') {
+        await ref.update({
+          paymentStatus: 'pending_verification',
+          paymentVerificationSource: 'paypal_orders_api',
+          paymentVerificationError: verification.reason,
+          paymentUpdatedAt: now
+        });
+      }
+      return res.status(captureResult && !captureResult.ok ? 409 : 502).json({
+        error: 'PayPal capture could not be confirmed.',
+        verification
+      });
+    }
+
+    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+    return res.json(updated);
+  } catch (error: any) {
+    return res.status(500).json({ error: safeString(error?.message, 240) || 'Unable to capture PayPal payment.' });
+  }
+});
+
 app.post('/api/payments/paypal/link/:orderId', async (req, res) => {
   try {
     const adminDb = getAdminDb();
@@ -741,36 +914,61 @@ app.post('/api/payments/paypal/link/:orderId', async (req, res) => {
     if (!paypalOrderId) return res.status(400).json({ error: 'PayPal order reference is required.' });
 
     const ref = adminDb.collection('orders').doc(orderId);
-    const snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
-    const order: any = { id: snap.id, ...snap.data() };
-    if (order.userId !== token.uid && !isAdminToken(token)) {
-      return res.status(403).json({ error: 'Order access denied.' });
-    }
-    if (order.paymentMethod !== 'paypal') {
-      return res.status(400).json({ error: 'This order is not a PayPal order.' });
-    }
-    if (order.paymentStatus === 'verified') {
-      return res.status(409).json({ error: 'Payment is already verified.' });
-    }
-    if (order.status === 'cancelled') {
-      return res.status(409).json({ error: 'Cancelled orders cannot be linked to a new PayPal payment.' });
-    }
-    const existingProviderReference = safeString(order.paymentProviderReference, 160);
-    if (existingProviderReference && existingProviderReference !== paypalOrderId) {
-      return res.status(409).json({ error: 'This SAELYXE order is already linked to a different PayPal order.' });
-    }
-
+    const guardRef = adminDb.collection('paypal_order_links').doc(paypalOrderId);
     const now = new Date().toISOString();
-    await ref.update({
-      paymentProviderReference: paypalOrderId,
-      paymentVerificationSource: 'paypal_created',
-      paymentUpdatedAt: now
+
+    await adminDb.runTransaction(async transaction => {
+      const orderSnap = await transaction.get(ref);
+      const guardSnap = await transaction.get(guardRef);
+      if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
+
+      const order: any = { id: orderSnap.id, ...orderSnap.data() };
+      if (order.userId !== token.uid && !isAdminToken(token)) {
+        throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
+      }
+      if (order.paymentMethod !== 'paypal') {
+        throw Object.assign(new Error('This order is not a PayPal order.'), { statusCode: 400 });
+      }
+      if (order.paymentStatus === 'verified') {
+        throw Object.assign(new Error('Payment is already verified.'), { statusCode: 409 });
+      }
+      if (order.status === 'cancelled') {
+        throw Object.assign(new Error('Cancelled orders cannot be linked to a new PayPal payment.'), { statusCode: 409 });
+      }
+
+      const existingProviderReference = safeString(order.paymentProviderReference, 160);
+      if (existingProviderReference && existingProviderReference !== paypalOrderId) {
+        throw Object.assign(new Error('This SAELYXE order is already linked to a different PayPal order.'), { statusCode: 409 });
+      }
+
+      if (guardSnap.exists) {
+        const guard: any = guardSnap.data() || {};
+        if (safeString(guard.orderId, 120) !== orderId) {
+          throw Object.assign(new Error('This PayPal order is already linked to another SAELYXE order.'), { statusCode: 409 });
+        }
+      } else {
+        transaction.set(guardRef, {
+          paypalOrderId,
+          orderId,
+          orderNumber: safeString(order.orderNumber || order.id, 120),
+          userId: order.userId,
+          createdAt: now,
+          serverCreatedAt: FieldValue.serverTimestamp()
+        });
+      }
+
+      transaction.update(ref, {
+        paymentProviderReference: paypalOrderId,
+        paymentVerificationSource: 'paypal_linked',
+        paymentUpdatedAt: now
+      });
     });
+
     const updated = await ref.get();
     return res.json({ id: updated.id, ...updated.data() });
-  } catch {
-    return res.status(500).json({ error: 'Unable to link PayPal payment.' });
+  } catch (error: any) {
+    const status = Number(error?.statusCode) || 500;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to link PayPal payment.' });
   }
 });
 
@@ -786,53 +984,53 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     }
 
     const orderId = safeString(req.params.orderId, 120);
-    const paypalOrderId = safeString(req.body?.paypalOrderId, 160);
-    if (!paypalOrderId) return res.status(400).json({ error: 'PayPal order reference is required.' });
-
+    const requestedPayPalOrderId = safeString(req.body?.paypalOrderId, 160);
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
+
     if (order.userId !== token.uid && !isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
     }
-    const linkedPayPalOrderId = safeString(order.paymentProviderReference, 160);
-    if (!linkedPayPalOrderId || linkedPayPalOrderId !== paypalOrderId) {
+
+    const paypalOrderId = safeString(order.paymentProviderReference, 160);
+    if (!paypalOrderId) {
+      return res.status(409).json({ error: 'This SAELYXE order is not linked to a PayPal order.' });
+    }
+    if (requestedPayPalOrderId && requestedPayPalOrderId !== paypalOrderId) {
       return res.status(409).json({ error: 'PayPal order reference does not match the linked SAELYXE checkout.' });
+    }
+
+    const guardSnap = await adminDb.collection('paypal_order_links').doc(paypalOrderId).get();
+    if (!guardSnap.exists || safeString(guardSnap.data()?.orderId, 120) !== orderId) {
+      return res.status(409).json({ error: 'PayPal order linkage could not be verified.' });
     }
     if (order.paymentStatus === 'verified') {
       return res.json(order);
     }
 
     const verification = await verifyPayPalOrder(order, paypalOrderId);
-    const now = new Date().toISOString();
     if (!verification.verified) {
-      await ref.update({
-        paymentProviderReference: paypalOrderId,
-        paymentStatus: 'pending_verification',
-        paymentVerificationSource: 'paypal_orders_api',
-        paymentVerificationError: verification.reason,
-        paymentUpdatedAt: now
-      });
+      const now = new Date().toISOString();
+      if (order.status !== 'cancelled') {
+        await ref.update({
+          paymentStatus: 'pending_verification',
+          paymentVerificationSource: 'paypal_orders_api',
+          paymentVerificationError: verification.reason,
+          paymentUpdatedAt: now
+        });
+      }
       return res.status(409).json({ error: 'PayPal payment could not be verified yet.', verification });
     }
 
-    await ref.update({
-      paymentProviderReference: paypalOrderId,
-      paymentStatus: 'verified',
-      paymentVerificationSource: 'paypal_orders_api',
-      paymentVerificationError: FieldValue.delete(),
-      paymentVerifiedAt: now,
-      paymentUpdatedAt: now
-    });
-
-    const updated = await ref.get();
-    return res.json({ id: updated.id, ...updated.data() });
-  } catch {
-    return res.status(500).json({ error: 'Unable to verify PayPal payment.' });
+    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+    return res.json(updated);
+  } catch (error: any) {
+    return res.status(500).json({ error: safeString(error?.message, 240) || 'Unable to verify PayPal payment.' });
   }
 });
 
@@ -852,6 +1050,7 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
+
     if (order.userId !== token.uid && !isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
@@ -859,32 +1058,79 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
     }
     if (order.paymentStatus === 'verified') {
-      return res.status(409).json({ error: 'A verified payment cannot be cancelled here.' });
+      return res.status(409).json({ error: 'A verified payment cannot be cancelled from checkout.' });
     }
     if (order.status !== 'placed') {
       return res.status(409).json({ error: 'This order can no longer be cancelled from checkout.' });
     }
 
+    const paypalOrderId = safeString(order.paymentProviderReference, 160);
+    if (paypalOrderId) {
+      const guardSnap = await adminDb.collection('paypal_order_links').doc(paypalOrderId).get();
+      if (!guardSnap.exists || safeString(guardSnap.data()?.orderId, 120) !== orderId) {
+        return res.status(409).json({ error: 'PayPal order linkage could not be verified for cancellation.' });
+      }
+
+      const verification = await verifyPayPalOrder(order, paypalOrderId);
+      if (verification.verified) {
+        const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+        return res.status(409).json({
+          error: 'PayPal payment is already completed, so checkout cancellation was blocked.',
+          order: updated
+        });
+      }
+
+      if (verification.reason === 'paypal_lookup_failed' || verification.reason === 'paypal_not_configured') {
+        return res.status(503).json({ error: 'PayPal status is temporarily unavailable. The order was not cancelled.' });
+      }
+
+      const providerStatus = safeString(verification.providerStatus, 30).toUpperCase();
+      const safeToCancel = ['CREATED', 'SAVED', 'PAYER_ACTION_REQUIRED', 'VOIDED'].includes(providerStatus);
+      if (!safeToCancel) {
+        return res.status(409).json({
+          error: `PayPal checkout is in ${providerStatus || 'an uncertain'} state. The order was not cancelled to avoid losing a completed payment.`
+        });
+      }
+    }
+
     const now = new Date().toISOString();
-    await ref.update({
-      status: 'cancelled',
-      paymentStatus: 'cancelled',
-      updatedAt: now,
-      paymentUpdatedAt: now,
-      statusHistory: [
-        ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
-        {
-          status: 'cancelled',
-          timestamp: now,
-          note: 'PayPal checkout was cancelled before payment verification.',
-          location: 'SAELYXE Online Store'
-        }
-      ]
+    await adminDb.runTransaction(async transaction => {
+      const currentSnap = await transaction.get(ref);
+      if (!currentSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
+      const current: any = { id: currentSnap.id, ...currentSnap.data() };
+
+      if (current.paymentStatus === 'verified') {
+        throw Object.assign(new Error('A verified payment cannot be cancelled from checkout.'), { statusCode: 409 });
+      }
+      if (current.status !== 'placed') {
+        throw Object.assign(new Error('This order can no longer be cancelled from checkout.'), { statusCode: 409 });
+      }
+      if (safeString(current.paymentProviderReference, 160) !== paypalOrderId) {
+        throw Object.assign(new Error('PayPal linkage changed during cancellation. The order was not cancelled.'), { statusCode: 409 });
+      }
+
+      transaction.update(ref, {
+        status: 'cancelled',
+        paymentStatus: 'cancelled',
+        updatedAt: now,
+        paymentUpdatedAt: now,
+        statusHistory: [
+          ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
+          {
+            status: 'cancelled',
+            timestamp: now,
+            note: 'PayPal checkout was cancelled before payment completion.',
+            location: 'SAELYXE Online Store'
+          }
+        ]
+      });
     });
+
     const updated = await ref.get();
     return res.json({ id: updated.id, ...updated.data() });
-  } catch {
-    return res.status(500).json({ error: 'Unable to cancel PayPal checkout order.' });
+  } catch (error: any) {
+    const status = Number(error?.statusCode) || 500;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to cancel PayPal checkout order.' });
   }
 });
 
