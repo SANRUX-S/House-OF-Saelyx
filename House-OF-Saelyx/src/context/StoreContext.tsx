@@ -126,6 +126,7 @@ interface StoreContextType {
   // Orders
   orders: Order[];
   createOrder: (orderData: CreateOrderInput) => Promise<Order>;
+  createPayHereSession: (orderId: string) => Promise<{ action: string; fields: Record<string, string> }>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
   
   // Contact & Messages
@@ -1208,6 +1209,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return placedOrder;
   };
 
+  const createPayHereSession = async (orderId: string): Promise<{ action: string; fields: Record<string, string> }> => {
+    const res = await fetchAuthenticatedPublicApi(`/api/payments/payhere/session/${encodeURIComponent(orderId)}`, {
+      method: 'POST'
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload?.error || 'Unable to start PayHere payment.');
+    return payload;
+  };
+
   const updateOrderStatus = async (orderId: string, status: Order['status'], details: Partial<Order>): Promise<boolean> => {
     try {
       const res = await fetchAdminApi(`/api/orders/${orderId}/status`, {
@@ -1520,6 +1530,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateUserProfile,
         orders,
         createOrder,
+        createPayHereSession,
         updateOrderStatus,
         messages,
         sendMessage,
