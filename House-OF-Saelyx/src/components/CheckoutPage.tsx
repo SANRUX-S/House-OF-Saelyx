@@ -58,11 +58,11 @@ export const CheckoutPage: React.FC = () => {
   const [customerName, setCustomerName] = useState(savedDetailsObj?.customerName || user?.name || '');
   const [email, setEmail] = useState(savedDetailsObj?.email || user?.email || '');
   const [phone, setPhone] = useState(savedDetailsObj?.phone || user?.phoneNumber || '');
-  const [address, setAddress] = useState(savedDetailsObj?.address || '74 Ward Place, Rosmead Enclave');
-  const [city, setCity] = useState(savedDetailsObj?.city || 'Colombo 07');
-  const [postalCode, setPostalCode] = useState(savedDetailsObj?.postalCode || '00700');
+  const [address, setAddress] = useState(savedDetailsObj?.address || user?.address || '');
+  const [city, setCity] = useState(savedDetailsObj?.city || user?.city || '');
+  const [postalCode, setPostalCode] = useState(savedDetailsObj?.postalCode || user?.postalCode || '');
   const [country, setCountry] = useState(savedDetailsObj?.country || user?.country || 'Sri Lanka');
-  const [notes, setNotes] = useState(savedDetailsObj?.notes || 'Please ring gate intercom for white-glove hand-delivery.');
+  const [notes, setNotes] = useState(savedDetailsObj?.notes || '');
 
   // Pre-fill fields whenever authenticated user profile is loaded
   useEffect(() => {
@@ -82,9 +82,6 @@ export const CheckoutPage: React.FC = () => {
   // PayPal Client ID loaded quietly in the background - never exposed to customer
   const paypalClientId = (import.meta as any).env?.VITE_PAYPAL_CLIENT_ID || '';
 
-  const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
-  const [cardExpiry, setCardExpiry] = useState('12/28');
-  const [cardCvc, setCardCvc] = useState('888');
   const [bankRefNumber, setBankRefNumber] = useState('');
   const [binanceTxHash, setBinanceTxHash] = useState('');
 
@@ -297,18 +294,11 @@ export const CheckoutPage: React.FC = () => {
           size: item.size,
           quantity: item.quantity
         })),
-        subtotalLKR,
-        shippingLKR,
-        totalLKR,
         currencyUsed: selectedCurrency?.code || 'LKR',
-        totalInCurrency,
-        status: 'placed',
         paymentMethod: paymentMethod as any,
-        paymentStatus: paymentMethod === 'cod' ? 'pending_delivery' : 'pending_verification',
-        trackingNumber: `EXP-${Math.floor(100000 + Math.random() * 900000)}`,
-        courierName: 'Saelyxe White-Glove Van 04',
-        deliveryEta: 'Today by 5:30 PM (Priority Hand-Delivery)',
-        notes: `${notes} ${bankRefNumber ? `[Bank Ref: ${bankRefNumber}]` : ''} ${binanceTxHash ? `[Binance TX: ${binanceTxHash}]` : ''}`.trim()
+        promoCode: appliedPromo?.code,
+        paymentProviderReference: bankRefNumber || binanceTxHash || undefined,
+        notes
       });
 
       setConfirmedOrder(order);
@@ -346,12 +336,12 @@ export const CheckoutPage: React.FC = () => {
 
       const order = await createOrder({
         customerName: details?.payer?.name?.given_name ? `${details.payer.name.given_name} ${details.payer.name.surname || ''}` : (customerName || 'PayPal Customer'),
-        email: details?.payer?.email_address || email || 'patron@saelyxe.com',
-        phone: phone || '+94 77 123 4567',
-        address: address || '74 Ward Place',
-        city: city || 'Colombo 07',
-        postalCode: postalCode || '00700',
-        country: country || 'Sri Lanka',
+        email: details?.payer?.email_address || email,
+        phone,
+        address,
+        city,
+        postalCode,
+        country,
         items: cart.map(item => ({
           productId: item.productId,
           title: item.title,
@@ -360,18 +350,11 @@ export const CheckoutPage: React.FC = () => {
           size: item.size,
           quantity: item.quantity
         })),
-        subtotalLKR,
-        shippingLKR,
-        totalLKR,
         currencyUsed: selectedCurrency?.code || 'USD',
-        totalInCurrency,
-        status: 'placed',
         paymentMethod: 'paypal',
-        paymentStatus: 'pending_verification',
-        trackingNumber: `EXP-${Math.floor(100000 + Math.random() * 900000)}`,
-        courierName: 'Saelyxe White-Glove Van 04',
-        deliveryEta: 'Today by 5:30 PM (Priority Hand-Delivery)',
-        notes: `${notes} [PayPal Order ID: ${details?.id || 'APPROVED'}]`.trim()
+        promoCode: appliedPromo?.code,
+        paymentProviderReference: details?.id || undefined,
+        notes
       });
 
       setConfirmedOrder(order);
@@ -407,18 +390,18 @@ export const CheckoutPage: React.FC = () => {
               Thank you, {confirmedOrder.customerName}.
             </h1>
             <p className="text-xs text-[#7A6E60]">
-              Your order reference is <strong className="font-mono text-[#1A1816]">{confirmedOrder.orderNumber}</strong>. A bespoke confirmation has been dispatched to your email.
+              Your order reference is <strong className="font-mono text-[#1A1816]">{confirmedOrder.orderNumber}</strong>. Your order has been securely recorded. Payment and dispatch updates will appear in your order status.
             </p>
           </div>
 
           <div className="bg-[#FAF8F5] p-5 rounded-xl border border-[#EAE3D9] text-left space-y-3 text-xs">
             <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
               <span className="text-[#7A6E60]">Logistics Courier</span>
-              <span className="font-medium text-[#1A1816]">{confirmedOrder.courierName}</span>
+              <span className="font-medium text-[#1A1816]">{confirmedOrder.courierName || 'Pending assignment'}</span>
             </div>
             <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
               <span className="text-[#7A6E60]">Estimated Hand-Delivery</span>
-              <span className="font-medium text-emerald-900">{confirmedOrder.deliveryEta}</span>
+              <span className="font-medium text-emerald-900">{confirmedOrder.deliveryEta || 'To be confirmed'}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[#7A6E60]">Delivery Destination</span>
@@ -703,7 +686,7 @@ export const CheckoutPage: React.FC = () => {
                     {paymentMethod === 'payhere' && (
                       <div className="mt-4 pt-3.5 border-t border-[#EAE3D9] text-xs text-[#5A4E40] space-y-2 animate-in fade-in">
                         <p className="text-[11px] leading-relaxed text-[#635545]">
-                          Central Bank of Sri Lanka certified gateway. Instant automatic clearance supporting Visa, Mastercard, AMEX, Genie, FriMi, and Sampath Vishwa.
+                          PayHere orders remain pending until the payment gateway confirms the transaction. Fulfillment starts only after verification.
                         </p>
                       </div>
                     )}
@@ -830,7 +813,7 @@ export const CheckoutPage: React.FC = () => {
                             </span>
                           </div>
                           <p className="text-[11px] text-[#7A6E60] mt-0.5">
-                            USDT (TRC20 / BEP20) · Instant Verification
+                            USDT / Crypto · Verification required
                           </p>
                         </div>
                       </div>
