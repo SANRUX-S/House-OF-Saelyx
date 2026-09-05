@@ -1606,9 +1606,7 @@ app.get('/api/orders/:id', async (req, res) => {
     const statusHistory = Array.isArray(order.statusHistory)
       ? order.statusHistory.map((entry: any) => ({
           status: safeString(entry?.status, 40),
-          timestamp: safeString(entry?.timestamp, 80),
-          note: safeString(entry?.note, 300),
-          location: safeString(entry?.location, 160)
+          timestamp: safeString(entry?.timestamp, 80)
         }))
       : [];
 
