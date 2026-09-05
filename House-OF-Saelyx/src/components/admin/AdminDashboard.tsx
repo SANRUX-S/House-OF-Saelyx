@@ -17,7 +17,7 @@ export interface AdminDashboardProps {
   products: Product[];
   orders: Order[];
   formatPrice: (priceLKR: number) => string;
-  onNavigateToTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings') => void;
+  onNavigateToTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config') => void;
   onOpenProductModal: () => void;
 }
 
