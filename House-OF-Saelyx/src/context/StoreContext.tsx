@@ -682,58 +682,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as StockNotification);
         });
-        if (list.length > 0) {
-          setStockNotifications(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        } else {
-          const initialStock: Omit<StockNotification, 'id'>[] = [
-            {
-              productId: 'prod-05',
-              productTitle: 'Black Jeans',
-              productSlug: 'black-jeans',
-              productImage: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
-              selectedSize: '32',
-              customerEmail: 'alexandra.vance@couturemail.com',
-              customerName: 'Alexandra Vance',
-              phone: '+94 77 982 1004',
-              channel: 'both',
-              notified: false,
-              status: 'pending',
-              createdAt: '2026-08-28T14:22:00.000Z'
-            },
-            {
-              productId: 'prod-05',
-              productTitle: 'Black Jeans',
-              productSlug: 'black-jeans',
-              productImage: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
-              selectedSize: '34',
-              customerEmail: 'dmitri.ivanov@atelierpatron.org',
-              customerName: 'Dmitri Ivanov',
-              channel: 'email',
-              notified: false,
-              status: 'pending',
-              createdAt: '2026-08-30T09:15:00.000Z'
-            },
-            {
-              productId: 'prod-02',
-              productTitle: 'Navy Hoodie',
-              productSlug: 'navy-hoodie',
-              productImage: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
-              selectedSize: 'XL',
-              customerEmail: 'elena.rostova@saelyxe.vip',
-              customerName: 'Elena Rostova',
-              channel: 'email',
-              notified: true,
-              notifiedAt: '2026-08-31T18:40:12.000Z',
-              status: 'sent',
-              createdAt: '2026-08-27T11:00:00.000Z'
-            }
-          ];
-          for (const item of initialStock) {
-            try {
-              await addDoc(stockRef, item);
-            } catch (e) {}
-          }
-        }
+        setStockNotifications(
+          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
       }, (err) => {
         console.warn('Firestore stock_notifications listener note:', err);
       });
@@ -754,41 +705,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as ContactMessage);
         });
-        if (list.length > 0) {
-          setMessages(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        } else {
-          const initialMsgs = [
-            {
-              id: 'msg-01',
-              name: 'Lady Vivienne Sterling',
-              email: 'vivienne.sterling@kensington.co.uk',
-              phone: '+44 7700 900077',
-              topic: 'bespoke_sizing' as const,
-              orderReference: 'SLX-94822',
-              message: 'Requesting bespoke inseam adjustment for the Signature Drape Trousers for an evening gala.',
-              createdAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-              status: 'unread' as const
-            },
-            {
-              id: 'msg-02',
-              name: 'Dr. Rohan Jayasinghe',
-              email: 'rohan.j@colombohealth.lk',
-              phone: '+94 77 987 6543',
-              topic: 'order_inquiry' as const,
-              orderReference: 'SLX-94821',
-              message: 'Inquiring about hand-delivery arrival time at Cinnamon Gardens residence this afternoon.',
-              createdAt: new Date(Date.now() - 10 * 3600 * 1000).toISOString(),
-              status: 'read' as const,
-              replyNotes: 'Contacted courier driver; estimated hand delivery by 4:15 PM.'
-            }
-          ];
-          for (const m of initialMsgs) {
-            try {
-              await setDoc(doc(db, 'concierge_inquiries', m.id), m);
-              await setDoc(doc(db, 'messages', m.id), m);
-            } catch (e) {}
-          }
-        }
+        setMessages(
+          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
       }, (err) => {
         console.warn('Concierge inquiries listener note:', err);
       });
@@ -807,34 +726,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           list.push({ id: docSnap.id, ...docSnap.data() } as AdminStaff);
         });
 
-        // First-time bootstrap: if absolutely empty, provision BOTH default staff profiles
-        if (list.length === 0) {
-          const superStaff = {
-            id: 'staff-001',
-            username: 'saelyx_super',
-            displayName: 'Atelier Director General',
-            email: 'superadmin@saelyxe.com',
-            role: 'super_admin' as const,
-            status: 'active' as const,
-            createdAt: '2026-01-01T00:00:00.000Z'
-          };
-          const atelierStaff = {
-            id: 'staff-002',
-            username: 'saelyx_admin',
-            displayName: 'Lead Logistics & Inventory Officer',
-            email: 'operations@saelyxe.com',
-            role: 'admin' as const,
-            status: 'active' as const,
-            createdAt: '2026-02-15T00:00:00.000Z'
-          };
-          try {
-            await setDoc(doc(db, 'staff', superStaff.id), superStaff);
-            await setDoc(doc(db, 'staff', atelierStaff.id), atelierStaff);
-          } catch (e) {
-            console.error('Error bootstrapping default staff:', e);
-          }
-          return;
-        }
 
         // Filter out deprecated staff-01 dummy if present
         const filteredList = list.filter(s => s.id !== 'staff-01');
