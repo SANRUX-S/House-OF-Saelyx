@@ -181,7 +181,8 @@ export function createApp() {
 
       const subtotalLKR = validatedItems.reduce((sum: number, item: any) => sum + item.priceLKR * item.quantity, 0);
       const shippingLKR = subtotalLKR > 50000 ? 0 : 2500;
-      const paymentMethod = ['paypal', 'payhere', 'binance_qr'].includes(body.paymentMethod) ? body.paymentMethod : 'payhere';
+      if (body.paymentMethod !== 'paypal') return res.status(400).json({ error: 'PayPal is the only supported payment method.' });
+      const paymentMethod = 'paypal';
       const safeOrder = {
         ...body,
         items: validatedItems,
