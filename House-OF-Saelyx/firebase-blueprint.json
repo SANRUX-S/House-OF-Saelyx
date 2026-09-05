@@ -24,7 +24,7 @@
     },
     "StockNotification": {
       "title": "StockNotification",
-      "description": "Customer email waitlist registration for back-in-stock notifications processed by Firebase Cloud Functions",
+      "description": "Customer email waitlist registration for back-in-stock notifications processed by the protected Vercel API and Resend",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -136,7 +136,7 @@
     },
     "/stock_notifications/{notificationId}": {
       "schema": { "$ref": "#/entities/StockNotification" },
-      "description": "Back in stock notification waitlist requests triggerable by Cloud Functions"
+      "description": "Back in stock notification waitlist requests processed by the protected Vercel restock dispatcher"
     },
     "/orders/{orderId}": {
       "schema": { "$ref": "#/entities/Order" },
