@@ -24,7 +24,6 @@ import {
 } from '../lib/firebase';
 import { 
   signInWithPopup, 
-  signInWithRedirect,
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
@@ -57,6 +56,8 @@ type CreateOrderInput = Pick<
   promoCode?: string;
   paymentProviderReference?: string;
 };
+
+type AuthMode = 'signin' | 'signup';
 
 interface StoreContextType {
   // Navigation & Routing
@@ -100,6 +101,8 @@ interface StoreContextType {
   setIsSearchOpen: (open: boolean) => void;
   isAuthOpen: boolean;
   setIsAuthOpen: (open: boolean) => void;
+  authMode: AuthMode;
+  setAuthMode: (mode: AuthMode) => void;
   isTrackerOpen: boolean;
   setIsTrackerOpen: (open: boolean) => void;
   trackingOrderId: string;
@@ -132,14 +135,17 @@ interface StoreContextType {
   stockNotifications: StockNotification[];
   subscribeToRestock: (entry: Omit<StockNotification, 'id' | 'createdAt' | 'notified' | 'status'>) => Promise<{ success: boolean; id?: string; error?: string }>;
   deleteStockNotification: (id: string) => Promise<boolean>;
-  triggerRestockCloudFunction: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; recipients: string[]; executionId: string }>;
+  triggerRestockCloudFunction: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
   isRestockModalOpen: boolean;
   setIsRestockModalOpen: (open: boolean) => void;
   restockModalProduct: Product | null;
   setRestockModalProduct: (prod: Product | null) => void;
   restockSelectedSize: string;
   setRestockSelectedSize: (size: string) => void;
+  restockModalSize: string;
+  closeRestockModal: () => void;
   openRestockModal: (product: Product, size?: string) => void;
+  triggerStockReplenishedFunction: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
 
   // Audit Logs
   auditLogs: AuditLog[];
@@ -280,6 +286,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState<string>('SLX-94821');
 
@@ -916,7 +923,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
-  // Authentication Flows
+  // Authentication flows create a session only after Firebase returns a verified credential.
+  const getCustomerAuthError = (error: unknown, flow: 'Google sign-in' | 'Facebook sign-in' | 'sign-in' | 'account creation') => {
+    const code = typeof error === 'object' && error && 'code' in error
+      ? String((error as { code?: string }).code || '')
+      : '';
+
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      return 'Sign-in was cancelled. Please try again when you are ready.';
+    }
+    if (code === 'auth/network-request-failed') {
+      return 'We could not connect just now. Please check your connection and try again.';
+    }
+    if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+      return 'We could not verify those details. Please try again.';
+    }
+    if (code === 'auth/email-already-in-use') {
+      return 'An account already exists for this email. Please sign in instead.';
+    }
+    if (code === 'auth/weak-password') {
+      return 'Please choose a password with at least six characters.';
+    }
+    if (code === 'auth/invalid-email') {
+      return 'Please enter a valid email address.';
+    }
+    if (code === 'auth/user-disabled') {
+      return 'This account is unavailable. Please contact support for assistance.';
+    }
+
+    return `Unable to complete ${flow}. Please try again or choose another option.`;
+  };
+
+  // Authentication flows create a session only after Firebase returns a verified credential.
   const loginWithGoogle = async (): Promise<boolean> => {
     if (isAuthLoading) return false;
     setIsAuthLoading(true);
@@ -931,25 +969,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         phoneNumber: fbUser.phoneNumber || '',
         role: 'patron',
         avatarUrl: fbUser.photoURL || undefined,
+        authProvider: 'google',
         joinedDate: new Date().toISOString()
       };
       setUser(appUser);
       setIsAuthOpen(false);
       return true;
-    } catch (err: any) {
-      console.error('Google Sign In Error:', err);
-      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        setAuthError('Google Sign-In is not authorized for this domain. Please contact support or try again later.');
-      } else if (err.code === 'auth/cancelled-popup-request' || err.message?.includes('cancelled-popup-request') || err.code === 'auth/popup-closed-by-user') {
-        setAuthError('The Google Sign-In popup was closed or blocked. Allow popups and try again.');
-      } else if (err.code === 'auth/network-request-failed') {
-        setAuthError('Network error while connecting to Google Sign-In. Please check your connection and retry.');
-      } else if (err.code === 'auth/internal-error') {
-        setAuthError('Google popup sign-in is unavailable in this browser. Opening secure redirect sign-in.');
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        setAuthError(err.message || 'Google authentication failed. Please try again.');
-      }
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'Google sign-in'));
       return false;
     } finally {
       setIsAuthLoading(false);
@@ -957,6 +984,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginWithFacebook = async (): Promise<boolean> => {
+    if (isAuthLoading) return false;
     setIsAuthLoading(true);
     setAuthError(null);
     try {
@@ -968,14 +996,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         email: fbUser.email || '',
         role: 'patron',
         avatarUrl: fbUser.photoURL || undefined,
+        authProvider: 'facebook',
         joinedDate: new Date().toISOString()
       };
       setUser(appUser);
       setIsAuthOpen(false);
       return true;
-    } catch (err: any) {
-      console.error('Facebook Sign In Error:', err);
-      setAuthError(err?.message || 'Facebook authentication failed. Please try again.');
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'Facebook sign-in'));
       return false;
     } finally {
       setIsAuthLoading(false);
@@ -983,6 +1011,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginWithEmail = async (email: string, pass: string): Promise<boolean> => {
+    if (isAuthLoading) return false;
     setIsAuthLoading(true);
     setAuthError(null);
     try {
@@ -993,17 +1022,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name: fbUser.displayName || email.split('@')[0],
         email: fbUser.email || email,
         role: 'patron',
+        authProvider: 'password',
         joinedDate: new Date().toISOString()
       });
       setIsAuthOpen(false);
       return true;
-    } catch (err: any) {
-      console.warn('Firebase Email Sign In failed:', err);
-      setAuthError(
-        err?.code === 'auth/invalid-credential'
-          ? 'Invalid email or password.'
-          : (err?.message || 'Email sign-in failed. Please try again.')
-      );
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'sign-in'));
       return false;
     } finally {
       setIsAuthLoading(false);
@@ -1011,6 +1036,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const signupWithEmail = async (name: string, email: string, pass: string): Promise<boolean> => {
+    if (isAuthLoading) return false;
     setIsAuthLoading(true);
     setAuthError(null);
     try {
@@ -1021,24 +1047,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name,
         email,
         role: 'patron',
+        authProvider: 'password',
         joinedDate: new Date().toISOString(),
         ordersCount: 0
       };
       setUser(newUser);
       setIsAuthOpen(false);
       return true;
-    } catch (err: any) {
-      console.warn('Firebase Email Sign Up failed:', err);
-      setAuthError(
-        err?.code === 'auth/email-already-in-use'
-          ? 'An account already exists for this email.'
-          : (err?.message || 'Account creation failed. Please try again.')
-      );
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'account creation'));
       return false;
     } finally {
       setIsAuthLoading(false);
     }
   };
+
+  const closeRestockModal = () => setIsRestockModalOpen(false);
 
   const loginAdmin = async (username: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setIsAuthLoading(true);
@@ -1468,6 +1492,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsSearchOpen,
         isAuthOpen,
         setIsAuthOpen,
+        authMode,
+        setAuthMode,
         isTrackerOpen,
         setIsTrackerOpen,
         trackingOrderId,
@@ -1499,7 +1525,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setRestockModalProduct,
         restockSelectedSize,
         setRestockSelectedSize,
+        restockModalSize: restockSelectedSize,
+        closeRestockModal,
         openRestockModal,
+        triggerStockReplenishedFunction: triggerRestockCloudFunction,
         auditLogs,
         logAuditEvent,
         saveProduct,
