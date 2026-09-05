@@ -43,6 +43,7 @@ import {
   query, 
   orderBy,
   where,
+  limit,
   addDoc,
   arrayUnion
 } from 'firebase/firestore';
@@ -609,7 +610,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const colRef = collection(db, 'orders');
       const isAdminUser = user.role === 'admin' || user.role === 'super_admin';
       const ordersQuery = isAdminUser
-        ? query(colRef, orderBy('createdAt', 'desc'))
+        ? query(colRef, orderBy('createdAt', 'desc'), limit(250))
         : query(colRef, where('userId', '==', user.uid));
 
       const unsub = onSnapshot(ordersQuery, async (snap) => {
@@ -688,7 +689,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const stockRef = collection(db, 'stock_notifications');
-      const unsub = onSnapshot(stockRef, async (snap) => {
+      const unsub = onSnapshot(query(stockRef, orderBy('createdAt', 'desc'), limit(250)), async (snap) => {
         const list: StockNotification[] = [];
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as StockNotification);
@@ -711,7 +712,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const colRef = collection(db, 'concierge_inquiries');
-      const unsub = onSnapshot(colRef, async (snap) => {
+      const unsub = onSnapshot(query(colRef, orderBy('createdAt', 'desc'), limit(250)), async (snap) => {
         const list: ContactMessage[] = [];
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as ContactMessage);
@@ -753,7 +754,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const colRef = collection(db, 'audit_logs');
-      const unsub = onSnapshot(colRef, (snap) => {
+      const unsub = onSnapshot(query(colRef, orderBy('timestamp', 'desc'), limit(200)), (snap) => {
         const list: AuditLog[] = [];
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as AuditLog);
