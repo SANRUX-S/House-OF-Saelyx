@@ -837,6 +837,9 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
     }
 
     const orderId = safeString(req.params.orderId, 120);
+    if (!(await enforceRateLimit(adminDb, `paypal-create:${token.uid}:${orderId}`, 6, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal payment attempts. Please wait and try again.' });
+    }
     const ref = adminDb.collection('orders').doc(orderId);
     const initialSnap = await ref.get();
     if (!initialSnap.exists) return res.status(404).json({ error: 'Order not found.' });
@@ -938,6 +941,9 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     }
 
     const orderId = safeString(req.params.orderId, 120);
+    if (!(await enforceRateLimit(adminDb, `paypal-capture:${token.uid}:${orderId}`, 12, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal capture attempts. Please wait and try again.' });
+    }
     const requestedPayPalOrderId = safeString(req.body?.paypalOrderId, 160);
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
@@ -1006,80 +1012,6 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
   }
 });
 
-app.post('/api/payments/paypal/link/:orderId', async (req, res) => {
-  try {
-    const adminDb = getAdminDb();
-    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
-
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
-    if (!(await hasValidAppCheck(req))) {
-      return res.status(401).json({ error: 'App integrity check failed.' });
-    }
-
-    const orderId = safeString(req.params.orderId, 120);
-    const paypalOrderId = safeString(req.body?.paypalOrderId, 160);
-    if (!paypalOrderId) return res.status(400).json({ error: 'PayPal order reference is required.' });
-
-    const ref = adminDb.collection('orders').doc(orderId);
-    const guardRef = adminDb.collection('paypal_order_links').doc(paypalOrderId);
-    const now = new Date().toISOString();
-
-    await adminDb.runTransaction(async transaction => {
-      const orderSnap = await transaction.get(ref);
-      const guardSnap = await transaction.get(guardRef);
-      if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
-
-      const order: any = { id: orderSnap.id, ...orderSnap.data() };
-      if (order.userId !== token.uid && !isAdminToken(token)) {
-        throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
-      }
-      if (order.paymentMethod !== 'paypal') {
-        throw Object.assign(new Error('This order is not a PayPal order.'), { statusCode: 400 });
-      }
-      if (order.paymentStatus === 'verified') {
-        throw Object.assign(new Error('Payment is already verified.'), { statusCode: 409 });
-      }
-      if (order.status === 'cancelled') {
-        throw Object.assign(new Error('Cancelled orders cannot be linked to a new PayPal payment.'), { statusCode: 409 });
-      }
-
-      const existingProviderReference = safeString(order.paymentProviderReference, 160);
-      if (existingProviderReference && existingProviderReference !== paypalOrderId) {
-        throw Object.assign(new Error('This SAELYXE order is already linked to a different PayPal order.'), { statusCode: 409 });
-      }
-
-      if (guardSnap.exists) {
-        const guard: any = guardSnap.data() || {};
-        if (safeString(guard.orderId, 120) !== orderId) {
-          throw Object.assign(new Error('This PayPal order is already linked to another SAELYXE order.'), { statusCode: 409 });
-        }
-      } else {
-        transaction.set(guardRef, {
-          paypalOrderId,
-          orderId,
-          orderNumber: safeString(order.orderNumber || order.id, 120),
-          userId: order.userId,
-          createdAt: now,
-          serverCreatedAt: FieldValue.serverTimestamp()
-        });
-      }
-
-      transaction.update(ref, {
-        paymentProviderReference: paypalOrderId,
-        paymentVerificationSource: 'paypal_linked',
-        paymentUpdatedAt: now
-      });
-    });
-
-    const updated = await ref.get();
-    return res.json({ id: updated.id, ...updated.data() });
-  } catch (error: any) {
-    const status = Number(error?.statusCode) || 500;
-    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to link PayPal payment.' });
-  }
-});
-
 app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
   try {
     const adminDb = getAdminDb();
@@ -1092,6 +1024,9 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     }
 
     const orderId = safeString(req.params.orderId, 120);
+    if (!(await enforceRateLimit(adminDb, `paypal-verify:${token.uid}:${orderId}`, 12, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal verification attempts. Please wait and try again.' });
+    }
     const requestedPayPalOrderId = safeString(req.body?.paypalOrderId, 160);
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
@@ -1154,6 +1089,9 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
     }
 
     const orderId = safeString(req.params.orderId, 120);
+    if (!(await enforceRateLimit(adminDb, `paypal-cancel:${token.uid}:${orderId}`, 6, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal cancellation attempts. Please wait and try again.' });
+    }
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
