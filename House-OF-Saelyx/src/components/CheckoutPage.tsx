@@ -27,6 +27,7 @@ export const CheckoutPage: React.FC = () => {
     selectedCurrency,
     currencies,
     createOrder,
+    createPayHereSession,
     createPayPalPayment,
     capturePayPalPayment,
     cancelPayPalOrder,
@@ -188,6 +189,7 @@ export const CheckoutPage: React.FC = () => {
   const paypalCurrency = ['USD', 'EUR', 'GBP'].includes(selectedCurrency?.code || '')
     ? (selectedCurrency?.code || 'USD')
     : 'USD';
+  const usdRateFromLKR = currencies.find(currency => currency.code === 'USD')?.rateFromLKR || 0.0033;
   const totalUSDT = (totalLKR * usdRateFromLKR).toFixed(2); // display estimate only
 
   // Empty Bag Guard
