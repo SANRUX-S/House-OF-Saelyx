@@ -114,7 +114,6 @@ interface StoreContextType {
   loginWithFacebook: () => Promise<boolean>;
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
-  loginAsGuest: () => void;
   loginAdmin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
@@ -1041,16 +1040,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const loginAsGuest = () => {
-    setUser({
-      uid: `guest-${Math.random().toString(36).substr(2, 9)}`,
-      name: 'Guest Collector',
-      email: 'guest@saelyxe.com',
-      role: 'guest'
-    });
-    setIsAuthOpen(false);
-  };
-
   const loginAdmin = async (username: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setIsAuthLoading(true);
     setAuthError(null);
@@ -1491,7 +1480,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithFacebook,
         loginWithEmail,
         signupWithEmail,
-        loginAsGuest,
         loginAdmin,
         logout,
         updateUserProfile,
