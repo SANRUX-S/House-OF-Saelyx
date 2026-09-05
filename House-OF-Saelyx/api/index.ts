@@ -2647,17 +2647,18 @@ app.post('/api/restock/dispatch', async (req, res) => {
     }
 
     executionId = `restock-${crypto.randomBytes(8).toString('hex')}`;
-    lockRef = adminDb.collection('restock_dispatch_locks').doc(productId);
+    const currentLockRef = adminDb.collection('restock_dispatch_locks').doc(productId);
+    lockRef = currentLockRef;
     const nowMs = Date.now();
     const lockTtlMs = 10 * 60_000;
 
     await adminDb.runTransaction(async transaction => {
-      const lockSnap = await transaction.get(lockRef);
+      const lockSnap = await transaction.get(currentLockRef);
       const lockData: any = lockSnap.exists ? lockSnap.data() || {} : {};
       if (lockSnap.exists && Number(lockData.expiresAtMs) > nowMs) {
         throw Object.assign(new Error('A restock dispatch for this product is already in progress.'), { statusCode: 409 });
       }
-      transaction.set(lockRef, {
+      transaction.set(currentLockRef, {
         productId,
         executionId,
         ownerUid: token.uid,
