@@ -15,7 +15,6 @@ export const AuthModal: React.FC = () => {
     logout,
     loginWithGoogle,
     loginAsGuest,
-    loginAsBypassPatron,
     isAuthLoading,
     authError,
     setAuthError,
@@ -62,14 +61,7 @@ export const AuthModal: React.FC = () => {
 
   const handleVerifyPhoneOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpCode.length < 4) {
-      setAuthError('Please enter a valid verification code.');
-      return;
-    }
-    // Authenticate user via Phone
-    loginAsGuest();
-    setIsPhoneAuthOpen(false);
-    handleClose();
+    setAuthError('Phone verification is not enabled yet. Please use Google sign-in for now.');
   };
 
   return (
@@ -350,22 +342,6 @@ export const AuthModal: React.FC = () => {
                   )}
                 </button>
 
-                {/* VIP Sandbox Test-Drive Bypass Trigger */}
-                <div className="pt-2 text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <span className="h-[1px] bg-[#E3D9CD] flex-1"></span>
-                    <span className="text-[9px] text-[#96897B] font-bold tracking-widest uppercase text-center">Sandbox Bypass</span>
-                    <span className="h-[1px] bg-[#E3D9CD] flex-1"></span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={loginAsBypassPatron}
-                    className="w-full py-3.5 px-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-950 border border-amber-500/25 rounded-full text-[11px] font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                    <span>VIP Test-Drive (Google Bypass)</span>
-                  </button>
-                </div>
               </div>
 
             </div>
