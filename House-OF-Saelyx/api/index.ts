@@ -915,20 +915,30 @@ app.post('/api/admin/staff/:uid/revoke', async (req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({
-    ok: true,
-    service: 'saelyxe-api',
-    firebaseAdminConfigured: Boolean(getAdminDb()),
-    transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
-    mediaStorageConfigured: Boolean(
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET
-    ),
-    appCheckEnforced: process.env.FIREBASE_APP_CHECK_ENFORCE === 'true',
-    abuseProtectionConfigured: true,
-    payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
-  });
+  res.json({ ok: true, service: 'saelyxe-api' });
+});
+
+app.get('/api/admin/health', async (req, res) => {
+  try {
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    return res.json({
+      ok: true,
+      firebaseAdminConfigured: Boolean(getAdminDb()),
+      transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
+      mediaStorageConfigured: Boolean(
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+      ),
+      appCheckEnforced: process.env.FIREBASE_APP_CHECK_ENFORCE === 'true',
+      abuseProtectionConfigured: true,
+      payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to load administrator health status.' });
+  }
 });
 
 app.post('/api/media/cloudinary-signature', async (req, res) => {
@@ -937,11 +947,12 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Media service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!await isAdminToken(token)) {
-      return res.status(403).json({ error: 'Admin access required.' });
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `media-signature:${token.uid}`, 30, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many media upload authorizations. Please wait and try again.' });
     }
-    // Admin media uploads rely on authenticated admin access only.
-    // No App Check or rate-limit friction is applied to the private admin panel.
+
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -949,8 +960,9 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
       return res.status(503).json({ error: 'Media storage is not configured.' });
     }
 
+    const kind = safeString(req.body?.kind, 30);
+    const folder = kind === 'settings' ? 'saelyxe/settings' : 'saelyxe/products';
     const timestamp = Math.floor(Date.now() / 1000);
-    const folder = 'saelyxe/products';
     const signatureBase = `folder=${folder}&timestamp=${timestamp}`;
     const signature = crypto
       .createHash('sha1')
