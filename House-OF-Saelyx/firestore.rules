@@ -97,13 +97,15 @@ service cloud.firestore {
     }
 
     match /subscribers/{subscriberId} {
-      // Public writes go through the trusted Vercel API with abuse protection.
-      allow create, read, update, delete: if isAdmin();
+      allow read: if isAdmin();
+      // Subscription mutations are trusted-server only.
+      allow create, update, delete: if false;
     }
 
     match /stock_notifications/{notificationId} {
-      // Public subscriptions are server-created; admins retain full panel access.
-      allow create, read, update, delete: if isAdmin();
+      allow read: if isAdmin();
+      // Waitlist creation, delivery state changes, and deletion are trusted-server only.
+      allow create, update, delete: if false;
     }
 
     match /messages/{messageId} {
