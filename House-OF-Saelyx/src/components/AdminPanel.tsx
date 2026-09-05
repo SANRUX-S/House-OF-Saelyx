@@ -32,7 +32,9 @@ export const AdminPanel: React.FC = () => {
     logout, 
     navigateTo, 
     refetchData, 
-    updateOrderStatus, 
+    updateOrderStatus,
+    hasMoreAdminOrders,
+    loadOlderOrders,
     updateMessageStatus,
     saveProduct,
     deleteProduct,
@@ -348,6 +350,8 @@ export const AdminPanel: React.FC = () => {
           onUpdateOrderStatus={updateOrderStatus}
           isSuperAdmin={isSuperAdmin}
           onAudit={logAuditEvent}
+          hasMoreOrders={hasMoreAdminOrders}
+          onLoadOlderOrders={loadOlderOrders}
         />
       )}
 
