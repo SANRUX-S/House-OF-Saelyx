@@ -1433,29 +1433,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Audit Logs
+  // Audit Logs are authoritative only when written by the trusted server.
   const logAuditEvent = async (action: string, details: string) => {
-    const entry: AuditLog = {
-      id: `audit-${Date.now().toString(36)}`,
-      timestamp: new Date().toISOString(),
-      actor: user?.name || 'Anonymous Visitor',
-      role: user?.role || 'guest',
-      action,
-      details
-    };
-    setAuditLogs(prev => [entry, ...prev.slice(0, 49)]);
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!['ADMIN_LOGIN', 'ORDER_CSV_EXPORT'].includes(action)) return;
 
-    if ((user?.role === 'admin' || user?.role === 'super_admin') &&
-        ['ADMIN_LOGIN', 'ORDER_CSV_EXPORT', 'DATABASE_EXPORT'].includes(action)) {
-      try {
-        await fetchAdminApi('/api/admin/audit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, details })
-        });
-      } catch {
-        // Operational actions must not fail only because audit transport is unavailable.
-      }
+    try {
+      await fetchAdminApi('/api/admin/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, details })
+      });
+    } catch (error) {
+      console.warn('Audit transport note:', error);
     }
   };
 
