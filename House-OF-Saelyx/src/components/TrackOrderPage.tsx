@@ -14,13 +14,14 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Order, OrderStatus } from '../types';
+import { auth, getAppCheckRequestHeaders } from '../lib/firebase';
 
 interface TrackOrderPageProps {
   initialOrderId?: string;
 }
 
 export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }) => {
-  const { currentRoute, formatPrice, navigateTo } = useStore();
+  const { currentRoute, navigateTo, user, setIsAuthOpen } = useStore();
   const [orderQuery, setOrderQuery] = useState(
     initialOrderId || (currentRoute.name === 'track-order' || currentRoute.name === 'track' ? (currentRoute as any).orderId || '' : '')
   );
@@ -31,18 +32,42 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
 
   const fetchOrder = async (id: string) => {
     if (!id.trim()) return;
+    if (!auth.currentUser || !user) {
+      setOrder(null);
+      setHasSearched(true);
+      setError('Please sign in to the SAELYXE account that placed this order before tracking it.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setHasSearched(true);
 
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(id.trim())}`);
+      const token = await auth.currentUser.getIdToken();
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const headers = new Headers({
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json'
+      });
+      Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
+
+      const res = await fetch(`/api/orders/${encodeURIComponent(id.trim())}`, {
+        method: 'GET',
+        headers,
+        cache: 'no-store'
+      });
       if (res.ok) {
         const data = await res.json();
         setOrder(data);
       } else {
         setOrder(null);
-        setError("We couldn't find an order matching that number. Please verify your reference or contact our atelier concierge.");
+        const payload = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          setError('Your session could not be verified. Please sign in again.');
+        } else {
+          setError(payload?.error || "We couldn't find an order belonging to this account with that reference.");
+        }
       }
     } catch (err) {
       console.error(err);
@@ -125,31 +150,43 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
               TRACK YOUR ORDER
             </h1>
             <p className="text-xs text-[#7A6E60] max-w-md mx-auto leading-relaxed">
-              Enter your unique order number (e.g. <span className="font-mono text-[#1A1816]">SOX-20260902-4821</span>) to follow your garment's white-glove journey.
+              Sign in with the account used at checkout, then enter your private order reference to follow its delivery journey.
             </p>
           </div>
 
-          <form onSubmit={handleTrackSubmit} className="flex flex-col sm:flex-row gap-3 pt-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                required
-                placeholder="e.g. SOX-20260902-4821"
-                value={orderQuery}
-                onChange={e => setOrderQuery(e.target.value)}
-                className="w-full h-12 bg-[#FCFBF9] border border-[#D5CBBF] rounded-2xl px-4 text-sm font-mono text-[#1A1816] placeholder:text-[#9E9080] placeholder:font-sans focus:outline-none focus:border-[#1A1816] transition-colors"
-              />
-            </div>
+          {user ? (
+            <form onSubmit={handleTrackSubmit} className="flex flex-col sm:flex-row gap-3 pt-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter your SOX order reference"
+                  value={orderQuery}
+                  onChange={e => setOrderQuery(e.target.value)}
+                  className="w-full h-12 bg-[#FCFBF9] border border-[#D5CBBF] rounded-2xl px-4 text-sm font-mono text-[#1A1816] placeholder:text-[#9E9080] placeholder:font-sans focus:outline-none focus:border-[#1A1816] transition-colors"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-12 px-8 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 flex-shrink-0"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span>{loading ? 'LOCATING...' : 'TRACK ORDER'}</span>
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="h-12 px-8 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 flex-shrink-0"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>{loading ? 'LOCATING...' : 'TRACK ORDER'}</span>
+              </button>
+            </form>
+          ) : (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setIsAuthOpen(true)}
+                className="h-12 px-8 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md"
+              >
+                SIGN IN TO TRACK
+              </button>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
@@ -182,7 +219,7 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
                   #{order.orderNumber}
                 </h3>
                 <p className="text-xs text-[#7A6E60] mt-1">
-                  Placed on {formatDate(order.createdAt)} · Settle via {order.paymentMethod ? order.paymentMethod.toUpperCase().replace('_QR', '') : 'PENDING'}
+                  Placed on {formatDate(order.createdAt)} · Private client tracking
                 </p>
               </div>
 
@@ -283,11 +320,11 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
 
               <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-[#EAE3D9] space-y-2">
                 <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] font-semibold block">
-                  DELIVERY DESTINATION
+                  DELIVERY REGION
                 </span>
-                <p className="text-sm font-semibold text-[#1A1816]">{order.customerName}</p>
-                <p className="text-[#4A4036]">{order.address}, {order.city} {order.postalCode}</p>
-                <p className="text-[#7A6E60]">Phone: {order.phone}</p>
+                <p className="text-sm font-semibold text-[#1A1816]">{order.city || 'Destination pending'}</p>
+                <p className="text-[#4A4036]">{order.country || 'Delivery destination protected'}</p>
+                <p className="text-[#7A6E60]">Full address and contact details remain private in your account.</p>
               </div>
             </div>
 
@@ -308,8 +345,8 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
                         <p className="text-[11px] text-[#7A6E60]">Size: {item.size} · Quantity: {item.quantity}</p>
                       </div>
                     </div>
-                    <span className="text-xs font-mono font-semibold text-[#1A1816]">
-                      {formatPrice(item.priceLKR * item.quantity)}
+                    <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] font-semibold">
+                      Qty {item.quantity}
                     </span>
                   </div>
                 ))}
