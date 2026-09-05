@@ -34,8 +34,38 @@ export async function getAdminMediaUploadConfig(kind: AdminMediaKind): Promise<A
   return payload as AdminMediaUploadConfig;
 }
 
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+const MAX_IMAGE_DIMENSION = 12000;
+const MAX_IMAGE_MEGAPIXELS = 40;
+
+async function validateAdminImage(file: File) {
+  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+    throw new Error('Only JPEG, PNG, WebP, or AVIF images are allowed.');
+  }
+
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await createImageBitmap(file);
+    const pixels = bitmap.width * bitmap.height;
+    if (
+      bitmap.width < 1 ||
+      bitmap.height < 1 ||
+      bitmap.width > MAX_IMAGE_DIMENSION ||
+      bitmap.height > MAX_IMAGE_DIMENSION ||
+      pixels > MAX_IMAGE_MEGAPIXELS * 1_000_000
+    ) {
+      throw new Error(`Image dimensions exceed the ${MAX_IMAGE_DIMENSION}px / ${MAX_IMAGE_MEGAPIXELS}MP safety limit.`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('safety limit')) throw error;
+    throw new Error('The selected file is not a decodable supported image.');
+  } finally {
+    bitmap?.close();
+  }
+}
+
 export async function uploadAdminImageWithConfig(file: File, config: AdminMediaUploadConfig): Promise<string> {
-  if (!file.type.startsWith('image/')) throw new Error('Only image files can be uploaded.');
+  await validateAdminImage(file);
   const maxBytes = Number(config.maxFileSizeBytes) || 10 * 1024 * 1024;
   if (file.size > maxBytes) {
     throw new Error(`${file.name} is larger than the allowed image size.`);
@@ -58,6 +88,14 @@ export async function uploadAdminImageWithConfig(file: File, config: AdminMediaU
   }
 
   const secureUrl = String(uploaded?.secure_url || '');
+  const uploadedFormat = String(uploaded?.format || '').toLowerCase();
+  const allowedFormats = new Set(['jpg', 'jpeg', 'png', 'webp', 'avif']);
+  if (uploaded?.resource_type && uploaded.resource_type !== 'image') {
+    throw new Error('Cloudinary returned a non-image resource.');
+  }
+  if (uploadedFormat && !allowedFormats.has(uploadedFormat)) {
+    throw new Error('Cloudinary returned an unsupported image format.');
+  }
   if (!secureUrl.startsWith('https://')) throw new Error('Cloudinary did not return a secure image URL.');
   return secureUrl.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
 }
