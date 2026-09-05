@@ -63,9 +63,19 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.uid == request.auth.uid;
+      allow create: if isOwner(userId) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.role == 'patron' &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'name', 'displayName', 'email', 'phoneNumber', 'role', 'avatarUrl', 'photoURL',
+          'address', 'city', 'postalCode', 'country', 'savedAddresses', 'authProvider',
+          'joinedDate', 'ordersCount', 'createdAt', 'updatedAt', 'lastLoginAt'
+        ]);
       allow update: if isAdmin() || (
         isOwner(userId) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name', 'displayName', 'photoURL', 'avatarUrl', 'phoneNumber', 'address', 'city',
           'postalCode', 'country', 'savedAddresses', 'updatedAt', 'lastLoginAt'
