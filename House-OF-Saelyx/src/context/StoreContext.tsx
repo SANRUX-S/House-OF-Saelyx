@@ -110,7 +110,6 @@ interface StoreContextType {
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
   loginAsGuest: () => void;
-  loginAsBypassPatron: () => void;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
 
@@ -916,16 +915,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err: any) {
       console.error('Google Sign In Error:', err);
       if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        setAuthError('Firebase Notice: This domain (localhost/preview) is pending authorization in Firebase Console (Authentication > Settings > Authorized Domains). Use the "VIP Test-Drive" button below to log in instantly.');
+        setAuthError('Google Sign-In is not authorized for this domain. Please contact support or try again later.');
       } else if (err.code === 'auth/cancelled-popup-request' || err.message?.includes('cancelled-popup-request') || err.code === 'auth/popup-closed-by-user') {
-        setAuthError('The Google Sign-In popup was closed or blocked by browser settings. You can allow popups, or continue using the "VIP Test-Drive" below.');
+        setAuthError('The Google Sign-In popup was closed or blocked. Allow popups and try again.');
       } else if (err.code === 'auth/network-request-failed') {
-        setAuthError('Network error connecting to authentication server. Please check your connection or continue via the VIP Test-Drive.');
+        setAuthError('Network error while connecting to Google Sign-In. Please check your connection and retry.');
       } else if (err.code === 'auth/internal-error') {
-        setAuthError('Google popup login is blocked in this browser. Redirect login is being opened instead.');
+        setAuthError('Google popup sign-in is unavailable in this browser. Opening secure redirect sign-in.');
         await signInWithRedirect(auth, googleProvider);
       } else {
-        setAuthError(err.message || 'Google authentication encountered an issue. You can continue via the VIP Test-Drive session below.');
+        setAuthError(err.message || 'Google authentication failed. Please try again.');
       }
       return false;
     } finally {
@@ -952,17 +951,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return true;
     } catch (err: any) {
       console.error('Facebook Sign In Error:', err);
-      // Fallback for preview demo if popup is blocked by iframe
-      const fallbackUser: AppUser = {
-        uid: `fb-${Date.now()}`,
-        name: 'Facebook Verified Patron',
-        email: 'patron@meta-verified.com',
-        role: 'patron',
-        joinedDate: new Date().toISOString()
-      };
-      setUser(fallbackUser);
-      setIsAuthOpen(false);
-      return true;
+      setAuthError(err?.message || 'Facebook authentication failed. Please try again.');
+      return false;
     } finally {
       setIsAuthLoading(false);
     }
@@ -984,17 +974,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsAuthOpen(false);
       return true;
     } catch (err: any) {
-      console.warn('Firebase Email Sign In fallback:', err);
-      // Seamless fallback for user testing
-      setUser({
-        uid: `usr-${Date.now().toString(36)}`,
-        name: email.split('@')[0],
-        email,
-        role: 'patron',
-        joinedDate: new Date().toISOString()
-      });
-      setIsAuthOpen(false);
-      return true;
+      console.warn('Firebase Email Sign In failed:', err);
+      setAuthError(
+        err?.code === 'auth/invalid-credential'
+          ? 'Invalid email or password.'
+          : (err?.message || 'Email sign-in failed. Please try again.')
+      );
+      return false;
     } finally {
       setIsAuthLoading(false);
     }
@@ -1018,18 +1004,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsAuthOpen(false);
       return true;
     } catch (err: any) {
-      console.warn('Firebase Email Sign Up fallback:', err);
-      const newUser: AppUser = {
-        uid: `usr-${Date.now().toString(36)}`,
-        name: name || email.split('@')[0],
-        email,
-        role: 'patron',
-        joinedDate: new Date().toISOString(),
-        ordersCount: 0
-      };
-      setUser(newUser);
-      setIsAuthOpen(false);
-      return true;
+      console.warn('Firebase Email Sign Up failed:', err);
+      setAuthError(
+        err?.code === 'auth/email-already-in-use'
+          ? 'An account already exists for this email.'
+          : (err?.message || 'Account creation failed. Please try again.')
+      );
+      return false;
     } finally {
       setIsAuthLoading(false);
     }
@@ -1041,17 +1022,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       name: 'Guest Collector',
       email: 'guest@saelyxe.com',
       role: 'guest'
-    });
-    setIsAuthOpen(false);
-  };
-
-  const loginAsBypassPatron = () => {
-    setUser({
-      uid: 'vip-patron-demo',
-      name: 'House of Saelyxe VIP Patron',
-      email: 'hello@saelyxe.com',
-      role: 'patron',
-      joinedDate: new Date().toISOString()
     });
     setIsAuthOpen(false);
   };
@@ -1140,64 +1110,41 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Orders Management
-  const createOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'> & { orderNumber?: string }): Promise<Order> => {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    const orderNum = orderData.orderNumber || `SOX-${yyyy}${mm}${dd}-${rand}`;
-
+  const createOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'statusHistory'> & { orderNumber?: string; promoCode?: string }): Promise<Order> => {
     const orderPayload = {
       ...orderData,
-      id: orderNum,
-      orderNumber: orderNum,
-      userId: user?.uid
+      userId: user?.role === 'guest' ? undefined : user?.uid
     };
 
-    let placedOrder: Order;
-    try {
-      const res = await fetchAdminApi('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload)
-      });
+    const res = await fetchAdminApi('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderPayload)
+    });
 
-      if (res.ok) {
-        placedOrder = await res.json();
-      } else {
-        throw new Error('API creation failed');
+    if (!res.ok) {
+      let message = 'Unable to create order.';
+      try {
+        const payload = await res.json();
+        if (payload?.error) message = String(payload.error);
+      } catch {
+        // Keep safe generic message.
       }
-    } catch (apiErr) {
-      console.warn('API order fallback:', apiErr);
-      placedOrder = {
-        ...orderPayload,
-        createdAt: new Date().toISOString(),
-        status: 'placed',
-        statusHistory: [
-          {
-            status: 'placed',
-            timestamp: new Date().toISOString(),
-            note: 'Order placed by customer.',
-            location: 'SAELYXE Online System'
-          }
-        ]
-      } as Order;
+      throw new Error(message);
     }
 
-    // Always persist into Firestore
-    try {
-      const sanitizedOrder = JSON.parse(JSON.stringify(placedOrder));
-      const ordersRef = doc(db, 'orders', placedOrder.id || placedOrder.orderNumber);
-      await setDoc(ordersRef, sanitizedOrder);
-    } catch (e) {
-      console.error('Firestore order sync error details:', e);
-    }
+    const placedOrder = await res.json() as Order;
 
-    // Immediately prepend to local orders state so My Orders displays it right away
-    setOrders(prev => [placedOrder, ...prev.filter(o => o.id !== placedOrder.id && o.orderNumber !== placedOrder.orderNumber)]);
+    // Server is the source of truth. Do not create a second client-side order document.
+    setOrders(prev => [
+      placedOrder,
+      ...prev.filter(o => o.id !== placedOrder.id && o.orderNumber !== placedOrder.orderNumber)
+    ]);
 
-    await logAuditEvent('ORDER_CREATED', `Order ${placedOrder.orderNumber} created for ${placedOrder.customerName} (${placedOrder.currencyUsed} ${placedOrder.totalInCurrency})`);
+    await logAuditEvent(
+      'ORDER_CREATED',
+      `Order ${placedOrder.orderNumber} created for ${placedOrder.customerName} (${placedOrder.currencyUsed} ${placedOrder.totalInCurrency})`
+    );
     return placedOrder;
   };
 
@@ -1376,11 +1323,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setAuditLogs(prev => [entry, ...prev.slice(0, 49)]);
 
-    try {
-      const logsCol = collection(db, 'audit_logs');
-      await addDoc(logsCol, entry);
-    } catch (e) {
-      // Non-blocking
+    // Only privileged operator activity is written to the security audit collection.
+    // Customer/guest activity remains local to avoid allowing arbitrary clients to forge audit records.
+    if (user?.role === 'admin' || user?.role === 'super_admin') {
+      try {
+        const logsCol = collection(db, 'audit_logs');
+        await addDoc(logsCol, entry);
+      } catch {
+        // Non-blocking
+      }
     }
   };
 
@@ -1516,8 +1467,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithEmail,
         signupWithEmail,
         loginAsGuest,
-        loginAsBypassPatron,
-        loginAdmin,
+          loginAdmin,
         logout,
         updateUserProfile,
         orders,
