@@ -27,8 +27,8 @@ export const CheckoutPage: React.FC = () => {
     selectedCurrency,
     currencies,
     createOrder,
-    linkPayPalOrder,
-    verifyPayPalPayment,
+    createPayPalPayment,
+    capturePayPalPayment,
     cancelPayPalOrder,
     clearCart, 
     navigateTo, 
@@ -184,13 +184,9 @@ export const CheckoutPage: React.FC = () => {
   const shippingLKR = discountedSubtotalLKR > 50000 ? 0 : 2500;
   const totalLKR = discountedSubtotalLKR + shippingLKR;
   const totalInCurrency = Number((totalLKR * (selectedCurrency?.rateFromLKR || 1)).toFixed(2));
-  const usdRateFromLKR = currencies.find(currency => currency.code === 'USD')?.rateFromLKR || 0.0033;
   const paypalCurrency = ['USD', 'EUR', 'GBP'].includes(selectedCurrency?.code || '')
     ? (selectedCurrency?.code || 'USD')
     : 'USD';
-  const paypalAmount = paypalCurrency === selectedCurrency?.code
-    ? totalInCurrency.toFixed(2)
-    : (totalLKR * usdRateFromLKR).toFixed(2);
   const totalUSDT = (totalLKR * usdRateFromLKR).toFixed(2); // display estimate only
 
   // Empty Bag Guard
@@ -365,18 +361,16 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handlePaypalApprovedOrder = async (details: any, fallbackPayPalOrderId?: string) => {
+  const handlePaypalApprovedOrder = async (paypalOrderId: string) => {
     const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
-    const paypalOrderId = String(details?.id || fallbackPayPalOrderId || pendingOrder?.paymentProviderReference || '').trim();
-
     if (!pendingOrder || !paypalOrderId) {
-      alert('PayPal payment was captured, but the SAELYXE order reference is unavailable. Please contact support with your PayPal receipt.');
+      alert('PayPal approval was received, but the SAELYXE order reference is unavailable. Please contact support and do not submit another payment.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const verifiedOrder = await verifyPayPalPayment(
+      const verifiedOrder = await capturePayPalPayment(
         pendingOrder.id || pendingOrder.orderNumber,
         paypalOrderId
       );
@@ -385,8 +379,8 @@ export const CheckoutPage: React.FC = () => {
       setPaypalPendingOrder(null);
       clearCart();
     } catch (err) {
-      console.error('PayPal server verification exception:', err);
-      alert(`Your PayPal payment needs verification. SAELYXE order ${pendingOrder.orderNumber} is already recorded. Please do not pay again.`);
+      console.error('PayPal server capture exception:', err);
+      alert(`Your PayPal payment outcome needs verification. SAELYXE order ${pendingOrder.orderNumber} is already recorded. Please do not pay again.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -774,7 +768,7 @@ export const CheckoutPage: React.FC = () => {
                           >
                             <PayPalButtons
                               style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
-                              createOrder={async (_data, actions) => {
+                              createOrder={async () => {
                                 if (!customerName || !email || phone.replace(/\D/g, '').length < 9 || !address || !city || !country) {
                                   alert('Please complete your delivery and contact details before continuing to PayPal.');
                                   throw new Error('Checkout details are incomplete.');
@@ -808,42 +802,18 @@ export const CheckoutPage: React.FC = () => {
                                   setPaypalPendingOrder(localOrder);
                                 }
 
-                                const paypalOrderId = await actions.order.create({
-                                  intent: 'CAPTURE',
-                                  purchase_units: [
-                                    {
-                                      custom_id: localOrder.orderNumber,
-                                      invoice_id: localOrder.orderNumber,
-                                      amount: {
-                                        currency_code: paypalCurrency,
-                                        value: paypalAmount,
-                                      },
-                                      description: `SAELYXE Order ${localOrder.orderNumber}`,
-                                    },
-                                  ],
-                                });
-
-                                localOrder = await linkPayPalOrder(
-                                  localOrder.id || localOrder.orderNumber,
-                                  paypalOrderId
+                                const started = await createPayPalPayment(
+                                  localOrder.id || localOrder.orderNumber
                                 );
-                                paypalPendingOrderRef.current = localOrder;
-                                setPaypalPendingOrder(localOrder);
-                                return paypalOrderId;
-                              }}
-                              onApprove={async (data, actions) => {
-                                try {
-                                  const details = await actions.order?.capture();
-                                  await handlePaypalApprovedOrder(details, data.orderID);
-                                } catch (err) {
-                                  console.error('PayPal Capture Exception:', err);
-                                  const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
-                                  if (pendingOrder) {
-                                    alert(`Payment verification is incomplete. SAELYXE order ${pendingOrder.orderNumber} is recorded; please do not submit another payment until its status is checked.`);
-                                  } else {
-                                    alert('PayPal payment verification failed. Please contact support.');
-                                  }
+                                if (!started.paypalOrderId || !started.order) {
+                                  throw new Error('PayPal payment could not be initialized.');
                                 }
+                                paypalPendingOrderRef.current = started.order;
+                                setPaypalPendingOrder(started.order);
+                                return started.paypalOrderId;
+                              }}
+                              onApprove={async (data) => {
+                                await handlePaypalApprovedOrder(data.orderID);
                               }}
                               onCancel={async () => {
                                 const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
@@ -856,11 +826,15 @@ export const CheckoutPage: React.FC = () => {
                                   setPaypalPendingOrder(null);
                                 } catch (err) {
                                   console.error('PayPal cancellation sync failed:', err);
-                                  alert(`PayPal checkout was cancelled, but SAELYXE order ${pendingOrder.orderNumber} still needs cancellation confirmation. Please contact support if it remains pending.`);
+                                  alert(`PayPal checkout was closed, but SAELYXE order ${pendingOrder.orderNumber} was kept pending because payment status could not be safely ruled out. Please do not pay again until its status is checked.`);
                                 }
                               }}
                               onError={(err) => {
                                 console.error('PayPal Button Error:', err);
+                                const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
+                                if (pendingOrder) {
+                                  alert(`PayPal checkout encountered an error. SAELYXE order ${pendingOrder.orderNumber} is already recorded. Please do not create another payment until this order is checked.`);
+                                }
                               }}
                             />
                           </PayPalScriptProvider>
