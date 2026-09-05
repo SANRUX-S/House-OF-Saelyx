@@ -542,6 +542,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  // Settings real-time listener
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    const settingsRef = doc(db, 'settings', 'drop_config');
+    const unsub = onSnapshot(settingsRef, snap => {
+      if (!snap.exists()) return;
+      const nextSettings = snap.data() as DropSettings;
+      setSettings(nextSettings);
+      try {
+        localStorage.setItem('saelyx_settings', JSON.stringify(nextSettings));
+      } catch {
+        // Storage is optional.
+      }
+    }, err => {
+      console.warn('Settings listener note:', err);
+    });
+    return () => unsub();
+  }, []);
+
   // 2. Orders real-time listener
   useEffect(() => {
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
