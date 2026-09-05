@@ -1271,7 +1271,7 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
     if (!initialSnap.exists) return res.status(404).json({ error: 'Order not found.' });
     const initialOrder: any = { id: initialSnap.id, ...initialSnap.data() };
 
-    if (initialOrder.userId !== token.uid && !await isAdminToken(token)) {
+    if (initialOrder.userId !== token.uid && !(await isAdminToken(token))) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (initialOrder.paymentMethod !== 'paypal') {
@@ -1302,7 +1302,7 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
       if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
 
       const current: any = { id: orderSnap.id, ...orderSnap.data() };
-      if (current.userId !== token.uid && !await isAdminToken(token)) {
+      if (current.userId !== token.uid && !(await isAdminToken(token))) {
         throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
       }
       if (current.paymentMethod !== 'paypal') {
@@ -1376,7 +1376,7 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !await isAdminToken(token)) {
+    if (order.userId !== token.uid && !(await isAdminToken(token))) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -1446,7 +1446,7 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !await isAdminToken(token)) {
+    if (order.userId !== token.uid && !(await isAdminToken(token))) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -1502,7 +1502,7 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !await isAdminToken(token)) {
+    if (order.userId !== token.uid && !(await isAdminToken(token))) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -2135,7 +2135,8 @@ app.get('/api/orders', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!await isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
 
     const snapshot = await adminDb.collection('orders').orderBy('createdAt', 'desc').limit(250).get();
     return res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -2166,7 +2167,7 @@ app.get('/api/orders/:id', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
 
     const order: any = { id: snap.id, ...snap.data() };
-    if (order.userId !== token.uid && !await isAdminToken(token)) {
+    if (order.userId !== token.uid && !(await isAdminToken(token))) {
       // Use the same response as a missing order so the endpoint does not confirm
       // whether another customer's order reference exists.
       return res.status(404).json({ error: 'Order not found.' });
@@ -2342,7 +2343,8 @@ app.put('/api/orders/:id/status', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!await isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
 
     const id = safeString(req.params.id, 120);
     const status = safeString(req.body?.status, 40);
@@ -2485,7 +2487,8 @@ app.post('/api/restock/dispatch', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Restock service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!await isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
 
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
