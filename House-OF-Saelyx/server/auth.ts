@@ -48,12 +48,13 @@ async function verifyWithFirebaseApi(idToken: string) {
   );
   if (!response.ok) return null;
 
-  const payload = await response.json() as { users?: Array<{ localId?: string; email?: string }> };
+  const payload = await response.json() as { users?: Array<{ localId?: string; email?: string; emailVerified?: boolean }> };
   const firebaseUser = payload.users?.[0];
   if (!firebaseUser?.email) return null;
   return {
     uid: firebaseUser.localId || '',
-    email: firebaseUser.email
+    email: firebaseUser.email,
+    email_verified: firebaseUser.emailVerified === true
   };
 }
 
@@ -70,7 +71,7 @@ export async function requireAuthenticated(req: Request, res: Response, next: Ne
       ? await adminAuth.verifyIdToken(idToken)
       : await verifyWithFirebaseApi(idToken);
     if (!token) return res.status(503).json({ error: 'Firebase server authentication is not configured' });
-    const tokenClaims = token as { uid?: string; email?: string; admin?: boolean; role?: string; [key: string]: unknown };
+    const tokenClaims = token as { uid?: string; email?: string; email_verified?: boolean; admin?: boolean; role?: string; [key: string]: unknown };
     (req as Request & { auth?: typeof tokenClaims }).auth = tokenClaims;
     return next();
   } catch {
@@ -80,8 +81,10 @@ export async function requireAuthenticated(req: Request, res: Response, next: Ne
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   return requireAuthenticated(req, res, () => {
-    const tokenClaims = (req as Request & { auth?: { uid?: string; email?: string; admin?: boolean; role?: string } }).auth;
-    const configuredRole = tokenClaims?.email ? ADMIN_ROLES[tokenClaims.email.toLowerCase()] : undefined;
+    const tokenClaims = (req as Request & { auth?: { uid?: string; email?: string; email_verified?: boolean; admin?: boolean; role?: string } }).auth;
+    const configuredRole = tokenClaims?.email && tokenClaims.email_verified === true
+      ? ADMIN_ROLES[tokenClaims.email.toLowerCase()]
+      : undefined;
     if (
       tokenClaims?.admin !== true &&
       tokenClaims?.role !== 'admin' &&
@@ -96,9 +99,12 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 
 export async function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
   return requireAdmin(req, res, () => {
-    const auth = (req as Request & { auth?: { email?: string; role?: string; admin?: boolean } }).auth;
+    const auth = (req as Request & { auth?: { email?: string; email_verified?: boolean; role?: string; admin?: boolean } }).auth;
     const email = auth?.email?.toLowerCase();
-    if (auth?.role !== 'super_admin' && email !== 'saelyx.co@gmail.com' && email !== 'saelyx.co+super@gmail.com') {
+    const verifiedAllowlistedSuperAdmin =
+      auth?.email_verified === true &&
+      (email === 'saelyx.co@gmail.com' || email === 'saelyx.co+super@gmail.com');
+    if (auth?.role !== 'super_admin' && !verifiedAllowlistedSuperAdmin) {
       return res.status(403).json({ error: 'Super administrator access required' });
     }
     return next();
