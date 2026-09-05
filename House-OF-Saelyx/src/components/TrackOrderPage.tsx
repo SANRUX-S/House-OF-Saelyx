@@ -182,7 +182,7 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
                   #{order.orderNumber}
                 </h3>
                 <p className="text-xs text-[#7A6E60] mt-1">
-                  Placed on {formatDate(order.createdAt)} · Settle via {order.paymentMethod?.toUpperCase() || 'COD'}
+                  Placed on {formatDate(order.createdAt)} · Settle via {order.paymentMethod ? order.paymentMethod.toUpperCase().replace('_QR', '') : 'PENDING'}
                 </p>
               </div>
 
