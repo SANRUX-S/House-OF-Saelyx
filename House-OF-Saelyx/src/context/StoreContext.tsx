@@ -571,25 +571,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as Product);
         });
-        if (list.length > 0) {
-          setProducts(list);
-          setIsLoadingProducts(false);
-        } else {
-          try {
-            const res = await fetch('/api/products');
-            if (res.ok) {
-              const data: Product[] = await res.json();
-              for (const p of data) {
-                const pWithSlug = {
-                  ...p,
-                  slug: p.slug || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-                };
-                await setDoc(doc(db, 'products', p.id || `prod-${Date.now().toString(36)}`), pWithSlug);
-              }
-            }
-          } catch (e) {}
-          setIsLoadingProducts(false);
-        }
+        setProducts(list);
+        setIsLoadingProducts(false);
       }, (err) => {
         console.warn('Products listener note:', err);
         setIsLoadingProducts(false);
@@ -755,9 +738,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
 
 
-        // Filter out deprecated staff-01 dummy if present
-        const filteredList = list.filter(s => s.id !== 'staff-01');
-        setStaffList(filteredList.length > 0 ? filteredList : list);
+        setStaffList(list);
       }, (err) => {
         console.warn('Staff listener note:', err);
       });
@@ -766,38 +747,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error('Error setting up staff listener:', e);
     }
   }, [user?.role]);
-
-  // 6. Settings real-time listener
-  useEffect(() => {
-    if (!isFirebaseConfigured) return;
-    try {
-      const docRef = doc(db, 'settings', 'drop_config');
-      const unsub = onSnapshot(docRef, async (docSnap) => {
-        if (docSnap.exists()) {
-          const newSettings = docSnap.data() as DropSettings;
-          setSettings(newSettings);
-          try {
-            localStorage.setItem('saelyx_settings', JSON.stringify(newSettings));
-          } catch (e) {}
-        } else {
-          try {
-            const res = await fetchAdminApi('/api/settings');
-            if (res.ok) {
-              const data = await res.json();
-              setSettings(data);
-              try {
-                localStorage.setItem('saelyx_settings', JSON.stringify(data));
-              } catch (e) {}
-              await setDoc(docRef, data, { merge: true });
-            }
-          } catch (e) {}
-        }
-      }, (err) => {
-        console.warn('Settings listener note:', err);
-      });
-      return () => unsub();
-    } catch (e) {}
-  }, [fetchAdminApi]);
 
   // 7. Audit Logs real-time listener
   useEffect(() => {
