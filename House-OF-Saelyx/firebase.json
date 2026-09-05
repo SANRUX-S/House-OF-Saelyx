@@ -2,8 +2,5 @@
   "firestore": {
     "rules": "firestore.rules",
     "database": "ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41"
-  },
-  "functions": {
-    "source": "functions"
   }
 }
