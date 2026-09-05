@@ -15,7 +15,6 @@ const api = read('api/index.ts');
 const store = read('src/context/StoreContext.tsx');
 const rules = read('firestore.rules');
 const firebaseClient = read('src/lib/firebase.ts');
-const serverAuth = read('server/auth.ts');
 const vercel = read('vercel.json');
 const checkout = read('src/components/CheckoutPage.tsx');
 const tracker = read('src/components/TrackOrderPage.tsx');
@@ -23,19 +22,25 @@ const trackerModal = read('src/components/OrderTrackerModal.tsx');
 const adminSecurity = read('src/components/admin/AdminSecurity.tsx');
 const adminStaff = read('src/components/admin/AdminStaff.tsx');
 const adminPanel = read('src/components/AdminPanel.tsx');
+const adminProducts = read('src/components/admin/AdminProducts.tsx');
+const adminDrop = read('src/components/admin/AdminDropSettings.tsx');
+const adminDashboard = read('src/components/admin/AdminDashboard.tsx');
+const adminOrders = read('src/components/admin/AdminCommissions.tsx');
+const adminRestock = read('src/components/admin/AdminRestock.tsx');
+const localServer = read('server.ts');
 const fallbackDb = read('server/db.ts');
 const fallbackJson = read('data/saelyx_store.json');
 
 const trackingStart = api.indexOf("app.get('/api/orders/:id'");
-const trackingEnd = api.indexOf("app.put('/api/orders/:id/status'", trackingStart);
+const trackingEnd = api.indexOf("app.post('/api/admin/orders/:id/refund'", trackingStart);
 const trackingRoute = trackingStart >= 0 && trackingEnd > trackingStart
   ? api.slice(trackingStart, trackingEnd)
   : '';
 
 assert(trackingRoute.length > 0, 'order tracking route must exist');
 assert(trackingRoute.includes('const token = await readBearerToken(req);'), 'order tracking must require Firebase authentication');
-assert(trackingRoute.includes('hasValidAppCheck(req)'), 'order tracking must enforce App Check when configured');
-assert(trackingRoute.includes('order.userId !== token.uid && !isAdminToken(token)'), 'order tracking must enforce owner/admin access');
+assert(trackingRoute.includes('hasValidAppCheck(req)'), 'order tracking must enforce App Check');
+assert(trackingRoute.includes('order.userId !== token.uid && !(await isAdminToken(token))'), 'order tracking must enforce owner/admin access');
 assert(!trackingRoute.includes('customerName:'), 'tracking response must not expose customer name');
 assert(!trackingRoute.includes('phone:'), 'tracking response must not expose phone number');
 assert(!trackingRoute.includes('address:'), 'tracking response must not expose street address');
@@ -44,23 +49,74 @@ assert(!trackingRoute.includes('location: safeString(entry?.location'), 'trackin
 
 assert(rules.includes("request.resource.data.role == 'patron'"), 'new customer profiles must not self-assign privileged roles');
 assert(rules.includes('request.resource.data.role == resource.data.role'), 'customer profile updates must preserve role');
-assert(!store.includes('configuredAdminRole || data.role'), 'client session must not trust users/{uid}.role');
-assert(store.includes("role: trustedRole"), 'client session must use a trusted role source');
-assert(store.includes('if (!fbUser) {\n        setUser(null);'), 'sign-out/session loss must clear local user state');
+assert(rules.includes("data.status == 'active'"), 'Firestore admin access must require an active admin record');
+assert(rules.includes('data.email == request.auth.token.email'), 'Firestore admin record must be bound to the verified token email');
+assert(rules.includes('allow create, update, delete: if false;'), 'sensitive collections must include server-only mutation rules');
+assert(!rules.includes("request.auth.token.role == 'admin'"), 'Firestore must not trust stale role claims as the sole admin source');
 
-assert(api.includes('token.email_verified === true && ADMIN_EMAILS.has(email)'), 'API allowlisted admin email must be verified');
-assert(rules.includes('request.auth.token.email_verified == true'), 'Firestore admin email allowlist must require verified ownership');
-assert(firebaseClient.includes('credential.user.emailVerified ? allowlistedRole : undefined'), 'admin credential flow must require verified allowlisted email');
-assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified allowlisted admin must receive a verification path');
-assert(serverAuth.includes('tokenClaims.email_verified === true'), 'legacy server admin allowlist must require verified email');
+assert(!store.includes('configuredAdminRole || data.role'), 'client session must not trust users/{uid}.role');
+assert(store.includes("adminData?.status === 'active'"), 'client admin session must require an active admin record');
+assert(store.includes('setOrders([]);') && store.includes('setMessages([]);') && store.includes('setStaffList([]);'), 'session loss must clear privileged data');
+assert(store.includes('/api/admin/products/'), 'product mutations must use the trusted admin API');
+assert(store.includes('/api/admin/messages/'), 'concierge mutations must use the trusted admin API');
+assert(store.includes('/api/admin/settings'), 'settings mutations must use the trusted admin API');
+
+assert(api.includes("token.email_verified !== true"), 'API administrator authorization must require verified email ownership');
+assert(api.includes("status !== 'active'"), 'API administrator authorization must require active admin records');
+assert(api.includes("collection('admins').doc(token.uid)"), 'API must resolve protected admin records');
+assert(firebaseClient.includes("adminData?.status === 'active'"), 'admin credential flow must require active administrator records');
+assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified bootstrap admin must receive a verification path');
+assert(firebaseClient.includes('browserLocalPersistence') && firebaseClient.includes('browserSessionPersistence'), 'Remember Me must control Firebase persistence');
+
+assert(api.includes("app.post('/api/admin/staff/invite'"), 'staff invitation API must exist');
+assert(api.includes('generateEmailVerificationLink'), 'staff invitation must include Firebase email verification');
+assert(api.includes('generatePasswordResetLink'), 'staff invitation must include secure password setup');
+assert(api.includes("app.post('/api/admin/staff/:uid/activate'"), 'staff activation API must exist');
+assert(api.includes('setCustomUserClaims'), 'staff activation must set Firebase custom claims');
+assert(api.includes('revokeRefreshTokens'), 'staff revocation must revoke Firebase refresh tokens');
+assert(adminStaff.includes('INVITE ADMINISTRATOR'), 'staff UI must expose the real invitation workflow');
+assert(adminStaff.includes('Activate') && adminStaff.includes('Revoke'), 'staff UI must expose activation and revocation');
+
+assert(api.includes("app.post('/api/admin/orders/:id/refund'"), 'Super Admin PayPal refund endpoint must exist');
+assert(api.includes('/v2/payments/captures/') && api.includes('/refund'), 'refund must use PayPal Payments v2 capture refund');
+assert(api.includes('paymentCaptureId'), 'PayPal capture ID must be persisted');
+assert(api.includes("paymentStatus: 'refund_pending'"), 'pending refund state must be explicit');
+assert(api.includes("paymentStatus: 'refunded'"), 'completed refund state must be explicit');
+assert(api.includes('canAutoRestoreInventory'), 'refund flow must avoid blindly restocking dispatched items');
+assert(api.includes('Verified PayPal orders must be cancelled through the Super Admin refund workflow.'), 'normal status API must not fake a paid cancellation');
 
 assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enforced');
 assert(!vercel.includes('Content-Security-Policy-Report-Only'), 'report-only CSP must not remain');
 assert(vercel.includes('https://www.google.com/recaptcha/'), 'CSP must allow reCAPTCHA Enterprise used by App Check');
 assert(vercel.includes('https://*.paypal.com'), 'CSP must allow PayPal SDK resources');
+
 assert(!firebaseClient.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'client must not depend on Firebase Storage');
 assert(!fallbackDb.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'server fallback must not depend on Firebase Storage');
+assert(!fs.existsSync('storage.rules'), 'Firebase Storage rules must not remain after Cloudinary migration');
+assert(!fs.existsSync('functions/index.js'), 'duplicate Firebase Functions runtime must be retired');
 assert(api.includes('CLOUDINARY_CLOUD_NAME') && api.includes('CLOUDINARY_API_SECRET'), 'media uploads must use server-signed Cloudinary configuration');
+assert(api.includes('media-signature:'), 'Cloudinary signing must be rate limited per admin');
+assert(adminDrop.includes("uploadAdminImage(file, 'settings')"), 'drop background must use Cloudinary instead of Firestore base64');
+assert(!adminDrop.includes('readAsDataURL'), 'drop settings must not store base64 images in Firestore');
+
+assert(!adminDashboard.includes('565K'), 'dashboard must not contain fabricated traffic metrics');
+assert(!adminDashboard.includes('productReturned = 8'), 'dashboard must not contain fabricated return counts');
+assert(!adminDashboard.includes('increased 40%'), 'dashboard must not contain fabricated revenue growth');
+assert(adminDashboard.includes("paymentStatus === 'verified'"), 'dashboard revenue must derive from verified payments');
+assert(!adminProducts.includes('stockCount || 50'), 'product admin must preserve real zero stock');
+assert(!adminRestock.includes('stockCount || 50'), 'restock admin must preserve real zero stock');
+assert(adminProducts.includes('min={0}') && adminProducts.includes('min={1}'), 'product editor must validate stock and price ranges');
+
+assert(adminOrders.includes("if (/^[=+\\-@]/.test(text))"), 'CSV export must neutralize spreadsheet formulas');
+assert(adminOrders.includes('isSuperAdmin &&'), 'PII CSV export must be Super Admin restricted');
+assert(adminPanel.includes("logAuditEvent('DATABASE_EXPORT'"), 'database export must create an audit event');
+
+assert(api.includes("app.get('/api/admin/health'"), 'detailed health diagnostics must be protected');
+assert(api.includes("res.json({ ok: true, service: 'saelyxe-api' });"), 'public health endpoint must expose only minimal status');
+assert(adminSecurity.includes('/api/admin/health'), 'Admin Security must use protected diagnostics');
+
+assert(localServer.includes('app.use(productionApi);'), 'local VS Code server must mount the production API');
+assert(localServer.includes('retiredMutation'), 'legacy local admin mutations must be retired');
 
 for (const [name, source] of [
   ['checkout', checkout],
@@ -94,11 +150,6 @@ for (const fake of [
 assert(!trackerModal.includes("useState('SLX-94821')"), 'legacy tracker must not ship with a demo order reference');
 assert(tracker.includes('Authorization: `Bearer ${token}`'), 'tracking page must authenticate API requests');
 assert(trackerModal.includes('Authorization: `Bearer ${token}`'), 'tracking modal must authenticate API requests');
-
-assert(!adminStaff.includes('Initial Passkey Code'), 'staff directory must not pretend to provision Firebase credentials');
-assert(!adminStaff.includes('Root Protected'), 'staff directory must not contain demo root-ID protection');
-assert(!adminPanel.includes("id === 'staff-001'"), 'admin panel must not special-case demo staff IDs');
-assert(adminStaff.includes('this table does not create Firebase login credentials'), 'staff directory must explain that it does not grant authentication access');
 
 if (!process.exitCode) {
   console.log('SAELYXE security regression checks passed.');
