@@ -57,6 +57,7 @@ type CreateOrderInput = Pick<
 > & {
   promoCode?: string;
   paymentProviderReference?: string;
+  checkoutAttemptId?: string;
 };
 
 type AuthMode = 'signin' | 'signup';
