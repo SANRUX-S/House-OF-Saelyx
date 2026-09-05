@@ -16,6 +16,12 @@ import {
   ConfirmationResult
 } from 'firebase/auth';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import {
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+  getToken as getAppCheckToken,
+  type AppCheck
+} from 'firebase/app-check';
 import { AppUser, UserRole } from '../types';
 
 const firebaseConfig = {
@@ -47,6 +53,30 @@ export const auth = getAuth(app);
 
 // Initialize Firestore with custom database ID
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
+
+const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APP_CHECK_SITE_KEY || '';
+let appCheckInstance: AppCheck | null = null;
+
+if (typeof window !== 'undefined' && appCheckSiteKey) {
+  try {
+    appCheckInstance = initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+      isTokenAutoRefreshEnabled: true
+    });
+  } catch (error) {
+    console.warn('Firebase App Check initialization note:', error);
+  }
+}
+
+export async function getAppCheckRequestHeaders(): Promise<Record<string, string>> {
+  if (!appCheckInstance) return {};
+  try {
+    const token = await getAppCheckToken(appCheckInstance, false);
+    return token?.token ? { 'X-Firebase-AppCheck': token.token } : {};
+  } catch {
+    return {};
+  }
+}
 
 // Providers
 export const googleProvider = new GoogleAuthProvider();
