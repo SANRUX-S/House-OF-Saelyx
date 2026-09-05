@@ -20,11 +20,13 @@ app.use((_req, res, next) => {
 app.use(express.json({ limit: '64kb' }));
 
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
-const ADMIN_EMAILS = new Set([
-  'saelyx.co@gmail.com',
-  'saelyx.co+super@gmail.com',
-  'saelyx.co+admin@gmail.com'
+const ADMIN_EMAIL_ROLES = new Map<string, 'admin' | 'super_admin'>([
+  ['saelyx.co@gmail.com', 'super_admin'],
+  ['saelyx.co+super@gmail.com', 'super_admin'],
+  ['saelyx.co+admin@gmail.com', 'admin']
 ]);
+const ADMIN_EMAILS = new Set(ADMIN_EMAIL_ROLES.keys());
+const ROOT_ADMIN_EMAILS = new Set(['saelyx.co@gmail.com', 'saelyx.co+super@gmail.com']);
 
 const CURRENCIES = [
   { code: 'LKR', symbol: 'Rs', name: 'Sri Lankan Rupee', rateFromLKR: 1, symbolPosition: 'before', flag: 'LK' },
@@ -95,14 +97,48 @@ async function readBearerToken(req: Request): Promise<DecodedIdToken | null> {
   }
 }
 
-function isAdminToken(token: DecodedIdToken | null) {
-  if (!token) return false;
+async function getAdminRole(token: DecodedIdToken | null): Promise<'admin' | 'super_admin' | null> {
+  if (!token || token.email_verified !== true) return null;
   const email = typeof token.email === 'string' ? token.email.toLowerCase() : '';
-  const verifiedAllowlistedEmail = token.email_verified === true && ADMIN_EMAILS.has(email);
-  return token.admin === true ||
-    token.role === 'admin' ||
-    token.role === 'super_admin' ||
-    verifiedAllowlistedEmail;
+  const configuredRole = ADMIN_EMAIL_ROLES.get(email);
+  if (configuredRole) return configuredRole;
+
+  const adminDb = getAdminDb();
+  if (!adminDb) return null;
+  const adminSnap = await adminDb.collection('admins').doc(token.uid).get();
+  if (!adminSnap.exists) return null;
+
+  const adminData: any = adminSnap.data() || {};
+  const recordEmail = safeString(adminData.email, 254).toLowerCase();
+  const recordRole = safeString(adminData.role, 30);
+  const status = safeString(adminData.status, 30);
+  if (status !== 'active' || !recordEmail || recordEmail !== email) return null;
+  return recordRole === 'super_admin' ? 'super_admin' : recordRole === 'admin' ? 'admin' : null;
+}
+
+async function isAdminToken(token: DecodedIdToken | null) {
+  return (await getAdminRole(token)) !== null;
+}
+
+async function isSuperAdminToken(token: DecodedIdToken | null) {
+  return (await getAdminRole(token)) === 'super_admin';
+}
+
+async function writeAdminAudit(
+  adminDb: NonNullable<ReturnType<typeof getAdminDb>>,
+  token: DecodedIdToken,
+  action: string,
+  details: string
+) {
+  const role = await getAdminRole(token);
+  await adminDb.collection('audit_logs').add({
+    timestamp: new Date().toISOString(),
+    actor: typeof token.email === 'string' ? token.email : token.uid,
+    actorUid: token.uid,
+    role: role || 'admin',
+    action: safeString(action, 80),
+    details: safeString(details, 1000)
+  });
 }
 
 async function hasValidAppCheck(req: Request) {
@@ -652,7 +688,7 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Media service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!isAdminToken(token)) {
+    if (!await isAdminToken(token)) {
       return res.status(403).json({ error: 'Admin access required.' });
     }
     // Admin media uploads rely on authenticated admin access only.
@@ -933,7 +969,7 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
     if (!initialSnap.exists) return res.status(404).json({ error: 'Order not found.' });
     const initialOrder: any = { id: initialSnap.id, ...initialSnap.data() };
 
-    if (initialOrder.userId !== token.uid && !isAdminToken(token)) {
+    if (initialOrder.userId !== token.uid && !await isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (initialOrder.paymentMethod !== 'paypal') {
@@ -964,7 +1000,7 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
       if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
 
       const current: any = { id: orderSnap.id, ...orderSnap.data() };
-      if (current.userId !== token.uid && !isAdminToken(token)) {
+      if (current.userId !== token.uid && !await isAdminToken(token)) {
         throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
       }
       if (current.paymentMethod !== 'paypal') {
@@ -1038,7 +1074,7 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !isAdminToken(token)) {
+    if (order.userId !== token.uid && !await isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -1108,7 +1144,7 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !isAdminToken(token)) {
+    if (order.userId !== token.uid && !await isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -1164,7 +1200,7 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !isAdminToken(token)) {
+    if (order.userId !== token.uid && !await isAdminToken(token)) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -1556,7 +1592,7 @@ app.get('/api/orders', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!await isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
 
     const snapshot = await adminDb.collection('orders').orderBy('createdAt', 'desc').limit(250).get();
     return res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -1587,7 +1623,7 @@ app.get('/api/orders/:id', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
 
     const order: any = { id: snap.id, ...snap.data() };
-    if (order.userId !== token.uid && !isAdminToken(token)) {
+    if (order.userId !== token.uid && !await isAdminToken(token)) {
       // Use the same response as a missing order so the endpoint does not confirm
       // whether another customer's order reference exists.
       return res.status(404).json({ error: 'Order not found.' });
@@ -1634,7 +1670,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!await isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
 
     const id = safeString(req.params.id, 120);
     const status = safeString(req.body?.status, 40);
@@ -1767,7 +1803,7 @@ app.post('/api/restock/dispatch', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Restock service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!await isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
 
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
