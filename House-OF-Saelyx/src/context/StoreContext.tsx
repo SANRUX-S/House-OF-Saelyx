@@ -14,7 +14,6 @@ import {
   AdminStaff
 } from '../types';
 import { 
-  app,
   auth, 
   db, 
   googleProvider, 
@@ -45,7 +44,6 @@ import {
   addDoc,
   arrayUnion
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface CartItem extends OrderItem {
   product: Product;
@@ -1422,6 +1420,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         success: false,
         productTitle,
         dispatchedCount: 0,
+        processedCount: 0,
         recipients: [],
         executionId: 'error',
         error: 'Select a product before dispatching restock alerts.'
@@ -1429,17 +1428,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      const functions = getFunctions(app);
-      const dispatch = httpsCallable<{ productId: string }, {
-        success: boolean;
-        productTitle: string;
-        dispatchedCount: number;
-        recipients: string[];
-        executionId: string;
-      }>(functions, 'dispatchRestockAlertsCallable');
+      const response = await fetchAdminApi('/api/restock/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId })
+      });
 
-      const result = await dispatch({ productId });
-      const data = result.data;
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Restock email dispatch failed.');
+      }
 
       await logAuditEvent(
         'STOCK_ALERT_DISPATCHED',
@@ -1448,11 +1446,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       return data;
     } catch (e: any) {
-      console.error('Error triggering restock Cloud Function:', e);
+      console.error('Error triggering restock email dispatch:', e);
       return {
         success: false,
         productTitle,
         dispatchedCount: 0,
+        processedCount: 0,
         recipients: [],
         executionId: 'error',
         error: e?.message || 'Restock email dispatch failed.'
