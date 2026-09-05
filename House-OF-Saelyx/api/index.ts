@@ -159,8 +159,48 @@ app.get('/api/health', (_req, res) => {
     ok: true,
     service: 'saelyxe-api',
     firebaseAdminConfigured: Boolean(getAdminDb()),
-    transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL)
+    transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
+    mediaStorageConfigured: Boolean(
+      process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+    )
   });
+});
+
+app.post('/api/media/cloudinary-signature', async (req, res) => {
+  try {
+    const token = await readBearerToken(req);
+    if (!isAdminToken(token)) {
+      return res.status(403).json({ error: 'Admin access required.' });
+    }
+
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    if (!cloudName || !apiKey || !apiSecret) {
+      return res.status(503).json({ error: 'Media storage is not configured.' });
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const folder = 'saelyxe/products';
+    const signatureBase = `folder=${folder}&timestamp=${timestamp}`;
+    const signature = crypto
+      .createHash('sha1')
+      .update(`${signatureBase}${apiSecret}`)
+      .digest('hex');
+
+    return res.json({
+      cloudName,
+      apiKey,
+      timestamp,
+      folder,
+      signature,
+      maxFileSizeBytes: 10 * 1024 * 1024
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to authorize media upload.' });
+  }
 });
 
 app.get('/api/products', async (req, res) => {
