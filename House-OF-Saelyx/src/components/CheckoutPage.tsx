@@ -78,10 +78,33 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [user]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'payhere' | 'paypal' | 'binance_qr'>('payhere');
-  
-  // PayPal Client ID loaded quietly in the background - never exposed to customer
-  const paypalClientId = (import.meta as any).env?.VITE_PAYPAL_CLIENT_ID || '';
+  const [paymentMethod, setPaymentMethod] = useState<'payhere' | 'paypal' | 'binance_qr'>('paypal');
+  const [paymentConfig, setPaymentConfig] = useState({
+    paypal: { enabled: false, clientId: '', mode: 'sandbox' },
+    payhere: { enabled: false },
+    binance: { enabled: false }
+  });
+  const [paymentConfigLoaded, setPaymentConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/payments/config')
+      .then(async response => response.ok ? response.json() : null)
+      .then(config => {
+        if (!active || !config) return;
+        setPaymentConfig(config);
+        if (config.paypal?.enabled) setPaymentMethod('paypal');
+        else if (config.payhere?.enabled) setPaymentMethod('payhere');
+        else if (config.binance?.enabled) setPaymentMethod('binance_qr');
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setPaymentConfigLoaded(true);
+      });
+    return () => { active = false; };
+  }, []);
+
+  const paypalClientId = paymentConfig.paypal.clientId || '';
 
   const [bankRefNumber, setBankRefNumber] = useState('');
   const [binanceTxHash, setBinanceTxHash] = useState('');
@@ -157,6 +180,12 @@ export const CheckoutPage: React.FC = () => {
   const totalLKR = discountedSubtotalLKR + shippingLKR;
   const totalInCurrency = Number((totalLKR * (selectedCurrency?.rateFromLKR || 1)).toFixed(2));
   const usdRateFromLKR = currencies.find(currency => currency.code === 'USD')?.rateFromLKR || 0.0033;
+  const paypalCurrency = ['USD', 'EUR', 'GBP'].includes(selectedCurrency?.code || '')
+    ? (selectedCurrency?.code || 'USD')
+    : 'USD';
+  const paypalAmount = paypalCurrency === selectedCurrency?.code
+    ? totalInCurrency.toFixed(2)
+    : (totalLKR * usdRateFromLKR).toFixed(2);
   const totalUSDT = (totalLKR * usdRateFromLKR).toFixed(2); // display estimate only
 
   // Empty Bag Guard
@@ -666,6 +695,7 @@ export const CheckoutPage: React.FC = () => {
                 <div className="space-y-3">
                   
                   {/* 1. PayHere Online */}
+                  {paymentConfig.payhere.enabled && (
                   <div 
                     onClick={() => setPaymentMethod('payhere')}
                     className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
@@ -711,8 +741,10 @@ export const CheckoutPage: React.FC = () => {
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* 2. PayPal */}
+                  {paymentConfig.paypal.enabled && paypalClientId && (
                   <div 
                     onClick={() => setPaymentMethod('paypal')}
                     className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
@@ -761,16 +793,12 @@ export const CheckoutPage: React.FC = () => {
                           <PayPalScriptProvider 
                             options={{ 
                               clientId: paypalClientId, 
-                              currency: selectedCurrency?.code === 'LKR' ? 'USD' : (selectedCurrency?.code || 'USD') 
+                              currency: paypalCurrency 
                             }}
                           >
                             <PayPalButtons
                               style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
                               createOrder={(data, actions) => {
-                                const paypalCurrency = selectedCurrency?.code === 'LKR' ? 'USD' : (selectedCurrency?.code || 'USD');
-                                const paypalAmount = selectedCurrency?.code === 'LKR'
-                                  ? (totalLKR * usdRateFromLKR).toFixed(2)
-                                  : totalInCurrency.toFixed(2);
                                 return actions.order.create({
                                   intent: 'CAPTURE',
                                   purchase_units: [
@@ -802,8 +830,10 @@ export const CheckoutPage: React.FC = () => {
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* 3. Binance Pay / QR */}
+                  {paymentConfig.binance.enabled && (
                   <div 
                     onClick={() => setPaymentMethod('binance_qr')}
                     className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
@@ -892,7 +922,16 @@ export const CheckoutPage: React.FC = () => {
                       </div>
                     )}
                   </div>
+                  )}
 
+                  {paymentConfigLoaded &&
+                    !paymentConfig.paypal.enabled &&
+                    !paymentConfig.payhere.enabled &&
+                    !paymentConfig.binance.enabled && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+                      Online payment methods are temporarily unavailable. Please contact support before placing an order.
+                    </div>
+                  )}
 
                 </div>
               </div>
