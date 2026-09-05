@@ -21,6 +21,8 @@ export interface AdminCommissionsProps {
   onUpdateOrderStatus: (orderId: string, status: OrderStatus, details: Partial<Order>) => Promise<boolean>;
   isSuperAdmin: boolean;
   onAudit?: (action: string, details: string) => Promise<void>;
+  hasMoreOrders: boolean;
+  onLoadOlderOrders: () => Promise<boolean>;
 }
 
 export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
@@ -28,7 +30,9 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   formatPrice,
   onUpdateOrderStatus,
   isSuperAdmin,
-  onAudit
+  onAudit,
+  hasMoreOrders,
+  onLoadOlderOrders
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -42,6 +46,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   const [newEta, setNewEta] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 
   // Open Dispatch Modal
   const handleOpenDispatchModal = (order: Order) => {
@@ -317,9 +322,24 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
         </div>
 
         {/* Footer Summary */}
-        <div className="p-4 bg-[#FAFBFB] border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
-          <span>Showing <strong>{filteredOrders.length}</strong> of <strong>{orders.length}</strong> commissions</span>
-          <span className="font-mono text-[11px]">All orders synchronized in real-time</span>
+        <div className="p-4 bg-[#FAFBFB] border-t border-stone-100 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
+          <span>Showing <strong>{filteredOrders.length}</strong> loaded commission records</span>
+          {hasMoreOrders ? (
+            <button
+              type="button"
+              disabled={isLoadingOlder}
+              onClick={async () => {
+                setIsLoadingOlder(true);
+                await onLoadOlderOrders();
+                setIsLoadingOlder(false);
+              }}
+              className="btn-table-action"
+            >
+              {isLoadingOlder ? 'Loading...' : 'Load Older Orders'}
+            </button>
+          ) : (
+            <span className="font-mono text-[11px]">End of loaded order history</span>
+          )}
         </div>
       </div>
 
