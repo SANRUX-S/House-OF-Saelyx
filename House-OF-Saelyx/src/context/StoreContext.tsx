@@ -1031,7 +1031,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const verification = await verifyAdminCredentials(username, pass, rememberMe);
       if (verification.valid && verification.user) {
         setUser(verification.user);
-        await logAuditEvent('ADMIN_LOGIN', `Admin user [${verification.user.name}] logged in with role [${verification.user.role}]`);
+        try {
+          await fetchAdminApi('/api/admin/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'ADMIN_LOGIN',
+              details: `Administrator ${verification.user.email} signed in as ${verification.user.role}.`
+            })
+          });
+        } catch {
+          // Login must not fail only because the audit transport is temporarily unavailable.
+        }
         setIsAuthOpen(false);
         return { success: true };
       } else {
