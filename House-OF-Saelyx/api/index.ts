@@ -1847,6 +1847,211 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
+app.put('/api/admin/messages/:id', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Concierge service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const id = safeString(req.params.id, 160);
+    const status = safeString(req.body?.status, 20);
+    const replyNotes = safeString(req.body?.replyNotes, 2000);
+    if (!id || !['unread', 'read', 'replied'].includes(status)) {
+      return res.status(400).json({ error: 'Valid message status is required.' });
+    }
+
+    const messageRef = adminDb.collection('messages').doc(id);
+    const inquiryRef = adminDb.collection('concierge_inquiries').doc(id);
+    const [messageSnap, inquirySnap] = await Promise.all([messageRef.get(), inquiryRef.get()]);
+    if (!messageSnap.exists && !inquirySnap.exists) return res.status(404).json({ error: 'Inquiry not found.' });
+
+    const update = {
+      status,
+      replyNotes,
+      updatedAt: new Date().toISOString(),
+      updatedBy: token.uid
+    };
+    const batch = adminDb.batch();
+    if (messageSnap.exists) batch.update(messageRef, update);
+    if (inquirySnap.exists) batch.update(inquiryRef, update);
+    await batch.commit();
+    await writeAdminAudit(adminDb, token, 'CONCIERGE_STATUS_UPDATED', `Updated inquiry ${id} to ${status}.`);
+
+    const source = inquirySnap.exists ? inquirySnap : messageSnap;
+    return res.json({ id, ...source.data(), ...update });
+  } catch {
+    return res.status(500).json({ error: 'Unable to update concierge inquiry.' });
+  }
+});
+
+app.put('/api/admin/products/:id', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Product service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const id = safeString(req.params.id, 100);
+    const title = safeString(req.body?.title, 200);
+    const subtitle = safeString(req.body?.subtitle, 300);
+    const description = safeString(req.body?.description, 5000);
+    const fabricDetails = safeString(req.body?.fabricDetails, 1000);
+    const category = safeString(req.body?.category, 40);
+    const priceLKR = Number(req.body?.priceLKR);
+    const stockCount = Number(req.body?.stockCount);
+    const allowedCategories = new Set(['men', 'women', 'new', 'collections', 'knits', 'sets', 'accessories']);
+    const images = Array.isArray(req.body?.images)
+      ? req.body.images.map((value: unknown) => safeString(value, 1200)).filter((value: string) => value.startsWith('https://')).slice(0, 16)
+      : [];
+    const sizes = Array.isArray(req.body?.sizes)
+      ? req.body.sizes.map((value: unknown) => safeString(value, 30)).filter(Boolean).slice(0, 30)
+      : [];
+    const bulletDetails = Array.isArray(req.body?.bulletDetails)
+      ? req.body.bulletDetails.map((value: unknown) => safeString(value, 300)).filter(Boolean).slice(0, 30)
+      : [];
+
+    if (!id || !title || !allowedCategories.has(category) || !Number.isFinite(priceLKR) || priceLKR <= 0 ||
+        !Number.isInteger(stockCount) || stockCount < 0 || images.length === 0) {
+      return res.status(400).json({ error: 'Product title, category, positive price, valid stock, and at least one HTTPS image are required.' });
+    }
+
+    const slug = safeString(req.body?.slug, 200) || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const slugCollision = await adminDb.collection('products').where('slug', '==', slug).limit(2).get();
+    if (slugCollision.docs.some(docSnap => docSnap.id !== id)) {
+      return res.status(409).json({ error: 'Another product already uses this slug.' });
+    }
+
+    const ref = adminDb.collection('products').doc(id);
+    const existing = await ref.get();
+    const now = new Date().toISOString();
+    const hoverImage = safeString(req.body?.hoverImage, 1200);
+    const completeTheSetProductId = safeString(req.body?.completeTheSetProductId, 100);
+    const payload = {
+      id,
+      slug,
+      title,
+      subtitle,
+      description,
+      fabricDetails,
+      category,
+      subCategory: safeString(req.body?.subCategory, 100),
+      priceLKR,
+      stockCount,
+      inStock: stockCount > 0 && req.body?.inStock !== false,
+      images,
+      hoverImage: hoverImage.startsWith('https://') ? hoverImage : '',
+      completeTheSetProductId,
+      sizes,
+      bulletDetails,
+      badge: safeString(req.body?.badge, 100),
+      color: safeString(req.body?.color, 100),
+      fit: safeString(req.body?.fit, 160),
+      createdAt: existing.exists ? safeString(existing.data()?.createdAt, 80) || now : now,
+      updatedAt: now
+    };
+
+    await ref.set(payload, { merge: true });
+    await writeAdminAudit(adminDb, token, existing.exists ? 'PRODUCT_UPDATED' : 'PRODUCT_CREATED', `${title} (${id}).`);
+    return res.json(payload);
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to save product.' });
+  }
+});
+
+app.delete('/api/admin/products/:id', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Product service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    const id = safeString(req.params.id, 100);
+    const ref = adminDb.collection('products').doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Product not found.' });
+    await ref.delete();
+    await writeAdminAudit(adminDb, token, 'PRODUCT_RETIRED', `Retired ${snap.data()?.title || id} (${id}).`);
+    return res.json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Unable to retire product.' });
+  }
+});
+
+app.put('/api/admin/settings', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Settings service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const update: Record<string, unknown> = {};
+    const stringFields: Array<[string, number]> = [
+      ['spotlightTitle', 300], ['spotlightSubhead', 500], ['spotlightDescription', 5000],
+      ['spotlightEyebrow', 120], ['announcementText', 500], ['heroHeadline', 300],
+      ['heroSubhead', 500]
+    ];
+    for (const [key, max] of stringFields) {
+      if (key in (req.body || {})) update[key] = safeString(req.body?.[key], max);
+    }
+
+    if ('spotlightBackgroundImage' in (req.body || {})) {
+      const image = safeString(req.body?.spotlightBackgroundImage, 1200);
+      if (image && !image.startsWith('https://')) return res.status(400).json({ error: 'Spotlight background must use an HTTPS image URL.' });
+      update.spotlightBackgroundImage = image;
+    }
+
+    for (const key of ['spotlightPriceLKR', 'freeShippingThresholdLKR'] as const) {
+      if (key in (req.body || {})) {
+        const value = Number(req.body?.[key]);
+        if (!Number.isFinite(value) || value < 0) return res.status(400).json({ error: `${key} must be zero or greater.` });
+        update[key] = value;
+      }
+    }
+
+    if ('countdownTarget' in (req.body || {})) {
+      const countdownTarget = safeString(req.body?.countdownTarget, 100);
+      if (!countdownTarget || Number.isNaN(Date.parse(countdownTarget))) return res.status(400).json({ error: 'Countdown target must be a valid date/time.' });
+      update.countdownTarget = new Date(countdownTarget).toISOString();
+    }
+
+    for (const key of ['showHeroSection', 'showSpotlightSection', 'showCollectionSection', 'showSocialFAQSection'] as const) {
+      if (key in (req.body || {})) update[key] = req.body?.[key] === true;
+    }
+
+    update.updatedAt = new Date().toISOString();
+    update.updatedBy = token.uid;
+    const ref = adminDb.collection('settings').doc('drop_config');
+    await ref.set(update, { merge: true });
+    await writeAdminAudit(adminDb, token, 'SETTINGS_UPDATED', 'Updated boutique homepage/drop settings.');
+    const updated = await ref.get();
+    return res.json(updated.data());
+  } catch {
+    return res.status(500).json({ error: 'Unable to update settings.' });
+  }
+});
+
+app.post('/api/admin/audit', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Audit service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    const action = safeString(req.body?.action, 80);
+    const details = safeString(req.body?.details, 1000);
+    const allowed = new Set(['ADMIN_LOGIN', 'ORDER_CSV_EXPORT', 'DATABASE_EXPORT']);
+    if (!allowed.has(action)) return res.status(400).json({ error: 'Unsupported audit action.' });
+    await writeAdminAudit(adminDb, token, action, details);
+    return res.status(201).json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Unable to write audit event.' });
+  }
+});
+
 app.get('/api/orders', async (req, res) => {
   try {
     const adminDb = getAdminDb();
