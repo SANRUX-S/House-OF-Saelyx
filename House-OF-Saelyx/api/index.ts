@@ -334,6 +334,43 @@ async function capturePayPalProviderOrder(paypalOrderId: string) {
   return { ok: response.ok, status: response.status, payload };
 }
 
+async function refundPayPalCapture(captureId: string, orderId: string) {
+  const access = await getPayPalAccessToken();
+  if (!access) throw new Error('PayPal is not configured.');
+  const response = await fetch(`${access.baseUrl}/v2/payments/captures/${encodeURIComponent(captureId)}/refund`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${access.token}`,
+      'Content-Type': 'application/json',
+      'PayPal-Request-Id': getPayPalRequestId('refund', `${orderId}:${captureId}`),
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify({ note_to_payer: `Refund for SAELYXE order ${orderId}` })
+  });
+  const payload: any = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw Object.assign(new Error(safeString(payload?.message, 240) || 'PayPal refund request failed.'), { statusCode: response.status });
+  }
+  return {
+    id: safeString(payload?.id, 160),
+    status: safeString(payload?.status, 30).toUpperCase()
+  };
+}
+
+async function getPayPalRefund(refundId: string) {
+  const access = await getPayPalAccessToken();
+  if (!access) throw new Error('PayPal is not configured.');
+  const response = await fetch(`${access.baseUrl}/v2/payments/refunds/${encodeURIComponent(refundId)}`, {
+    headers: { Authorization: `Bearer ${access.token}`, 'Content-Type': 'application/json' }
+  });
+  const payload: any = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error('PayPal refund status could not be verified.');
+  return {
+    id: safeString(payload?.id, 160),
+    status: safeString(payload?.status, 30).toUpperCase()
+  };
+}
+
 async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrderId: string) {
   const orderRef = adminDb.collection('orders').doc(orderId);
   const now = new Date().toISOString();
@@ -2139,6 +2176,121 @@ app.get('/api/orders/:id', async (req, res) => {
     });
   } catch {
     return res.status(500).json({ error: 'Unable to load tracking information.' });
+  }
+});
+
+app.post('/api/admin/orders/:id/refund', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required for refunds.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const orderId = safeString(req.params.id, 120);
+    if (!(await enforceRateLimit(adminDb, `paypal-refund:${token.uid}:${orderId}`, 5, 30 * 60_000))) {
+      return res.status(429).json({ error: 'Too many refund attempts. Please wait and retry.' });
+    }
+
+    const ref = adminDb.collection('orders').doc(orderId);
+    let snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    let order: any = { id: snap.id, ...snap.data() };
+    if (order.paymentMethod !== 'paypal' || order.paymentStatus !== 'verified') {
+      if (order.paymentStatus === 'refunded') return res.json(order);
+      return res.status(409).json({ error: 'Only verified PayPal payments can be refunded.' });
+    }
+
+    let captureId = safeString(order.paymentCaptureId, 160);
+    if (!captureId) {
+      const paypalOrderId = safeString(order.paymentProviderReference, 160);
+      const verification = await verifyPayPalOrder(order, paypalOrderId);
+      if (!verification.verified || !verification.captureId) {
+        return res.status(409).json({ error: 'PayPal capture ID could not be verified for this order.' });
+      }
+      captureId = verification.captureId;
+      await ref.set({
+        paymentCaptureId: captureId,
+        paymentCaptureAmount: verification.actualCaptureAmount,
+        paymentCaptureCurrency: verification.actualCaptureCurrency || ''
+      }, { merge: true });
+    }
+
+    let refund: { id: string; status: string };
+    const existingRefundId = safeString(order.refundId, 160);
+    if (existingRefundId) {
+      refund = await getPayPalRefund(existingRefundId);
+    } else {
+      refund = await refundPayPalCapture(captureId, orderId);
+      await ref.set({
+        refundId: refund.id,
+        refundStatus: refund.status || 'PENDING',
+        refundRequestedAt: new Date().toISOString(),
+        refundRequestedBy: token.uid
+      }, { merge: true });
+    }
+
+    if (refund.status !== 'COMPLETED') {
+      await ref.set({ refundStatus: refund.status || 'PENDING', paymentStatus: 'refund_pending' }, { merge: true });
+      snap = await ref.get();
+      await writeAdminAudit(adminDb, token, 'PAYPAL_REFUND_PENDING', `Refund ${refund.id || 'pending'} for order ${orderId} is ${refund.status || 'PENDING'}.`);
+      return res.status(202).json({ id: snap.id, ...snap.data() });
+    }
+
+    const now = new Date().toISOString();
+    await adminDb.runTransaction(async transaction => {
+      const orderSnap = await transaction.get(ref);
+      if (!orderSnap.exists) throw new Error('Order not found.');
+      const current: any = orderSnap.data() || {};
+
+      const quantityByProduct = new Map<string, number>();
+      if (current.inventoryCommitted === true) {
+        for (const item of Array.isArray(current.items) ? current.items : []) {
+          const productId = safeString(item?.productId, 100);
+          const quantity = Number(item?.quantity);
+          if (productId && Number.isInteger(quantity) && quantity > 0) {
+            quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+          }
+        }
+      }
+
+      const products = new Map<string, { ref: any; stockCount: number }>();
+      for (const productId of quantityByProduct.keys()) {
+        const productRef = adminDb.collection('products').doc(productId);
+        const productSnap = await transaction.get(productRef);
+        if (productSnap.exists) {
+          products.set(productId, { ref: productRef, stockCount: Math.max(0, Number(productSnap.data()?.stockCount) || 0) });
+        }
+      }
+
+      for (const [productId, quantity] of quantityByProduct.entries()) {
+        const product = products.get(productId);
+        if (!product) continue;
+        const nextStock = product.stockCount + quantity;
+        transaction.update(product.ref, { stockCount: nextStock, inStock: nextStock > 0, updatedAt: now });
+      }
+
+      transaction.update(ref, {
+        status: 'cancelled',
+        paymentStatus: 'refunded',
+        refundId: refund.id,
+        refundStatus: 'COMPLETED',
+        refundedAt: now,
+        inventoryCommitted: false,
+        updatedAt: now,
+        statusHistory: [
+          ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
+          { status: 'cancelled', timestamp: now, note: 'PayPal refund completed and order cancelled.', location: 'SAELYXE Payments' }
+        ]
+      });
+    });
+
+    await writeAdminAudit(adminDb, token, 'PAYPAL_REFUND_COMPLETED', `Refunded PayPal capture ${captureId} for order ${orderId} (refund ${refund.id}).`);
+    const updated = await ref.get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch (error: any) {
+    const statusCode = Number(error?.statusCode) || 500;
+    return res.status(statusCode).json({ error: safeString(error?.message, 240) || 'Unable to process PayPal refund.' });
   }
 });
 
