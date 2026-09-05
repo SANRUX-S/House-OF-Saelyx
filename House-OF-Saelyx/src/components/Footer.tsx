@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, Instagram, Twitter, Check } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { getAppCheckRequestHeaders } from '../lib/firebase';
 
 export const Footer: React.FC = () => {
   const { navigateTo, setIsTrackerOpen, setActiveCategory } = useStore();
@@ -14,9 +15,10 @@ export const Footer: React.FC = () => {
 
     setLoading(true);
     try {
+      const appCheckHeaders = await getAppCheckRequestHeaders();
       const res = await fetch('/api/newsletter', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...appCheckHeaders },
         body: JSON.stringify({ email })
       });
       if (res.ok) {
