@@ -43,6 +43,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
   const [configSaved, setConfigSaved] = useState(false);
   const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [backgroundError, setBackgroundError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     if (settings) {
@@ -82,6 +83,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
     e.preventDefault();
     setIsSaving(true);
     setConfigSaved(false);
+    setSaveError('');
 
     try {
       const success = await onUpdateSettings({
@@ -105,9 +107,12 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
       if (success) {
         setConfigSaved(true);
         setTimeout(() => setConfigSaved(false), 3500);
+      } else {
+        setSaveError('Settings were not published. Check the field values and your Super Admin session.');
       }
     } catch (err) {
       console.error('Failed to save drop settings:', err);
+      setSaveError('Settings were not published. Please retry.');
     } finally {
       setIsSaving(false);
     }
@@ -144,6 +149,8 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
             </button>
           </div>
         </div>
+
+        {saveError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{saveError}</div>}
 
         {/* Form Fields Card */}
         <div className="admin-card space-y-6">
@@ -238,6 +245,8 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
               <input
                 type="number"
                 required
+                min={0}
+                step={1}
                 value={spotlightPrice}
                 onChange={e => setSpotlightPrice(Number(e.target.value))}
                 className="form-input-custom"
@@ -249,6 +258,8 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
               <input
                 type="number"
                 required
+                min={0}
+                step={1}
                 value={freeShippingThreshold}
                 onChange={e => setFreeShippingThreshold(Number(e.target.value))}
                 className="form-input-custom"
