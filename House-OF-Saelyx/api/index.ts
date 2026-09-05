@@ -2559,7 +2559,7 @@ app.post('/api/restock/dispatch', async (req, res) => {
         status: 'sent',
         notified: true,
         notifiedAt: new Date().toISOString(),
-        cloudFunctionExecutionId: executionId
+        dispatchExecutionId: executionId
       });
     }
     await batch.commit();
