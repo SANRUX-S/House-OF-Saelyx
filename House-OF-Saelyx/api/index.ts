@@ -319,7 +319,15 @@ async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrder
     if (order.status !== 'placed') {
       throw Object.assign(new Error('This order is no longer eligible for PayPal capture.'), { statusCode: 409 });
     }
-    if (order.paymentStatus === 'verified' || order.inventoryCommitted === true || order.inventoryReserved === true) {
+    if (order.paymentStatus === 'verified' || order.inventoryCommitted === true) {
+      return;
+    }
+    if (order.inventoryReserved === true) {
+      transaction.update(orderRef, {
+        paymentCaptureState: 'capturing',
+        paymentCaptureStartedAt: order.paymentCaptureStartedAt || now,
+        paymentUpdatedAt: now
+      });
       return;
     }
 
@@ -366,6 +374,8 @@ async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrder
     transaction.update(orderRef, {
       inventoryReserved: true,
       inventoryReservedAt: now,
+      paymentCaptureState: 'capturing',
+      paymentCaptureStartedAt: order.paymentCaptureStartedAt || now,
       paymentUpdatedAt: now
     });
   });
@@ -389,6 +399,7 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
       paymentVerificationSource: 'paypal_orders_api',
       paymentVerificationError: FieldValue.delete(),
       paymentVerifiedAt: current.paymentVerifiedAt || now,
+      paymentCaptureState: 'completed',
       paymentCaptureCompletedAt: current.paymentCaptureCompletedAt || now,
       paymentUpdatedAt: now
     };
@@ -397,6 +408,65 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
       update.inventoryReserved = false;
       update.inventoryCommitted = true;
       update.inventoryCommittedAt = current.inventoryCommittedAt || now;
+    } else if (current.inventoryCommitted !== true) {
+      const items = Array.isArray(current.items) ? current.items : [];
+      const quantityByProduct = new Map<string, number>();
+      let inventoryDataValid = items.length > 0;
+
+      for (const item of items) {
+        const productId = safeString(item?.productId, 100);
+        const quantity = Number(item?.quantity);
+        if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+          inventoryDataValid = false;
+          break;
+        }
+        quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+      }
+
+      const productSnapshots = new Map<string, { ref: any; data: any }>();
+      if (inventoryDataValid) {
+        for (const productId of quantityByProduct.keys()) {
+          const productRef = adminDb.collection('products').doc(productId);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists) {
+            inventoryDataValid = false;
+            break;
+          }
+          productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
+        }
+      }
+
+      let inventoryAvailable = inventoryDataValid;
+      if (inventoryAvailable) {
+        for (const [productId, quantity] of quantityByProduct.entries()) {
+          const cached = productSnapshots.get(productId);
+          const stockCount = Number(cached?.data?.stockCount);
+          if (!cached || !Number.isFinite(stockCount) || stockCount < quantity) {
+            inventoryAvailable = false;
+            break;
+          }
+        }
+      }
+
+      if (inventoryAvailable) {
+        for (const [productId, quantity] of quantityByProduct.entries()) {
+          const cached = productSnapshots.get(productId)!;
+          const nextStock = Number(cached.data.stockCount) - quantity;
+          transaction.update(cached.ref, {
+            stockCount: nextStock,
+            inStock: nextStock > 0,
+            updatedAt: now
+          });
+        }
+        update.inventoryCommitted = true;
+        update.inventoryCommittedAt = now;
+        update.requiresManualReview = false;
+        update.inventoryException = FieldValue.delete();
+      } else {
+        update.inventoryCommitted = false;
+        update.requiresManualReview = true;
+        update.inventoryException = 'paid_without_available_inventory';
+      }
     }
 
     if (current.status === 'cancelled') {
@@ -407,7 +477,9 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
         {
           status: 'placed',
           timestamp: now,
-          note: 'PayPal payment completed after a checkout cancellation request; order restored for fulfilment or refund review.',
+          note: current.inventoryReserved === true || update.inventoryCommitted === true
+            ? 'PayPal payment completed after a checkout cancellation request; order restored for fulfilment.'
+            : 'PayPal payment completed after cancellation, but inventory requires manual fulfilment or refund review.',
           location: 'SAELYXE Payment Verification'
         }
       ];
@@ -418,6 +490,31 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
 
   const updated = await ref.get();
   return { id: updated.id, ...updated.data() };
+}
+
+async function markPayPalVerificationPending(
+  adminDb: any,
+  orderId: string,
+  paypalOrderId: string,
+  reason: string
+) {
+  const ref = adminDb.collection('orders').doc(orderId);
+  const now = new Date().toISOString();
+  await adminDb.runTransaction(async (transaction: any) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) return;
+    const current: any = { id: snap.id, ...snap.data() };
+    if (current.paymentStatus === 'verified') return;
+    if (safeString(current.paymentProviderReference, 160) !== paypalOrderId) return;
+
+    transaction.update(ref, {
+      paymentStatus: 'pending_verification',
+      paymentVerificationSource: 'paypal_orders_api',
+      paymentVerificationError: reason,
+      paymentCaptureState: current.inventoryReserved === true ? 'needs_recovery' : (current.paymentCaptureState || 'pending'),
+      paymentUpdatedAt: now
+    });
+  });
 }
 
 async function verifyPayPalOrder(order: any, paypalOrderId: string) {
@@ -974,11 +1071,6 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     }
 
     await reservePayPalInventory(adminDb, orderId, paypalOrderId);
-    const captureStartedAt = new Date().toISOString();
-    await ref.update({
-      paymentCaptureStartedAt: captureStartedAt,
-      paymentUpdatedAt: captureStartedAt
-    });
 
     let captureResult: any = null;
     try {
@@ -989,15 +1081,7 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
 
     const verification = await verifyPayPalOrder(order, paypalOrderId);
     if (!verification.verified) {
-      const now = new Date().toISOString();
-      if (order.status !== 'cancelled') {
-        await ref.update({
-          paymentStatus: 'pending_verification',
-          paymentVerificationSource: 'paypal_orders_api',
-          paymentVerificationError: verification.reason,
-          paymentUpdatedAt: now
-        });
-      }
+      await markPayPalVerificationPending(adminDb, orderId, paypalOrderId, verification.reason);
       return res.status(captureResult && !captureResult.ok ? 409 : 502).json({
         error: 'PayPal capture could not be confirmed.',
         verification
@@ -1058,15 +1142,7 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
 
     const verification = await verifyPayPalOrder(order, paypalOrderId);
     if (!verification.verified) {
-      const now = new Date().toISOString();
-      if (order.status !== 'cancelled') {
-        await ref.update({
-          paymentStatus: 'pending_verification',
-          paymentVerificationSource: 'paypal_orders_api',
-          paymentVerificationError: verification.reason,
-          paymentUpdatedAt: now
-        });
-      }
+      await markPayPalVerificationPending(adminDb, orderId, paypalOrderId, verification.reason);
       return res.status(409).json({ error: 'PayPal payment could not be verified yet.', verification });
     }
 
@@ -1159,6 +1235,18 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
       }
       if (safeString(current.paymentProviderReference, 160) !== paypalOrderId) {
         throw Object.assign(new Error('PayPal linkage changed during cancellation. The order was not cancelled.'), { statusCode: 409 });
+      }
+      const captureState = safeString(current.paymentCaptureState, 40);
+      if (
+        current.inventoryReserved === true ||
+        Boolean(current.paymentCaptureStartedAt) ||
+        captureState === 'capturing' ||
+        captureState === 'needs_recovery'
+      ) {
+        throw Object.assign(
+          new Error('PayPal capture has started or needs recovery. The order was not cancelled to protect a possible completed payment.'),
+          { statusCode: 409 }
+        );
       }
 
       const quantityByProduct = new Map<string, number>();
