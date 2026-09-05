@@ -54,7 +54,9 @@ export const AdminPanel: React.FC = () => {
       if (tabParam && ['overview', 'products', 'orders', 'messages', 'restock', 'staff', 'security', 'drop-config'].includes(tabParam)) {
         return tabParam;
       }
-    } catch (e) {}
+    } catch (error) {
+      console.warn('Admin URL state note:', error);
+    }
     return 'overview';
   });
 
@@ -84,7 +86,9 @@ export const AdminPanel: React.FC = () => {
         const url = new URL(window.location.href);
         url.searchParams.set('tab', 'overview');
         window.history.replaceState(null, '', url.toString());
-      } catch (e) {}
+      } catch (error) {
+        console.warn('Admin permission URL sync note:', error);
+      }
     }
   }, [activeTab, isSuperAdmin]);
 
@@ -96,7 +100,9 @@ export const AdminPanel: React.FC = () => {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', tab);
       window.history.pushState(null, '', url.toString());
-    } catch (e) {}
+    } catch (error) {
+      console.warn('Admin tab URL sync note:', error);
+    }
   };
 
   // Safe delete product (Super Admin Only)
