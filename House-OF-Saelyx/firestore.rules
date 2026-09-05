@@ -48,7 +48,8 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Orders are created by the trusted server/API using Firebase Admin SDK.
+      allow create: if false;
       allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow update: if isAdmin() || (
         isAuthenticated() &&
@@ -74,22 +75,46 @@ service cloud.firestore {
     }
 
     match /subscribers/{subscriberId} {
-      allow create: if true;
+      allow create: if
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 254;
       allow read, update, delete: if isAdmin();
     }
 
     match /stock_notifications/{notificationId} {
-      allow create: if true;
+      allow create: if
+        request.resource.data.productId is string &&
+        request.resource.data.productId.size() <= 100 &&
+        request.resource.data.customerEmail is string &&
+        request.resource.data.customerEmail.size() <= 254 &&
+        (!('customerName' in request.resource.data) || request.resource.data.customerName.size() <= 120) &&
+        (!('phone' in request.resource.data) || request.resource.data.phone.size() <= 30);
       allow read, update, delete: if isAdmin();
     }
 
     match /messages/{messageId} {
-      allow create: if true;
+      allow create: if
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 120 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 254 &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() > 0 &&
+        request.resource.data.message.size() <= 5000;
       allow read, update, delete: if isAdmin();
     }
 
     match /concierge_inquiries/{inquiryId} {
-      allow create: if true;
+      allow create: if
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 120 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 254 &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() > 0 &&
+        request.resource.data.message.size() <= 5000;
       allow read, update, delete: if isAdmin();
     }
 
@@ -104,9 +129,8 @@ service cloud.firestore {
     }
 
     match /audit_logs/{logId} {
-      allow create: if isAuthenticated();
-      allow read: if isAdmin();
-      allow update, delete: if isAdmin();
+      allow create, read: if isAdmin();
+      allow update, delete: if isSuperAdmin();
     }
   }
 }
