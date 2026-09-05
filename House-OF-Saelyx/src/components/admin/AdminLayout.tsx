@@ -20,6 +20,7 @@ import {
   GripVertical
 } from 'lucide-react';
 import { AppUser } from '../../types';
+import { sendAdminPasswordReset } from '../../lib/firebase';
 
 export interface AdminLayoutProps {
   activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config';
@@ -68,6 +69,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     try { return JSON.parse(localStorage.getItem('saelyxe_admin_nav_order') || '[]'); } catch { return []; }
   });
   const [draggedNavItem, setDraggedNavItem] = useState<string | null>(null);
+  const [accountMessage, setAccountMessage] = useState('');
   
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -401,15 +403,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   </div>
                   
                   <div className="py-1">
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          onSwitchTab('staff');
+                        }}
+                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                      >
+                        <User className="w-3.5 h-3.5 text-stone-400" />
+                        <span>Administrator Access</span>
+                      </button>
+                    )}
                     <button
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        if (isSuperAdmin) onSwitchTab('staff');
+                      onClick={async () => {
+                        const result = await sendAdminPasswordReset(user.email);
+                        setAccountMessage(result.success ? 'Password reset request sent.' : (result.error || 'Unable to request password reset.'));
                       }}
                       className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
                     >
                       <User className="w-3.5 h-3.5 text-stone-400" />
-                      <span>My Account</span>
+                      <span>Send Password Reset</span>
                     </button>
                     
                     {isSuperAdmin && (
@@ -426,6 +440,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                     )}
 
                   </div>
+
+                  {accountMessage && <div className="mx-2 mb-1 rounded-lg bg-stone-50 px-2 py-2 text-[10px] text-stone-600">{accountMessage}</div>}
 
                   <div className="border-t border-stone-100 pt-1">
                     <button
