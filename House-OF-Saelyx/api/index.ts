@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
+import { getAppCheck } from 'firebase-admin/app-check';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 const app = express();
@@ -88,6 +89,62 @@ function isAdminToken(token: DecodedIdToken | null) {
     ADMIN_EMAILS.has(email);
 }
 
+async function hasValidAppCheck(req: Request) {
+  if (process.env.FIREBASE_APP_CHECK_ENFORCE !== 'true') return true;
+  const token = safeString(req.header('X-Firebase-AppCheck'), 4096);
+  if (!token || !getAdminDb()) return false;
+  try {
+    await getAppCheck().verifyToken(token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getClientAddress(req: Request) {
+  const forwarded = safeString(req.headers['x-forwarded-for'], 500);
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return safeString(req.ip, 120) || 'unknown';
+}
+
+async function enforceRateLimit(
+  adminDb: NonNullable<ReturnType<typeof getAdminDb>>,
+  key: string,
+  limit: number,
+  windowMs: number
+) {
+  const id = crypto.createHash('sha256').update(key).digest('hex');
+  const ref = adminDb.collection('security_rate_limits').doc(id);
+  const now = Date.now();
+
+  return adminDb.runTransaction(async transaction => {
+    const snap = await transaction.get(ref);
+    const current: any = snap.exists ? snap.data() || {} : {};
+    const windowStartedAt = Number(current.windowStartedAtMs) || 0;
+    const count = Number(current.count) || 0;
+
+    if (!windowStartedAt || now - windowStartedAt >= windowMs) {
+      transaction.set(ref, {
+        count: 1,
+        windowStartedAtMs: now,
+        expiresAtMs: now + windowMs,
+        updatedAt: FieldValue.serverTimestamp()
+      });
+      return true;
+    }
+
+    if (count >= limit) return false;
+
+    transaction.set(ref, {
+      count: count + 1,
+      windowStartedAtMs: windowStartedAt,
+      expiresAtMs: windowStartedAt + windowMs,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    return true;
+  });
+}
+
 function calculateDiscount(codeRaw: unknown, subtotalLKR: number) {
   const code = safeString(codeRaw, 40).toUpperCase();
   if (!code) return { code: '', discountLKR: 0 };
@@ -164,15 +221,26 @@ app.get('/api/health', (_req, res) => {
       process.env.CLOUDINARY_CLOUD_NAME &&
       process.env.CLOUDINARY_API_KEY &&
       process.env.CLOUDINARY_API_SECRET
-    )
+    ),
+    appCheckEnforced: process.env.FIREBASE_APP_CHECK_ENFORCE === 'true',
+    abuseProtectionConfigured: true
   });
 });
 
 app.post('/api/media/cloudinary-signature', async (req, res) => {
   try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Media service is not configured.' });
+
     const token = await readBearerToken(req);
     if (!isAdminToken(token)) {
       return res.status(403).json({ error: 'Admin access required.' });
+    }
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `media-signature:${token!.uid}`, 60, 60_000))) {
+      return res.status(429).json({ error: 'Too many media upload requests. Please try again shortly.' });
     }
 
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
@@ -293,6 +361,12 @@ app.post('/api/orders', async (req, res) => {
     if (!authToken) {
       return res.status(401).json({ error: 'Please sign in before placing an order.' });
     }
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `orders:${authToken.uid}`, 5, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many order attempts. Please wait a few minutes and try again.' });
+    }
 
     const requestedCurrency = safeString(body.currencyUsed, 10).toUpperCase();
     const currency = CURRENCIES.find(item => item.code === requestedCurrency) || CURRENCIES[0];
@@ -300,12 +374,32 @@ app.post('/api/orders', async (req, res) => {
       ? body.paymentMethod
       : 'payhere';
     const paymentProviderReference = safeString(body.paymentProviderReference, 160);
+    const duplicateFingerprint = crypto.createHash('sha256').update(JSON.stringify({
+      uid: authToken.uid,
+      items: [...requested].sort((a, b) => `${a.productId}:${a.size}`.localeCompare(`${b.productId}:${b.size}`)),
+      paymentMethod,
+      paymentProviderReference,
+      address,
+      city,
+      postalCode,
+      country
+    })).digest('hex');
+    const guardRef = adminDb.collection('order_idempotency').doc(duplicateFingerprint);
     const orderNumber = `SOX-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
     const orderRef = adminDb.collection('orders').doc(orderNumber);
 
     let responseOrder: any = null;
+    let replayOrderNumber = '';
 
     await adminDb.runTransaction(async transaction => {
+      const guardSnap = await transaction.get(guardRef);
+      const guardData: any = guardSnap.exists ? guardSnap.data() || {} : {};
+      const guardCreatedAtMs = Number(guardData.createdAtMs) || 0;
+      if (guardSnap.exists && guardCreatedAtMs > Date.now() - 2 * 60_000 && guardData.orderNumber) {
+        replayOrderNumber = safeString(guardData.orderNumber, 120);
+        return;
+      }
+
       const productCache = new Map<string, { ref: any; data: any }>();
       const quantityByProduct = new Map<string, number>();
 
@@ -406,6 +500,12 @@ app.post('/api/orders', async (req, res) => {
       };
 
       transaction.set(orderRef, order);
+      transaction.set(guardRef, {
+        orderNumber,
+        userId: authToken.uid,
+        createdAtMs: Date.now(),
+        expiresAtMs: Date.now() + 2 * 60_000
+      });
 
       // Stock is committed only after an authenticated admin confirms the paid order.
       // This prevents unpaid or forged payment references from draining inventory.
@@ -413,6 +513,13 @@ app.post('/api/orders', async (req, res) => {
       responseOrder = { ...order };
       delete responseOrder.serverCreatedAt;
     });
+
+    if (replayOrderNumber) {
+      const existing = await adminDb.collection('orders').doc(replayOrderNumber).get();
+      if (existing.exists) {
+        return res.status(200).setHeader('X-Idempotent-Replay', 'true').json({ id: existing.id, ...existing.data() });
+      }
+    }
 
     // Email failure must never roll back a successfully committed order.
     sendOrderConfirmationEmail(responseOrder).catch(error => {
@@ -445,6 +552,11 @@ app.get('/api/orders/:id', async (req, res) => {
   try {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
+
+    const clientKey = `tracking:${getClientAddress(req)}`;
+    if (!(await enforceRateLimit(adminDb, clientKey, 60, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many tracking requests. Please try again later.' });
+    }
 
     const id = safeString(req.params.id, 120);
     const snap = await adminDb.collection('orders').doc(id).get();
