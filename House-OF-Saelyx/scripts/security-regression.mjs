@@ -22,6 +22,8 @@ const checkout = read('src/components/CheckoutPage.tsx');
 const tracker = read('src/components/TrackOrderPage.tsx');
 const trackerModal = read('src/components/OrderTrackerModal.tsx');
 const adminSecurity = read('src/components/admin/AdminSecurity.tsx');
+const adminStaff = read('src/components/admin/AdminStaff.tsx');
+const adminPanel = read('src/components/AdminPanel.tsx');
 const fallbackDb = read('server/db.ts');
 const fallbackJson = read('data/saelyx_store.json');
 
@@ -89,6 +91,11 @@ for (const fake of [
 assert(!trackerModal.includes("useState('SLX-94821')"), 'legacy tracker must not ship with a demo order reference');
 assert(tracker.includes('Authorization: `Bearer ${token}`'), 'tracking page must authenticate API requests');
 assert(trackerModal.includes('Authorization: `Bearer ${token}`'), 'tracking modal must authenticate API requests');
+
+assert(!adminStaff.includes('Initial Passkey Code'), 'staff directory must not pretend to provision Firebase credentials');
+assert(!adminStaff.includes('Root Protected'), 'staff directory must not contain demo root-ID protection');
+assert(!adminPanel.includes("id === 'staff-001'"), 'admin panel must not special-case demo staff IDs');
+assert(adminStaff.includes('this table does not create Firebase login credentials'), 'staff directory must explain that it does not grant authentication access');
 
 if (!process.exitCode) {
   console.log('SAELYXE security regression checks passed.');
