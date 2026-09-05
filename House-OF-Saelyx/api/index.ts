@@ -1141,7 +1141,7 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
     const timestamp = Math.floor(Date.now() / 1000);
     const signatureBase = `folder=${folder}&timestamp=${timestamp}`;
     const signature = crypto
-      .createHash('sha1')
+      .createHash('sha256')
       .update(`${signatureBase}${apiSecret}`)
       .digest('hex');
 
