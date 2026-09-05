@@ -498,13 +498,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  const fetchPublicApi = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const headers = new Headers(init.headers);
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
+    return fetch(input, { ...init, headers });
+  }, []);
+
   const fetchAdminApi = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const currentUser = auth.currentUser;
     const token = currentUser ? await currentUser.getIdToken() : null;
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
-    const appCheckHeaders = await getAppCheckRequestHeaders();
-    Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
     return fetch(input, { ...init, headers });
   }, []);
 
@@ -1227,21 +1232,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Contact Messages
   const sendMessage = async (msg: Omit<ContactMessage, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
     try {
-      const newMsg: ContactMessage = {
-        ...msg,
-        id: `msg-${Date.now().toString(36)}`,
-        createdAt: new Date().toISOString(),
-        status: 'unread'
-      };
+      const response = await fetchPublicApi('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(msg)
+      });
+      if (!response.ok) return false;
 
-      try {
-        const messagesCol = collection(db, 'messages');
-        await addDoc(messagesCol, newMsg);
-      } catch (e) {
-        console.warn('Firestore message save note:', e);
-      }
-
-      setMessages(prev => [newMsg, ...prev]);
+      const newMsg = await response.json() as ContactMessage;
+      setMessages(prev => [newMsg, ...prev.filter(item => item.id !== newMsg.id)]);
       await logAuditEvent('MESSAGE_RECEIVED', `Inquiry received from ${newMsg.name} regarding [${newMsg.topic}]`);
       return true;
     } catch (e) {
@@ -1253,8 +1252,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateMessageStatus = async (id: string, status: 'unread' | 'read' | 'replied', notes?: string): Promise<boolean> => {
     try {
       try {
-        const msgRef = doc(db, 'messages', id);
-        await updateDoc(msgRef, { status, ...(notes ? { replyNotes: notes } : {}) });
+        const update = { status, ...(notes ? { replyNotes: notes } : {}) };
+        await Promise.all([
+          updateDoc(doc(db, 'messages', id), update),
+          updateDoc(doc(db, 'concierge_inquiries', id), update)
+        ]);
       } catch (e) {
         console.warn('Firestore message update note:', e);
       }
@@ -1379,23 +1381,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Back-in-Stock Notifications (Firebase Firestore Integration)
   const subscribeToRestock = async (entry: Omit<StockNotification, 'id' | 'createdAt' | 'notified' | 'status'>): Promise<{ success: boolean; id?: string; error?: string }> => {
     try {
-      const docPayload = {
-        ...entry,
-        notified: false,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      };
+      const response = await fetchPublicApi('/api/restock/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { success: false, error: result?.error || 'Failed to submit notification request.' };
+      }
 
-      const stockCol = collection(db, 'stock_notifications');
-      const docRef = await addDoc(stockCol, docPayload);
-
-      // Log audit event
       await logAuditEvent(
         'STOCK_ALERT_SUBSCRIBED',
         `Patron ${entry.customerEmail} registered waitlist for [${entry.productTitle}] (${entry.selectedSize || 'All Sizes'})`
       );
 
-      return { success: true, id: docRef.id };
+      return { success: true, id: result.id };
     } catch (e: any) {
       console.error('Error subscribing to restock notifications:', e);
       return { success: false, error: e.message || 'Failed to submit notification request.' };

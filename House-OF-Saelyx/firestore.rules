@@ -75,47 +75,23 @@ service cloud.firestore {
     }
 
     match /subscribers/{subscriberId} {
-      allow create: if
-        request.resource.data.email is string &&
-        request.resource.data.email.size() <= 254;
-      allow read, update, delete: if isAdmin();
+      // Public writes go through the trusted Vercel API with abuse protection.
+      allow create, read, update, delete: if isAdmin();
     }
 
     match /stock_notifications/{notificationId} {
-      allow create: if
-        request.resource.data.productId is string &&
-        request.resource.data.productId.size() <= 100 &&
-        request.resource.data.customerEmail is string &&
-        request.resource.data.customerEmail.size() <= 254 &&
-        (!('customerName' in request.resource.data) || request.resource.data.customerName.size() <= 120) &&
-        (!('phone' in request.resource.data) || request.resource.data.phone.size() <= 30);
-      allow read, update, delete: if isAdmin();
+      // Public subscriptions are server-created; admins retain full panel access.
+      allow create, read, update, delete: if isAdmin();
     }
 
     match /messages/{messageId} {
-      allow create: if
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 0 &&
-        request.resource.data.name.size() <= 120 &&
-        request.resource.data.email is string &&
-        request.resource.data.email.size() <= 254 &&
-        request.resource.data.message is string &&
-        request.resource.data.message.size() > 0 &&
-        request.resource.data.message.size() <= 5000;
-      allow read, update, delete: if isAdmin();
+      // Public writes go through the trusted Vercel API; admin workflow is unrestricted.
+      allow create, read, update, delete: if isAdmin();
     }
 
     match /concierge_inquiries/{inquiryId} {
-      allow create: if
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 0 &&
-        request.resource.data.name.size() <= 120 &&
-        request.resource.data.email is string &&
-        request.resource.data.email.size() <= 254 &&
-        request.resource.data.message is string &&
-        request.resource.data.message.size() > 0 &&
-        request.resource.data.message.size() <= 5000;
-      allow read, update, delete: if isAdmin();
+      // Public writes go through the trusted Vercel API; admin workflow is unrestricted.
+      allow create, read, update, delete: if isAdmin();
     }
 
     match /staff/{staffId} {
@@ -131,6 +107,14 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow create, read: if isAdmin();
       allow update, delete: if isSuperAdmin();
+    }
+
+    match /security_rate_limits/{docId} {
+      allow read, write: if false;
+    }
+
+    match /order_idempotency/{docId} {
+      allow read, write: if false;
     }
   }
 }

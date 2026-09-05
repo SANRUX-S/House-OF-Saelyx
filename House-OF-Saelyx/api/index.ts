@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 const app = express();
 app.disable('x-powered-by');
@@ -128,6 +128,7 @@ async function enforceRateLimit(
         count: 1,
         windowStartedAtMs: now,
         expiresAtMs: now + windowMs,
+        expiresAt: Timestamp.fromMillis(now + windowMs),
         updatedAt: FieldValue.serverTimestamp()
       });
       return true;
@@ -139,10 +140,25 @@ async function enforceRateLimit(
       count: count + 1,
       windowStartedAtMs: windowStartedAt,
       expiresAtMs: windowStartedAt + windowMs,
+      expiresAt: Timestamp.fromMillis(windowStartedAt + windowMs),
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     return true;
   });
+}
+
+async function cleanupExpiredSecurityDocs(adminDb: NonNullable<ReturnType<typeof getAdminDb>>) {
+  const now = Date.now();
+  for (const collectionName of ['security_rate_limits', 'order_idempotency']) {
+    const snapshot = await adminDb.collection(collectionName)
+      .where('expiresAtMs', '<', now)
+      .limit(50)
+      .get();
+    if (snapshot.empty) continue;
+    const batch = adminDb.batch();
+    snapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
+    await batch.commit();
+  }
 }
 
 function calculateDiscount(codeRaw: unknown, subtotalLKR: number) {
@@ -236,13 +252,8 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
     if (!isAdminToken(token)) {
       return res.status(403).json({ error: 'Admin access required.' });
     }
-    if (!(await hasValidAppCheck(req))) {
-      return res.status(401).json({ error: 'App integrity check failed.' });
-    }
-    if (!(await enforceRateLimit(adminDb, `media-signature:${token!.uid}`, 60, 60_000))) {
-      return res.status(429).json({ error: 'Too many media upload requests. Please try again shortly.' });
-    }
-
+    // Admin media uploads rely on authenticated admin access only.
+    // No App Check or rate-limit friction is applied to the private admin panel.
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -268,6 +279,139 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
     });
   } catch {
     return res.status(500).json({ error: 'Unable to authorize media upload.' });
+  }
+});
+
+
+app.post('/api/newsletter', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Newsletter service is not configured.' });
+
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `newsletter:${getClientAddress(req)}`, 10, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many subscription attempts. Please try again later.' });
+    }
+
+    const email = safeString(req.body?.email, 254).toLowerCase();
+    if (!isEmail(email)) return res.status(400).json({ error: 'A valid email address is required.' });
+
+    const subscriberId = crypto.createHash('sha256').update(email).digest('hex');
+    await adminDb.collection('subscribers').doc(subscriberId).set({
+      email,
+      status: 'subscribed',
+      updatedAt: new Date().toISOString(),
+      serverUpdatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return res.status(201).json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Unable to save newsletter subscription.' });
+  }
+});
+
+app.post('/api/messages', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Concierge service is not configured.' });
+
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `messages:${getClientAddress(req)}`, 5, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many messages were submitted. Please wait and try again.' });
+    }
+
+    const name = safeString(req.body?.name, 120);
+    const email = safeString(req.body?.email, 254).toLowerCase();
+    const phone = safeString(req.body?.phone, 30);
+    const orderReference = safeString(req.body?.orderReference, 120);
+    const message = safeString(req.body?.message, 5000);
+    const allowedTopics = new Set(['order_inquiry', 'bespoke_sizing', 'concierge', 'press', 'authenticity', 'other']);
+    const topic = safeString(req.body?.topic, 40);
+
+    if (!name || !isEmail(email) || !message || !allowedTopics.has(topic)) {
+      return res.status(400).json({ error: 'Valid name, email, topic, and message are required.' });
+    }
+
+    const ref = adminDb.collection('concierge_inquiries').doc();
+    const record = {
+      id: ref.id,
+      name,
+      email,
+      phone: phone || '',
+      topic,
+      orderReference: orderReference || '',
+      message,
+      status: 'unread',
+      createdAt: new Date().toISOString(),
+      serverCreatedAt: FieldValue.serverTimestamp()
+    };
+
+    const batch = adminDb.batch();
+    batch.set(ref, record);
+    batch.set(adminDb.collection('messages').doc(ref.id), record);
+    await batch.commit();
+
+    return res.status(201).json({ ...record, serverCreatedAt: undefined });
+  } catch {
+    return res.status(500).json({ error: 'Unable to submit concierge message.' });
+  }
+});
+
+app.post('/api/restock/subscribe', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Restock service is not configured.' });
+
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `restock-subscribe:${getClientAddress(req)}`, 10, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many restock requests. Please wait and try again.' });
+    }
+
+    const productId = safeString(req.body?.productId, 100);
+    const customerEmail = safeString(req.body?.customerEmail, 254).toLowerCase();
+    const customerName = safeString(req.body?.customerName, 120);
+    const phone = safeString(req.body?.phone, 30);
+    const selectedSize = safeString(req.body?.selectedSize, 30);
+
+    if (!productId || !isEmail(customerEmail)) {
+      return res.status(400).json({ error: 'Valid product and email details are required.' });
+    }
+
+    const productSnap = await adminDb.collection('products').doc(productId).get();
+    if (!productSnap.exists) return res.status(404).json({ error: 'Product not found.' });
+    const product: any = { id: productSnap.id, ...productSnap.data() };
+
+    const dedupeId = crypto.createHash('sha256')
+      .update(`${productId}|${selectedSize.toLowerCase()}|${customerEmail}`)
+      .digest('hex');
+
+    const record = {
+      id: dedupeId,
+      productId,
+      productTitle: safeString(product.title, 200),
+      productSlug: safeString(product.slug, 160) || productId,
+      productImage: Array.isArray(product.images) ? safeString(product.images[0], 1000) : '',
+      selectedSize: selectedSize || 'Standard',
+      customerEmail,
+      customerName: customerName || '',
+      phone: phone || '',
+      channel: 'email',
+      notified: false,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      serverCreatedAt: FieldValue.serverTimestamp()
+    };
+
+    await adminDb.collection('stock_notifications').doc(dedupeId).set(record, { merge: true });
+    return res.status(201).json({ success: true, id: dedupeId });
+  } catch {
+    return res.status(500).json({ error: 'Unable to register restock notification.' });
   }
 });
 
@@ -500,11 +644,13 @@ app.post('/api/orders', async (req, res) => {
       };
 
       transaction.set(orderRef, order);
+      const guardExpiresAtMs = Date.now() + 2 * 60_000;
       transaction.set(guardRef, {
         orderNumber,
         userId: authToken.uid,
         createdAtMs: Date.now(),
-        expiresAtMs: Date.now() + 2 * 60_000
+        expiresAtMs: guardExpiresAtMs,
+        expiresAt: Timestamp.fromMillis(guardExpiresAtMs)
       });
 
       // Stock is committed only after an authenticated admin confirms the paid order.
@@ -520,6 +666,11 @@ app.post('/api/orders', async (req, res) => {
         return res.status(200).setHeader('X-Idempotent-Replay', 'true').json({ id: existing.id, ...existing.data() });
       }
     }
+
+    // Keep short-lived abuse-protection documents bounded without requiring a manual cleanup job.
+    await cleanupExpiredSecurityDocs(adminDb).catch(error => {
+      console.warn('Security cleanup note:', error);
+    });
 
     // Email failure must never roll back a successfully committed order.
     sendOrderConfirmationEmail(responseOrder).catch(error => {
