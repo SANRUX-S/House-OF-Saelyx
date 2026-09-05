@@ -2246,10 +2246,16 @@ app.get('/api/admin/orders/page', async (req, res) => {
 
     const requestedLimit = Number(req.query.limit);
     const pageSize = Number.isInteger(requestedLimit) ? Math.min(100, Math.max(10, requestedLimit)) : 100;
-    const before = safeString(req.query.before, 80);
+    const cursorId = safeString(req.query.cursor, 120);
 
-    let queryRef: any = adminDb.collection('orders').orderBy('createdAt', 'desc');
-    if (before) queryRef = queryRef.where('createdAt', '<', before);
+    const ordersRef = adminDb.collection('orders');
+    let queryRef: any = ordersRef.orderBy('createdAt', 'desc');
+    if (cursorId) {
+      const cursorSnap = await ordersRef.doc(cursorId).get();
+      if (!cursorSnap.exists) return res.status(400).json({ error: 'Order pagination cursor is invalid.' });
+      queryRef = queryRef.startAfter(cursorSnap);
+    }
+
     const snapshot = await queryRef.limit(pageSize + 1).get();
     const docs = snapshot.docs.slice(0, pageSize);
     const items = docs.map((docSnap: any) => ({ id: docSnap.id, ...docSnap.data() }));
@@ -2257,7 +2263,7 @@ app.get('/api/admin/orders/page', async (req, res) => {
     return res.json({
       items,
       hasMore,
-      nextCursor: hasMore && docs.length ? safeString(docs[docs.length - 1].data()?.createdAt, 80) : null
+      nextCursor: hasMore && docs.length ? docs[docs.length - 1].id : null
     });
   } catch {
     return res.status(500).json({ error: 'Unable to load older orders.' });
