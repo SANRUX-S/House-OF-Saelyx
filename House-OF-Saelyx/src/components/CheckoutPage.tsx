@@ -768,7 +768,7 @@ export const CheckoutPage: React.FC = () => {
                           Pay securely using your PayPal account or eligible international payment card in your selected currency ({selectedCurrency?.code || 'USD'} {totalInCurrency}).
                         </p>
 
-                        {/* Customer-facing interactive PayPal SDK Buttons */}
+                        {/* Customer-facing PayPal SDK UI; provider order creation and capture remain server-authoritative. */}
                         <div className="pt-1">
                           <PayPalScriptProvider 
                             options={{ 
