@@ -41,7 +41,8 @@ export const OrderTrackerModal: React.FC = () => {
       packed: 1,
       dispatched: 2,
       out_for_delivery: 3,
-      delivered: 4
+      delivered: 4,
+      cancelled: 0
     };
     return map[status] ?? 0;
   };
