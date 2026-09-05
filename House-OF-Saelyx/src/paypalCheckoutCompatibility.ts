@@ -1,5 +1,5 @@
 declare global {
-  var usdRateFromLKR: number | undefined;
+  var usdRateFromLKR: number;
   function createPayHereSession(orderId: string): Promise<{ action: string; fields: Record<string, string> }>;
 }
 
