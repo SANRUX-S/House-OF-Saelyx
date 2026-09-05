@@ -141,6 +141,12 @@ async function writeAdminAudit(
   });
 }
 
+function hasRecentAuthentication(token: DecodedIdToken, maxAgeSeconds = 10 * 60) {
+  const authTime = Number(token.auth_time);
+  if (!Number.isFinite(authTime) || authTime <= 0) return false;
+  return Math.floor(Date.now() / 1000) - authTime <= maxAgeSeconds;
+}
+
 async function hasValidAppCheck(req: Request) {
   if (process.env.FIREBASE_APP_CHECK_ENFORCE !== 'true') return true;
   const token = safeString(req.header('X-Firebase-AppCheck'), 4096);
@@ -957,6 +963,57 @@ app.post('/api/admin/staff/:uid/revoke', async (req, res) => {
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'saelyxe-api' });
+});
+
+app.get('/api/admin/export', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required. Sign out and sign in again before exporting.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-export:${token.uid}`, 3, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many backup exports. Please wait before exporting again.' });
+    }
+
+    const collectionNames = [
+      'products',
+      'settings',
+      'orders',
+      'staff',
+      'admins',
+      'messages',
+      'concierge_inquiries',
+      'audit_logs',
+      'subscribers',
+      'stock_notifications'
+    ] as const;
+
+    const entries = await Promise.all(collectionNames.map(async name => {
+      const snapshot = await adminDb.collection(name).get();
+      return [
+        name,
+        snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+      ] as const;
+    }));
+
+    const backup = Object.fromEntries(entries);
+    await writeAdminAudit(adminDb, token, 'DATABASE_EXPORT', 'Exported protected administrator database snapshot.');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="saelyxe-backup-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({
+      exportedAt: new Date().toISOString(),
+      exportedBy: token.uid,
+      schemaVersion: 1,
+      data: backup
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to export administrator backup.' });
+  }
 });
 
 app.get('/api/admin/health', async (req, res) => {
