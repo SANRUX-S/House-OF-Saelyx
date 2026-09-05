@@ -48,7 +48,7 @@ exports.onStockReplenished = onDocumentUpdated({
 
     snapshot.docs.forEach((docSnap) => {
       const subscriber = docSnap.data();
-      logger.info(`[Cloud Function] Queuing restock dispatch email to: ${subscriber.customerEmail} for size ${subscriber.selectedSize || 'Standard'}`);
+      logger.info(`[Cloud Function] Queuing restock dispatch for notification ${docSnap.id}.`);
 
       // Update notification status to 'sent'
       batch.update(docSnap.ref, {
@@ -73,8 +73,9 @@ exports.onStockReplenished = onDocumentUpdated({
       );
     });
 
-    // Commit Firestore updates & email tasks
-    await Promise.all([batch.commit(), ...notificationPromises]);
+    // Send successfully first. Only mark notifications as sent after delivery succeeds.
+    await Promise.all(notificationPromises);
+    await batch.commit();
 
     // Record audit log entry
     await db.collection("audit_logs").add({
@@ -192,14 +193,63 @@ exports.dispatchRestockAlerts = onRequest(async (req, res) => {
 });
 
 /**
- * Mock email delivery dispatcher simulating SendGrid / Mailgun / Postmark
+ * Transactional restock email delivery via Resend.
+ * Configure RESEND_API_KEY and RESEND_FROM_EMAIL as Firebase Function secrets/env vars.
  */
 async function deliverRestockEmail(payload) {
-  logger.info(`[SMTP Dispatcher] Sending HTML luxury template to ${payload.email}`);
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+
+  if (!apiKey || !from) {
+    throw new Error("Restock email delivery is not configured.");
+  }
+
+  const productUrl = `https://www.saelyxe.com/product/${encodeURIComponent(payload.productSlug)}`;
+  const subject = `SAELYXE Restock: ${payload.productTitle} is available`;
+  const html = [
+    "<div style=\"font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#181614\">",
+    "<h2>SAELYXE — Made for Presence</h2>",
+    `<p>${escapeHtml(payload.name)}, the item you requested is available again.</p>`,
+    `<p><strong>${escapeHtml(payload.productTitle)}</strong> · Size ${escapeHtml(payload.size)}</p>`,
+    `<p><a href="${productUrl}">View product</a></p>`,
+    "<p>Availability is not reserved until checkout is completed.</p>",
+    "</div>"
+  ].join("");
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from,
+      to: [payload.email],
+      subject,
+      html
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Restock email provider rejected delivery (${response.status}): ${errorText.slice(0, 200)}`);
+  }
+
+  const result = await response.json();
+  logger.info(`[Email Dispatcher] Restock email delivered for execution ${payload.executionId}.`);
   return {
     sent: true,
-    to: payload.email,
-    subject: `SAELYXE Atelier Restock: ${payload.productTitle} is now available`,
+    providerId: result.id,
+    subject,
     timestamp: new Date().toISOString()
   };
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
