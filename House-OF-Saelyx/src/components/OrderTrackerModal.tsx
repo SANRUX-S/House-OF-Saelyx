@@ -38,21 +38,22 @@ export const OrderTrackerModal: React.FC = () => {
     const map: Record<OrderStatus, number> = {
       placed: 0,
       confirmed: 1,
-      packed: 1,
-      dispatched: 2,
-      out_for_delivery: 3,
-      delivered: 4,
+      packed: 2,
+      dispatched: 3,
+      out_for_delivery: 4,
+      delivered: 5,
       cancelled: 0
     };
     return map[status] ?? 0;
   };
 
   const steps = [
-    { label: 'Order Verified', desc: 'Payment & sizing checked', icon: CheckCircle2 },
-    { label: 'Atelier Packaging', desc: 'Folded in dust sleeve & box', icon: Package },
-    { label: 'Dispatched', desc: 'En route via courier van', icon: Truck },
-    { label: 'Out for Hand-Delivery', desc: 'Arriving at customer address', icon: MapPin },
-    { label: 'Delivered', desc: 'Handed directly to recipient', icon: ShieldCheck }
+    { label: 'Order Placed', desc: 'Order securely recorded', icon: Clock },
+    { label: 'Confirmed', desc: 'Payment manually verified by SAELYXE operations', icon: CheckCircle2 },
+    { label: 'Packed', desc: 'Prepared for courier collection', icon: Package },
+    { label: 'Dispatched', desc: 'Collected by the assigned courier', icon: Truck },
+    { label: 'Out for Delivery', desc: 'Courier is completing the final delivery leg', icon: MapPin },
+    { label: 'Delivered', desc: 'Delivery completed', icon: ShieldCheck }
   ];
 
   const currentStep = order ? getStatusIndex(order.status) : 0;
@@ -129,7 +130,7 @@ export const OrderTrackerModal: React.FC = () => {
                         Courier Dispatch
                       </div>
                       <div className="text-xs text-amber-300 font-medium">
-                        {order.courierName} ({order.trackingNumber})
+                        {order.courierName || 'Pending assignment'}{order.trackingNumber ? ` (${order.trackingNumber})` : ''}
                       </div>
                     </div>
                   </div>

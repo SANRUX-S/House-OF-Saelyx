@@ -41,11 +41,15 @@ export const OrdersPage: React.FC = () => {
       case 'delivered':
         return { label: 'Delivered', bg: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
       case 'out_for_delivery':
+        return { label: 'Out for Delivery', bg: 'bg-blue-50 text-blue-800 border-blue-200' };
       case 'dispatched':
         return { label: 'Dispatched', bg: 'bg-blue-50 text-blue-800 border-blue-200' };
       case 'packed':
+        return { label: 'Packed', bg: 'bg-amber-50 text-amber-800 border-amber-200' };
       case 'confirmed':
         return { label: 'Confirmed', bg: 'bg-amber-50 text-amber-800 border-amber-200' };
+      case 'cancelled':
+        return { label: 'Cancelled', bg: 'bg-rose-50 text-rose-800 border-rose-200' };
       case 'placed':
       default:
         return { label: 'Processing', bg: 'bg-stone-100 text-stone-700 border-stone-200' };
@@ -85,18 +89,19 @@ export const OrdersPage: React.FC = () => {
     const map: Record<OrderStatus, number> = {
       placed: 0,
       confirmed: 1,
-      packed: 1,
-      dispatched: 2,
-      out_for_delivery: 3,
-      delivered: 4,
+      packed: 2,
+      dispatched: 3,
+      out_for_delivery: 4,
+      delivered: 5,
       cancelled: 0
     };
     return map[status] ?? 0;
   };
 
   const trackingSteps = [
-    { label: 'Order Confirmed', icon: CheckCircle2 },
-    { label: 'Atelier Packaging', icon: Package },
+    { label: 'Order Placed', icon: Clock },
+    { label: 'Confirmed', icon: CheckCircle2 },
+    { label: 'Packed', icon: Package },
     { label: 'Dispatched', icon: Truck },
     { label: 'Out for Delivery', icon: MapPin },
     { label: 'Delivered', icon: ShieldCheck }

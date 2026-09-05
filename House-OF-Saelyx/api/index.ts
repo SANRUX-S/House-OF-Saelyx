@@ -36,6 +36,21 @@ const CURRENCIES = [
 
 const ORDER_STATUSES = new Set(['placed', 'confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']);
 
+const ORDER_TRANSITIONS: Record<string, Set<string>> = {
+  placed: new Set(['confirmed', 'cancelled']),
+  confirmed: new Set(['packed', 'cancelled']),
+  packed: new Set(['dispatched']),
+  dispatched: new Set(['out_for_delivery']),
+  out_for_delivery: new Set(['delivered']),
+  delivered: new Set(),
+  cancelled: new Set()
+};
+
+function canTransitionOrderStatus(current: string, next: string) {
+  if (current === next) return true;
+  return ORDER_TRANSITIONS[current]?.has(next) === true;
+}
+
 function getAdminDb() {
   if (!getApps().length) {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
@@ -755,18 +770,15 @@ app.put('/api/orders/:id/status', async (req, res) => {
       if (!snap.exists) throw new Error('Order not found.');
 
       const current: any = snap.data() || {};
+      const currentStatus = safeString(current.status, 40) || 'placed';
+
+      if (!canTransitionOrderStatus(currentStatus, status)) {
+        throw new Error(`Invalid order transition: ${currentStatus} → ${status}.`);
+      }
+
       const update: Record<string, unknown> = {
         status,
-        updatedAt: now,
-        statusHistory: [
-          ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
-          {
-            status,
-            timestamp: now,
-            note: safeString(req.body?.note, 300) || `Order status updated to ${status}.`,
-            location: safeString(req.body?.location, 160) || 'SAELYXE Operations'
-          }
-        ]
+        updatedAt: now
       };
 
       for (const key of ['trackingNumber', 'courierName', 'deliveryEta'] as const) {
@@ -774,29 +786,59 @@ app.put('/api/orders/:id/status', async (req, res) => {
         if (value) update[key] = value;
       }
 
-      if (status === 'confirmed' && current.inventoryCommitted !== true) {
-        const items = Array.isArray(current.items) ? current.items : [];
-        const quantityByProduct = new Map<string, number>();
-        for (const item of items) {
-          const productId = safeString(item?.productId, 100);
-          const quantity = Number(item?.quantity);
-          if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+      if (status !== currentStatus) {
+        update.statusHistory = [
+          ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
+          {
+            status,
+            timestamp: now,
+            note: safeString(req.body?.note, 300) || `Order status updated to ${status}.`,
+            location: safeString(req.body?.location, 160) || 'SAELYXE Operations'
+          }
+        ];
+      }
+
+      const items = Array.isArray(current.items) ? current.items : [];
+      const quantityByProduct = new Map<string, number>();
+      for (const item of items) {
+        const productId = safeString(item?.productId, 100);
+        const quantity = Number(item?.quantity);
+        if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+          if (status === 'confirmed' || status === 'cancelled') {
             throw new Error('Order inventory data is invalid.');
           }
-          quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+          continue;
         }
+        quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+      }
 
-        for (const [productId, quantity] of quantityByProduct.entries()) {
+      // Firestore transactions require all reads before writes. Read every affected
+      // product first, then apply inventory mutations as a second phase.
+      const productSnapshots = new Map<string, { ref: any; data: any }>();
+      const needsInventoryCommit = status === 'confirmed' && current.inventoryCommitted !== true;
+      const needsInventoryRestore = status === 'cancelled' && current.inventoryCommitted === true;
+
+      if (needsInventoryCommit || needsInventoryRestore) {
+        for (const productId of quantityByProduct.keys()) {
           const productRef = adminDb.collection('products').doc(productId);
           const productSnap = await transaction.get(productRef);
-          if (!productSnap.exists) throw new Error('A product in this order is no longer available.');
-          const product: any = productSnap.data() || {};
-          const stockCount = Number(product.stockCount);
+          if (!productSnap.exists) {
+            throw new Error('A product in this order is no longer available.');
+          }
+          productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
+        }
+      }
+
+      if (needsInventoryCommit) {
+        for (const [productId, quantity] of quantityByProduct.entries()) {
+          const cached = productSnapshots.get(productId);
+          if (!cached) throw new Error('Order inventory could not be verified.');
+          const stockCount = Number(cached.data.stockCount);
           if (!Number.isFinite(stockCount) || stockCount < quantity) {
-            throw new Error(`${product.title || 'A product'} does not have enough stock to confirm this order.`);
+            throw new Error(`${cached.data.title || 'A product'} does not have enough stock to confirm this order.`);
           }
           const nextStock = stockCount - quantity;
-          transaction.update(productRef, {
+          transaction.update(cached.ref, {
             stockCount: nextStock,
             inStock: nextStock > 0,
             updatedAt: now
@@ -804,21 +846,23 @@ app.put('/api/orders/:id/status', async (req, res) => {
         }
 
         update.inventoryCommitted = true;
-        update.paymentStatus = 'verified';
+        // Until provider webhooks are implemented in payment hardening, an authenticated
+        // admin confirmation is the explicit manual payment-verification action.
+        if (current.paymentStatus !== 'verified') {
+          update.paymentStatus = 'verified';
+          update.paymentVerificationSource = 'admin_confirmation';
+          update.paymentVerifiedAt = now;
+          update.paymentVerifiedBy = token?.uid || 'admin';
+        }
       }
 
-      if (status === 'cancelled' && current.inventoryCommitted === true) {
-        const items = Array.isArray(current.items) ? current.items : [];
-        for (const item of items) {
-          const productId = safeString(item?.productId, 100);
-          const quantity = Number(item?.quantity);
-          if (!productId || !Number.isInteger(quantity) || quantity < 1) continue;
-          const productRef = adminDb.collection('products').doc(productId);
-          const productSnap = await transaction.get(productRef);
-          if (!productSnap.exists) continue;
-          const product: any = productSnap.data() || {};
-          const nextStock = Math.max(0, Number(product.stockCount || 0)) + quantity;
-          transaction.update(productRef, {
+      if (needsInventoryRestore) {
+        for (const [productId, quantity] of quantityByProduct.entries()) {
+          const cached = productSnapshots.get(productId);
+          if (!cached) continue;
+          const stockCount = Number(cached.data.stockCount);
+          const nextStock = Math.max(0, Number.isFinite(stockCount) ? stockCount : 0) + quantity;
+          transaction.update(cached.ref, {
             stockCount: nextStock,
             inStock: nextStock > 0,
             updatedAt: now
@@ -833,8 +877,13 @@ app.put('/api/orders/:id/status', async (req, res) => {
 
     const updated = await ref.get();
     return res.json({ id: updated.id, ...updated.data() });
-  } catch {
-    return res.status(500).json({ error: 'Unable to update order.' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to update order.';
+    const statusCode =
+      message.startsWith('Invalid order transition') ? 409 :
+      message.includes('not enough stock') ? 409 :
+      message === 'Order not found.' ? 404 : 400;
+    return res.status(statusCode).json({ error: message });
   }
 });
 
