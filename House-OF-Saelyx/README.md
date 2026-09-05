@@ -28,3 +28,16 @@ The browser Firebase settings are not sufficient for protected admin API routes.
 - `FIREBASE_PRIVATE_KEY` (the service-account private key, with newlines preserved or encoded as `\\n`)
 
 Use a Firebase service-account key from Project settings > Service accounts. Never commit the key or put it in a `VITE_*` variable.
+
+
+## Production hardening checklist
+
+Before promoting a deployment to production:
+
+1. Configure the Firebase browser variables and set `VITE_FIREBASE_ENABLE_REALTIME=true`.
+2. Configure the server-only Firebase Admin variables: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`.
+3. Add `saelyxe.com` and `www.saelyxe.com` to Firebase Authentication authorized domains and enable only the sign-in providers used by the UI.
+4. Deploy `firestore.rules` and `storage.rules` after reviewing the target Firebase project.
+5. For transactional email, configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in Vercel. For Firebase Functions, set the same values with Firebase Functions secrets before deploying functions.
+6. Do not mark PayHere, PayPal, or crypto orders as paid until the payment provider has been verified server-side or by a trusted webhook.
+7. Run `npm run lint` and `npm run build` before merging production changes.
