@@ -389,6 +389,7 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
       paymentVerificationSource: 'paypal_orders_api',
       paymentVerificationError: FieldValue.delete(),
       paymentVerifiedAt: current.paymentVerifiedAt || now,
+      paymentCaptureCompletedAt: current.paymentCaptureCompletedAt || now,
       paymentUpdatedAt: now
     };
 
@@ -967,6 +968,11 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     }
 
     await reservePayPalInventory(adminDb, orderId, paypalOrderId);
+    const captureStartedAt = new Date().toISOString();
+    await ref.update({
+      paymentCaptureStartedAt: captureStartedAt,
+      paymentUpdatedAt: captureStartedAt
+    });
 
     let captureResult: any = null;
     try {
@@ -1187,7 +1193,13 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
       }
 
       const providerStatus = safeString(verification.providerStatus, 30).toUpperCase();
-      const safeToCancel = ['CREATED', 'SAVED', 'PAYER_ACTION_REQUIRED', 'VOIDED'].includes(providerStatus);
+      const approvedButCaptureNotStarted =
+        providerStatus === 'APPROVED' &&
+        order.inventoryReserved !== true &&
+        !order.paymentCaptureStartedAt;
+      const safeToCancel =
+        ['CREATED', 'SAVED', 'PAYER_ACTION_REQUIRED', 'VOIDED'].includes(providerStatus) ||
+        approvedButCaptureNotStarted;
       if (!safeToCancel) {
         return res.status(409).json({
           error: `PayPal checkout is in ${providerStatus || 'an uncertain'} state. The order was not cancelled to avoid losing a completed payment.`
@@ -1471,6 +1483,7 @@ app.post('/api/orders', async (req, res) => {
       country
     })).digest('hex');
     const guardRef = adminDb.collection('order_idempotency').doc(duplicateFingerprint);
+    const idempotencyWindowMs = checkoutAttemptId ? 24 * 60 * 60_000 : 2 * 60_000;
     const orderNumber = `SOX-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
     const orderRef = adminDb.collection('orders').doc(orderNumber);
 
@@ -1481,7 +1494,7 @@ app.post('/api/orders', async (req, res) => {
       const guardSnap = await transaction.get(guardRef);
       const guardData: any = guardSnap.exists ? guardSnap.data() || {} : {};
       const guardCreatedAtMs = Number(guardData.createdAtMs) || 0;
-      if (guardSnap.exists && guardCreatedAtMs > Date.now() - 2 * 60_000 && guardData.orderNumber) {
+      if (guardSnap.exists && guardCreatedAtMs > Date.now() - idempotencyWindowMs && guardData.orderNumber) {
         replayOrderNumber = safeString(guardData.orderNumber, 120);
         return;
       }
@@ -1586,7 +1599,7 @@ app.post('/api/orders', async (req, res) => {
       };
 
       transaction.set(orderRef, order);
-      const guardExpiresAtMs = Date.now() + 2 * 60_000;
+      const guardExpiresAtMs = Date.now() + idempotencyWindowMs;
       transaction.set(guardRef, {
         orderNumber,
         userId: authToken.uid,
