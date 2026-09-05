@@ -33,7 +33,7 @@ const CURRENCIES = [
   { code: 'AED', symbol: 'AED', name: 'UAE Dirham', rateFromLKR: 0.0121, symbolPosition: 'before', flag: 'AE' }
 ] as const;
 
-const ORDER_STATUSES = new Set(['placed', 'confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered']);
+const ORDER_STATUSES = new Set(['placed', 'confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']);
 
 function getAdminDb() {
   if (!getApps().length) {
@@ -158,7 +158,8 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'saelyxe-api',
-    firebaseAdminConfigured: Boolean(getAdminDb())
+    firebaseAdminConfigured: Boolean(getAdminDb()),
+    transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL)
   });
 });
 
@@ -531,6 +532,110 @@ app.put('/api/orders/:id/status', async (req, res) => {
     return res.json({ id: updated.id, ...updated.data() });
   } catch {
     return res.status(500).json({ error: 'Unable to update order.' });
+  }
+});
+
+app.post('/api/restock/dispatch', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Restock service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_EMAIL;
+    if (!apiKey || !from) {
+      return res.status(503).json({ error: 'Transactional email is not configured.' });
+    }
+
+    const productId = safeString(req.body?.productId, 100);
+    if (!productId) return res.status(400).json({ error: 'Product ID is required.' });
+
+    const productSnap = await adminDb.collection('products').doc(productId).get();
+    if (!productSnap.exists) return res.status(404).json({ error: 'Product not found.' });
+    const product: any = { id: productSnap.id, ...productSnap.data() };
+
+    const notificationSnap = await adminDb.collection('stock_notifications')
+      .where('productId', '==', productId)
+      .where('status', '==', 'pending')
+      .get();
+
+    const executionId = `restock-${crypto.randomBytes(6).toString('hex')}`;
+    const recipients: string[] = [];
+
+    for (const docSnap of notificationSnap.docs) {
+      const subscriber: any = docSnap.data();
+      const email = safeString(subscriber.customerEmail, 254).toLowerCase();
+      if (!isEmail(email)) continue;
+
+      const productUrl = `https://www.saelyxe.com/product/${encodeURIComponent(safeString(product.slug, 160) || productId)}`;
+      const html = [
+        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#181614">',
+        '<h2>SAELYXE — Back in Stock</h2>',
+        `<p>${escapeHtml(subscriber.customerName || 'Valued Patron')}, the piece you requested is available again.</p>`,
+        `<p><strong>${escapeHtml(product.title || 'SAELYXE Garment')}</strong></p>`,
+        `<p>Requested size: ${escapeHtml(subscriber.selectedSize || 'Standard')}</p>`,
+        `<p><a href="${productUrl}">View the garment</a></p>`,
+        '<p>Availability can change quickly while the drop remains live.</p>',
+        '</div>'
+      ].join('');
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from,
+          to: [email],
+          subject: `Back in stock: ${product.title || 'SAELYXE Garment'}`,
+          html
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Restock email failed:', response.status);
+        return res.status(502).json({ error: 'One or more restock emails could not be delivered.' });
+      }
+
+      recipients.push(email);
+    }
+
+    const batch = adminDb.batch();
+    for (const docSnap of notificationSnap.docs) {
+      const subscriber: any = docSnap.data();
+      const email = safeString(subscriber.customerEmail, 254).toLowerCase();
+      if (!recipients.includes(email)) continue;
+      batch.update(docSnap.ref, {
+        status: 'sent',
+        notified: true,
+        notifiedAt: new Date().toISOString(),
+        cloudFunctionExecutionId: executionId
+      });
+    }
+    await batch.commit();
+
+    await adminDb.collection('audit_logs').add({
+      timestamp: new Date().toISOString(),
+      actor: typeof token?.email === 'string' ? token.email : token?.uid || 'admin',
+      role: typeof token?.role === 'string' ? token.role : 'admin',
+      action: 'RESTOCK_ALERT_DISPATCHED',
+      details: `Dispatched ${recipients.length} restock emails for [${product.title || productId}] (Execution: ${executionId})`
+    });
+
+    return res.json({
+      success: true,
+      productTitle: product.title || 'Selected Garment',
+      dispatchedCount: recipients.length,
+      processedCount: notificationSnap.size,
+      recipients,
+      executionId
+    });
+  } catch (error) {
+    console.error('Restock dispatch failed:', error);
+    return res.status(500).json({ error: 'Unable to dispatch restock alerts.' });
   }
 });
 
