@@ -1,7 +1,11 @@
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { logger } = require("firebase-functions");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+
+const resendApiKey = defineSecret("RESEND_API_KEY");
+const resendFromEmail = defineSecret("RESEND_FROM_EMAIL");
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -18,7 +22,8 @@ const db = admin.firestore(databaseId);
  */
 exports.onStockReplenished = onDocumentUpdated({
   document: "products/{productId}",
-  database: databaseId
+  database: databaseId,
+  secrets: [resendApiKey, resendFromEmail]
 }, async (event) => {
   const beforeData = event.data?.before?.data();
   const afterData = event.data?.after?.data();
@@ -132,7 +137,9 @@ exports.subscribeBackInStock = onCall(async (request) => {
 /**
  * HTTPS Webhook/API trigger for manual admin broadcast
  */
-exports.dispatchRestockAlerts = onRequest(async (req, res) => {
+exports.dispatchRestockAlerts = onRequest({
+  secrets: [resendApiKey, resendFromEmail]
+}, async (req, res) => {
   try {
     const authorization = req.headers.authorization || "";
     if (!authorization.startsWith("Bearer ")) {
@@ -211,8 +218,8 @@ exports.dispatchRestockAlerts = onRequest(async (req, res) => {
  * Configure RESEND_API_KEY and RESEND_FROM_EMAIL as Firebase Function secrets/env vars.
  */
 async function deliverRestockEmail(payload) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
+  const apiKey = resendApiKey.value();
+  const from = resendFromEmail.value();
 
   if (!apiKey || !from) {
     throw new Error("Restock email delivery is not configured.");
