@@ -58,43 +58,15 @@ const ADMIN_ROLES: Record<string, UserRole> = {
   'saelyx.co+admin@gmail.com': 'admin'
 };
 
-const FALLBACK_ADMIN_CREDENTIALS: Record<string, { password: string; role: UserRole; name: string }> = {
-  'saelyx.co+super@gmail.com': {
-    password: 'j5Cwb3GtqkvhopRLy2#a',
-    role: 'super_admin',
-    name: 'Super Admin'
-  },
-  'saelyx.co+admin@gmail.com': {
-    password: 'g8uWBqnWrDxnRVxL4qvV',
-    role: 'admin',
-    name: 'Limited Admin'
-  }
-};
-
 export function getConfiguredAdminRole(email?: string | null): UserRole | undefined {
   return email ? ADMIN_ROLES[email.toLowerCase()] : undefined;
 }
 
 export async function verifyAdminCredentials(username: string, pass: string): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
   const normalizedEmail = username.trim().toLowerCase();
-  const fallbackAdmin = FALLBACK_ADMIN_CREDENTIALS[normalizedEmail];
-
-  if (fallbackAdmin && pass === fallbackAdmin.password) {
-    return {
-      valid: true,
-      user: {
-        uid: fallbackAdmin.role === 'super_admin' ? 'local-super-admin' : 'local-limited-admin',
-        name: fallbackAdmin.name,
-        email: normalizedEmail,
-        role: fallbackAdmin.role,
-        joinedDate: new Date().toISOString().slice(0, 10),
-        ordersCount: fallbackAdmin.role === 'super_admin' ? 99 : 45
-      }
-    };
-  }
 
   if (!isFirebaseConfigured) {
-    return { valid: false, error: 'Firebase is not configured. Use a provisioned operator account or add real Firebase values to .env.' };
+    return { valid: false, error: 'Firebase administrator authentication is not configured.' };
   }
   try {
     const credential = await signInWithEmailAndPassword(auth, username.trim(), pass);

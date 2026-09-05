@@ -1070,28 +1070,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsAuthLoading(true);
     setAuthError(null);
     try {
-      try {
-        const savedStaff = JSON.parse(localStorage.getItem('saelyxe_staff_credentials') || '[]') as Array<{ username: string; password: string; name: string; email: string; role: 'admin' | 'super_admin'; uid: string }>;
-        const localStaff = savedStaff.find(staff => staff.username.toLowerCase() === username.trim().toLowerCase() && staff.password === pass)
-          || (!isFirebaseConfigured && username.trim() === 'Test_Admin_09-04-2026' && pass === 'Test_Admin_09-04-2026'
-            ? { username, password: pass, name: 'Test Admin', email: 'test@saelyxe.com', role: 'admin' as const, uid: 'local-test-admin' }
-            : undefined)
-          || (
-            (username.trim().toLowerCase() === 'saelyx.co+super@gmail.com' && pass === 'j5Cwb3GtqkvhopRLy2#a')
-              ? { username: 'saelyx.co+super@gmail.com', password: 'j5Cwb3GtqkvhopRLy2#a', name: 'Super Admin', email: 'saelyx.co+super@gmail.com', role: 'super_admin' as const, uid: 'local-super-admin' }
-              : undefined
-          )
-          || (
-            (username.trim().toLowerCase() === 'saelyx.co+admin@gmail.com' && pass === 'g8uWBqnWrDxnRVxL4qvV')
-              ? { username: 'saelyx.co+admin@gmail.com', password: 'g8uWBqnWrDxnRVxL4qvV', name: 'Limited Admin', email: 'saelyx.co+admin@gmail.com', role: 'admin' as const, uid: 'local-limited-admin' }
-              : undefined
-          );
-        if (localStaff) {
-          const localUser: AppUser = { uid: localStaff.uid, name: localStaff.name, email: localStaff.email, role: localStaff.role, joinedDate: new Date().toISOString() };
-          setUser(localUser);
-          return { success: true };
-        }
-      } catch {}
       const verification = await verifyAdminCredentials(username, pass);
       if (verification.valid && verification.user) {
         setUser(verification.user);

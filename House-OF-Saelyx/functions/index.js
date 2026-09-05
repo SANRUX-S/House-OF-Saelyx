@@ -7,7 +7,8 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const db = admin.firestore();
+const databaseId = process.env.FIREBASE_DATABASE_ID || "ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41";
+const db = admin.firestore(databaseId);
 
 /**
  * Cloud Function Trigger: onStockReplenished
@@ -15,7 +16,10 @@ const db = admin.firestore();
  * If inStock switches to true or stockCount increases above 0,
  * it queries all pending notifications for this product and sends back-in-stock dispatches.
  */
-exports.onStockReplenished = onDocumentUpdated("products/{productId}", async (event) => {
+exports.onStockReplenished = onDocumentUpdated({
+  document: "products/{productId}",
+  database: databaseId
+}, async (event) => {
   const beforeData = event.data?.before?.data();
   const afterData = event.data?.after?.data();
   const productId = event.params.productId;
