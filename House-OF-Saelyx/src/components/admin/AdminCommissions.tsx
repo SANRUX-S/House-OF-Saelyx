@@ -37,6 +37,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   const [newTracking, setNewTracking] = useState('');
   const [newEta, setNewEta] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
 
   // Open Dispatch Modal
   const handleOpenDispatchModal = (order: Order) => {
@@ -45,6 +46,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
     setNewCourier(order.courierName || '');
     setNewTracking(order.trackingNumber || '');
     setNewEta(order.deliveryEta || '');
+    setUpdateError('');
   };
 
   const handleSaveDispatch = async (e: React.FormEvent) => {
@@ -53,12 +55,17 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
 
     setIsUpdating(true);
     try {
-      await onUpdateOrderStatus(selectedOrder.id, newStatus, {
+      const success = await onUpdateOrderStatus(selectedOrder.id, newStatus, {
         courierName: newCourier,
         trackingNumber: newTracking,
         deliveryEta: newEta
       });
-      setSelectedOrder(null);
+      if (success) {
+        setSelectedOrder(null);
+        setUpdateError('');
+      } else {
+        setUpdateError('This status change is not valid yet, or the order could not be updated. Follow the order stages in sequence.');
+      }
     } catch (err) {
       console.error('Error updating order dispatch:', err);
     } finally {
@@ -133,7 +140,9 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                     { id: 'all', label: 'All Statuses' },
                     { id: 'placed', label: 'Placed (New)' },
                     { id: 'confirmed', label: 'Confirmed / Processing' },
-                    { id: 'dispatched', label: 'In Dispatch' },
+                    { id: 'packed', label: 'Packed' },
+                    { id: 'dispatched', label: 'Dispatched' },
+                    { id: 'out_for_delivery', label: 'Out for Delivery' },
                     { id: 'delivered', label: 'Delivered (Completed)' },
                     { id: 'cancelled', label: 'Cancelled' }
                   ].map(s => (
@@ -229,7 +238,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       {/* Logistics & Courier */}
                       <td>
                         <div className="text-xs font-medium text-stone-800">
-                          {order.courierName || 'Saelyxe White-Glove Van 04'}
+                          {order.courierName || 'Pending assignment'}
                         </div>
                         <div className="text-[11px] text-stone-500 font-mono">
                           {order.trackingNumber || 'Pending Allocation'}
@@ -319,8 +328,10 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   className="form-input-custom font-semibold"
                 >
                   <option value="placed">Placed (Pending Review)</option>
-                  <option value="confirmed">Confirmed (Atelier Processing)</option>
-                  <option value="dispatched">Dispatched (White-Glove En Route)</option>
+                  <option value="confirmed">Confirmed (Payment Manually Verified)</option>
+                  <option value="packed">Packed (Ready for Dispatch)</option>
+                  <option value="dispatched">Dispatched (Courier Collected)</option>
+                  <option value="out_for_delivery">Out for Delivery</option>
                   <option value="delivered">Delivered (Handover Complete)</option>
                   <option value="cancelled">Cancelled / Refunded</option>
                 </select>
@@ -358,6 +369,12 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   className="form-input-custom"
                 />
               </div>
+
+              {updateError && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                  {updateError}
+                </div>
+              )}
 
               <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-3">
                 <button
