@@ -20,9 +20,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
 
   const formatPaymentMethod = (method?: string) => {
     switch (method) {
-      case 'payhere': return 'PayHere Online';
       case 'paypal': return 'PayPal';
-      case 'binance_qr': return 'Binance Pay / Crypto';
       case 'cod': return 'Cash on Delivery';
       default: return 'Atelier Commission';
     }
