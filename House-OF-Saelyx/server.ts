@@ -49,8 +49,11 @@ export function createApp() {
   app.put('/api/settings', retiredMutation);
   app.all('/api/staff', retiredMutation);
   app.all('/api/staff/:id', retiredMutation);
+  app.get('/api/messages', retiredMutation);
   app.put('/api/messages/:id/status', retiredMutation);
-  app.post('/api/audit-logs', retiredMutation);
+  app.all('/api/audit-logs', retiredMutation);
+  app.get('/api/stock-notifications', retiredMutation);
+  app.delete('/api/stock-notifications/:id', retiredMutation);
   app.post('/api/functions/onStockReplenished', retiredMutation);
 
   // 1. Health check
