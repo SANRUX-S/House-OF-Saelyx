@@ -627,6 +627,9 @@ app.post('/api/payments/paypal/link/:orderId', async (req, res) => {
     if (order.paymentStatus === 'verified') {
       return res.status(409).json({ error: 'Payment is already verified.' });
     }
+    if (order.status === 'cancelled') {
+      return res.status(409).json({ error: 'Cancelled orders cannot be linked to a new PayPal payment.' });
+    }
 
     const now = new Date().toISOString();
     await ref.update({
@@ -932,11 +935,13 @@ app.post('/api/orders', async (req, res) => {
       ? body.paymentMethod
       : 'payhere';
     const paymentProviderReference = safeString(body.paymentProviderReference, 160);
+    const checkoutAttemptId = safeString(body.checkoutAttemptId, 120);
     const duplicateFingerprint = crypto.createHash('sha256').update(JSON.stringify({
       uid: authToken.uid,
       items: [...requested].sort((a, b) => `${a.productId}:${a.size}`.localeCompare(`${b.productId}:${b.size}`)),
       paymentMethod,
       paymentProviderReference,
+      checkoutAttemptId,
       address,
       city,
       postalCode,
