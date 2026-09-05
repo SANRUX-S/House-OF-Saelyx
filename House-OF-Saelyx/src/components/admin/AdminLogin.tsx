@@ -115,9 +115,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="form-label-custom">Firebase Administrator Email</label>
+            <label htmlFor="admin-email" className="form-label-custom">Firebase Administrator Email</label>
             <input
-              type="text"
+              id="admin-email"
+              type="email"
               required
               autoComplete="username"
               value={username}
@@ -128,9 +129,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           </div>
 
           <div>
-            <label className="form-label-custom">Cryptographic Password Key</label>
+            <label htmlFor="admin-password" className="form-label-custom">Cryptographic Password Key</label>
             <div className="relative">
               <input
+                id="admin-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="current-password"
