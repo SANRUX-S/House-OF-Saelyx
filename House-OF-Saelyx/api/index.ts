@@ -534,7 +534,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
   }
 });
 
-app.get('/api/sitemap', async (_req, res) => {
+app.get(['/api/sitemap', '/sitemap.xml'], async (_req, res) => {
   try {
     const urls = [
       '/',
