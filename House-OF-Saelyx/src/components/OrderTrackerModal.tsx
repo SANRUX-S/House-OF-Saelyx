@@ -17,7 +17,8 @@ export const OrderTrackerModal: React.FC = () => {
 
     if (!auth.currentUser || !user) {
       setOrder(null);
-      setError('Please sign in to the account that placed this order.');
+      setError('');
+      setIsTrackerOpen(false);
       setIsAuthOpen(true);
       return;
     }
