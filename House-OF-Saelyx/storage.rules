@@ -10,9 +10,14 @@ service firebase.storage {
         request.auth.token.admin == true ||
         request.auth.token.role == 'admin' ||
         request.auth.token.role == 'super_admin' ||
-        request.auth.token.email == 'saelyx.co@gmail.com' ||
-        request.auth.token.email == 'saelyx.co+super@gmail.com' ||
-        request.auth.token.email == 'saelyx.co+admin@gmail.com'
+        (
+          request.auth.token.email_verified == true &&
+          (
+            request.auth.token.email == 'saelyx.co@gmail.com' ||
+            request.auth.token.email == 'saelyx.co+super@gmail.com' ||
+            request.auth.token.email == 'saelyx.co+admin@gmail.com'
+          )
+        )
       );
     }
 
