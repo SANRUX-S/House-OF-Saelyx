@@ -163,7 +163,7 @@ interface StoreContextType {
 
   // Staff
   staffList: AdminStaff[];
-  addStaff: (staff: Omit<AdminStaff, 'id' | 'createdAt' | 'status'> & { password?: string }) => Promise<boolean>;
+  addStaff: (staff: Omit<AdminStaff, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
   deleteStaff: (id: string) => Promise<boolean>;
 
   // Settings
@@ -1309,22 +1309,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Staff mutations
-  const addStaff = async (staffData: Omit<AdminStaff, 'id' | 'createdAt' | 'status'> & { password?: string }): Promise<boolean> => {
+  const addStaff = async (staffData: Omit<AdminStaff, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
     try {
       const id = `staff-${Date.now().toString(36)}`;
-      const { password: _password, ...safeStaffData } = staffData;
       const payload = {
-        ...safeStaffData,
+        ...staffData,
         id,
         status: 'active' as const,
         createdAt: new Date().toISOString()
       };
       if (isFirebaseConfigured) await setDoc(doc(db, 'staff', id), payload);
-      setStaffList(prev => [{ ...payload, password: undefined } as AdminStaff, ...prev.filter(staff => staff.username !== staffData.username)]);
-      await logAuditEvent('STAFF_PROVISIONED', `Staff operator [${payload.displayName || payload.username}] provisioned with role [${payload.role}]`);
+      setStaffList(prev => [payload as AdminStaff, ...prev.filter(staff => staff.username !== staffData.username)]);
+      await logAuditEvent('STAFF_PROFILE_ADDED', `Staff directory profile [${payload.displayName || payload.name || payload.username}] added with listed role [${payload.role}]`);
       return true;
     } catch (e) {
-      console.error('Error adding staff:', e);
+      console.error('Error adding staff profile:', e);
       return false;
     }
   };
@@ -1332,7 +1331,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteStaff = async (id: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'staff', id));
-      await logAuditEvent('STAFF_REVOKED', `Staff operator ${id} privileges revoked.`);
+      await logAuditEvent('STAFF_PROFILE_REMOVED', `Staff directory profile ${id} removed.`);
       return true;
     } catch (e) {
       console.error('Error deleting staff:', e);
