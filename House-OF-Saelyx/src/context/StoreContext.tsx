@@ -140,11 +140,11 @@ interface StoreContextType {
   sendMessage: (msg: Omit<ContactMessage, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
   updateMessageStatus: (id: string, status: 'unread' | 'read' | 'replied', notes?: string) => Promise<boolean>;
 
-  // Back-in-Stock Notifications (Cloud Functions)
+  // Back-in-Stock Notifications (Vercel API + Resend)
   stockNotifications: StockNotification[];
   subscribeToRestock: (entry: Omit<StockNotification, 'id' | 'createdAt' | 'notified' | 'status'>) => Promise<{ success: boolean; id?: string; error?: string }>;
   deleteStockNotification: (id: string) => Promise<boolean>;
-  triggerRestockCloudFunction: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
+  triggerRestockDispatch: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
   isRestockModalOpen: boolean;
   setIsRestockModalOpen: (open: boolean) => void;
   restockModalProduct: Product | null;
@@ -530,7 +530,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSettings(setData);
         try {
           localStorage.setItem('saelyx_settings', JSON.stringify(setData));
-        } catch (e) {}
+        } catch (e) { console.warn('Non-fatal store operation note:', e); }
       }
 
     } catch (e) {
@@ -700,7 +700,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Orders listener note:', err);
       });
       return () => unsub();
-    } catch (e) {}
+    } catch (e) { console.warn('Non-fatal store operation note:', e); }
   }, [fetchAdminApi, fetchAuthenticatedPublicApi, user?.role, user?.uid]);
 
   // 3. Stock Notifications real-time listener (Waitlists)
@@ -743,7 +743,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Concierge inquiries listener note:', err);
       });
       return () => unsub();
-    } catch (e) {}
+    } catch (e) { console.warn('Non-fatal store operation note:', e); }
   }, [user?.role]);
 
   // 5. Staff real-time listener
@@ -785,7 +785,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Audit logs listener note:', err);
       });
       return () => unsub();
-    } catch (e) {}
+    } catch (e) { console.warn('Non-fatal store operation note:', e); }
   }, [user?.role]);
 
   // Helpers
@@ -1076,7 +1076,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         localStorage.removeItem('saelyx_user');
         localStorage.removeItem('saelyx_admin_user');
         sessionStorage.clear();
-      } catch (e) {}
+      } catch (e) { console.warn('Non-fatal store operation note:', e); }
       setIsAuthOpen(false);
       navigateTo({ name: 'home' });
     }
@@ -1097,7 +1097,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUser(updatedUser);
       try {
         localStorage.setItem('saelyx_user', JSON.stringify(updatedUser));
-      } catch (e) {}
+      } catch (e) { console.warn('Non-fatal store operation note:', e); }
 
       try {
         const userRef = doc(db, 'users', user.uid);
@@ -1122,7 +1122,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
         try {
           localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(deliveryDetails));
-        } catch (e) {}
+        } catch (e) { console.warn('Non-fatal store operation note:', e); }
       }
 
       await logAuditEvent('USER_PROFILE_UPDATED', `Profile updated for [${updatedUser.name || updatedUser.email}]`);
@@ -1425,7 +1425,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return false;
       }
       setSettings(payload as DropSettings);
-      try { localStorage.setItem('saelyx_settings', JSON.stringify(payload)); } catch {}
+      try { localStorage.setItem('saelyx_settings', JSON.stringify(payload)); } catch (e) { console.warn('Non-fatal store operation note:', e); }
       return true;
     } catch (error) {
       console.error('Error updating settings:', error);
@@ -1495,7 +1495,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const triggerRestockCloudFunction = async (productId?: string) => {
+  const triggerRestockDispatch = async (productId?: string) => {
     const productTitle = productId
       ? (products.find(p => p.id === productId)?.title || 'Selected Garment')
       : 'Selected Garment';
@@ -1608,7 +1608,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         stockNotifications,
         subscribeToRestock,
         deleteStockNotification,
-        triggerRestockCloudFunction,
+        triggerRestockDispatch,
         isRestockModalOpen,
         setIsRestockModalOpen,
         restockModalProduct,
@@ -1618,7 +1618,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         restockModalSize: restockSelectedSize,
         closeRestockModal,
         openRestockModal,
-        triggerStockReplenishedFunction: triggerRestockCloudFunction,
+        triggerStockReplenishedFunction: triggerRestockDispatch,
         auditLogs,
         logAuditEvent,
         saveProduct,
