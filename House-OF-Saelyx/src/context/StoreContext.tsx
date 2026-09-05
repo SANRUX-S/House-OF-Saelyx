@@ -132,6 +132,8 @@ interface StoreContextType {
   capturePayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
   cancelPayPalOrder: (orderId: string) => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
+  hasMoreAdminOrders: boolean;
+  loadOlderOrders: () => Promise<boolean>;
   
   // Contact & Messages
   messages: ContactMessage[];
@@ -269,6 +271,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [hasMoreAdminOrders, setHasMoreAdminOrders] = useState(true);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [staffList, setStaffList] = useState<AdminStaff[]>([]);
@@ -387,6 +390,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (!fbUser) {
         setUser(null);
+        setOrders([]);
+        setMessages([]);
+        setAuditLogs([]);
+        setStaffList([]);
+        setStockNotifications([]);
+        setHasMoreAdminOrders(true);
         return;
       }
 
@@ -619,7 +628,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           list.push({ id: docSnap.id, ...docSnap.data() } as Order);
         });
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setOrders(list);
+        if (isAdminUser) {
+          setOrders(previous => {
+            const merged = new Map(previous.map(order => [order.id, order]));
+            list.forEach(order => merged.set(order.id, order));
+            return Array.from(merged.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          });
+          setHasMoreAdminOrders(list.length >= 250);
+        } else {
+          setOrders(list);
+          setHasMoreAdminOrders(false);
+        }
 
         for (const order of list) {
           const paypalOrderId = order.paymentProviderReference || '';
@@ -1036,6 +1055,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.warn('Firebase SignOut note:', e);
     } finally {
       setUser(null);
+      setOrders([]);
+      setMessages([]);
+      setAuditLogs([]);
+      setStaffList([]);
+      setStockNotifications([]);
+      setHasMoreAdminOrders(true);
       try {
         localStorage.removeItem('saelyx_user');
         localStorage.removeItem('saelyx_admin_user');
@@ -1202,6 +1227,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return true;
     } catch (error) {
       console.error('Error updating order:', error);
+      return false;
+    }
+  };
+
+  const loadOlderOrders = async (): Promise<boolean> => {
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return false;
+    const oldest = [...orders]
+      .filter(order => Boolean(order.createdAt))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+    if (!oldest?.createdAt) return false;
+
+    try {
+      const response = await fetchAdminApi(
+        `/api/admin/orders/page?limit=100&before=${encodeURIComponent(oldest.createdAt)}`
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(payload?.items)) return false;
+      setOrders(previous => {
+        const merged = new Map(previous.map(order => [order.id, order]));
+        (payload.items as Order[]).forEach(order => merged.set(order.id, order));
+        return Array.from(merged.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      });
+      setHasMoreAdminOrders(Boolean(payload.hasMore));
+      return true;
+    } catch (error) {
+      console.error('Unable to load older orders:', error);
       return false;
     }
   };
@@ -1538,6 +1589,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         capturePayPalPayment,
         cancelPayPalOrder,
         updateOrderStatus,
+        hasMoreAdminOrders,
+        loadOlderOrders,
         messages,
         sendMessage,
         updateMessageStatus,
