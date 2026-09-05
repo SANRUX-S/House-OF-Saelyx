@@ -72,7 +72,7 @@ export const CareShippingPage: React.FC = () => {
               Real-Time Hand-Delivery Tracker
             </h2>
             <p>
-              Once your commission is dispatched, you can track its journey live from our atelier through the courier van route directly on our dedicated Delivery Tracker using your order number.
+              Once your commission is dispatched, sign in to the SAELYXE account used at checkout and enter your private order reference in the Delivery Tracker. Tracking details are restricted to the authenticated order owner.
             </p>
             <div className="pt-2">
               <button
