@@ -414,7 +414,7 @@ async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrder
   });
 }
 
-async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrderId: string) {
+async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrderId: string, verification?: any) {
   const ref = adminDb.collection('orders').doc(orderId);
   const now = new Date().toISOString();
 
@@ -434,6 +434,9 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
       paymentVerifiedAt: current.paymentVerifiedAt || now,
       paymentCaptureState: 'completed',
       paymentCaptureCompletedAt: current.paymentCaptureCompletedAt || now,
+      paymentCaptureId: safeString(verification?.captureId, 160) || current.paymentCaptureId || '',
+      paymentCaptureAmount: Number.isFinite(Number(verification?.actualCaptureAmount)) ? Number(verification.actualCaptureAmount) : current.paymentCaptureAmount || null,
+      paymentCaptureCurrency: safeString(verification?.actualCaptureCurrency, 10) || current.paymentCaptureCurrency || '',
       paymentUpdatedAt: now
     };
 
@@ -619,6 +622,7 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
     actualAmount,
     actualCaptureCurrency: safeString(captureAmount?.currency_code, 10),
     actualCaptureAmount,
+    captureId: safeString(completedCapture?.id, 160),
     orderBindingMatches
   };
 }
@@ -1376,7 +1380,7 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
       });
     }
 
-    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
     return res.json(updated);
   } catch (error: any) {
     const status = Number(error?.statusCode) || 500;
@@ -1434,7 +1438,7 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
       return res.status(409).json({ error: 'PayPal payment could not be verified yet.', verification });
     }
 
-    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
     return res.json(updated);
   } catch (error: any) {
     return res.status(500).json({ error: safeString(error?.message, 240) || 'Unable to verify PayPal payment.' });
@@ -1483,7 +1487,7 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
 
       const verification = await verifyPayPalOrder(order, paypalOrderId);
       if (verification.verified) {
-        const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+        const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
         return res.status(409).json({
           error: 'PayPal payment is already completed, so checkout cancellation was blocked.',
           order: updated
@@ -1813,10 +1817,18 @@ app.post('/api/orders', async (req, res) => {
         responseOrder.paymentStatus = 'verified';
         responseOrder.paymentVerificationSource = 'paypal_orders_api';
         responseOrder.paymentVerifiedAt = verifiedAt;
+        responseOrder.paymentCaptureId = verification.captureId || '';
+        responseOrder.paymentCaptureAmount = verification.actualCaptureAmount;
+        responseOrder.paymentCaptureCurrency = verification.actualCaptureCurrency || '';
         await orderRef.update({
           paymentStatus: 'verified',
           paymentVerificationSource: 'paypal_orders_api',
           paymentVerifiedAt: verifiedAt,
+          paymentCaptureState: 'completed',
+          paymentCaptureCompletedAt: verifiedAt,
+          paymentCaptureId: verification.captureId || '',
+          paymentCaptureAmount: verification.actualCaptureAmount,
+          paymentCaptureCurrency: verification.actualCaptureCurrency || '',
           paymentUpdatedAt: verifiedAt
         });
       } else {
