@@ -40,6 +40,12 @@ jobs:
       - name: Production build
         run: npm run build
 
+      - name: Setup Java 21 for Firebase Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install isolated QA tooling
         run: npm install --no-save --package-lock=false @playwright/test firebase-tools @firebase/rules-unit-testing
 
