@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export interface AdminLoginProps {
-  onLogin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  onLogin: (username: string, pass: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   onReturnToStore: () => void;
 }
 
@@ -40,7 +40,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     setIsLoggingIn(true);
 
     try {
-      const res = await onLogin(username.trim(), password);
+      const res = await onLogin(username.trim(), password, rememberMe);
       if (!res.success) {
         setErrorMsg(res.error || 'Authentication denied. Invalid credentials.');
       }
@@ -188,7 +188,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             Secure operator access
           </div>
           <div className="text-[10px] text-stone-500">
-            Use credentials defined in your environment configuration.
+            Use a verified Firebase administrator account with active SAELYXE access.
           </div>
         </div>
 
