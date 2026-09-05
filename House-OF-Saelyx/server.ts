@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { db } from './server/db.js';
-import { requireAdmin, requireSuperAdmin } from './server/auth.js';
+import { requireAdmin, requireAuthenticated, requireSuperAdmin } from './server/auth.js';
 
 export function createApp() {
   const app = express();
@@ -14,9 +14,10 @@ export function createApp() {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; connect-src 'self' http://localhost:3000 ws: wss: https:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self';"
+      "default-src 'self'; script-src 'self' 'unsafe-inline' https://*.paypal.com https://*.paypalobjects.com https://www.gstatic.com https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.paypal.com https://*.paypalobjects.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: http://localhost:3000 ws:; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://*.paypal.com https://*.paypalobjects.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; child-src 'self' https://*.paypal.com https://*.paypalobjects.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://*.paypal.com; frame-ancestors 'none';"
     );
     next();
   });
@@ -122,21 +123,40 @@ export function createApp() {
     }
   });
 
-  app.get('/api/orders/:id', (req, res) => {
+  app.get('/api/orders/:id', requireAuthenticated, (req, res) => {
     try {
       const order = db.getOrderById(req.params.id);
       if (!order) {
-        return res.status(404).json({ error: 'Order not found. Please check your order reference or phone number.' });
+        return res.status(404).json({ error: 'Order not found.' });
       }
+
+      const auth = (req as express.Request & { auth?: { uid?: string; email?: string; admin?: boolean; role?: string } }).auth;
+      const isAdmin =
+        auth?.admin === true ||
+        auth?.role === 'admin' ||
+        auth?.role === 'super_admin';
+      if (order.userId !== auth?.uid && !isAdmin) {
+        return res.status(404).json({ error: 'Order not found.' });
+      }
+
       res.json({
         id: order.id,
         orderNumber: order.orderNumber,
         status: order.status,
-        trackingNumber: order.trackingNumber,
-        courierName: order.courierName,
-        deliveryEta: order.deliveryEta,
-        statusHistory: order.statusHistory,
-        createdAt: order.createdAt
+        trackingNumber: order.trackingNumber || '',
+        courierName: order.courierName || '',
+        deliveryEta: order.deliveryEta || '',
+        statusHistory: order.statusHistory || [],
+        createdAt: order.createdAt,
+        city: order.city || '',
+        country: order.country || '',
+        items: (order.items || []).map(item => ({
+          productId: item.productId,
+          title: item.title,
+          image: item.image,
+          size: item.size,
+          quantity: item.quantity
+        }))
       });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
