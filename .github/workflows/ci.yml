@@ -39,3 +39,15 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Install isolated QA tooling
+        run: npm install --no-save --package-lock=false @playwright/test firebase-tools @firebase/rules-unit-testing
+
+      - name: Firestore authorization emulator tests
+        run: npm run rules:test
+
+      - name: Install Chromium for browser QA
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser end-to-end security smoke
+        run: npm run e2e
