@@ -11,9 +11,6 @@ import {
   Tag, 
   AlertCircle, 
   Check,
-  Building2,
-  QrCode,
-  Wallet
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
@@ -25,9 +22,7 @@ export const CheckoutPage: React.FC = () => {
     cart, 
     formatPrice, 
     selectedCurrency,
-    currencies,
     createOrder,
-    createPayHereSession,
     createPayPalPayment,
     capturePayPalPayment,
     cancelPayPalOrder,
@@ -82,11 +77,9 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [user]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'payhere' | 'paypal' | 'binance_qr'>('paypal');
+  const paymentMethod = 'paypal' as const;
   const [paymentConfig, setPaymentConfig] = useState({
-    paypal: { enabled: false, clientId: '', mode: 'sandbox' },
-    payhere: { enabled: false },
-    binance: { enabled: false }
+    paypal: { enabled: false, clientId: '', mode: 'sandbox' }
   });
   const [paymentConfigLoaded, setPaymentConfigLoaded] = useState(false);
 
@@ -96,10 +89,13 @@ export const CheckoutPage: React.FC = () => {
       .then(async response => response.ok ? response.json() : null)
       .then(config => {
         if (!active || !config) return;
-        setPaymentConfig(config);
-        if (config.paypal?.enabled) setPaymentMethod('paypal');
-        else if (config.payhere?.enabled) setPaymentMethod('payhere');
-        else if (config.binance?.enabled) setPaymentMethod('binance_qr');
+        setPaymentConfig({
+          paypal: {
+            enabled: Boolean(config.paypal?.enabled),
+            clientId: String(config.paypal?.clientId || ''),
+            mode: config.paypal?.mode === 'live' ? 'live' : 'sandbox'
+          }
+        });
       })
       .catch(() => {})
       .finally(() => {
@@ -110,8 +106,6 @@ export const CheckoutPage: React.FC = () => {
 
   const paypalClientId = paymentConfig.paypal.clientId || '';
 
-  const [bankRefNumber, setBankRefNumber] = useState('');
-  const [binanceTxHash, setBinanceTxHash] = useState('');
 
   // Promo / Voucher Code state
   const [promoCode, setPromoCode] = useState('');
@@ -189,8 +183,6 @@ export const CheckoutPage: React.FC = () => {
   const paypalCurrency = ['USD', 'EUR', 'GBP'].includes(selectedCurrency?.code || '')
     ? (selectedCurrency?.code || 'USD')
     : 'USD';
-  const usdRateFromLKR = currencies.find(currency => currency.code === 'USD')?.rateFromLKR || 0.0033;
-  const totalUSDT = (totalLKR * usdRateFromLKR).toFixed(2); // display estimate only
 
   // Empty Bag Guard
   if (cart.length === 0 && !confirmedOrder) {
@@ -277,92 +269,6 @@ export const CheckoutPage: React.FC = () => {
       </div>
     );
   }
-
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (cart.length === 0) return;
-
-    setPhoneError('');
-    const cleanDigits = phone.replace(/\D/g, '');
-    if (cleanDigits.length < 9) {
-      setPhoneError('Please enter a valid phone number (at least 9-10 digits).');
-      const el = document.getElementById('phone-input');
-      if (el) el.focus();
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const detailsToSave = {
-        customerName,
-        email,
-        phone,
-        address,
-        city,
-        postalCode,
-        country,
-        notes
-      };
-
-      if (!savedDetailsObj && rememberDetails) {
-        localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(detailsToSave));
-        setSavedDetailsObj(detailsToSave);
-        setHasSavedDetails(true);
-      } else if (savedDetailsObj && isDetailsChanged && updateSavedDetails) {
-        localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(detailsToSave));
-        setSavedDetailsObj(detailsToSave);
-      }
-
-      const order = await createOrder({
-        customerName,
-        email,
-        phone,
-        address,
-        city,
-        postalCode,
-        country,
-        items: cart.map(item => ({
-          productId: item.productId,
-          title: item.title,
-          image: item.image,
-          priceLKR: item.priceLKR,
-          size: item.size,
-          quantity: item.quantity
-        })),
-        currencyUsed: selectedCurrency?.code || 'LKR',
-        paymentMethod: paymentMethod as any,
-        promoCode: appliedPromo?.code,
-        paymentProviderReference: bankRefNumber || binanceTxHash || undefined,
-        notes
-      });
-
-      if (paymentMethod === 'payhere') {
-        const session = await createPayHereSession(order.id || order.orderNumber);
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = session.action;
-        Object.entries(session.fields).forEach(([name, value]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = name;
-          input.value = String(value);
-          form.appendChild(input);
-        });
-        document.body.appendChild(form);
-        clearCart();
-        form.submit();
-        return;
-      }
-
-      setConfirmedOrder(order);
-      clearCart();
-    } catch (err) {
-      console.error(err);
-      alert('Unable to place order. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handlePaypalApprovedOrder = async (paypalOrderId: string) => {
     const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
@@ -484,7 +390,7 @@ export const CheckoutPage: React.FC = () => {
           
           {/* Left Column: Delivery Details & Payment (7 Cols) */}
           <div className="lg:col-span-7 space-y-10">
-            <form onSubmit={handlePlaceOrder} className="space-y-10">
+            <div className="space-y-10">
               
               {/* Recipient & Hand-Delivery Destination */}
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
@@ -675,60 +581,9 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  
-                  {/* 1. PayHere Online */}
-                  {paymentConfig.payhere.enabled && (
-                  <div 
-                    onClick={() => setPaymentMethod('payhere')}
-                    className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
-                      paymentMethod === 'payhere'
-                        ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
-                        : 'border-[#EAE3D9] bg-[#FCFBF9]/60 hover:border-[#D5CBBF] hover:bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-9 h-9 rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] flex items-center justify-center flex-shrink-0">
-                          <svg className="w-4.5 h-4.5 object-contain" viewBox="0 0 32 32" fill="none">
-                            <path d="M4 6C4 4.89543 4.89543 4 6 4H20C24.4183 4 28 7.58172 28 12C28 16.4183 24.4183 20 20 20H12V28H4V6Z" fill="#005CB9"/>
-                            <path d="M12 10H20C21.1046 10 22 10.8954 22 12C22 13.1046 21.1046 14 20 14H12V10Z" fill="#E31E24"/>
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs uppercase font-semibold tracking-wider text-[#1A1816]">
-                              PayHere Online
-                            </span>
-                            <span className="text-[9px] uppercase tracking-wider bg-[#F2EDE4] text-[#5A4E40] px-2 py-0.5 rounded font-medium">
-                              Instant LKR
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[#7A6E60] mt-0.5">
-                            Cards / Genie / FriMi / Sampath Vishwa / eZ Cash
-                          </p>
-                        </div>
-                      </div>
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                        paymentMethod === 'payhere' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'
-                      }`}>
-                        {paymentMethod === 'payhere' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}
-                      </div>
-                    </div>
-
-                    {paymentMethod === 'payhere' && (
-                      <div className="mt-4 pt-3.5 border-t border-[#EAE3D9] text-xs text-[#5A4E40] space-y-2 animate-in fade-in">
-                        <p className="text-[11px] leading-relaxed text-[#635545]">
-                          PayHere orders remain pending until the payment gateway confirms the transaction. Fulfillment starts only after verification.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  )}
-
-                  {/* 2. PayPal */}
+                  {/* PayPal — the only enabled checkout payment method */}
                   {paymentConfig.paypal.enabled && paypalClientId && (
                   <div 
-                    onClick={() => setPaymentMethod('paypal')}
                     className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
                       paymentMethod === 'paypal'
                         ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
@@ -868,102 +723,8 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                   )}
 
-                  {/* 3. Binance Pay / QR */}
-                  {paymentConfig.binance.enabled && (
-                  <div 
-                    onClick={() => setPaymentMethod('binance_qr')}
-                    className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
-                      paymentMethod === 'binance_qr'
-                        ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
-                        : 'border-[#EAE3D9] bg-[#FCFBF9]/60 hover:border-[#D5CBBF] hover:bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-9 h-9 rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] flex items-center justify-center flex-shrink-0">
-                          <svg className="w-4.5 h-4.5 object-contain" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 3L8.25 6.75L12 10.5L15.75 6.75L12 3Z" fill="#F0B90B"/>
-                            <path d="M3 12L6.75 8.25L10.5 12L6.75 15.75L3 12Z" fill="#F0B90B"/>
-                            <path d="M21 12L17.25 8.25L13.5 12L17.25 15.75L21 12Z" fill="#F0B90B"/>
-                            <path d="M12 21L8.25 17.25L12 13.5L15.75 17.25L12 21Z" fill="#F0B90B"/>
-                            <path d="M12 10.5L15.75 14.25L12 18L8.25 14.25L12 10.5Z" fill="#F0B90B"/>
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs uppercase font-semibold tracking-wider text-[#1A1816]">
-                              Binance Pay / QR
-                            </span>
-                            <span className="text-[9px] uppercase tracking-wider bg-amber-50 text-amber-800 px-2 py-0.5 rounded font-medium">
-                              USDT / Crypto
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[#7A6E60] mt-0.5">
-                            USDT / Crypto · Verification required
-                          </p>
-                        </div>
-                      </div>
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                        paymentMethod === 'binance_qr' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'
-                      }`}>
-                        {paymentMethod === 'binance_qr' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}
-                      </div>
-                    </div>
-
-                    {paymentMethod === 'binance_qr' && (
-                      <div className="mt-4 pt-3.5 border-t border-[#EAE3D9] space-y-4 animate-in fade-in">
-                        <div className="p-4 bg-[#141210] text-white rounded-xl space-y-3.5 border border-amber-500/20">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-400">
-                              Binance Pay Transfer
-                            </span>
-                            <span className="font-mono text-xs font-semibold text-white bg-amber-500/20 px-2.5 py-0.5 rounded border border-amber-500/30">
-                              {totalUSDT} USDT
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col sm:flex-row items-center gap-4 bg-black/40 p-3 rounded-lg border border-white/10">
-                            <div className="w-24 h-24 bg-white p-1.5 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=binancepay://saelyxe?amount=${totalUSDT}&currency=USDT&ref=SAELYXE-${Date.now()}`}
-                                alt="Binance QR" 
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                            <div className="space-y-1 text-center sm:text-left text-[11px]">
-                              <p className="text-neutral-300">Scan via Binance App for instant clearance.</p>
-                              <p className="text-neutral-400 font-mono text-[10px]">
-                                Pay ID: <span className="text-amber-300 font-semibold">298471938 (House of Saelyxe)</span>
-                              </p>
-                              <p className="text-neutral-400 font-mono text-[10px]">
-                                Network: <span className="text-emerald-400 font-semibold">USDT (TRC20 / BEP20)</span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] uppercase tracking-wider font-medium text-neutral-400 mb-1">
-                              Transaction Hash / Binance Order ID (Required for manual verification)
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. 0x7f48... or Binance Order ID"
-                              required={paymentMethod === 'binance_qr'}
-                              value={binanceTxHash}
-                              onChange={e => setBinanceTxHash(e.target.value)}
-                              className="w-full h-10 bg-white/5 border border-white/15 rounded-lg px-3 text-xs text-white placeholder:text-neutral-600 font-mono focus:outline-none focus:border-amber-400"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  )}
-
                   {paymentConfigLoaded &&
-                    !paymentConfig.paypal.enabled &&
-                    !paymentConfig.payhere.enabled &&
-                    !paymentConfig.binance.enabled && (
+                    !paymentConfig.paypal.enabled && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
                       Online payment methods are temporarily unavailable. Please contact support before placing an order.
                     </div>
@@ -971,18 +732,7 @@ export const CheckoutPage: React.FC = () => {
 
                 </div>
               </div>
-
-              {/* Submit / Place Order Button */}
-              {paymentMethod !== 'paypal' && (
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full h-[52px] bg-[#1A1816] hover:bg-black text-white text-xs uppercase font-medium tracking-[0.22em] rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>{isSubmitting ? 'SEALING COMMISSION...' : `CONFIRM & COMMISSION · ${formatPrice(totalLKR)}`}</span>
-                </button>
-              )}
-            </form>
+            </div>
           </div>
 
           {/* Right Column: ORDER SUMMARY (5 Cols) */}
