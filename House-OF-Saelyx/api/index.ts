@@ -2316,6 +2316,14 @@ app.put('/api/orders/:id/status', async (req, res) => {
       const current: any = snap.data() || {};
       const currentStatus = safeString(current.status, 40) || 'placed';
 
+      if (
+        status === 'cancelled' &&
+        current.paymentMethod === 'paypal' &&
+        ['verified', 'refund_pending'].includes(safeString(current.paymentStatus, 40))
+      ) {
+        throw new Error('Verified PayPal orders must be cancelled through the Super Admin refund workflow.');
+      }
+
       if (!canTransitionOrderStatus(currentStatus, status)) {
         throw new Error(`Invalid order transition: ${currentStatus} → ${status}.`);
       }
@@ -2416,11 +2424,13 @@ app.put('/api/orders/:id/status', async (req, res) => {
     });
 
     const updated = await ref.get();
+    if (token) await writeAdminAudit(adminDb, token, 'ORDER_STATUS_UPDATED', `Order ${id} updated to ${status}.`);
     return res.json({ id: updated.id, ...updated.data() });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to update order.';
     const statusCode =
       message.startsWith('Invalid order transition') ? 409 :
+      message.includes('must be cancelled through') ? 409 :
       message.includes('not enough stock') ? 409 :
       message === 'Order not found.' ? 404 : 400;
     return res.status(statusCode).json({ error: message });
