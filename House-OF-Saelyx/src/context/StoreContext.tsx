@@ -1251,7 +1251,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       const response = await fetchAdminApi(
-        `/api/admin/orders/page?limit=100&before=${encodeURIComponent(oldest.createdAt)}`
+        `/api/admin/orders/page?limit=100&cursor=${encodeURIComponent(oldest.id)}`
       );
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !Array.isArray(payload?.items)) return false;
