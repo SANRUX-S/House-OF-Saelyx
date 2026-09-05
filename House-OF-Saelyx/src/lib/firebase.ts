@@ -6,6 +6,7 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword, 
   sendPasswordResetEmail,
+  sendEmailVerification,
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
   updateProfile,
@@ -99,14 +100,38 @@ export async function verifyAdminCredentials(username: string, pass: string): Pr
   try {
     const credential = await signInWithEmailAndPassword(auth, username.trim(), pass);
     const token = await credential.user.getIdTokenResult(true);
-    const role = token.claims.role as UserRole | undefined;
+    const claimRole: UserRole | undefined = token.claims.role === 'super_admin'
+      ? 'super_admin'
+      : token.claims.role === 'admin' || token.claims.admin === true
+        ? 'admin'
+        : undefined;
     const adminDoc = await getDoc(doc(db, 'admins', credential.user.uid));
     const adminData = adminDoc.exists() ? adminDoc.data() : null;
-    const adminDocRole = adminData?.role as UserRole | undefined;
-    const configuredRole = credential.user.email ? ADMIN_ROLES[credential.user.email.toLowerCase()] : undefined;
-    const isAdmin = token.claims.admin === true || role === 'admin' || role === 'super_admin' || adminDoc.exists() || Boolean(configuredRole);
+    const adminDocRole: UserRole | undefined = adminData?.role === 'super_admin'
+      ? 'super_admin'
+      : adminData?.role === 'admin'
+        ? 'admin'
+        : undefined;
+    const allowlistedRole = credential.user.email
+      ? ADMIN_ROLES[credential.user.email.toLowerCase()]
+      : undefined;
+    const configuredRole = credential.user.emailVerified ? allowlistedRole : undefined;
+    const trustedRole = claimRole || adminDocRole || configuredRole;
 
-    if (!isAdmin) {
+    if (!trustedRole) {
+      if (allowlistedRole && !credential.user.emailVerified) {
+        try {
+          await sendEmailVerification(credential.user);
+        } catch {
+          // A verification email may already have been sent recently.
+        }
+        await fbSignOut(auth);
+        return {
+          valid: false,
+          error: 'Administrator email verification is required. Check the administrator inbox, verify the address, then sign in again.'
+        };
+      }
+
       await fbSignOut(auth);
       return { valid: false, error: 'Access denied. This Firebase account is not an administrator.' };
     }
@@ -117,7 +142,7 @@ export async function verifyAdminCredentials(username: string, pass: string): Pr
         uid: credential.user.uid,
         name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Atelier Operator',
         email: credential.user.email || '',
-        role: role || adminDocRole || configuredRole || 'admin',
+        role: trustedRole,
         joinedDate: new Date().toISOString().slice(0, 10)
       }
     };
