@@ -39,76 +39,9 @@ interface StoreData {
   stockNotifications?: StockNotification[];
 }
 
-const INITIAL_STOCK_NOTIFICATIONS: StockNotification[] = [
-  {
-    id: 'sn-001',
-    productId: 'prod-05',
-    productTitle: 'Black Jeans',
-    productSlug: 'black-jeans',
-    productImage: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
-    selectedSize: '32',
-    customerEmail: 'alexandra.vance@couturemail.com',
-    customerName: 'Alexandra Vance',
-    phone: '+94 77 982 1004',
-    channel: 'both',
-    notified: false,
-    status: 'pending',
-    createdAt: '2026-08-28T14:22:00.000Z'
-  },
-  {
-    id: 'sn-002',
-    productId: 'prod-05',
-    productTitle: 'Black Jeans',
-    productSlug: 'black-jeans',
-    productImage: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
-    selectedSize: '34',
-    customerEmail: 'dmitri.ivanov@atelierpatron.org',
-    customerName: 'Dmitri Ivanov',
-    channel: 'email',
-    notified: false,
-    status: 'pending',
-    createdAt: '2026-08-30T09:15:00.000Z'
-  },
-  {
-    id: 'sn-003',
-    productId: 'prod-02',
-    productTitle: 'Navy Hoodie',
-    productSlug: 'navy-hoodie',
-    productImage: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
-    selectedSize: 'XL',
-    customerEmail: 'elena.rostova@saelyxe.vip',
-    customerName: 'Elena Rostova',
-    channel: 'email',
-    notified: true,
-    notifiedAt: '2026-08-31T18:40:12.000Z',
-    status: 'sent',
-    cloudFunctionExecutionId: 'fn-exec-mti900x',
-    createdAt: '2026-08-25T11:00:00.000Z'
-  }
-];
+const INITIAL_STOCK_NOTIFICATIONS: StockNotification[] = [];
 
-const INITIAL_STAFF: AdminStaff[] = [
-  {
-    id: 'staff-001',
-    username: 'saelyx_super',
-    displayName: 'Atelier Director General',
-    email: 'superadmin@saelyxe.com',
-    role: 'super_admin',
-    status: 'active',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    lastLogin: new Date().toISOString()
-  },
-  {
-    id: 'staff-002',
-    username: 'saelyx_admin',
-    displayName: 'Lead Logistics & Inventory Officer',
-    email: 'operations@saelyxe.com',
-    role: 'admin',
-    status: 'active',
-    createdAt: '2026-02-15T00:00:00.000Z',
-    lastLogin: new Date(Date.now() - 4 * 3600 * 1000).toISOString()
-  }
-];
+const INITIAL_STAFF: AdminStaff[] = [];
 
 const INITIAL_PRODUCTS: Product[] = [
   {
@@ -328,118 +261,7 @@ const INITIAL_PRODUCTS: Product[] = [
   }
 ];
 
-const INITIAL_ORDERS: Order[] = [
-  {
-    id: 'ord-1001',
-    orderNumber: 'SLX-94821',
-    customerName: 'Ashan Perera',
-    email: 'ashan.perera@gmail.com',
-    phone: '+94 77 123 4567',
-    address: '42 Ward Place, Cinnamon Gardens',
-    city: 'Colombo 07',
-    postalCode: '00700',
-    country: 'Sri Lanka',
-    items: [
-      {
-        productId: 'prod-01',
-        title: 'SÆ SIGNATURE OVERSIZED TEE',
-        image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=400&q=80',
-        priceLKR: 7900,
-        size: 'L',
-        quantity: 1
-      },
-      {
-        productId: 'prod-02',
-        title: 'SÆ LOUNGE PANTS',
-        image: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=400&q=80',
-        priceLKR: 7900,
-        size: 'M',
-        quantity: 1
-      }
-    ],
-    subtotalLKR: 15800,
-    shippingLKR: 0,
-    totalLKR: 15800,
-    currencyUsed: 'LKR',
-    totalInCurrency: 15800,
-    status: 'out_for_delivery',
-    trackingNumber: 'SLX-EXP-88914',
-    courierName: 'SAELYXE White-Glove Dispatch',
-    deliveryEta: 'Today by 4:30 PM (Direct Hand Delivery)',
-    createdAt: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
-    statusHistory: [
-      {
-        status: 'placed',
-        timestamp: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
-        note: 'Order confirmed and verified via Card Checkout.',
-        location: 'Colombo Central Hub'
-      },
-      {
-        status: 'confirmed',
-        timestamp: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
-        note: 'Garments quality-checked and prepared with luxury silk dust bags.',
-        location: 'SAELYXE Atelier, Colombo'
-      },
-      {
-        status: 'dispatched',
-        timestamp: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
-        note: 'Assigned to premium courier van.',
-        location: 'Colombo 03 Dispatch Depot'
-      },
-      {
-        status: 'out_for_delivery',
-        timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-        note: 'Courier is en route to Cinnamon Gardens for direct customer hand-delivery.',
-        location: 'En route, Ward Place'
-      }
-    ]
-  },
-  {
-    id: 'ord-1002',
-    orderNumber: 'SLX-94822',
-    customerName: 'Sarah Kingsley',
-    email: 'sarah.k@fashionstudio.co.uk',
-    phone: '+44 7911 123456',
-    address: '14 Kensington Square',
-    city: 'London',
-    postalCode: 'W8 5HH',
-    country: 'United Kingdom',
-    items: [
-      {
-        productId: 'prod-04',
-        title: 'THE SIGNATURE COORDINATES SET',
-        image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=400&q=80',
-        priceLKR: 15800,
-        size: 'S',
-        quantity: 1
-      }
-    ],
-    subtotalLKR: 15800,
-    shippingLKR: 4500,
-    totalLKR: 20300,
-    currencyUsed: 'GBP',
-    totalInCurrency: 52.5,
-    status: 'dispatched',
-    trackingNumber: 'DHL-EXP-440192',
-    courierName: 'DHL Express Worldwide',
-    deliveryEta: 'Thursday, Sept 3',
-    createdAt: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
-    statusHistory: [
-      {
-        status: 'placed',
-        timestamp: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
-        note: 'International priority drop order placed.',
-        location: 'Online Store'
-      },
-      {
-        status: 'dispatched',
-        timestamp: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-        note: 'Cleared customs transit at Bandaranaike Int. Airport cargo terminal.',
-        location: 'CMB Air Freight Cargo Hub'
-      }
-    ]
-  }
-];
+const INITIAL_ORDERS: Order[] = [];
 
 const INITIAL_SETTINGS: DropSettings = {
   spotlightEyebrow: 'SAELYXE PREMIER KNITS',
@@ -594,43 +416,10 @@ class StoreDB {
       orders: INITIAL_ORDERS,
       settings: INITIAL_SETTINGS,
       staff: INITIAL_STAFF,
-      messages: [
-        {
-          id: 'msg-001',
-          name: 'Lady Eleanor Vance',
-          email: 'vance.e@mayfair-couture.co.uk',
-          phone: '+44 20 7946 0192',
-          topic: 'bespoke_sizing',
-          message: 'Inquiring regarding custom tailoring and sleeve length for the Drop 001 Navy Hoodie.',
-          createdAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-          status: 'unread'
-        },
-        {
-          id: 'msg-002',
-          name: 'Dinuka Senanayake',
-          email: 'dinuka.s@colombo-capital.lk',
-          phone: '+94 77 988 1234',
-          topic: 'order_inquiry',
-          orderReference: 'SLX-94821',
-          message: 'Confirming if the courier can hand deliver today at 4:30 PM.',
-          createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-          status: 'read'
-        }
-      ],
-      auditLogs: [
-        {
-          id: 'aud-001',
-          timestamp: new Date().toISOString(),
-          actor: 'saelyx_super',
-          role: 'super_admin',
-          action: 'SECURITY_KERNEL_BOOT',
-          details: 'Atelier security and Firestore synchronization established with zero vulnerabilities.',
-          ipAddress: '127.0.0.1'
-        }
-      ],
-      newsletterSubscribers: [
-        { email: 'sarah.k@fashionstudio.co.uk', date: new Date().toISOString() }
-      ]
+      messages: [],
+      auditLogs: [],
+      newsletterSubscribers: [],
+      stockNotifications: []
     };
     this.saveData(initial);
     return initial;
@@ -799,7 +588,7 @@ class StoreDB {
 
   // Staff Management (Super Admin Exclusive Control)
   getStaff(): AdminStaff[] {
-    return this.data.staff || INITIAL_STAFF;
+    return this.data.staff || [];
   }
 
   addStaff(staffMember: Omit<AdminStaff, 'id' | 'createdAt'>): AdminStaff {
@@ -815,7 +604,7 @@ class StoreDB {
   }
 
   updateStaff(id: string, updates: Partial<AdminStaff>): AdminStaff | null {
-    if (!this.data.staff) this.data.staff = INITIAL_STAFF;
+    if (!this.data.staff) this.data.staff = [];
     const idx = this.data.staff.findIndex(s => s.id === id || s.username === id);
     if (idx === -1) return null;
     this.data.staff[idx] = { ...this.data.staff[idx], ...updates };
@@ -885,7 +674,7 @@ class StoreDB {
   // Back-In-Stock Notifications & Cloud Functions Operations
   getStockNotifications(): StockNotification[] {
     if (!this.data.stockNotifications) {
-      this.data.stockNotifications = INITIAL_STOCK_NOTIFICATIONS;
+      this.data.stockNotifications = [];
       this.saveData(this.data);
     }
     return this.data.stockNotifications;
@@ -893,7 +682,7 @@ class StoreDB {
 
   addStockNotification(entry: Omit<StockNotification, 'id' | 'createdAt' | 'notified' | 'status'>): StockNotification {
     if (!this.data.stockNotifications) {
-      this.data.stockNotifications = [...INITIAL_STOCK_NOTIFICATIONS];
+      this.data.stockNotifications = [];
     }
     const newNotification: StockNotification = {
       ...entry,
