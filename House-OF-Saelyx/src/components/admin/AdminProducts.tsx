@@ -68,14 +68,15 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setImagesText(current => `${current}${current ? '\n' : ''}${url}`);
   };
 
-  const uploadImageFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      throw new Error('Only image files can be uploaded.');
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error(`${file.name} is larger than the 10 MB image limit.`);
-    }
+  type CloudinaryUploadConfig = {
+    cloudName: string;
+    apiKey: string;
+    timestamp: number;
+    folder: string;
+    signature: string;
+  };
 
+  const getCloudinaryUploadConfig = async (): Promise<CloudinaryUploadConfig> => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       throw new Error('Admin session expired. Please sign in again.');
@@ -97,7 +98,17 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       throw new Error(payload?.error || 'Unable to authorize image upload.');
     }
 
-    const config = await signatureResponse.json();
+    return await signatureResponse.json() as CloudinaryUploadConfig;
+  };
+
+  const uploadImageFile = async (file: File, config: CloudinaryUploadConfig) => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Only image files can be uploaded.');
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error(`${file.name} is larger than the 10 MB image limit.`);
+    }
+
     const body = new FormData();
     body.append('file', file);
     body.append('api_key', config.apiKey);
@@ -134,8 +145,11 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setIsUploadingImages(true);
     setFormError('');
     try {
+      // One authenticated backend signature is reused for the whole batch.
+      // This keeps Vercel API traffic low even when an admin uploads many product images at once.
+      const config = await getCloudinaryUploadConfig();
       for (const file of images) {
-        const url = await uploadImageFile(file);
+        const url = await uploadImageFile(file, config);
         appendImageUrl(url);
       }
     } catch (err: any) {
