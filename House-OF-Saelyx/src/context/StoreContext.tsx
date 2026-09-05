@@ -322,6 +322,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const userRef = useRef(user);
+  const paypalRecoveryInFlightRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     userRef.current = user;
@@ -611,6 +612,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setOrders(list);
 
+        for (const order of list) {
+          const paypalOrderId = order.paymentProviderReference || '';
+          const needsPayPalRecovery =
+            order.paymentMethod === 'paypal' &&
+            order.paymentStatus === 'pending_verification' &&
+            order.inventoryReserved === true &&
+            Boolean(paypalOrderId);
+
+          if (!needsPayPalRecovery) continue;
+          const recoveryKey = `${order.id}:${paypalOrderId}`;
+          if (paypalRecoveryInFlightRef.current.has(recoveryKey)) continue;
+          paypalRecoveryInFlightRef.current.add(recoveryKey);
+
+          void (async () => {
+            try {
+              for (let attempt = 0; attempt < 3; attempt += 1) {
+                try {
+                  const response = await fetchAuthenticatedPublicApi(
+                    `/api/payments/paypal/capture/${encodeURIComponent(order.id || order.orderNumber)}`,
+                    {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ paypalOrderId })
+                    }
+                  );
+                  const payload = await response.json().catch(() => ({}));
+                  if (response.ok) {
+                    const recovered = payload as Order;
+                    setOrders(prev => prev.map(item => item.id === recovered.id ? recovered : item));
+                    break;
+                  }
+                  if (response.status < 500) break;
+                } catch {
+                  // Retry transient network failures only.
+                }
+                if (attempt < 2) {
+                  await new Promise(resolve => window.setTimeout(resolve, 1500 * (attempt + 1)));
+                }
+              }
+            } finally {
+              paypalRecoveryInFlightRef.current.delete(recoveryKey);
+            }
+          })();
+        }
+
         if (isAdminUser && list.length === 0) {
           try {
             const res = await fetchAdminApi('/api/orders');
@@ -627,7 +673,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       return () => unsub();
     } catch (e) {}
-  }, [fetchAdminApi, user?.role, user?.uid]);
+  }, [fetchAdminApi, fetchAuthenticatedPublicApi, user?.role, user?.uid]);
 
   // 3. Stock Notifications real-time listener (Waitlists)
   useEffect(() => {
