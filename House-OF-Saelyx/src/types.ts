@@ -54,7 +54,7 @@ export interface OrderItem {
   quantity: number;
 }
 
-export type OrderStatus = 'placed' | 'confirmed' | 'packed' | 'dispatched' | 'out_for_delivery' | 'delivered';
+export type OrderStatus = 'placed' | 'confirmed' | 'packed' | 'dispatched' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
 export interface OrderStatusUpdate {
   status: OrderStatus;
@@ -68,6 +68,7 @@ export interface Order {
   orderNumber: string;
   customerName: string;
   email: string;
+  customerEmail?: string;
   phone: string;
   address: string;
   city: string;
@@ -170,7 +171,7 @@ export interface StockNotification {
   channel?: 'email' | 'app' | 'both';
   notified: boolean;
   notifiedAt?: string;
-  status: 'pending' | 'sent' | 'cancelled';
+  status: 'pending' | 'sent' | 'cancelled' | 'dispatched';
   createdAt: string;
   cloudFunctionExecutionId?: string;
 }

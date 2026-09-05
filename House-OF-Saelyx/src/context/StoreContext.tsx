@@ -24,7 +24,6 @@ import {
 } from '../lib/firebase';
 import { 
   signInWithPopup, 
-  signInWithRedirect,
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
@@ -52,6 +51,8 @@ import {
 interface CartItem extends OrderItem {
   product: Product;
 }
+
+type AuthMode = 'signin' | 'signup';
 
 interface StoreContextType {
   // Navigation & Routing
@@ -95,6 +96,8 @@ interface StoreContextType {
   setIsSearchOpen: (open: boolean) => void;
   isAuthOpen: boolean;
   setIsAuthOpen: (open: boolean) => void;
+  authMode: AuthMode;
+  setAuthMode: (mode: AuthMode) => void;
   isTrackerOpen: boolean;
   setIsTrackerOpen: (open: boolean) => void;
   trackingOrderId: string;
@@ -110,7 +113,7 @@ interface StoreContextType {
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
   loginAsGuest: () => void;
-  loginAsBypassPatron: () => void;
+  loginAdmin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
 
@@ -128,14 +131,17 @@ interface StoreContextType {
   stockNotifications: StockNotification[];
   subscribeToRestock: (entry: Omit<StockNotification, 'id' | 'createdAt' | 'notified' | 'status'>) => Promise<{ success: boolean; id?: string; error?: string }>;
   deleteStockNotification: (id: string) => Promise<boolean>;
-  triggerRestockCloudFunction: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; recipients: string[]; executionId: string }>;
+  triggerRestockCloudFunction: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
   isRestockModalOpen: boolean;
   setIsRestockModalOpen: (open: boolean) => void;
   restockModalProduct: Product | null;
   setRestockModalProduct: (prod: Product | null) => void;
   restockSelectedSize: string;
   setRestockSelectedSize: (size: string) => void;
+  restockModalSize: string;
+  closeRestockModal: () => void;
   openRestockModal: (product: Product, size?: string) => void;
+  triggerStockReplenishedFunction: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
 
   // Audit Logs
   auditLogs: AuditLog[];
@@ -276,6 +282,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState<string>('SLX-94821');
 
@@ -893,7 +900,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
-  // Authentication Flows
+  const getCustomerAuthError = (error: unknown, flow: 'Google sign-in' | 'Facebook sign-in' | 'sign-in' | 'account creation') => {
+    const code = typeof error === 'object' && error && 'code' in error
+      ? String((error as { code?: string }).code || '')
+      : '';
+
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      return 'Sign-in was cancelled. Please try again when you are ready.';
+    }
+    if (code === 'auth/network-request-failed') {
+      return 'We could not connect just now. Please check your connection and try again.';
+    }
+    if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+      return 'We could not verify those details. Please try again.';
+    }
+    if (code === 'auth/email-already-in-use') {
+      return 'An account already exists for this email. Please sign in instead.';
+    }
+    if (code === 'auth/weak-password') {
+      return 'Please choose a password with at least six characters.';
+    }
+    if (code === 'auth/invalid-email') {
+      return 'Please enter a valid email address.';
+    }
+    if (code === 'auth/user-disabled') {
+      return 'This account is unavailable. Please contact support for assistance.';
+    }
+
+    return `Unable to complete ${flow}. Please try again or choose another option.`;
+  };
+
+  // Authentication flows create a session only after Firebase returns a verified credential.
   const loginWithGoogle = async (): Promise<boolean> => {
     if (isAuthLoading) return false;
     setIsAuthLoading(true);
@@ -908,25 +945,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         phoneNumber: fbUser.phoneNumber || '',
         role: 'patron',
         avatarUrl: fbUser.photoURL || undefined,
+        authProvider: 'google',
         joinedDate: new Date().toISOString()
       };
       setUser(appUser);
       setIsAuthOpen(false);
       return true;
-    } catch (err: any) {
-      console.error('Google Sign In Error:', err);
-      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        setAuthError('Firebase Notice: This domain (localhost/preview) is pending authorization in Firebase Console (Authentication > Settings > Authorized Domains). Use the "VIP Test-Drive" button below to log in instantly.');
-      } else if (err.code === 'auth/cancelled-popup-request' || err.message?.includes('cancelled-popup-request') || err.code === 'auth/popup-closed-by-user') {
-        setAuthError('The Google Sign-In popup was closed or blocked by browser settings. You can allow popups, or continue using the "VIP Test-Drive" below.');
-      } else if (err.code === 'auth/network-request-failed') {
-        setAuthError('Network error connecting to authentication server. Please check your connection or continue via the VIP Test-Drive.');
-      } else if (err.code === 'auth/internal-error') {
-        setAuthError('Google popup login is blocked in this browser. Redirect login is being opened instead.');
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        setAuthError(err.message || 'Google authentication encountered an issue. You can continue via the VIP Test-Drive session below.');
-      }
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'Google sign-in'));
       return false;
     } finally {
       setIsAuthLoading(false);
@@ -934,6 +960,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginWithFacebook = async (): Promise<boolean> => {
+    if (isAuthLoading) return false;
     setIsAuthLoading(true);
     setAuthError(null);
     try {
@@ -945,30 +972,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         email: fbUser.email || '',
         role: 'patron',
         avatarUrl: fbUser.photoURL || undefined,
+        authProvider: 'facebook',
         joinedDate: new Date().toISOString()
       };
       setUser(appUser);
       setIsAuthOpen(false);
       return true;
-    } catch (err: any) {
-      console.error('Facebook Sign In Error:', err);
-      // Fallback for preview demo if popup is blocked by iframe
-      const fallbackUser: AppUser = {
-        uid: `fb-${Date.now()}`,
-        name: 'Facebook Verified Patron',
-        email: 'patron@meta-verified.com',
-        role: 'patron',
-        joinedDate: new Date().toISOString()
-      };
-      setUser(fallbackUser);
-      setIsAuthOpen(false);
-      return true;
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'Facebook sign-in'));
+      return false;
     } finally {
       setIsAuthLoading(false);
     }
   };
 
   const loginWithEmail = async (email: string, pass: string): Promise<boolean> => {
+    if (isAuthLoading) return false;
     setIsAuthLoading(true);
     setAuthError(null);
     try {
@@ -979,28 +998,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name: fbUser.displayName || email.split('@')[0],
         email: fbUser.email || email,
         role: 'patron',
+        authProvider: 'password',
         joinedDate: new Date().toISOString()
       });
       setIsAuthOpen(false);
       return true;
-    } catch (err: any) {
-      console.warn('Firebase Email Sign In fallback:', err);
-      // Seamless fallback for user testing
-      setUser({
-        uid: `usr-${Date.now().toString(36)}`,
-        name: email.split('@')[0],
-        email,
-        role: 'patron',
-        joinedDate: new Date().toISOString()
-      });
-      setIsAuthOpen(false);
-      return true;
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'sign-in'));
+      return false;
     } finally {
       setIsAuthLoading(false);
     }
   };
 
   const signupWithEmail = async (name: string, email: string, pass: string): Promise<boolean> => {
+    if (isAuthLoading) return false;
     setIsAuthLoading(true);
     setAuthError(null);
     try {
@@ -1011,25 +1023,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name,
         email,
         role: 'patron',
+        authProvider: 'password',
         joinedDate: new Date().toISOString(),
         ordersCount: 0
       };
       setUser(newUser);
       setIsAuthOpen(false);
       return true;
-    } catch (err: any) {
-      console.warn('Firebase Email Sign Up fallback:', err);
-      const newUser: AppUser = {
-        uid: `usr-${Date.now().toString(36)}`,
-        name: name || email.split('@')[0],
-        email,
-        role: 'patron',
-        joinedDate: new Date().toISOString(),
-        ordersCount: 0
-      };
-      setUser(newUser);
-      setIsAuthOpen(false);
-      return true;
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'account creation'));
+      return false;
     } finally {
       setIsAuthLoading(false);
     }
@@ -1045,16 +1048,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsAuthOpen(false);
   };
 
-  const loginAsBypassPatron = () => {
-    setUser({
-      uid: 'vip-patron-demo',
-      name: 'House of Saelyxe VIP Patron',
-      email: 'hello@saelyxe.com',
-      role: 'patron',
-      joinedDate: new Date().toISOString()
-    });
-    setIsAuthOpen(false);
-  };
+  const closeRestockModal = () => setIsRestockModalOpen(false);
 
   const loginAdmin = async (username: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setIsAuthLoading(true);
@@ -1503,6 +1497,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsSearchOpen,
         isAuthOpen,
         setIsAuthOpen,
+        authMode,
+        setAuthMode,
         isTrackerOpen,
         setIsTrackerOpen,
         trackingOrderId,
@@ -1516,7 +1512,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithEmail,
         signupWithEmail,
         loginAsGuest,
-        loginAsBypassPatron,
         loginAdmin,
         logout,
         updateUserProfile,
@@ -1536,7 +1531,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setRestockModalProduct,
         restockSelectedSize,
         setRestockSelectedSize,
+        restockModalSize: restockSelectedSize,
+        closeRestockModal,
         openRestockModal,
+        triggerStockReplenishedFunction: triggerRestockCloudFunction,
         auditLogs,
         logAuditEvent,
         saveProduct,

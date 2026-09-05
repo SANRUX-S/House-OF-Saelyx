@@ -9,6 +9,7 @@ export const Navbar: React.FC = () => {
     setIsCartOpen,
     setIsSearchOpen,
     setIsAuthOpen,
+    setAuthMode,
     activeCategory,
     setActiveCategory,
     selectedCurrency,
@@ -144,7 +145,10 @@ export const Navbar: React.FC = () => {
             </div>
           ) : (
             <button
-              onClick={() => setIsAuthOpen(true)}
+              onClick={() => {
+                setAuthMode('signin');
+                setIsAuthOpen(true);
+              }}
               className="p-1 text-white/90 hover:text-white cursor-pointer"
               aria-label="User account"
             >
@@ -323,14 +327,20 @@ export const Navbar: React.FC = () => {
           ) : (
             <div className="flex items-center gap-3.5 lg:gap-4">
               <button
-                onClick={() => setIsAuthOpen(true)}
+                onClick={() => {
+                  setAuthMode('signin');
+                  setIsAuthOpen(true);
+                }}
                 className="text-[11px] lg:text-xs uppercase tracking-[0.2em] font-medium text-white/90 hover:text-white transition-colors cursor-pointer"
               >
                 LOGIN
               </button>
 
               <button
-                onClick={() => setIsAuthOpen(true)}
+                onClick={() => {
+                  setAuthMode('signup');
+                  setIsAuthOpen(true);
+                }}
                 className="text-[10.5px] lg:text-[11px] uppercase tracking-[0.18em] font-semibold text-[#181614] bg-white hover:bg-white/90 px-4 lg:px-5 py-1.5 rounded-full shadow-md transition-all active:scale-95 cursor-pointer transform-gpu"
               >
                 SIGN UP
