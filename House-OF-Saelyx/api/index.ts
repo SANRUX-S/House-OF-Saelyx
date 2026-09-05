@@ -1569,31 +1569,60 @@ app.get('/api/orders/:id', async (req, res) => {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
-    const clientKey = `tracking:${getClientAddress(req)}`;
-    if (!(await enforceRateLimit(adminDb, clientKey, 60, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many tracking requests. Please try again later.' });
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
     }
 
     const id = safeString(req.params.id, 120);
+    if (!id) return res.status(400).json({ error: 'Order reference is required.' });
+
+    if (!(await enforceRateLimit(adminDb, `tracking:${token.uid}:${id}`, 30, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many tracking requests. Please try again later.' });
+    }
+
     const snap = await adminDb.collection('orders').doc(id).get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
 
     const order: any = { id: snap.id, ...snap.data() };
+    if (order.userId !== token.uid && !isAdminToken(token)) {
+      // Use the same response as a missing order so the endpoint does not confirm
+      // whether another customer's order reference exists.
+      return res.status(404).json({ error: 'Order not found.' });
+    }
 
-    // Public tracking intentionally excludes email, phone, and street address.
+    const items = Array.isArray(order.items)
+      ? order.items.map((item: any) => ({
+          productId: safeString(item?.productId, 100),
+          title: safeString(item?.title, 200),
+          image: safeString(item?.image, 1000),
+          size: safeString(item?.size, 30),
+          quantity: Number(item?.quantity) || 0
+        }))
+      : [];
+
+    const statusHistory = Array.isArray(order.statusHistory)
+      ? order.statusHistory.map((entry: any) => ({
+          status: safeString(entry?.status, 40),
+          timestamp: safeString(entry?.timestamp, 80),
+          note: safeString(entry?.note, 300),
+          location: safeString(entry?.location, 160)
+        }))
+      : [];
+
     return res.json({
       id: order.id,
-      orderNumber: order.orderNumber,
-      customerName: order.customerName,
-      items: order.items,
-      status: order.status,
-      trackingNumber: order.trackingNumber || '',
-      courierName: order.courierName || '',
-      deliveryEta: order.deliveryEta || '',
-      createdAt: order.createdAt,
-      statusHistory: order.statusHistory || [],
-      city: order.city || '',
-      country: order.country || ''
+      orderNumber: safeString(order.orderNumber || order.id, 120),
+      items,
+      status: safeString(order.status, 40),
+      trackingNumber: safeString(order.trackingNumber, 160),
+      courierName: safeString(order.courierName, 160),
+      deliveryEta: safeString(order.deliveryEta, 160),
+      createdAt: safeString(order.createdAt, 80),
+      statusHistory,
+      city: safeString(order.city, 100),
+      country: safeString(order.country, 80)
     });
   } catch {
     return res.status(500).json({ error: 'Unable to load tracking information.' });
