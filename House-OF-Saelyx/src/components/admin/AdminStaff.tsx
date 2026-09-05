@@ -15,7 +15,7 @@ import { AdminStaff } from '../../types';
 export interface AdminStaffProps {
   staffList: AdminStaff[];
   isSuperAdmin: boolean;
-  onAddStaff: (staff: Omit<AdminStaff, 'id' | 'createdAt' | 'status'> & { password?: string }) => Promise<boolean>;
+  onAddStaff: (staff: Omit<AdminStaff, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
   onDeleteStaff: (id: string, name: string) => void;
 }
 
@@ -30,16 +30,15 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
     username: '',
     name: '',
     email: '',
-    role: 'admin' as 'admin' | 'super_admin',
-    password: ''
+    role: 'admin' as 'admin' | 'super_admin'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.username.trim() || !form.name.trim() || !form.email.trim() || !form.password.trim()) {
-      setFormError('Name, username, email, and passkey are required.');
+    if (!form.username.trim() || !form.name.trim() || !form.email.trim()) {
+      setFormError('Name, username, and email are required.');
       return;
     }
 
@@ -51,8 +50,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
         username: form.username.trim(),
         name: form.name.trim(),
         email: form.email.trim(),
-        role: form.role,
-        password: form.password
+        role: form.role
       });
 
       if (success) {
@@ -61,14 +59,13 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
           username: '',
           name: '',
           email: '',
-          role: 'admin',
-          password: ''
+          role: 'admin'
         });
       } else {
-        setFormError('Failed to provision operator.');
+        setFormError('Failed to add staff profile.');
       }
     } catch (err: any) {
-      setFormError(err.message || 'Error creating operator account.');
+      setFormError(err.message || 'Error creating staff profile.');
     } finally {
       setIsSubmitting(false);
     }
@@ -84,9 +81,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
             <span>Role-Based Access Control (RBAC) Architecture</span>
           </h3>
           <p className="text-xs text-stone-500 max-w-2xl mt-1">
-            <strong>Super Admin:</strong> Full command over catalog mutations, financial configurations, staff provisioning, and audit logs.
-            <br />
-            <strong>Atelier Admin:</strong> Dedicated operations mode for White-Glove Dispatch, Commissions, and Concierge inquiries.
+            This section is an internal staff directory. Listed roles are informational only; Firebase authentication claims and protected administrator records control actual admin access.
           </p>
         </div>
 
@@ -96,7 +91,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
             className="btn-saelyxe-lime text-xs whitespace-nowrap"
           >
             <UserPlus className="w-4 h-4" />
-            <span>PROVISION OPERATOR</span>
+            <span>ADD STAFF PROFILE</span>
           </button>
         )}
       </div>
@@ -106,7 +101,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
         <div className="table-header-control">
           <div>
             <h4 className="text-sm font-bold text-stone-900">Active Atelier Personnel</h4>
-            <p className="text-xs text-stone-500">Authorized operators with access to internal store portals</p>
+            <p className="text-xs text-stone-500">Internal directory records; this table does not create Firebase login credentials</p>
           </div>
           <span className="text-xs font-semibold text-stone-500">
             <strong>{staffList.length}</strong> Registered Operators
@@ -120,7 +115,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
                 <th>OPERATOR NAME</th>
                 <th>USERNAME / ID</th>
                 <th>CONTACT EMAIL</th>
-                <th>PRIVILEGE LEVEL</th>
+                <th>LISTED ROLE</th>
                 <th>STATUS</th>
                 <th>PROVISIONED</th>
                 {isSuperAdmin && <th className="text-center">ACTIONS</th>}
@@ -129,7 +124,6 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
             <tbody>
               {staffList.map(staff => {
                 const isSuper = staff.role === 'super_admin';
-                const isRoot = staff.id === 'staff-01' || staff.id === 'staff-001' || staff.username === 'saelyx_super';
 
                 return (
                   <tr key={staff.id}>
@@ -183,20 +177,14 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
 
                     {isSuperAdmin && (
                       <td className="text-center whitespace-nowrap">
-                        {isRoot ? (
-                          <span className="text-[11px] font-semibold text-stone-400 italic">
-                            Root Protected
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => onDeleteStaff(staff.id, staff.name)}
-                            className="btn-table-action text-rose-600! hover:bg-rose-50! py-1! px-2.5! text-xs"
-                            title="Revoke Access"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Revoke Access</span>
-                          </button>
-                        )}
+                        <button
+                          onClick={() => onDeleteStaff(staff.id, staff.name || staff.displayName || staff.username)}
+                          className="btn-table-action text-rose-600! hover:bg-rose-50! py-1! px-2.5! text-xs"
+                          title="Remove directory profile"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove Profile</span>
+                        </button>
                       </td>
                     )}
                   </tr>
@@ -214,10 +202,10 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
             <div className="p-5 border-b border-stone-100 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-extrabold text-stone-900">
-                  Provision Atelier Operator
+                  Add Staff Directory Profile
                 </h3>
                 <p className="text-xs text-stone-500">
-                  Assign credentials & access rights to atelier management staff.
+                  Record a staff directory profile. Authentication access is managed separately through Firebase administrator controls.
                 </p>
               </div>
               <button
@@ -248,7 +236,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
               </div>
 
               <div>
-                <label className="form-label-custom">Atelier Username ID</label>
+                <label className="form-label-custom">Directory Username / ID</label>
                 <input
                   type="text"
                   required
@@ -272,30 +260,15 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
               </div>
 
               <div>
-                <label className="form-label-custom">Privilege Level</label>
+                <label className="form-label-custom">Listed Role</label>
                 <select
                   value={form.role}
                   onChange={e => setForm({ ...form, role: e.target.value as any })}
                   className="form-input-custom font-semibold"
                 >
-                  <option value="admin">Atelier Admin (Operations & Dispatch Only)</option>
-                  <option value="super_admin">Super Admin (Director Level - Full Access)</option>
+                  <option value="admin">Atelier Admin (Directory Label)</option>
+                  <option value="super_admin">Super Admin (Directory Label)</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="form-label-custom">Initial Passkey Code</label>
-                <input
-                  type="password"
-                  required
-                  value={form.password}
-                  onChange={e => setForm({ ...form, password: e.target.value })}
-                  placeholder="Set initial passkey"
-                  className="form-input-custom"
-                />
-                <p className="text-[10px] text-stone-400 mt-1">
-                  This passkey is required for the operator to sign in.
-                </p>
               </div>
 
               <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-3">
@@ -311,7 +284,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
                   disabled={isSubmitting}
                   className="btn-saelyxe-primary"
                 >
-                  {isSubmitting ? 'Provisioning...' : 'Authorize Operator'}
+                  {isSubmitting ? 'Adding...' : 'Add Staff Profile'}
                 </button>
               </div>
             </form>
