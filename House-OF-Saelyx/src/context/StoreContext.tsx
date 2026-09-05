@@ -372,67 +372,81 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user]);
 
-  // Listen to Firebase Auth state
+  // Listen to Firebase Auth state. Privileged roles come only from trusted
+  // Firebase custom claims, the protected admins collection, or the configured
+  // administrator allowlist — never from the customer-editable users document.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        try {
-          const configuredAdminRole = getConfiguredAdminRole(fbUser.email);
-          // Check Firestore user doc
-          const userDocRef = doc(db, 'users', fbUser.uid);
-          const snap = await getDoc(userDocRef);
+      if (!fbUser) {
+        setUser(null);
+        return;
+      }
 
-          if (snap.exists()) {
-            const data = snap.data();
-            setUser({
-              uid: fbUser.uid,
-              name: data.name || fbUser.displayName || 'SAELYXE Patron',
-              email: fbUser.email || data.email || '',
-              phoneNumber: fbUser.phoneNumber || data.phoneNumber || '',
-              role: configuredAdminRole || data.role || 'patron',
-              avatarUrl: fbUser.photoURL || data.avatarUrl || undefined,
-              address: data.address || '',
-              city: data.city || '',
-              postalCode: data.postalCode || '',
-              country: data.country || 'Sri Lanka',
-              authProvider: data.authProvider || 'google',
-              joinedDate: data.joinedDate || new Date().toISOString()
-            });
-          } else {
-            const newUser: AppUser = {
-              uid: fbUser.uid,
-              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
-              email: fbUser.email || '',
-              phoneNumber: fbUser.phoneNumber || '',
-              role: configuredAdminRole || 'patron',
-              address: '',
-              city: '',
-              postalCode: '',
-              country: 'Sri Lanka',
-              authProvider: 'google',
-              joinedDate: new Date().toISOString(),
-              ordersCount: 0
-            };
-            if (fbUser.photoURL) newUser.avatarUrl = fbUser.photoURL;
-            await setDoc(userDocRef, newUser);
-            setUser(newUser);
-          }
-        } catch (e) {
-          console.warn('Firestore user fetch note:', e);
+      try {
+        const configuredAdminRole = getConfiguredAdminRole(fbUser.email);
+        const [tokenResult, userSnap, adminSnap] = await Promise.all([
+          fbUser.getIdTokenResult(true),
+          getDoc(doc(db, 'users', fbUser.uid)),
+          getDoc(doc(db, 'admins', fbUser.uid))
+        ]);
+
+        const claimRole = tokenResult.claims.role === 'super_admin'
+          ? 'super_admin'
+          : tokenResult.claims.role === 'admin' || tokenResult.claims.admin === true
+            ? 'admin'
+            : undefined;
+        const adminDocRole = adminSnap.exists()
+          ? (adminSnap.data()?.role === 'super_admin' ? 'super_admin' : 'admin')
+          : undefined;
+        const trustedRole: UserRole = configuredAdminRole || claimRole || adminDocRole || 'patron';
+
+        if (userSnap.exists()) {
+          const data = userSnap.data();
           setUser({
             uid: fbUser.uid,
-            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
-            email: fbUser.email || '',
-            phoneNumber: fbUser.phoneNumber || '',
-            role: 'patron',
-            country: 'Sri Lanka'
+            name: data.name || fbUser.displayName || 'SAELYXE Patron',
+            email: fbUser.email || data.email || '',
+            phoneNumber: fbUser.phoneNumber || data.phoneNumber || '',
+            role: trustedRole,
+            avatarUrl: fbUser.photoURL || data.avatarUrl || undefined,
+            address: data.address || '',
+            city: data.city || '',
+            postalCode: data.postalCode || '',
+            country: data.country || 'Sri Lanka',
+            authProvider: data.authProvider || 'google',
+            joinedDate: data.joinedDate || new Date().toISOString()
           });
+          return;
         }
-      } else {
-        // Explicitly clear non-admin user on signOut
-        if (userRef.current && userRef.current.role !== 'super_admin' && userRef.current.role !== 'admin') {
-          setUser(null);
-        }
+
+        const profileRecord: AppUser = {
+          uid: fbUser.uid,
+          name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
+          email: fbUser.email || '',
+          phoneNumber: fbUser.phoneNumber || '',
+          role: 'patron',
+          address: '',
+          city: '',
+          postalCode: '',
+          country: 'Sri Lanka',
+          authProvider: 'google',
+          joinedDate: new Date().toISOString(),
+          ordersCount: 0
+        };
+        if (fbUser.photoURL) profileRecord.avatarUrl = fbUser.photoURL;
+
+        await setDoc(doc(db, 'users', fbUser.uid), profileRecord);
+        setUser({ ...profileRecord, role: trustedRole });
+      } catch (e) {
+        console.warn('Firebase user session hydration note:', e);
+        setUser({
+          uid: fbUser.uid,
+          name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
+          email: fbUser.email || '',
+          phoneNumber: fbUser.phoneNumber || '',
+          role: getConfiguredAdminRole(fbUser.email) || 'patron',
+          country: 'Sri Lanka'
+        });
       }
     });
 
@@ -1071,22 +1085,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateUserProfile = async (updates: Partial<AppUser>): Promise<boolean> => {
     if (!user) return false;
     try {
-      const updatedUser: AppUser = { ...user, ...updates };
+      // Never accept identity or authorization fields through the profile editor.
+      const profileUpdates: Partial<AppUser> = {};
+      for (const key of ['name', 'displayName', 'photoURL', 'avatarUrl', 'phoneNumber', 'address', 'city', 'postalCode', 'country', 'savedAddresses'] as const) {
+        if (key in updates) {
+          (profileUpdates as Record<string, unknown>)[key] = (updates as Record<string, unknown>)[key];
+        }
+      }
+
+      const updatedUser: AppUser = { ...user, ...profileUpdates, uid: user.uid, email: user.email, role: user.role };
       setUser(updatedUser);
       try {
         localStorage.setItem('saelyx_user', JSON.stringify(updatedUser));
       } catch (e) {}
 
-      // Persist to Firestore
       try {
         const userRef = doc(db, 'users', user.uid);
-        await setDoc(userRef, JSON.parse(JSON.stringify(updatedUser)), { merge: true });
+        await setDoc(userRef, {
+          ...JSON.parse(JSON.stringify(profileUpdates)),
+          uid: user.uid,
+          email: user.email,
+          role: 'patron',
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
       } catch (e) {
         console.warn('Firestore user update note:', e);
       }
 
-      // Pre-fill delivery details in localStorage so checkout immediately gets them
-      if (updates.name || updates.phoneNumber || updates.address || updates.city || updates.postalCode || updates.country) {
+      if (profileUpdates.name || profileUpdates.phoneNumber || profileUpdates.address || profileUpdates.city || profileUpdates.postalCode || profileUpdates.country) {
         const deliveryDetails = {
           customerName: updatedUser.name,
           email: updatedUser.email,
