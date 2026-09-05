@@ -14,6 +14,7 @@ import {
   AdminStaff
 } from '../types';
 import { 
+  app,
   auth, 
   db, 
   googleProvider, 
@@ -44,6 +45,7 @@ import {
   addDoc,
   arrayUnion
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface CartItem extends OrderItem {
   product: Product;
@@ -1411,50 +1413,49 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const triggerRestockCloudFunction = async (productId?: string) => {
+    const productTitle = productId
+      ? (products.find(p => p.id === productId)?.title || 'Selected Garment')
+      : 'Selected Garment';
+
+    if (!productId) {
+      return {
+        success: false,
+        productTitle,
+        dispatchedCount: 0,
+        recipients: [],
+        executionId: 'error',
+        error: 'Select a product before dispatching restock alerts.'
+      };
+    }
+
     try {
-      const stockCol = collection(db, 'stock_notifications');
-      const qSnap = await getDocs(stockCol);
-      let dispatchedCount = 0;
-      const recipients: string[] = [];
-      const executionId = `exec-${Date.now().toString(36)}`;
+      const functions = getFunctions(app);
+      const dispatch = httpsCallable<{ productId: string }, {
+        success: boolean;
+        productTitle: string;
+        dispatchedCount: number;
+        recipients: string[];
+        executionId: string;
+      }>(functions, 'dispatchRestockAlertsCallable');
 
-      for (const docSnap of qSnap.docs) {
-        const data = docSnap.data() as StockNotification;
-        if ((!productId || data.productId === productId) && data.status === 'pending') {
-          await updateDoc(doc(db, 'stock_notifications', docSnap.id), {
-            status: 'sent',
-            notified: true,
-            notifiedAt: new Date().toISOString()
-          });
-          dispatchedCount++;
-          recipients.push(data.customerEmail);
-        }
-      }
-
-      const productTitle = productId 
-        ? (products.find(p => p.id === productId)?.title || 'Selected Garment')
-        : 'All Restocked Creations';
+      const result = await dispatch({ productId });
+      const data = result.data;
 
       await logAuditEvent(
         'STOCK_ALERT_DISPATCHED',
-        `Dispatched ${dispatchedCount} restock alerts for ${productTitle} (Execution: ${executionId})`
+        `Dispatched ${data.dispatchedCount} verified restock emails for ${data.productTitle} (Execution: ${data.executionId})`
       );
 
-      return {
-        success: true,
-        productTitle,
-        dispatchedCount,
-        recipients,
-        executionId
-      };
+      return data;
     } catch (e: any) {
       console.error('Error triggering restock Cloud Function:', e);
       return {
         success: false,
-        productTitle: 'Error',
+        productTitle,
         dispatchedCount: 0,
         recipients: [],
-        executionId: 'error'
+        executionId: 'error',
+        error: e?.message || 'Restock email dispatch failed.'
       };
     }
   };
