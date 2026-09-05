@@ -1227,26 +1227,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateOrderStatus = async (orderId: string, status: Order['status'], details: Partial<Order>): Promise<boolean> => {
     try {
-      const res = await fetchAdminApi(`/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status,
-          ...details
-        })
-      });
+      const currentOrder = orders.find(order => order.id === orderId || order.orderNumber === orderId);
+      const needsPayPalRefund =
+        status === 'cancelled' &&
+        currentOrder?.paymentMethod === 'paypal' &&
+        ['verified', 'refund_pending'].includes(currentOrder?.paymentStatus || '');
 
-      if (res.ok) {
-        const updatedOrder = await res.json() as Order;
-        setOrders(prev => prev.map(order => order.id === updatedOrder.id ? updatedOrder : order));
-        await logAuditEvent('ORDER_STATUS_UPDATE', `Order ${orderId} updated to ${status}`);
-        return true;
+      const response = needsPayPalRefund
+        ? await fetchAdminApi(`/api/admin/orders/${encodeURIComponent(orderId)}/refund`, { method: 'POST' })
+        : await fetchAdminApi(`/api/orders/${encodeURIComponent(orderId)}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status, ...details })
+          });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.warn('Order status update rejected:', payload?.error || response.statusText);
+        return false;
       }
-      const payload = await res.json().catch(() => ({}));
-      console.warn('Order status update rejected:', payload?.error || res.statusText);
-      return false;
-    } catch (e) {
-      console.error('Error updating order:', e);
+
+      const updatedOrder = payload as Order;
+      setOrders(prev => prev.map(order => order.id === updatedOrder.id ? updatedOrder : order));
+      return true;
+    } catch (error) {
+      console.error('Error updating order:', error);
       return false;
     }
   };
