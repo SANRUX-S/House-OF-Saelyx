@@ -2619,6 +2619,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
 app.post('/api/restock/dispatch', async (req, res) => {
   const adminDb = getAdminDb();
   let lockRef: any = null;
+  let lockAcquired = false;
   let executionId = '';
   try {
     if (!adminDb) return res.status(503).json({ error: 'Restock service is not configured.' });
@@ -2666,6 +2667,7 @@ app.post('/api/restock/dispatch', async (req, res) => {
         expiresAtMs: nowMs + lockTtlMs
       });
     });
+    lockAcquired = true;
 
     const allNotifications = await adminDb.collection('stock_notifications')
       .where('productId', '==', productId)
@@ -2819,8 +2821,15 @@ app.post('/api/restock/dispatch', async (req, res) => {
       error: safeString(error?.message, 240) || 'Unable to dispatch restock alerts.'
     });
   } finally {
-    if (lockRef) {
-      await lockRef.delete().catch(() => undefined);
+    if (lockAcquired && lockRef) {
+      try {
+        const snapshot = await lockRef.get();
+        if (snapshot.exists && snapshot.data()?.executionId === executionId) {
+          await lockRef.delete();
+        }
+      } catch {
+        // Lock TTL protects against a cleanup transport failure.
+      }
     }
   }
 });
