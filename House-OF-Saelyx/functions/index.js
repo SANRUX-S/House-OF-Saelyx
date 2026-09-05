@@ -168,8 +168,21 @@ exports.dispatchRestockAlerts = onRequest(async (req, res) => {
     const count = snapshot.size;
     const batch = db.batch();
     const executionId = `manual-exec-${Date.now().toString(36)}`;
+    const deliveries = [];
 
     snapshot.docs.forEach((docSnap) => {
+      const subscriber = docSnap.data();
+      deliveries.push(deliverRestockEmail({
+        email: subscriber.customerEmail,
+        name: subscriber.customerName || "Valued Patron",
+        productTitle: productData.title,
+        productSlug: productData.slug || productId,
+        productPrice: productData.priceLKR,
+        productImage: productData.images?.[0] || "",
+        size: subscriber.selectedSize || "Standard",
+        executionId
+      }));
+
       batch.update(docSnap.ref, {
         status: "sent",
         notified: true,
@@ -178,6 +191,7 @@ exports.dispatchRestockAlerts = onRequest(async (req, res) => {
       });
     });
 
+    await Promise.all(deliveries);
     await batch.commit();
 
     return res.json({
