@@ -153,18 +153,18 @@ export const AdminPanel: React.FC = () => {
         refetchData();
         return {
           success: true,
-          message: `Firebase Cloud Function (onStockReplenished) triggered successfully! Processed: ${res.processedCount || 0} notifications for product ID: ${productId}`
+          message: `Restock email dispatch completed successfully! Processed: ${res.processedCount || 0} notifications for product ID: ${productId}`
         };
       } else {
         return {
           success: false,
-          message: res.error || 'Failed to execute Cloud Function trigger.'
+          message: res.error || 'Failed to execute restock email dispatch.'
         };
       }
     } catch (err: any) {
       return {
         success: false,
-        message: err.message || 'Execution error in Cloud Function simulation.'
+        message: err.message || 'Restock email dispatch failed.'
       };
     }
   };
@@ -243,7 +243,7 @@ export const AdminPanel: React.FC = () => {
       case 'restock':
         return {
           title: 'Restock Waitlist',
-          subtitle: 'Automated waitlist dispatches powered by Firebase Cloud Functions (onStockReplenished).',
+          subtitle: 'Automated waitlist email dispatches powered by the protected Vercel API and Resend.',
           breadcrumb: [{ label: 'Operations' }, { label: 'Restock Waitlist' }]
         };
       case 'staff':
