@@ -109,6 +109,10 @@ try {
     action: 'FORGED',
     timestamp: new Date().toISOString()
   }));
+  await assertFails(setDoc(doc(adminDb, 'restock_dispatch_locks', 'prod-1'), {
+    executionId: 'forged-client-lock',
+    expiresAtMs: Date.now() + 60_000
+  }));
 
   await assertSucceeds(setDoc(doc(superDb, 'admins', 'new-admin'), {
     email: 'new-admin@saelyxe.com',
