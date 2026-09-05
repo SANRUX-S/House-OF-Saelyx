@@ -13,8 +13,8 @@ test('public storefront loads with enforced CSP', async ({ page }) => {
 test('admin route stays behind Firebase administrator login', async ({ page }) => {
   await page.goto('/admin');
   await expect(page.getByText('SAELYXE ADMIN')).toBeVisible();
-  await expect(page.getByLabel(/Firebase Administrator Email/i)).toBeVisible();
-  await expect(page.getByLabel(/Password/i)).toBeVisible();
+  await expect(page.getByPlaceholder('admin@your-domain.com')).toBeVisible();
+  await expect(page.locator('input[type="password"]')).toBeVisible();
   await expect(page.getByRole('button', { name: /Sign In to Dashboard/i })).toBeVisible();
   await expect(page.getByText(/Verified Revenue/i)).toHaveCount(0);
   await expect(page.getByText(/INVITE ADMINISTRATOR/i)).toHaveCount(0);
