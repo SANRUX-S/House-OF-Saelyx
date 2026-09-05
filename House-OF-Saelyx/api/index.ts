@@ -665,6 +665,255 @@ async function sendOrderConfirmationEmail(order: any) {
   }
 }
 
+async function sendStaffInvitationEmail(params: {
+  email: string;
+  name: string;
+  role: 'admin' | 'super_admin';
+  verifyLink?: string;
+  passwordLink: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) throw new Error('Transactional email is not configured.');
+
+  const verifySection = params.verifyLink
+    ? `<p><a href="${escapeHtml(params.verifyLink)}">1. Verify your email address</a></p>`
+    : '<p>1. Your Firebase email address is already verified.</p>';
+
+  const html = [
+    '<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#181614">',
+    '<h2>SAELYXE Administrator Invitation</h2>',
+    `<p>Hello ${escapeHtml(params.name)}, you have been invited as <strong>${escapeHtml(params.role)}</strong>.</p>`,
+    '<p>Administrator access remains disabled until your email is verified and a SAELYXE Super Admin activates the invitation.</p>',
+    verifySection,
+    `<p><a href="${escapeHtml(params.passwordLink)}">2. Set or reset your Firebase password</a></p>`,
+    '<p>3. After completing the steps above, ask the Super Admin to activate your access from the SAELYXE Admin Staff panel.</p>',
+    '<p>If you did not expect this invitation, do not use these links.</p>',
+    '</div>'
+  ].join('');
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from,
+      to: [params.email],
+      subject: 'SAELYXE Administrator Invitation',
+      html
+    })
+  });
+  if (!response.ok) throw new Error('Administrator invitation email could not be delivered.');
+}
+
+app.post('/api/admin/staff/invite', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const name = safeString(req.body?.name, 120);
+    const username = safeString(req.body?.username, 60).toLowerCase();
+    const email = safeString(req.body?.email, 254).toLowerCase();
+    const role = safeString(req.body?.role, 30) as 'admin' | 'super_admin';
+    if (!name || !/^[a-z0-9._-]{3,60}$/.test(username) || !isEmail(email) || !['admin', 'super_admin'].includes(role)) {
+      return res.status(400).json({ error: 'Valid name, username, email, and administrator role are required.' });
+    }
+    if (ADMIN_EMAILS.has(email)) {
+      return res.status(409).json({ error: 'Configured bootstrap administrator emails are managed outside staff invitations.' });
+    }
+    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+      return res.status(503).json({ error: 'Transactional email must be configured before inviting staff.' });
+    }
+
+    const authAdmin = getAuth();
+    let userRecord: any;
+    try {
+      userRecord = await authAdmin.getUserByEmail(email);
+    } catch (error: any) {
+      if (error?.code !== 'auth/user-not-found') throw error;
+      userRecord = await authAdmin.createUser({
+        email,
+        displayName: name,
+        disabled: false
+      });
+    }
+
+    const existingAdmin = await adminDb.collection('admins').doc(userRecord.uid).get();
+    const existingData: any = existingAdmin.exists ? existingAdmin.data() || {} : {};
+    if (existingData.status === 'active') {
+      return res.status(409).json({ error: 'This Firebase account already has active administrator access.' });
+    }
+
+    const now = new Date().toISOString();
+    const actionSettings = { url: 'https://www.saelyxe.com/admin', handleCodeInApp: false };
+    const passwordLink = await authAdmin.generatePasswordResetLink(email, actionSettings);
+    const verifyLink = userRecord.emailVerified
+      ? undefined
+      : await authAdmin.generateEmailVerificationLink(email, actionSettings);
+
+    const adminRecord = {
+      uid: userRecord.uid,
+      firebaseUid: userRecord.uid,
+      email,
+      name,
+      username,
+      role,
+      status: 'invited',
+      emailVerified: Boolean(userRecord.emailVerified),
+      invitedAt: existingData.invitedAt || now,
+      updatedAt: now,
+      invitedBy: token.uid
+    };
+    const staffRecord = {
+      id: userRecord.uid,
+      firebaseUid: userRecord.uid,
+      username,
+      name,
+      email,
+      role,
+      status: 'invited',
+      emailVerified: Boolean(userRecord.emailVerified),
+      createdAt: existingData.invitedAt || now,
+      invitedAt: existingData.invitedAt || now
+    };
+
+    const batch = adminDb.batch();
+    batch.set(adminDb.collection('admins').doc(userRecord.uid), adminRecord, { merge: true });
+    batch.set(adminDb.collection('staff').doc(userRecord.uid), staffRecord, { merge: true });
+    await batch.commit();
+
+    try {
+      await sendStaffInvitationEmail({ email, name, role, verifyLink, passwordLink });
+      await adminDb.collection('admins').doc(userRecord.uid).set({ inviteDeliveryStatus: 'sent', inviteSentAt: now }, { merge: true });
+    } catch (error) {
+      await adminDb.collection('admins').doc(userRecord.uid).set({ inviteDeliveryStatus: 'failed', updatedAt: now }, { merge: true });
+      throw error;
+    }
+
+    await writeAdminAudit(adminDb, token, 'STAFF_INVITED', `Invited ${email} as ${role} (${userRecord.uid}).`);
+    return res.status(201).json(staffRecord);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to invite administrator.';
+    return res.status(message.includes('delivered') ? 502 : 500).json({ error: message });
+  }
+});
+
+app.post('/api/admin/staff/:uid/activate', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const uid = safeString(req.params.uid, 160);
+    const adminRef = adminDb.collection('admins').doc(uid);
+    const adminSnap = await adminRef.get();
+    if (!adminSnap.exists) return res.status(404).json({ error: 'Staff invitation was not found.' });
+    const record: any = adminSnap.data() || {};
+    const role = safeString(record.role, 30);
+    if (!['admin', 'super_admin'].includes(role)) return res.status(409).json({ error: 'Staff role is invalid.' });
+
+    const userRecord = await getAuth().getUser(uid);
+    if (!userRecord.emailVerified) {
+      return res.status(409).json({ error: 'The staff member must verify their Firebase email before activation.' });
+    }
+
+    const currentClaims = { ...(userRecord.customClaims || {}) };
+    await getAuth().setCustomUserClaims(uid, { ...currentClaims, admin: true, role });
+    const now = new Date().toISOString();
+    const batch = adminDb.batch();
+    batch.set(adminRef, { status: 'active', emailVerified: true, activatedAt: now, updatedAt: now, activatedBy: token.uid }, { merge: true });
+    batch.set(adminDb.collection('staff').doc(uid), { status: 'active', emailVerified: true, activatedAt: now }, { merge: true });
+    await batch.commit();
+
+    await writeAdminAudit(adminDb, token, 'STAFF_ACTIVATED', `Activated ${record.email || uid} as ${role}.`);
+    const updated = await adminDb.collection('staff').doc(uid).get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to activate administrator.' });
+  }
+});
+
+app.put('/api/admin/staff/:uid/role', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const uid = safeString(req.params.uid, 160);
+    const role = safeString(req.body?.role, 30) as 'admin' | 'super_admin';
+    if (!['admin', 'super_admin'].includes(role)) return res.status(400).json({ error: 'Invalid administrator role.' });
+
+    const userRecord = await getAuth().getUser(uid);
+    const email = userRecord.email?.toLowerCase() || '';
+    if (ROOT_ADMIN_EMAILS.has(email)) return res.status(409).json({ error: 'Bootstrap Super Admin role cannot be changed here.' });
+
+    const adminRef = adminDb.collection('admins').doc(uid);
+    const snap = await adminRef.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Administrator record not found.' });
+    const record: any = snap.data() || {};
+    const now = new Date().toISOString();
+
+    if (record.status === 'active') {
+      const currentClaims = { ...(userRecord.customClaims || {}) };
+      await getAuth().setCustomUserClaims(uid, { ...currentClaims, admin: true, role });
+    }
+
+    const batch = adminDb.batch();
+    batch.set(adminRef, { role, updatedAt: now }, { merge: true });
+    batch.set(adminDb.collection('staff').doc(uid), { role }, { merge: true });
+    await batch.commit();
+
+    await writeAdminAudit(adminDb, token, 'STAFF_ROLE_CHANGED', `Changed ${email || uid} role to ${role}.`);
+    const updated = await adminDb.collection('staff').doc(uid).get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to update staff role.' });
+  }
+});
+
+app.post('/api/admin/staff/:uid/revoke', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const uid = safeString(req.params.uid, 160);
+    if (uid === token.uid) return res.status(409).json({ error: 'You cannot revoke your own active Super Admin session.' });
+    const userRecord = await getAuth().getUser(uid);
+    const email = userRecord.email?.toLowerCase() || '';
+    if (ROOT_ADMIN_EMAILS.has(email)) return res.status(409).json({ error: 'Bootstrap Super Admin access cannot be revoked here.' });
+
+    const claims = { ...(userRecord.customClaims || {}) } as Record<string, unknown>;
+    delete claims.admin;
+    delete claims.role;
+    await getAuth().setCustomUserClaims(uid, claims);
+    await getAuth().revokeRefreshTokens(uid);
+
+    const now = new Date().toISOString();
+    const batch = adminDb.batch();
+    batch.set(adminDb.collection('admins').doc(uid), { status: 'revoked', revokedAt: now, updatedAt: now, revokedBy: token.uid }, { merge: true });
+    batch.set(adminDb.collection('staff').doc(uid), { status: 'revoked', revokedAt: now }, { merge: true });
+    await batch.commit();
+
+    await writeAdminAudit(adminDb, token, 'STAFF_ACCESS_REVOKED', `Revoked administrator access for ${email || uid}.`);
+    const updated = await adminDb.collection('staff').doc(uid).get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to revoke administrator access.' });
+  }
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
