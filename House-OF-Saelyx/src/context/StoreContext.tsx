@@ -294,7 +294,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
-  const [trackingOrderId, setTrackingOrderId] = useState<string>('SLX-94821');
+  const [trackingOrderId, setTrackingOrderId] = useState<string>('');
 
   // Back-in-Stock Waitlist & Modal State
   const [stockNotifications, setStockNotifications] = useState<StockNotification[]>([]);
