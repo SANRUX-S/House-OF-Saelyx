@@ -92,12 +92,12 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
             onStockReplenished
           </div>
           <div className="text-[11px] text-stone-400">
-            Firestore Event Trigger Active
+            Firestore Waitlist Connected
           </div>
         </div>
       </div>
 
-      {/* Manual Restock Cloud Function Dispatcher */}
+      {/* Manual Restock Email Dispatcher */}
       <div className="admin-card space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -106,7 +106,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
               <span>Manual Restock Cloud Function Dispatcher</span>
             </h3>
             <p className="text-xs text-stone-500 max-w-2xl mt-1">
-              When our cutters complete a replenishment run, select a creation below to simulate or invoke the Firebase Cloud Function. The function reads all pending waitlist subscriptions in Firestore for that silhouette, marks them as dispatched, and transmits email and web app notifications.
+              When a replenishment is ready, select the garment below to send verified restock emails to pending Firestore waitlist subscribers. Notifications are marked as sent only after the transactional email provider accepts delivery.
             </p>
           </div>
         </div>
