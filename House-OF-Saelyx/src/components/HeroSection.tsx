@@ -14,39 +14,12 @@ export const HeroSection: React.FC = () => {
   const [scrollY, setScrollY] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  // Quick view featured products for floating card carousel
-  const heroFeaturedItems = products.length > 0 
-    ? products.slice(0, 3) 
-    : [
-        {
-          id: 'prod-01',
-          title: 'SÆ SIGNATURE TEE',
-          subtitle: 'Sand Khaki',
-          priceLKR: 7900,
-          category: 'new' as const,
-          images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'],
-          description: 'Constructed from custom-developed 280 GSM heavyweight combed cotton.',
-          fabricDetails: '100% Heavyweight Cotton',
-          sizes: ['S', 'M', 'L', 'XL'],
-          inStock: true,
-          stockCount: 40
-        },
-        {
-          id: 'prod-02',
-          title: 'SÆ SIGNATURE SHIRT',
-          subtitle: 'Sand Khaki',
-          priceLKR: 7900,
-          category: 'new' as const,
-          images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'],
-          description: 'Constructed from custom-developed 280 GSM heavyweight combed cotton.',
-          fabricDetails: '100% Heavyweight Cotton',
-          sizes: ['S', 'M', 'L', 'XL'],
-          inStock: true,
-          stockCount: 40
-        }
-      ];
-
-  const currentFloatingProduct = heroFeaturedItems[activeSlide % heroFeaturedItems.length] || heroFeaturedItems[0];
+  // Quick view only uses real catalog products. If the catalog is empty,
+  // the floating product card is hidden instead of inventing stock.
+  const heroFeaturedItems = products.slice(0, 3);
+  const currentFloatingProduct = heroFeaturedItems.length > 0
+    ? heroFeaturedItems[activeSlide % heroFeaturedItems.length]
+    : null;
 
   useEffect(() => {
     let ticking = false;
