@@ -269,39 +269,39 @@ export const AdminPanel: React.FC = () => {
         };
       case 'orders':
         return {
-          title: 'Commissions & Dispatch',
-          subtitle: 'Track bespoke customer orders, dispatch schedules, and courier handovers.',
-          breadcrumb: [{ label: 'Operations' }, { label: 'Commissions & Dispatch' }]
+          title: 'Orders',
+          subtitle: 'Manage customer orders, payment state, fulfillment, and delivery details.',
+          breadcrumb: [{ label: 'Operations' }, { label: 'Orders' }]
         };
       case 'messages':
         return {
-          title: 'Concierge Inquiries',
-          subtitle: 'Client inquiries, private appointments, and bespoke couture requests.',
-          breadcrumb: [{ label: 'Operations' }, { label: 'Concierge Inquiries' }]
+          title: 'Customer Support',
+          subtitle: 'Review customer messages and keep support requests moving.'
+          breadcrumb: [{ label: 'Operations' }, { label: 'Customer Support' }]
         };
       case 'restock':
         return {
-          title: 'Restock Waitlist',
-          subtitle: 'Automated waitlist email dispatches powered by the protected Vercel API and Resend.',
-          breadcrumb: [{ label: 'Operations' }, { label: 'Restock Waitlist' }]
+          title: 'Restock',
+          subtitle: 'Review waitlist demand and send verified restock notifications.'
+          breadcrumb: [{ label: 'Operations' }, { label: 'Restock' }]
         };
       case 'staff':
         return {
-          title: 'Staff & Privileges',
-          subtitle: 'Atelier command center operator access and role authorization management.',
-          breadcrumb: [{ label: 'Administration' }, { label: 'Staff & Privileges' }]
+          title: 'Staff',
+          subtitle: 'Manage administrator access, roles, activation, and revocation.'
+          breadcrumb: [{ label: 'Administration' }, { label: 'Staff' }]
         };
       case 'security':
         return {
-          title: 'Security Hardening & Cryptographic Audit',
-          subtitle: 'Cryptographic testing suite, authorization audits, and database backups.',
+          title: 'Security',
+          subtitle: 'Review protected service health, authorization controls, and backups.'
           breadcrumb: [{ label: 'Administration' }, { label: 'Security & Audit' }]
         };
       case 'drop-config':
         return {
-          title: 'Drop Settings',
-          subtitle: 'Spotlight copy, pricing, editorial story, and background imagery.',
-          breadcrumb: [{ label: 'Operations' }, { label: 'Drop Settings' }]
+          title: 'Store Settings',
+          subtitle: 'Manage homepage content, promotional copy, thresholds, and visibility.'
+          breadcrumb: [{ label: 'Administration' }, { label: 'Store Settings' }]
         };
     }
   };
@@ -359,6 +359,8 @@ export const AdminPanel: React.FC = () => {
         <AdminDashboard
           products={products}
           orders={orders}
+          messages={messages}
+          stockNotifications={stockNotifications}
           formatPrice={formatPrice}
           onNavigateToTab={handleSwitchTab}
           onOpenProductModal={() => {
