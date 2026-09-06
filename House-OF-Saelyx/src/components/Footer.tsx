@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, Instagram, Twitter, Check } from 'lucide-react';
+import { ChevronRight, Instagram, Check } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { getAppCheckRequestHeaders } from '../lib/firebase';
 
@@ -204,7 +204,7 @@ export const Footer: React.FC = () => {
             </h4>
             <div className="flex items-center gap-4 text-neutral-400 pt-1">
               <a 
-                href="https://instagram.com" 
+                href="https://www.instagram.com/houseofsaelyx/?hl=en" 
                 target="_blank"
                 rel="noopener noreferrer" 
                 className="hover:text-white transition-colors"
@@ -212,18 +212,9 @@ export const Footer: React.FC = () => {
               >
                 <Instagram className="w-4 h-4" />
               </a>
-              <a 
-                href="https://twitter.com" 
-                target="_blank"
-                rel="noopener noreferrer" 
-                className="hover:text-white transition-colors"
-                aria-label="Twitter"
-              >
-                <Twitter className="w-4 h-4" />
-              </a>
             </div>
             <p className="text-xs text-neutral-400 font-light leading-relaxed pt-2">
-              Atelier Colombo: 74 Ward Place, Rosmead Enclave
+              Online Store · Sri Lanka
             </p>
           </div>
 

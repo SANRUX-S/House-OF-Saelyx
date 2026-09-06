@@ -132,6 +132,7 @@ export interface DropSettings {
   countdownTarget: string; // ISO String
   announcementText: string;
   freeShippingThresholdLKR: number;
+  standardShippingLKR?: number;
   heroHeadline: string;
   heroSubhead: string;
   showHeroSection?: boolean;

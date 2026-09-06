@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Truck, Clock, Shield, MapPin, Globe } from 'lucide-react';
+import { ArrowLeft, Truck, Globe, PackageCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export const CareShippingPage: React.FC = () => {
@@ -8,8 +8,6 @@ export const CareShippingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 pb-20 px-5 sm:px-8">
       <div className="max-w-3xl mx-auto space-y-10">
-        
-        {/* Back Button */}
         <button
           onClick={() => navigateTo({ name: 'home' })}
           className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7A6E60] hover:text-black transition-colors"
@@ -18,73 +16,70 @@ export const CareShippingPage: React.FC = () => {
           <span>Return to Boutique</span>
         </button>
 
-        {/* Title */}
         <div className="space-y-2 border-b border-[#E3D9CD] pb-6">
           <span className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
-            HOUSE OF SAELYXE • WHITE-GLOVE LOGISTICS
+            SAELYXE · DELIVERY
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
-            White-Glove Delivery & Express Dispatch
+            Shipping & Delivery
           </h1>
           <p className="text-xs text-[#7A6E60]">
-            Dedicated courier vans in Colombo • Insured air express worldwide
+            Delivery charges and order status are calculated from the current store configuration and your order record.
           </p>
         </div>
 
-        {/* Dispatch Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-[#EFE9E0] p-6 rounded-2xl border border-[#DDD3C4] space-y-3">
             <div className="flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-[#1A1816]">
               <Truck className="w-4 h-4 text-emerald-700" />
-              <span>Colombo Metropolitan</span>
+              <span>Sri Lanka Delivery</span>
             </div>
-            <div className="text-2xl font-serif font-bold text-[#1A1816]">Same-Day & Next-Day</div>
+            <div className="text-xl font-serif font-bold text-[#1A1816]">Order-Based Dispatch</div>
             <p className="text-xs text-[#574D42] leading-relaxed">
-              Orders placed before 2:00 PM are delivered directly to your doorstep in signature bespoke black matte packaging with real-time web app notifications and live tracking.
+              Your checkout records the applicable delivery charge. Courier and tracking details are added when the order is dispatched.
             </p>
           </div>
 
           <div className="bg-[#EFE9E0] p-6 rounded-2xl border border-[#DDD3C4] space-y-3">
             <div className="flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-[#1A1816]">
               <Globe className="w-4 h-4 text-amber-700" />
-              <span>Island-wide & Worldwide</span>
+              <span>Other Destinations</span>
             </div>
-            <div className="text-2xl font-serif font-bold text-[#1A1816]">2 - 5 Business Days</div>
+            <div className="text-xl font-serif font-bold text-[#1A1816]">Availability Varies</div>
             <p className="text-xs text-[#574D42] leading-relaxed">
-              Express priority courier dispatch across Kandy, Galle, Jaffna, Negombo, plus international express DHL shipments worldwide with zero customs friction.
+              Delivery availability, courier selection, timing, and destination-specific charges are confirmed against the order rather than promised as a fixed carrier or delivery window.
             </p>
           </div>
         </div>
 
-        {/* Detailed Shipping Info */}
         <div className="space-y-8 text-xs sm:text-sm text-[#4A4036] leading-relaxed font-light">
           <section className="space-y-3">
-            <h2 className="font-serif text-lg text-[#1A1816] font-semibold tracking-wide">
-              Atelier Packaging Standard
+            <h2 className="font-serif text-lg text-[#1A1816] font-semibold tracking-wide flex items-center gap-2">
+              <PackageCheck className="w-4 h-4" />
+              Order Preparation
             </h2>
             <p>
-              Every garment is individually inspected by our atelier master, folded between acid-free silk paper, enclosed in a reusable branded garment sleeve, and secured inside a rigid archival box.
+              Orders move through the recorded stages Placed, Confirmed, Packed, Dispatched, Out for Delivery, and Delivered. The order timeline is the operational source of truth.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="font-serif text-lg text-[#1A1816] font-semibold tracking-wide">
-              Real-Time Hand-Delivery Tracker
+              Order Status & Tracking
             </h2>
             <p>
-              Once your commission is dispatched, sign in to the SAELYXE account used at checkout and enter your private order reference in the Delivery Tracker. Tracking details are restricted to the authenticated order owner.
+              Once your order is dispatched, sign in with the same customer account used at checkout. The tracking page shows the courier and tracking number recorded for your order. It does not invent GPS or courier telemetry.
             </p>
             <div className="pt-2">
               <button
                 onClick={() => navigateTo({ name: 'track' })}
                 className="px-6 py-3 bg-[#1A1816] text-white text-xs uppercase font-semibold tracking-widest rounded-full hover:bg-black transition-all"
               >
-                Track An Order Now →
+                Track An Order →
               </button>
             </div>
           </section>
         </div>
-
       </div>
     </div>
   );

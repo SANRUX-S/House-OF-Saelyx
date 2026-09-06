@@ -47,6 +47,7 @@ export const CheckoutPage: React.FC = () => {
     formatPrice, 
     selectedCurrency,
     currencies,
+    settings,
     createOrder,
     createPayPalPayment,
     capturePayPalPayment,
@@ -203,7 +204,13 @@ export const CheckoutPage: React.FC = () => {
       : (appliedPromo.discountFixedLKR || 0)
     : 0;
   const discountedSubtotalLKR = Math.max(0, subtotalLKR - discountLKR);
-  const shippingLKR = discountedSubtotalLKR > 50000 ? 0 : 2500;
+  const freeShippingThresholdLKR = Number(settings?.freeShippingThresholdLKR) > 0
+    ? Number(settings?.freeShippingThresholdLKR)
+    : 50000;
+  const standardShippingLKR = Number(settings?.standardShippingLKR) >= 0
+    ? Number(settings?.standardShippingLKR)
+    : 2500;
+  const shippingLKR = discountedSubtotalLKR >= freeShippingThresholdLKR ? 0 : standardShippingLKR;
   const totalLKR = discountedSubtotalLKR + shippingLKR;
   const totalInCurrency = Number((totalLKR * (selectedCurrency?.rateFromLKR || 1)).toFixed(2));
   const paypalCurrency = ['USD', 'EUR', 'GBP'].includes(selectedCurrency?.code || '')
@@ -552,7 +559,7 @@ export const CheckoutPage: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 74 Ward Place, Rosmead Enclave"
+                    placeholder="Street address and unit/apartment"
                     value={address}
                     onChange={e => setAddress(e.target.value)}
                     className="w-full h-[48px] sm:h-[50px] bg-[#FCFBF9] border border-[#E5DDD2] rounded-lg px-4 text-xs text-[#1A1816] placeholder:text-[#AAA094] focus:outline-none focus:border-[#1A1816] focus:bg-white transition-colors"

@@ -34,7 +34,9 @@ const LEGACY_TEST_PRODUCT_IDS = new Set([
   'prod-mtogbgv5',
   'prod-mtogl585',
   'prod-mtogck9y',
-  'prod-mtogokor'
+  'prod-mtogokor',
+  'prod-mtj5ymhb',
+  'prod-mtmk3gor'
 ]);
 const LEGACY_TEST_PRODUCTS_PURGE_MARKER = 'legacy-test-products-purge-20260906-v1';
 const CURRENCIES = [
@@ -1247,13 +1249,16 @@ app.get('/api/admin/maintenance/operational-data', async (req, res) => {
 
     const markerRef = adminDb.collection('maintenance').doc(OPERATIONAL_RESET_MARKER);
     const legacyMarkerRef = adminDb.collection('maintenance').doc(LEGACY_DEMO_PURGE_MARKER);
-    const [markerSnap, legacyMarkerSnap, snapshot] = await Promise.all([
+    const testProductsMarkerRef = adminDb.collection('maintenance').doc(LEGACY_TEST_PRODUCTS_PURGE_MARKER);
+    const [markerSnap, legacyMarkerSnap, testProductsMarkerSnap, snapshot] = await Promise.all([
       markerRef.get(),
       legacyMarkerRef.get(),
+      testProductsMarkerRef.get(),
       getOperationalResetCounts(adminDb)
     ]);
     const markerData = markerSnap.exists ? markerSnap.data() || {} : {};
     const legacyMarkerData = legacyMarkerSnap.exists ? legacyMarkerSnap.data() || {} : {};
+    const testProductsMarkerData = testProductsMarkerSnap.exists ? testProductsMarkerSnap.data() || {} : {};
     const resetCompleted =
       markerData.status === 'completed' ||
       legacyMarkerData.status === 'completed';
@@ -1261,7 +1266,11 @@ app.get('/api/admin/maintenance/operational-data', async (req, res) => {
       ...snapshot,
       resetCompleted,
       completedAt: markerData.completedAt || legacyMarkerData.completedAt || null,
-      cleanupMode: legacyMarkerData.status === 'completed' ? 'legacy-demo-purge' : markerData.status === 'completed' ? 'operational-reset' : null
+      cleanupMode: legacyMarkerData.status === 'completed' ? 'legacy-demo-purge' : markerData.status === 'completed' ? 'operational-reset' : null,
+      legacyDemoCleanupCompleted: legacyMarkerData.status === 'completed',
+      legacyDemoDeletedTotal: Number(legacyMarkerData.deletedTotal || 0),
+      legacyTestProductCleanupCompleted: testProductsMarkerData.status === 'completed',
+      legacyTestProductDeletedCount: Number(testProductsMarkerData.deletedCount || 0)
     });
   } catch (error) {
     return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to inspect operational data.' });
@@ -1381,7 +1390,8 @@ const LEGACY_DEMO_ORDER_NUMBERS = new Set([
 ]);
 
 function isLegacyDemoTimestamp(value: unknown) {
-  if (!value) return true;
+  // Unknown timestamps are never deleted by the legacy migration.
+  if (!value) return false;
   const parsed = Date.parse(String(value));
   return Number.isFinite(parsed) && parsed <= LEGACY_DEMO_CUTOFF_MS;
 }
@@ -1500,6 +1510,9 @@ app.post('/api/admin/maintenance/purge-legacy-demo-fixtures', async (req, res) =
     }
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+    if (safeString(req.body?.confirmation, 80) !== 'RESET_OPERATIONS') {
+      return res.status(400).json({ error: 'Exact legacy cleanup confirmation is required.' });
     }
     if (!(await enforceRateLimit(adminDb, 'legacy-demo-purge:' + token.uid, 4, 60 * 60_000))) {
       return res.status(429).json({ error: 'Legacy cleanup is rate limited. Please wait before retrying.' });

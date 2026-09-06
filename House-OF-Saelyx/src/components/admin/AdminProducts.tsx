@@ -310,12 +310,18 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
               <div>
                 {/* Image Aspect Box */}
                 <div className="relative aspect-4/5 bg-stone-100 overflow-hidden">
-                  <img
-                    src={prod.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80'}
-                    alt={prod.title}
-                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
-                  />
+                  {prod.images?.[0] ? (
+                    <img
+                      src={prod.images[0]}
+                      alt={prod.title}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center px-4 text-center text-[11px] font-semibold text-stone-400">
+                      Product image required
+                    </div>
+                  )}
                   {(prod.hoverImage || prod.images?.[1]) && (
                     <img
                       src={prod.hoverImage || prod.images[1]}

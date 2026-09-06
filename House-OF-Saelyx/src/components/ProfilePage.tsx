@@ -277,7 +277,7 @@ export const ProfilePage: React.FC = () => {
                 <input
                   type="text"
                   disabled={!isEditing}
-                  placeholder="e.g. 74 Ward Place, Suite 4B"
+                  placeholder="Street address and unit/apartment"
                   value={address}
                   onChange={e => setAddress(e.target.value)}
                   className={`w-full h-11 rounded-xl px-3.5 text-xs text-[#1A1816] transition-colors ${
