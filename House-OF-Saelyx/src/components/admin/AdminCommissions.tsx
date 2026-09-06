@@ -119,9 +119,8 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   };
 
   const csvCell = (value: unknown) => {
-    let text = String(value ?? '').replace(/?
-/g, ' ');
-    if (/^[=+-@]/.test(text)) text = `'${text}`;
+    let text = String(value ?? '').replace(/\r?\n/g, ' ');
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
     return `"${text.replace(/"/g, '""')}"`;
   };
 
