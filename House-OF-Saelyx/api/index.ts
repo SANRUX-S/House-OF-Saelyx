@@ -2808,7 +2808,7 @@ app.post('/api/orders/:id/cancellation-request', async (req, res) => {
     });
 
     const updated = await ref.get();
-    const updatedOrder = { id: updated.id, ...updated.data() };
+    const updatedOrder: any = { id: updated.id, ...updated.data() };
     await adminDb.collection('audit_logs').add({
       timestamp: now,
       actor: typeof token.email === 'string' ? token.email : token.uid,
