@@ -225,7 +225,11 @@ assert(api.includes('async function sendOrderStatusEmail(order: any, previousSta
 for (const status of ['confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']) {
   assert(api.includes(status + ':'), `order lifecycle email must support ${status}`);
 }
-assert(api.includes("'Idempotency-Key': `saelyxe-order-status-"), 'order lifecycle emails must be idempotent');
+assert(
+  api.includes('idempotencyKey: `saelyxe-order-status-') &&
+  api.includes("'Idempotency-Key': params.idempotencyKey"),
+  'order lifecycle emails must be idempotent'
+);
 assert(api.includes('await sendOrderStatusEmail(updatedOrder, previousStatus)'), 'status updates must await Resend delivery before the serverless response completes');
 assert(api.includes('lastStatusEmailStatus'), 'order records must persist the last lifecycle email delivery result');
 assert(api.includes('INVENTORY_COMMIT_STATUSES.has(status)'), 'direct active-stage selection must still commit inventory safely');
