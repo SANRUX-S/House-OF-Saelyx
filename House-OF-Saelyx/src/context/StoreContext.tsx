@@ -130,6 +130,7 @@ interface StoreContextType {
   createPayPalPayment: (orderId: string) => Promise<{ paypalOrderId: string; order: Order }>;
   capturePayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
   cancelPayPalOrder: (orderId: string) => Promise<void>;
+  requestOrderCancellation: (orderId: string, reason: string) => Promise<{ success: boolean; error?: string }>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
   hasMoreAdminOrders: boolean;
   loadOlderOrders: () => Promise<boolean>;
@@ -1258,6 +1259,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
   };
 
+  const requestOrderCancellation = async (orderId: string, reason: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetchAuthenticatedPublicApi(`/api/orders/${encodeURIComponent(orderId)}/cancellation-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return { success: false, error: payload?.error || 'Unable to request cancellation.' };
+      const updated = payload as Order;
+      setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to request cancellation.' };
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, status: Order['status'], details: Partial<Order>): Promise<boolean> => {
     try {
       const currentOrder = orders.find(order => order.id === orderId || order.orderNumber === orderId);
@@ -1625,6 +1643,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             createPayPalPayment,
         capturePayPalPayment,
         cancelPayPalOrder,
+        requestOrderCancellation,
         updateOrderStatus,
         hasMoreAdminOrders,
         loadOlderOrders,
