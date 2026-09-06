@@ -295,10 +295,17 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {[...filteredProducts].sort((a, b) =>
             new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-          ).map(prod => (
+          ).map(prod => {
+            const stock = getProductStock(prod);
+            const isAvailable = stock > 0;
+            const completion = getProductCompletion(prod);
+
+            return (
             <div 
               key={prod.id} 
-              className="admin-card p-0! overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all"
+              className={`admin-card p-0! overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all border-2 ${
+                completion.complete ? 'border-emerald-300' : 'border-amber-200'
+              }`}
             >
               <div>
                 {/* Image Aspect Box */}
@@ -324,19 +331,31 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                   )}
                   <div className="absolute top-3 right-3 flex items-center gap-1">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      prod.inStock 
-                        ? 'bg-emerald-500 text-white' 
+                      isAvailable
+                        ? 'bg-emerald-500 text-white'
                         : 'bg-rose-500 text-white'
                     }`}>
-                      {prod.inStock ? `${prod.stockCount ?? 0} in stock` : 'Sold Out'}
+                      {isAvailable ? `${stock} in stock` : 'Sold Out'}
                     </span>
                   </div>
                 </div>
 
                 {/* Garment Details */}
-                <div className="p-4 space-y-1.5">
-                  <div className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
-                    {prod.category} • {prod.sizes?.join(', ')}
+                <div className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
+                      {prod.category} • {prod.sizes?.join(', ')}
+                    </div>
+                    <span
+                      title={completion.complete ? 'Product setup complete' : `Missing: ${completion.missing.join(', ')}`}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider ${
+                        completion.complete
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {completion.complete ? 'Complete' : `${completion.missing.length} missing`}
+                    </span>
                   </div>
                   <h3 className="text-sm font-bold text-stone-900 line-clamp-1">
                     {prod.title}
@@ -376,7 +395,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
