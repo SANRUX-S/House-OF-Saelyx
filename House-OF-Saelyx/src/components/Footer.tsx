@@ -4,11 +4,12 @@ import { useStore } from '../context/StoreContext';
 import { getAppCheckRequestHeaders } from '../lib/firebase';
 
 const cardLogos = [
-  { name: 'Visa', src: 'https://cdn.simpleicons.org/visa/1434CB' },
-  { name: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B' },
-  { name: 'American Express', src: 'https://cdn.simpleicons.org/americanexpress/006FCF' },
-  { name: 'Discover', src: 'https://cdn.simpleicons.org/discover/FF6000' },
-  { name: 'Diners Club', src: 'https://cdn.simpleicons.org/dinersclub/0079BE' },
+  { name: 'Visa', src: 'https://cdn.simpleicons.org/visa/1434CB', max: 'max-w-[39px]' },
+  { name: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B', max: 'max-w-[35px]' },
+  { name: 'American Express', src: 'https://cdn.simpleicons.org/americanexpress/006FCF', max: 'max-w-[36px]' },
+  { name: 'Discover', src: 'https://cdn.simpleicons.org/discover/FF6000', max: 'max-w-[38px]' },
+  { name: 'Diners Club', src: 'https://cdn.simpleicons.org/dinersclub/0079BE', max: 'max-w-[34px]' },
+  { name: 'PayPal', src: 'https://cdn.simpleicons.org/paypal/003087', max: 'max-w-[30px]' },
 ];
 
 export const Footer: React.FC = () => {
@@ -50,7 +51,7 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="w-full bg-[#121110] text-[#E7E7E7] pt-16 pb-10 select-none border-t border-[#2A2928] font-sans [text-rendering:geometricPrecision]">
+    <footer className="w-full bg-[#121110] text-[#E7E7E7] pt-16 pb-10 select-none border-t border-[#2A2928] font-sans">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 space-y-16">
 
         {/* Newsletter */}
@@ -159,57 +160,40 @@ export const Footer: React.FC = () => {
           </div>
 
           <div className="flex flex-col items-center lg:items-end gap-3">
-            <div className="flex items-center justify-center lg:justify-end flex-wrap gap-2.5">
+            <div className="flex items-center justify-center lg:justify-end flex-wrap gap-2">
               <a
                 href="https://www.payhere.lk"
                 target="_blank"
                 rel="noopener noreferrer"
                 title="PayHere"
-                className="h-8 w-[124px] inline-flex items-center justify-center overflow-hidden rounded-[4px] bg-white"
+                aria-label="PayHere"
+                className="h-8 min-w-[70px] px-2.5 inline-flex items-center justify-center rounded-[4px] bg-[#1268D5] text-white text-[11px] font-bold tracking-[-0.02em] leading-none"
               >
-                <img
-                  src="https://www.payhere.lk/downloads/images/payhere_short_banner.png"
-                  alt="PayHere"
-                  loading="eager"
-                  decoding="async"
-                  className="block w-[116px] h-auto max-w-none"
-                />
+                PayHere
               </a>
 
               {cardLogos.map((logo) => (
                 <span
                   key={logo.name}
                   title={logo.name}
-                  className="h-8 w-[46px] inline-flex items-center justify-center rounded-[4px] bg-white"
+                  className="h-8 w-[50px] inline-flex items-center justify-center rounded-[4px] bg-white ring-1 ring-black/5"
                 >
                   <img
                     src={logo.src}
                     alt={logo.name}
                     loading="eager"
                     decoding="async"
-                    className="block max-h-[18px] max-w-[34px] object-contain"
+                    className={`block max-h-[20px] ${logo.max} object-contain`}
                   />
                 </span>
               ))}
 
               <span
                 title="Payzy"
-                className="h-8 min-w-[58px] px-2 inline-flex items-center justify-center rounded-[4px] bg-white text-[#111111] text-[11px] font-bold tracking-[-0.02em]"
+                aria-label="Payzy"
+                className="h-8 min-w-[62px] px-2.5 inline-flex items-center justify-center rounded-[4px] bg-white text-[#111111] text-[11px] font-bold tracking-[-0.02em] leading-none ring-1 ring-black/5"
               >
                 Payzy
-              </span>
-
-              <span
-                title="PayPal"
-                className="h-8 w-[46px] inline-flex items-center justify-center rounded-[4px] bg-white"
-              >
-                <img
-                  src="https://cdn.simpleicons.org/paypal/003087"
-                  alt="PayPal"
-                  loading="eager"
-                  decoding="async"
-                  className="block max-h-[18px] max-w-[32px] object-contain"
-                />
               </span>
             </div>
 
