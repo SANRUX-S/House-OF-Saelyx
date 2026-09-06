@@ -143,7 +143,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search orders, clients, or items..."
+              placeholder="Search orders, customers, or products..."
               className="table-search-input"
             />
           </div>
@@ -225,7 +225,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
               {filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-12 text-stone-400 text-xs">
-                    No commission records match your filter criteria.
+                    No orders match your current search or filter.
                   </td>
                 </tr>
               ) : (
@@ -244,12 +244,12 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       <td>
                         <div className="table-user-cell">
                           <div className="table-user-avatar bg-stone-100 text-stone-800 flex items-center justify-center font-bold text-xs">
-                            {order.customerName?.slice(0, 2) || 'VP'}
+                            {order.customerName?.slice(0, 2).toUpperCase() || '—'}
                           </div>
                           <div>
-                            <div className="table-user-name">{order.customerName || 'VIP Patron'}</div>
+                            <div className="table-user-name">{order.customerName || 'Missing customer data'}</div>
                             <div className="table-user-sub">
-                              {order.city || 'Colombo'} • {order.phone}
+                              {order.city || '—'}{order.phone ? ` • ${order.phone}` : ''}
                             </div>
                           </div>
                         </div>
@@ -258,10 +258,10 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       {/* Product Info */}
                       <td>
                         <div className="text-xs font-semibold text-stone-900 line-clamp-1">
-                          {firstItem?.title || 'Silhouette Garment'}
+                          {firstItem?.title || 'Unknown product'}
                         </div>
                         <div className="text-[11px] text-stone-400">
-                          Size: {firstItem?.size || 'Standard'} {extraItemsCount > 0 ? `(+${extraItemsCount} more)` : ''}
+                          Size: {firstItem?.size || '—'} {extraItemsCount > 0 ? `(+${extraItemsCount} more)` : ''}
                         </div>
                       </td>
 
@@ -271,7 +271,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                           {order.courierName || 'Pending assignment'}
                         </div>
                         <div className="text-[11px] text-stone-500 font-mono">
-                          {order.trackingNumber || 'Pending Allocation'}
+                          {order.trackingNumber || '—'}
                         </div>
                       </td>
 
@@ -294,7 +294,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric'
-                        }) : 'Recent'}
+                        }) : '—'}
                       </td>
 
                       {/* Status with Dot */}
@@ -315,10 +315,10 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                         <button
                           onClick={() => handleOpenDispatchModal(order)}
                           className="btn-saelyxe-primary py-1.5! px-3! text-xs"
-                          title="Update Logistics & Dispatch"
+                          title="Manage order fulfillment"
                         >
                           <Truck className="w-3.5 h-3.5" />
-                          <span>Dispatch</span>
+                          <span>Manage</span>
                         </button>
                       </td>
                     </tr>
@@ -331,7 +331,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
 
         {/* Footer Summary */}
         <div className="p-4 bg-[#FAFBFB] border-t border-stone-100 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
-          <span>Showing <strong>{filteredOrders.length}</strong> loaded commission records</span>
+          <span>Showing <strong>{filteredOrders.length}</strong> loaded orders</span>
           {hasMoreOrders ? (
             <button
               type="button"
@@ -358,7 +358,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
             <div className="p-5 border-b border-stone-100 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-extrabold text-stone-900">
-                  Update Commission Dispatch
+                  Update Order
                 </h3>
                 <p className="text-xs text-stone-500">
                   Order #{selectedOrder.orderNumber} • {selectedOrder.customerName}
@@ -380,7 +380,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
               </div>
 
               <div>
-                <label className="form-label-custom">Commission Status</label>
+                <label className="form-label-custom">Order Status</label>
                 <select
                   value={newStatus}
                   onChange={e => setNewStatus(e.target.value as OrderStatus)}
@@ -455,7 +455,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   disabled={isUpdating}
                   className="btn-saelyxe-primary"
                 >
-                  {isUpdating ? 'Updating...' : 'Save & Transmit Dispatch Status'}
+                  {isUpdating ? 'Updating...' : 'Save Order Update'}
                 </button>
               </div>
             </form>
