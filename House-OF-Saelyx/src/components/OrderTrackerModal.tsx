@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { X, Search, CheckCircle2, Clock, Truck, Package, MapPin, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Order, OrderStatus } from '../types';
+import { auth, getAppCheckRequestHeaders } from '../lib/firebase';
 
 export const OrderTrackerModal: React.FC = () => {
-  const { isTrackerOpen, setIsTrackerOpen, formatPrice } = useStore();
-  const [query, setQuery] = useState('SLX-94821');
+  const { isTrackerOpen, setIsTrackerOpen, user, setIsAuthOpen } = useStore();
+  const [query, setQuery] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,16 +15,36 @@ export const OrderTrackerModal: React.FC = () => {
     e.preventDefault();
     if (!query.trim()) return;
 
+    if (!auth.currentUser || !user) {
+      setOrder(null);
+      setError('');
+      setIsTrackerOpen(false);
+      setIsAuthOpen(true);
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(query.trim())}`);
+      const token = await auth.currentUser.getIdToken();
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const headers = new Headers({
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json'
+      });
+      Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
+
+      const res = await fetch(`/api/orders/${encodeURIComponent(query.trim())}`, {
+        method: 'GET',
+        headers,
+        cache: 'no-store'
+      });
       if (res.ok) {
         const data = await res.json();
         setOrder(data);
       } else {
         setOrder(null);
-        setError('No order found matching this reference or phone number. Please verify and try again.');
+        setError('No order belonging to this account was found with that reference.');
       }
     } catch (err) {
       setError('Unable to fetch order status. Please check your connection.');
@@ -88,7 +109,7 @@ export const OrderTrackerModal: React.FC = () => {
               <div className="relative flex-1">
                 <input
                   type="text"
-                  placeholder="Enter Order # (e.g. SLX-94821) or Phone"
+                  placeholder="Enter your SOX order reference"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-base sm:text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:border-white min-h-[44px]"
@@ -138,8 +159,8 @@ export const OrderTrackerModal: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
                       <span className="text-neutral-400 block text-[10px] uppercase tracking-wider">Recipient:</span>
-                      <span className="text-white font-medium">{order.customerName}</span>
-                      <p className="text-[11px] text-neutral-400 mt-0.5">{order.address}, {order.city}</p>
+                      <span className="text-white font-medium">{order.city || 'Destination protected'}</span>
+                      <p className="text-[11px] text-neutral-400 mt-0.5">{order.country || 'Private delivery region'}</p>
                     </div>
                     <div>
                       <span className="text-neutral-400 block text-[10px] uppercase tracking-wider">Hand-Delivery ETA:</span>

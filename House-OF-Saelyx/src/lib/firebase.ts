@@ -5,7 +5,7 @@ import {
   FacebookAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 
-  sendPasswordResetEmail,
+  sendEmailVerification,
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
   updateProfile,
@@ -13,7 +13,10 @@ import {
   User as FirebaseUser,
   RecaptchaVerifier,
   signInWithPhoneNumber,
-  ConfirmationResult
+  ConfirmationResult,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
 } from 'firebase/auth';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import {
@@ -30,7 +33,6 @@ const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'gen-lang-client-0800900976.firebaseapp.com',
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'gen-lang-client-0800900976.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '915679491947',
   oAuthClientId: import.meta.env.VITE_FIREBASE_OAUTH_CLIENT_ID || '',
 };
@@ -88,29 +90,61 @@ const ADMIN_ROLES: Record<string, UserRole> = {
   'saelyx.co+admin@gmail.com': 'admin'
 };
 
-export function getConfiguredAdminRole(email?: string | null): UserRole | undefined {
-  return email ? ADMIN_ROLES[email.toLowerCase()] : undefined;
+export function getConfiguredAdminRole(email?: string | null, emailVerified = false): UserRole | undefined {
+  return email && emailVerified ? ADMIN_ROLES[email.toLowerCase()] : undefined;
 }
 
-export async function verifyAdminCredentials(username: string, pass: string): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
-  const normalizedEmail = username.trim().toLowerCase();
-
+export async function verifyAdminCredentials(username: string, pass: string, rememberMe = true): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
   if (!isFirebaseConfigured) {
     return { valid: false, error: 'Firebase administrator authentication is not configured.' };
   }
   try {
+    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
     const credential = await signInWithEmailAndPassword(auth, username.trim(), pass);
-    const token = await credential.user.getIdTokenResult(true);
-    const role = token.claims.role as UserRole | undefined;
     const adminDoc = await getDoc(doc(db, 'admins', credential.user.uid));
     const adminData = adminDoc.exists() ? adminDoc.data() : null;
-    const adminDocRole = adminData?.role as UserRole | undefined;
-    const configuredRole = credential.user.email ? ADMIN_ROLES[credential.user.email.toLowerCase()] : undefined;
-    const isAdmin = token.claims.admin === true || role === 'admin' || role === 'super_admin' || adminDoc.exists() || Boolean(configuredRole);
+    const email = credential.user.email?.toLowerCase() || '';
+    const adminRecordMatches =
+      credential.user.emailVerified &&
+      adminData?.status === 'active' &&
+      typeof adminData?.email === 'string' &&
+      adminData.email.toLowerCase() === email;
+    const adminDocRole: UserRole | undefined = adminRecordMatches
+      ? adminData?.role === 'super_admin'
+        ? 'super_admin'
+        : adminData?.role === 'admin'
+          ? 'admin'
+          : undefined
+      : undefined;
+    const allowlistedRole = email ? ADMIN_ROLES[email] : undefined;
+    const configuredRole = credential.user.emailVerified ? allowlistedRole : undefined;
+    const trustedRole = configuredRole || adminDocRole;
 
-    if (!isAdmin) {
+    if (!trustedRole) {
+      if (allowlistedRole && !credential.user.emailVerified) {
+        try {
+          await sendEmailVerification(credential.user);
+        } catch {
+          // A verification email may already have been sent recently.
+        }
+        await fbSignOut(auth);
+        return {
+          valid: false,
+          error: 'Administrator email verification is required. Check the administrator inbox, verify the address, then sign in again.'
+        };
+      }
+
+      if (adminData?.status === 'invited') {
+        await fbSignOut(auth);
+        return { valid: false, error: 'Administrator invitation is pending activation by a Super Admin after email verification.' };
+      }
+      if (adminData?.status === 'revoked' || adminData?.status === 'suspended') {
+        await fbSignOut(auth);
+        return { valid: false, error: 'Administrator access has been revoked or suspended.' };
+      }
+
       await fbSignOut(auth);
-      return { valid: false, error: 'Access denied. This Firebase account is not an administrator.' };
+      return { valid: false, error: 'Access denied. This Firebase account is not an active administrator.' };
     }
 
     return {
@@ -119,9 +153,8 @@ export async function verifyAdminCredentials(username: string, pass: string): Pr
         uid: credential.user.uid,
         name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Atelier Operator',
         email: credential.user.email || '',
-        role: role || adminDocRole || configuredRole || 'admin',
-        joinedDate: new Date().toISOString().slice(0, 10),
-        ordersCount: (role || adminDocRole) === 'super_admin' ? 99 : 45
+        role: trustedRole,
+        joinedDate: new Date().toISOString().slice(0, 10)
       }
     };
 
@@ -135,14 +168,21 @@ export async function verifyAdminCredentials(username: string, pass: string): Pr
 
 export async function sendAdminPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await sendPasswordResetEmail(auth, email.trim());
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    const response = await fetch('/api/admin/password-reset', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...appCheckHeaders
+      },
+      body: JSON.stringify({ email: email.trim().toLowerCase() })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: payload?.error || 'Unable to request a password reset right now.' };
+    }
     return { success: true };
-  } catch (err: any) {
-    return {
-      success: false,
-      error: err?.code === 'auth/user-not-found'
-        ? 'No Firebase account was found for that email address.'
-        : 'Unable to send the Firebase password reset email.'
-    };
+  } catch {
+    return { success: false, error: 'Unable to request a password reset right now.' };
   }
 }

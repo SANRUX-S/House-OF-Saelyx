@@ -160,7 +160,7 @@ export const ProductModal: React.FC = () => {
                       <span>EMAIL ME WHEN BACK IN STOCK</span>
                     </button>
                     <p className="text-[10px] text-neutral-500 text-center font-mono">
-                      ⚡ Automated notification via Firebase Cloud Functions on replenishment
+                      ⚡ Automated email notification via SAELYXE Resend dispatch on replenishment
                     </p>
                   </div>
                 ) : (

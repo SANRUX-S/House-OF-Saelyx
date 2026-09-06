@@ -37,7 +37,7 @@ Before promoting a deployment to production:
 1. Configure the Firebase browser variables and set `VITE_FIREBASE_ENABLE_REALTIME=true`.
 2. Configure the server-only Firebase Admin variables: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`.
 3. Add `saelyxe.com` and `www.saelyxe.com` to Firebase Authentication authorized domains and enable only the sign-in providers used by the UI.
-4. Deploy `firestore.rules` and `storage.rules` after reviewing the target Firebase project.
-5. For transactional email, configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in Vercel. For Firebase Functions, set the same values with Firebase Functions secrets before deploying functions.
+4. Deploy `firestore.rules` after reviewing the target Firebase project. SAELYXE media uploads use signed Cloudinary uploads; Firebase Storage is not required.
+5. For transactional email and staff invitations, configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in Vercel. Firebase Functions are intentionally not used; restock delivery runs through the protected Vercel API.
 6. Do not mark PayPal orders as paid until the payment has been verified server-side against the linked PayPal order and completed capture.
 7. Run `npm run lint` and `npm run build` before merging production changes.

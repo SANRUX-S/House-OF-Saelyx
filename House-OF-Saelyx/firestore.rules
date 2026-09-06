@@ -10,24 +10,34 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function hasVerifiedEmail() {
+      return isAuthenticated() && request.auth.token.email_verified == true && request.auth.token.email is string;
+    }
+
+    function hasActiveAdminRecord() {
+      return hasVerifiedEmail() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'active' &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.email == request.auth.token.email;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.admin == true ||
-        request.auth.token.role == 'admin' ||
-        request.auth.token.role == 'super_admin' ||
+      return hasVerifiedEmail() && (
         request.auth.token.email == 'saelyx.co@gmail.com' ||
         request.auth.token.email == 'saelyx.co+super@gmail.com' ||
         request.auth.token.email == 'saelyx.co+admin@gmail.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        (hasActiveAdminRecord() && (
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin' ||
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin'
+        ))
       );
     }
 
     function isSuperAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.role == 'super_admin' ||
+      return hasVerifiedEmail() && (
         request.auth.token.email == 'saelyx.co@gmail.com' ||
         request.auth.token.email == 'saelyx.co+super@gmail.com' ||
-        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        (hasActiveAdminRecord() &&
           get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin')
       );
     }
@@ -38,34 +48,46 @@ service cloud.firestore {
 
     match /products/{productId} {
       allow read: if true;
-      allow create, update: if isAdmin();
-      allow delete: if isSuperAdmin();
+      // Product mutations are validated and audited by the trusted API.
+      allow create, update, delete: if false;
     }
 
     match /settings/{settingId} {
       allow read: if true;
-      allow create, update, delete: if isSuperAdmin();
+      // Settings mutations are Super-Admin validated by the trusted API.
+      allow create, update, delete: if false;
     }
 
     match /orders/{orderId} {
       // Orders are created by the trusted server/API using Firebase Admin SDK.
       allow create: if false;
       allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow update: if isAdmin() || (
+      allow update: if (
         isAuthenticated() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'shippingAddress', 'customerName', 'phone', 'address', 'city', 'postalCode', 'country'
         ])
       );
-      allow delete: if isSuperAdmin();
+      // Operational order status/refund mutations are server-only.
+      allow delete: if false;
     }
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.uid == request.auth.uid;
+      allow create: if isOwner(userId) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.role == 'patron' &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'name', 'displayName', 'email', 'phoneNumber', 'role', 'avatarUrl', 'photoURL',
+          'address', 'city', 'postalCode', 'country', 'savedAddresses', 'authProvider',
+          'joinedDate', 'ordersCount', 'createdAt', 'updatedAt', 'lastLoginAt'
+        ]);
       allow update: if isAdmin() || (
         isOwner(userId) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name', 'displayName', 'photoURL', 'avatarUrl', 'phoneNumber', 'address', 'city',
           'postalCode', 'country', 'savedAddresses', 'updatedAt', 'lastLoginAt'
@@ -75,28 +97,31 @@ service cloud.firestore {
     }
 
     match /subscribers/{subscriberId} {
-      // Public writes go through the trusted Vercel API with abuse protection.
-      allow create, read, update, delete: if isAdmin();
+      allow read: if isAdmin();
+      // Subscription mutations are trusted-server only.
+      allow create, update, delete: if false;
     }
 
     match /stock_notifications/{notificationId} {
-      // Public subscriptions are server-created; admins retain full panel access.
-      allow create, read, update, delete: if isAdmin();
+      allow read: if isAdmin();
+      // Waitlist creation, delivery state changes, and deletion are trusted-server only.
+      allow create, update, delete: if false;
     }
 
     match /messages/{messageId} {
-      // Public writes go through the trusted Vercel API; admin workflow is unrestricted.
-      allow create, read, update, delete: if isAdmin();
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /concierge_inquiries/{inquiryId} {
-      // Public writes go through the trusted Vercel API; admin workflow is unrestricted.
-      allow create, read, update, delete: if isAdmin();
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /staff/{staffId} {
       allow read: if isStaff();
-      allow create, update, delete: if isSuperAdmin();
+      // Provisioning and revocation are server-only so Auth and Firestore stay consistent.
+      allow create, update, delete: if false;
     }
 
     match /admins/{adminId} {
@@ -105,8 +130,9 @@ service cloud.firestore {
     }
 
     match /audit_logs/{logId} {
-      allow create, read: if isAdmin();
-      allow update, delete: if isSuperAdmin();
+      allow read: if isAdmin();
+      // Audit entries are generated by the trusted server from verified tokens.
+      allow create, update, delete: if false;
     }
 
     match /security_rate_limits/{docId} {
@@ -114,6 +140,10 @@ service cloud.firestore {
     }
 
     match /order_idempotency/{docId} {
+      allow read, write: if false;
+    }
+
+    match /restock_dispatch_locks/{docId} {
       allow read, write: if false;
     }
   }

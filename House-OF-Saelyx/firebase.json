@@ -3,10 +3,13 @@
     "rules": "firestore.rules",
     "database": "ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41"
   },
-  "storage": {
-    "rules": "storage.rules"
-  },
-  "functions": {
-    "source": "functions"
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    }
   }
 }

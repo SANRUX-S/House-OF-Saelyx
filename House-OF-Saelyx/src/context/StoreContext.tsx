@@ -38,11 +38,11 @@ import {
   setDoc, 
   getDocs, 
   updateDoc, 
-  deleteDoc, 
   onSnapshot, 
   query, 
   orderBy,
   where,
+  limit,
   addDoc,
   arrayUnion
 } from 'firebase/firestore';
@@ -120,7 +120,7 @@ interface StoreContextType {
   loginWithFacebook: () => Promise<boolean>;
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
-  loginAdmin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  loginAdmin: (username: string, pass: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
 
@@ -131,17 +131,18 @@ interface StoreContextType {
   capturePayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
   cancelPayPalOrder: (orderId: string) => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
+  hasMoreAdminOrders: boolean;
+  loadOlderOrders: () => Promise<boolean>;
   
   // Contact & Messages
   messages: ContactMessage[];
   sendMessage: (msg: Omit<ContactMessage, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
   updateMessageStatus: (id: string, status: 'unread' | 'read' | 'replied', notes?: string) => Promise<boolean>;
 
-  // Back-in-Stock Notifications (Cloud Functions)
+  // Back-in-Stock Notifications (Vercel API + Resend)
   stockNotifications: StockNotification[];
   subscribeToRestock: (entry: Omit<StockNotification, 'id' | 'createdAt' | 'notified' | 'status'>) => Promise<{ success: boolean; id?: string; error?: string }>;
-  deleteStockNotification: (id: string) => Promise<boolean>;
-  triggerRestockCloudFunction: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
+  triggerRestockDispatch: (productId?: string) => Promise<{ success: boolean; productTitle: string; dispatchedCount: number; processedCount?: number; recipients: string[]; executionId: string; error?: string }>;
   isRestockModalOpen: boolean;
   setIsRestockModalOpen: (open: boolean) => void;
   restockModalProduct: Product | null;
@@ -163,8 +164,10 @@ interface StoreContextType {
 
   // Staff
   staffList: AdminStaff[];
-  addStaff: (staff: Omit<AdminStaff, 'id' | 'createdAt' | 'status'> & { password?: string }) => Promise<boolean>;
-  deleteStaff: (id: string) => Promise<boolean>;
+  addStaff: (staff: Omit<AdminStaff, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
+  activateStaff: (id: string) => Promise<{ success: boolean; error?: string }>;
+  updateStaffRole: (id: string, role: 'admin' | 'super_admin') => Promise<{ success: boolean; error?: string }>;
+  deleteStaff: (id: string) => Promise<{ success: boolean; error?: string }>;
 
   // Settings
   updateSettings: (newSettings: Partial<DropSettings>) => Promise<boolean>;
@@ -183,6 +186,11 @@ const DEFAULT_CURRENCY: CurrencyRate = {
 };
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
+
+function cryptoSafeClientId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 // Helper to parse current window location into AppRoute
 function parseRouteFromUrl(): AppRoute {
@@ -261,6 +269,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [hasMoreAdminOrders, setHasMoreAdminOrders] = useState(true);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [staffList, setStaffList] = useState<AdminStaff[]>([]);
@@ -294,7 +303,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
-  const [trackingOrderId, setTrackingOrderId] = useState<string>('SLX-94821');
+  const [trackingOrderId, setTrackingOrderId] = useState<string>('');
 
   // Back-in-Stock Waitlist & Modal State
   const [stockNotifications, setStockNotifications] = useState<StockNotification[]>([]);
@@ -372,67 +381,92 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user]);
 
-  // Listen to Firebase Auth state
+  // Listen to Firebase Auth state. Privileged roles come only from trusted
+  // Firebase custom claims, the protected admins collection, or the configured
+  // administrator allowlist — never from the customer-editable users document.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        try {
-          const configuredAdminRole = getConfiguredAdminRole(fbUser.email);
-          // Check Firestore user doc
-          const userDocRef = doc(db, 'users', fbUser.uid);
-          const snap = await getDoc(userDocRef);
+      if (!fbUser) {
+        setUser(null);
+        setOrders([]);
+        setMessages([]);
+        setAuditLogs([]);
+        setStaffList([]);
+        setStockNotifications([]);
+        setHasMoreAdminOrders(true);
+        return;
+      }
 
-          if (snap.exists()) {
-            const data = snap.data();
-            setUser({
-              uid: fbUser.uid,
-              name: data.name || fbUser.displayName || 'SAELYXE Patron',
-              email: fbUser.email || data.email || '',
-              phoneNumber: fbUser.phoneNumber || data.phoneNumber || '',
-              role: configuredAdminRole || data.role || 'patron',
-              avatarUrl: fbUser.photoURL || data.avatarUrl || undefined,
-              address: data.address || '',
-              city: data.city || '',
-              postalCode: data.postalCode || '',
-              country: data.country || 'Sri Lanka',
-              authProvider: data.authProvider || 'google',
-              joinedDate: data.joinedDate || new Date().toISOString()
-            });
-          } else {
-            const newUser: AppUser = {
-              uid: fbUser.uid,
-              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
-              email: fbUser.email || '',
-              phoneNumber: fbUser.phoneNumber || '',
-              role: configuredAdminRole || 'patron',
-              address: '',
-              city: '',
-              postalCode: '',
-              country: 'Sri Lanka',
-              authProvider: 'google',
-              joinedDate: new Date().toISOString(),
-              ordersCount: 0
-            };
-            if (fbUser.photoURL) newUser.avatarUrl = fbUser.photoURL;
-            await setDoc(userDocRef, newUser);
-            setUser(newUser);
-          }
-        } catch (e) {
-          console.warn('Firestore user fetch note:', e);
+      try {
+        const configuredAdminRole = getConfiguredAdminRole(fbUser.email, fbUser.emailVerified);
+        const [userSnap, adminSnap] = await Promise.all([
+          getDoc(doc(db, 'users', fbUser.uid)),
+          getDoc(doc(db, 'admins', fbUser.uid))
+        ]);
+
+        const adminData = adminSnap.exists() ? adminSnap.data() : null;
+        const email = fbUser.email?.toLowerCase() || '';
+        const activeAdminRecord =
+          fbUser.emailVerified &&
+          adminData?.status === 'active' &&
+          typeof adminData?.email === 'string' &&
+          adminData.email.toLowerCase() === email;
+        const adminDocRole: UserRole | undefined = activeAdminRecord
+          ? adminData?.role === 'super_admin'
+            ? 'super_admin'
+            : adminData?.role === 'admin'
+              ? 'admin'
+              : undefined
+          : undefined;
+        const trustedRole: UserRole = configuredAdminRole || adminDocRole || 'patron';
+
+        if (userSnap.exists()) {
+          const data = userSnap.data();
           setUser({
             uid: fbUser.uid,
-            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
-            email: fbUser.email || '',
-            phoneNumber: fbUser.phoneNumber || '',
-            role: 'patron',
-            country: 'Sri Lanka'
+            name: data.name || fbUser.displayName || 'SAELYXE Patron',
+            email: fbUser.email || data.email || '',
+            phoneNumber: fbUser.phoneNumber || data.phoneNumber || '',
+            role: trustedRole,
+            avatarUrl: fbUser.photoURL || data.avatarUrl || undefined,
+            address: data.address || '',
+            city: data.city || '',
+            postalCode: data.postalCode || '',
+            country: data.country || 'Sri Lanka',
+            authProvider: data.authProvider || 'google',
+            joinedDate: data.joinedDate || new Date().toISOString()
           });
+          return;
         }
-      } else {
-        // Explicitly clear non-admin user on signOut
-        if (userRef.current && userRef.current.role !== 'super_admin' && userRef.current.role !== 'admin') {
-          setUser(null);
-        }
+
+        const profileRecord: AppUser = {
+          uid: fbUser.uid,
+          name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
+          email: fbUser.email || '',
+          phoneNumber: fbUser.phoneNumber || '',
+          role: 'patron',
+          address: '',
+          city: '',
+          postalCode: '',
+          country: 'Sri Lanka',
+          authProvider: 'google',
+          joinedDate: new Date().toISOString(),
+          ordersCount: 0
+        };
+        if (fbUser.photoURL) profileRecord.avatarUrl = fbUser.photoURL;
+
+        await setDoc(doc(db, 'users', fbUser.uid), profileRecord);
+        setUser({ ...profileRecord, role: trustedRole });
+      } catch (e) {
+        console.warn('Firebase user session hydration note:', e);
+        setUser({
+          uid: fbUser.uid,
+          name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
+          email: fbUser.email || '',
+          phoneNumber: fbUser.phoneNumber || '',
+          role: getConfiguredAdminRole(fbUser.email, fbUser.emailVerified) || 'patron',
+          country: 'Sri Lanka'
+        });
       }
     });
 
@@ -494,7 +528,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSettings(setData);
         try {
           localStorage.setItem('saelyx_settings', JSON.stringify(setData));
-        } catch (e) {}
+        } catch (e) { console.warn('Non-fatal store operation note:', e); }
       }
 
     } catch (e) {
@@ -526,6 +560,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const token = currentUser ? await currentUser.getIdToken() : null;
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
     return fetch(input, { ...init, headers });
   }, []);
 
@@ -543,25 +579,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as Product);
         });
-        if (list.length > 0) {
-          setProducts(list);
-          setIsLoadingProducts(false);
-        } else {
-          try {
-            const res = await fetch('/api/products');
-            if (res.ok) {
-              const data: Product[] = await res.json();
-              for (const p of data) {
-                const pWithSlug = {
-                  ...p,
-                  slug: p.slug || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-                };
-                await setDoc(doc(db, 'products', p.id || `prod-${Date.now().toString(36)}`), pWithSlug);
-              }
-            }
-          } catch (e) {}
-          setIsLoadingProducts(false);
-        }
+        setProducts(list);
+        setIsLoadingProducts(false);
       }, (err) => {
         console.warn('Products listener note:', err);
         setIsLoadingProducts(false);
@@ -598,7 +617,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const colRef = collection(db, 'orders');
       const isAdminUser = user.role === 'admin' || user.role === 'super_admin';
       const ordersQuery = isAdminUser
-        ? query(colRef, orderBy('createdAt', 'desc'))
+        ? query(colRef, orderBy('createdAt', 'desc'), limit(250))
         : query(colRef, where('userId', '==', user.uid));
 
       const unsub = onSnapshot(ordersQuery, async (snap) => {
@@ -607,7 +626,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           list.push({ id: docSnap.id, ...docSnap.data() } as Order);
         });
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setOrders(list);
+        if (isAdminUser) {
+          setOrders(previous => {
+            const merged = new Map(previous.map(order => [order.id, order]));
+            list.forEach(order => merged.set(order.id, order));
+            return Array.from(merged.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          });
+          setHasMoreAdminOrders(list.length >= 250);
+        } else {
+          setOrders(list);
+          setHasMoreAdminOrders(false);
+        }
 
         for (const order of list) {
           const paypalOrderId = order.paymentProviderReference || '';
@@ -669,7 +698,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Orders listener note:', err);
       });
       return () => unsub();
-    } catch (e) {}
+    } catch (e) { console.warn('Non-fatal store operation note:', e); }
   }, [fetchAdminApi, fetchAuthenticatedPublicApi, user?.role, user?.uid]);
 
   // 3. Stock Notifications real-time listener (Waitlists)
@@ -677,63 +706,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const stockRef = collection(db, 'stock_notifications');
-      const unsub = onSnapshot(stockRef, async (snap) => {
+      const unsub = onSnapshot(query(stockRef, orderBy('createdAt', 'desc'), limit(250)), async (snap) => {
         const list: StockNotification[] = [];
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as StockNotification);
         });
-        if (list.length > 0) {
-          setStockNotifications(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        } else {
-          const initialStock: Omit<StockNotification, 'id'>[] = [
-            {
-              productId: 'prod-05',
-              productTitle: 'Black Jeans',
-              productSlug: 'black-jeans',
-              productImage: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
-              selectedSize: '32',
-              customerEmail: 'alexandra.vance@couturemail.com',
-              customerName: 'Alexandra Vance',
-              phone: '+94 77 982 1004',
-              channel: 'both',
-              notified: false,
-              status: 'pending',
-              createdAt: '2026-08-28T14:22:00.000Z'
-            },
-            {
-              productId: 'prod-05',
-              productTitle: 'Black Jeans',
-              productSlug: 'black-jeans',
-              productImage: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
-              selectedSize: '34',
-              customerEmail: 'dmitri.ivanov@atelierpatron.org',
-              customerName: 'Dmitri Ivanov',
-              channel: 'email',
-              notified: false,
-              status: 'pending',
-              createdAt: '2026-08-30T09:15:00.000Z'
-            },
-            {
-              productId: 'prod-02',
-              productTitle: 'Navy Hoodie',
-              productSlug: 'navy-hoodie',
-              productImage: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
-              selectedSize: 'XL',
-              customerEmail: 'elena.rostova@saelyxe.vip',
-              customerName: 'Elena Rostova',
-              channel: 'email',
-              notified: true,
-              notifiedAt: '2026-08-31T18:40:12.000Z',
-              status: 'sent',
-              createdAt: '2026-08-27T11:00:00.000Z'
-            }
-          ];
-          for (const item of initialStock) {
-            try {
-              await addDoc(stockRef, item);
-            } catch (e) {}
-          }
-        }
+        setStockNotifications(
+          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
       }, (err) => {
         console.warn('Firestore stock_notifications listener note:', err);
       });
@@ -749,51 +729,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const colRef = collection(db, 'concierge_inquiries');
-      const unsub = onSnapshot(colRef, async (snap) => {
+      const unsub = onSnapshot(query(colRef, orderBy('createdAt', 'desc'), limit(250)), async (snap) => {
         const list: ContactMessage[] = [];
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as ContactMessage);
         });
-        if (list.length > 0) {
-          setMessages(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        } else {
-          const initialMsgs = [
-            {
-              id: 'msg-01',
-              name: 'Lady Vivienne Sterling',
-              email: 'vivienne.sterling@kensington.co.uk',
-              phone: '+44 7700 900077',
-              topic: 'bespoke_sizing' as const,
-              orderReference: 'SLX-94822',
-              message: 'Requesting bespoke inseam adjustment for the Signature Drape Trousers for an evening gala.',
-              createdAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-              status: 'unread' as const
-            },
-            {
-              id: 'msg-02',
-              name: 'Dr. Rohan Jayasinghe',
-              email: 'rohan.j@colombohealth.lk',
-              phone: '+94 77 987 6543',
-              topic: 'order_inquiry' as const,
-              orderReference: 'SLX-94821',
-              message: 'Inquiring about hand-delivery arrival time at Cinnamon Gardens residence this afternoon.',
-              createdAt: new Date(Date.now() - 10 * 3600 * 1000).toISOString(),
-              status: 'read' as const,
-              replyNotes: 'Contacted courier driver; estimated hand delivery by 4:15 PM.'
-            }
-          ];
-          for (const m of initialMsgs) {
-            try {
-              await setDoc(doc(db, 'concierge_inquiries', m.id), m);
-              await setDoc(doc(db, 'messages', m.id), m);
-            } catch (e) {}
-          }
-        }
+        setMessages(
+          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
       }, (err) => {
         console.warn('Concierge inquiries listener note:', err);
       });
       return () => unsub();
-    } catch (e) {}
+    } catch (e) { console.warn('Non-fatal store operation note:', e); }
   }, [user?.role]);
 
   // 5. Staff real-time listener
@@ -807,38 +755,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           list.push({ id: docSnap.id, ...docSnap.data() } as AdminStaff);
         });
 
-        // First-time bootstrap: if absolutely empty, provision BOTH default staff profiles
-        if (list.length === 0) {
-          const superStaff = {
-            id: 'staff-001',
-            username: 'saelyx_super',
-            displayName: 'Atelier Director General',
-            email: 'superadmin@saelyxe.com',
-            role: 'super_admin' as const,
-            status: 'active' as const,
-            createdAt: '2026-01-01T00:00:00.000Z'
-          };
-          const atelierStaff = {
-            id: 'staff-002',
-            username: 'saelyx_admin',
-            displayName: 'Lead Logistics & Inventory Officer',
-            email: 'operations@saelyxe.com',
-            role: 'admin' as const,
-            status: 'active' as const,
-            createdAt: '2026-02-15T00:00:00.000Z'
-          };
-          try {
-            await setDoc(doc(db, 'staff', superStaff.id), superStaff);
-            await setDoc(doc(db, 'staff', atelierStaff.id), atelierStaff);
-          } catch (e) {
-            console.error('Error bootstrapping default staff:', e);
-          }
-          return;
-        }
 
-        // Filter out deprecated staff-01 dummy if present
-        const filteredList = list.filter(s => s.id !== 'staff-01');
-        setStaffList(filteredList.length > 0 ? filteredList : list);
+        setStaffList(list);
       }, (err) => {
         console.warn('Staff listener note:', err);
       });
@@ -848,44 +766,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user?.role]);
 
-  // 6. Settings real-time listener
-  useEffect(() => {
-    if (!isFirebaseConfigured) return;
-    try {
-      const docRef = doc(db, 'settings', 'drop_config');
-      const unsub = onSnapshot(docRef, async (docSnap) => {
-        if (docSnap.exists()) {
-          const newSettings = docSnap.data() as DropSettings;
-          setSettings(newSettings);
-          try {
-            localStorage.setItem('saelyx_settings', JSON.stringify(newSettings));
-          } catch (e) {}
-        } else {
-          try {
-            const res = await fetchAdminApi('/api/settings');
-            if (res.ok) {
-              const data = await res.json();
-              setSettings(data);
-              try {
-                localStorage.setItem('saelyx_settings', JSON.stringify(data));
-              } catch (e) {}
-              await setDoc(docRef, data, { merge: true });
-            }
-          } catch (e) {}
-        }
-      }, (err) => {
-        console.warn('Settings listener note:', err);
-      });
-      return () => unsub();
-    } catch (e) {}
-  }, [fetchAdminApi]);
-
   // 7. Audit Logs real-time listener
   useEffect(() => {
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
     try {
       const colRef = collection(db, 'audit_logs');
-      const unsub = onSnapshot(colRef, (snap) => {
+      const unsub = onSnapshot(query(colRef, orderBy('timestamp', 'desc'), limit(200)), (snap) => {
         const list: AuditLog[] = [];
         snap.forEach(docSnap => {
           list.push({ id: docSnap.id, ...docSnap.data() } as AuditLog);
@@ -897,7 +783,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Audit logs listener note:', err);
       });
       return () => unsub();
-    } catch (e) {}
+    } catch (e) { console.warn('Non-fatal store operation note:', e); }
   }, [user?.role]);
 
   // Helpers
@@ -1136,14 +1022,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const closeRestockModal = () => setIsRestockModalOpen(false);
 
-  const loginAdmin = async (username: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+  const loginAdmin = async (username: string, pass: string, rememberMe = true): Promise<{ success: boolean; error?: string }> => {
     setIsAuthLoading(true);
     setAuthError(null);
     try {
-      const verification = await verifyAdminCredentials(username, pass);
+      const verification = await verifyAdminCredentials(username, pass, rememberMe);
       if (verification.valid && verification.user) {
         setUser(verification.user);
-        await logAuditEvent('ADMIN_LOGIN', `Admin user [${verification.user.name}] logged in with role [${verification.user.role}]`);
+        try {
+          await fetchAdminApi('/api/admin/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'ADMIN_LOGIN',
+              details: `Administrator ${verification.user.email} signed in as ${verification.user.role}.`
+            })
+          });
+        } catch {
+          // Login must not fail only because the audit transport is temporarily unavailable.
+        }
         setIsAuthOpen(false);
         return { success: true };
       } else {
@@ -1167,11 +1064,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.warn('Firebase SignOut note:', e);
     } finally {
       setUser(null);
+      setOrders([]);
+      setMessages([]);
+      setAuditLogs([]);
+      setStaffList([]);
+      setStockNotifications([]);
+      setHasMoreAdminOrders(true);
       try {
         localStorage.removeItem('saelyx_user');
         localStorage.removeItem('saelyx_admin_user');
         sessionStorage.clear();
-      } catch (e) {}
+      } catch (e) { console.warn('Non-fatal store operation note:', e); }
       setIsAuthOpen(false);
       navigateTo({ name: 'home' });
     }
@@ -1180,22 +1083,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateUserProfile = async (updates: Partial<AppUser>): Promise<boolean> => {
     if (!user) return false;
     try {
-      const updatedUser: AppUser = { ...user, ...updates };
+      // Never accept identity or authorization fields through the profile editor.
+      const profileUpdates: Partial<AppUser> = {};
+      for (const key of ['name', 'displayName', 'photoURL', 'avatarUrl', 'phoneNumber', 'address', 'city', 'postalCode', 'country', 'savedAddresses'] as const) {
+        if (key in updates) {
+          (profileUpdates as Record<string, unknown>)[key] = (updates as Record<string, unknown>)[key];
+        }
+      }
+
+      const updatedUser: AppUser = { ...user, ...profileUpdates, uid: user.uid, email: user.email, role: user.role };
       setUser(updatedUser);
       try {
         localStorage.setItem('saelyx_user', JSON.stringify(updatedUser));
-      } catch (e) {}
+      } catch (e) { console.warn('Non-fatal store operation note:', e); }
 
-      // Persist to Firestore
       try {
         const userRef = doc(db, 'users', user.uid);
-        await setDoc(userRef, JSON.parse(JSON.stringify(updatedUser)), { merge: true });
+        await setDoc(userRef, {
+          ...JSON.parse(JSON.stringify(profileUpdates)),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
       } catch (e) {
         console.warn('Firestore user update note:', e);
       }
 
-      // Pre-fill delivery details in localStorage so checkout immediately gets them
-      if (updates.name || updates.phoneNumber || updates.address || updates.city || updates.postalCode || updates.country) {
+      if (profileUpdates.name || profileUpdates.phoneNumber || profileUpdates.address || profileUpdates.city || profileUpdates.postalCode || profileUpdates.country) {
         const deliveryDetails = {
           customerName: updatedUser.name,
           email: updatedUser.email,
@@ -1208,7 +1120,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
         try {
           localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(deliveryDetails));
-        } catch (e) {}
+        } catch (e) { console.warn('Non-fatal store operation note:', e); }
       }
 
       await logAuditEvent('USER_PROFILE_UPDATED', `Profile updated for [${updatedUser.name || updatedUser.email}]`);
@@ -1299,26 +1211,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateOrderStatus = async (orderId: string, status: Order['status'], details: Partial<Order>): Promise<boolean> => {
     try {
-      const res = await fetchAdminApi(`/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status,
-          ...details
-        })
-      });
+      const currentOrder = orders.find(order => order.id === orderId || order.orderNumber === orderId);
+      const needsPayPalRefund =
+        status === 'cancelled' &&
+        currentOrder?.paymentMethod === 'paypal' &&
+        ['verified', 'refund_pending'].includes(currentOrder?.paymentStatus || '');
 
-      if (res.ok) {
-        const updatedOrder = await res.json() as Order;
-        setOrders(prev => prev.map(order => order.id === updatedOrder.id ? updatedOrder : order));
-        await logAuditEvent('ORDER_STATUS_UPDATE', `Order ${orderId} updated to ${status}`);
-        return true;
+      const response = needsPayPalRefund
+        ? await fetchAdminApi(`/api/admin/orders/${encodeURIComponent(orderId)}/refund`, { method: 'POST' })
+        : await fetchAdminApi(`/api/orders/${encodeURIComponent(orderId)}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status, ...details })
+          });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.warn('Order status update rejected:', payload?.error || response.statusText);
+        return false;
       }
-      const payload = await res.json().catch(() => ({}));
-      console.warn('Order status update rejected:', payload?.error || res.statusText);
+
+      const updatedOrder = payload as Order;
+      setOrders(prev => prev.map(order => order.id === updatedOrder.id ? updatedOrder : order));
+      return true;
+    } catch (error) {
+      console.error('Error updating order:', error);
       return false;
-    } catch (e) {
-      console.error('Error updating order:', e);
+    }
+  };
+
+  const loadOlderOrders = async (): Promise<boolean> => {
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return false;
+    const oldest = [...orders]
+      .filter(order => Boolean(order.createdAt))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+    if (!oldest?.createdAt) return false;
+
+    try {
+      const response = await fetchAdminApi(
+        `/api/admin/orders/page?limit=100&cursor=${encodeURIComponent(oldest.id)}`
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(payload?.items)) return false;
+      setOrders(previous => {
+        const merged = new Map(previous.map(order => [order.id, order]));
+        (payload.items as Order[]).forEach(order => merged.set(order.id, order));
+        return Array.from(merged.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      });
+      setHasMoreAdminOrders(Boolean(payload.hasMore));
+      return true;
+    } catch (error) {
+      console.error('Unable to load older orders:', error);
       return false;
     }
   };
@@ -1345,130 +1288,162 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateMessageStatus = async (id: string, status: 'unread' | 'read' | 'replied', notes?: string): Promise<boolean> => {
     try {
-      try {
-        const update = { status, ...(notes ? { replyNotes: notes } : {}) };
-        await Promise.all([
-          updateDoc(doc(db, 'messages', id), update),
-          updateDoc(doc(db, 'concierge_inquiries', id), update)
-        ]);
-      } catch (e) {
-        console.warn('Firestore message update note:', e);
+      const response = await fetchAdminApi(`/api/admin/messages/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, replyNotes: notes || '' })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Message update failed:', payload?.error || response.status);
+        return false;
       }
-
-      setMessages(prev => prev.map(m => m.id === id ? { ...m, status, ...(notes ? { replyNotes: notes } : {}) } : m));
+      setMessages(prev => prev.map(message => message.id === id ? { ...message, ...payload } : message));
       return true;
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error('Message update failed:', error);
       return false;
     }
   };
 
-  // Products mutations
+  // Products mutations use the trusted API for validation, authorization, and audit logging.
   const saveProduct = async (productData: Partial<Product>): Promise<boolean> => {
     try {
-      const id = productData.id || `prod-${Date.now().toString(36)}`;
+      const id = productData.id || `prod-${cryptoSafeClientId()}`;
       const slug = productData.slug || productData.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `product-${id}`;
-      const payload = {
-        ...productData,
-        id,
-        slug,
-        createdAt: productData.createdAt || new Date().toISOString()
-      };
-      await setDoc(doc(db, 'products', id), payload, { merge: true });
-      await logAuditEvent('PRODUCT_SAVED', `Product [${payload.title}] (${id}) crafted or updated in atelier catalog.`);
+      const response = await fetchAdminApi(`/api/admin/products/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...productData, id, slug })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Product save failed:', payload?.error || response.status);
+        return false;
+      }
+      setProducts(prev => {
+        const exists = prev.some(product => product.id === id);
+        return exists ? prev.map(product => product.id === id ? payload as Product : product) : [payload as Product, ...prev];
+      });
       return true;
-    } catch (e) {
-      console.error('Error saving product:', e);
+    } catch (error) {
+      console.error('Error saving product:', error);
       return false;
     }
   };
 
   const deleteProduct = async (id: string): Promise<boolean> => {
     try {
-      await deleteDoc(doc(db, 'products', id));
-      await logAuditEvent('PRODUCT_RETIRED', `Product ${id} retired from boutique catalog.`);
+      const response = await fetchAdminApi(`/api/admin/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Product delete failed:', payload?.error || response.status);
+        return false;
+      }
+      setProducts(prev => prev.filter(product => product.id !== id));
       return true;
-    } catch (e) {
-      console.error('Error deleting product:', e);
+    } catch (error) {
+      console.error('Error deleting product:', error);
       return false;
     }
   };
 
-  // Staff mutations
-  const addStaff = async (staffData: Omit<AdminStaff, 'id' | 'createdAt' | 'status'> & { password?: string }): Promise<boolean> => {
+  // Staff provisioning mutations. Firebase Auth and Firestore are changed together by trusted server APIs.
+  const addStaff = async (staffData: Omit<AdminStaff, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
     try {
-      const id = `staff-${Date.now().toString(36)}`;
-      const { password: _password, ...safeStaffData } = staffData;
-      const payload = {
-        ...safeStaffData,
-        id,
-        status: 'active' as const,
-        createdAt: new Date().toISOString()
-      };
-      if (isFirebaseConfigured) await setDoc(doc(db, 'staff', id), payload);
-      setStaffList(prev => [{ ...payload, password: undefined } as AdminStaff, ...prev.filter(staff => staff.username !== staffData.username)]);
-      await logAuditEvent('STAFF_PROVISIONED', `Staff operator [${payload.displayName || payload.username}] provisioned with role [${payload.role}]`);
+      const response = await fetchAdminApi('/api/admin/staff/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(staffData)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Staff invitation failed:', payload?.error || response.status);
+        return false;
+      }
+      setStaffList(prev => [payload as AdminStaff, ...prev.filter(staff => staff.id !== payload.id)]);
       return true;
-    } catch (e) {
-      console.error('Error adding staff:', e);
+    } catch (error) {
+      console.error('Error inviting staff:', error);
       return false;
     }
   };
 
-  const deleteStaff = async (id: string): Promise<boolean> => {
+  const activateStaff = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      await deleteDoc(doc(db, 'staff', id));
-      await logAuditEvent('STAFF_REVOKED', `Staff operator ${id} privileges revoked.`);
-      return true;
-    } catch (e) {
-      console.error('Error deleting staff:', e);
-      return false;
+      const response = await fetchAdminApi(`/api/admin/staff/${encodeURIComponent(id)}/activate`, { method: 'POST' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return { success: false, error: payload?.error || 'Unable to activate staff access.' };
+      setStaffList(prev => prev.map(staff => staff.id === id ? { ...staff, ...payload } : staff));
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to activate staff access.' };
     }
   };
 
-  // Settings mutation
+  const updateStaffRole = async (id: string, role: 'admin' | 'super_admin'): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetchAdminApi(`/api/admin/staff/${encodeURIComponent(id)}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return { success: false, error: payload?.error || 'Unable to change staff role.' };
+      setStaffList(prev => prev.map(staff => staff.id === id ? { ...staff, ...payload } : staff));
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to change staff role.' };
+    }
+  };
+
+  const deleteStaff = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetchAdminApi(`/api/admin/staff/${encodeURIComponent(id)}/revoke`, { method: 'POST' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return { success: false, error: payload?.error || 'Unable to revoke staff access.' };
+      setStaffList(prev => prev.map(staff => staff.id === id ? { ...staff, ...payload } : staff));
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unable to revoke staff access.' };
+    }
+  };
+
+  // Settings mutations are Super-Admin validated by the trusted API.
   const updateSettings = async (newSettings: Partial<DropSettings>): Promise<boolean> => {
     try {
-      // Optimistic local state + localStorage update (instant 0ms response)
-      setSettings(prev => {
-        const merged = { ...(prev || {}), ...newSettings } as DropSettings;
-        try {
-          localStorage.setItem('saelyx_settings', JSON.stringify(merged));
-        } catch (e) {}
-        return merged;
+      const response = await fetchAdminApi('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
       });
-
-      const docRef = doc(db, 'settings', 'drop_config');
-      await setDoc(docRef, newSettings, { merge: true });
-      await logAuditEvent('SETTINGS_UPDATED', 'Global Drop 001 and hero configurations updated in Firestore.');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error('Settings update failed:', payload?.error || response.status);
+        return false;
+      }
+      setSettings(payload as DropSettings);
+      try { localStorage.setItem('saelyx_settings', JSON.stringify(payload)); } catch (e) { console.warn('Non-fatal store operation note:', e); }
       return true;
-    } catch (e) {
-      console.error('Error updating settings:', e);
+    } catch (error) {
+      console.error('Error updating settings:', error);
       return false;
     }
   };
-  // Audit Logs
+
+  // Audit Logs are authoritative only when written by the trusted server.
   const logAuditEvent = async (action: string, details: string) => {
-    const entry: AuditLog = {
-      id: `audit-${Date.now().toString(36)}`,
-      timestamp: new Date().toISOString(),
-      actor: user?.name || 'Anonymous Visitor',
-      role: user?.role || 'guest',
-      action,
-      details
-    };
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!['ADMIN_LOGIN', 'ORDER_CSV_EXPORT'].includes(action)) return;
 
-    setAuditLogs(prev => [entry, ...prev.slice(0, 49)]);
-
-    // Only privileged operator activity is written to the security audit collection.
-    // Customer/guest activity remains local to avoid allowing arbitrary clients to forge audit records.
-    if (user?.role === 'admin' || user?.role === 'super_admin') {
-      try {
-        const logsCol = collection(db, 'audit_logs');
-        await addDoc(logsCol, entry);
-      } catch {
-        // Non-blocking
-      }
+    try {
+      await fetchAdminApi('/api/admin/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, details })
+      });
+    } catch (error) {
+      console.warn('Audit transport note:', error);
     }
   };
 
@@ -1497,18 +1472,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const deleteStockNotification = async (id: string): Promise<boolean> => {
-    try {
-      const docRef = doc(db, 'stock_notifications', id);
-      await deleteDoc(docRef);
-      return true;
-    } catch (e) {
-      console.error('Error deleting stock notification:', e);
-      return false;
-    }
-  };
-
-  const triggerRestockCloudFunction = async (productId?: string) => {
+  const triggerRestockDispatch = async (productId?: string) => {
     const productTitle = productId
       ? (products.find(p => p.id === productId)?.title || 'Selected Garment')
       : 'Selected Garment';
@@ -1613,13 +1577,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         capturePayPalPayment,
         cancelPayPalOrder,
         updateOrderStatus,
+        hasMoreAdminOrders,
+        loadOlderOrders,
         messages,
         sendMessage,
         updateMessageStatus,
         stockNotifications,
         subscribeToRestock,
-        deleteStockNotification,
-        triggerRestockCloudFunction,
+        triggerRestockDispatch,
         isRestockModalOpen,
         setIsRestockModalOpen,
         restockModalProduct,
@@ -1629,13 +1594,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         restockModalSize: restockSelectedSize,
         closeRestockModal,
         openRestockModal,
-        triggerStockReplenishedFunction: triggerRestockCloudFunction,
+        triggerStockReplenishedFunction: triggerRestockDispatch,
         auditLogs,
         logAuditEvent,
         saveProduct,
         deleteProduct,
         staffList,
         addStaff,
+        activateStaff,
+        updateStaffRole,
         deleteStaff,
         updateSettings,
         refetchData: fetchData

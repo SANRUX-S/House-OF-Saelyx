@@ -25,20 +25,28 @@ export const AdminConcierge: React.FC<AdminConciergeProps> = ({
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [replyNotes, setReplyNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
 
   const handleOpenResolution = (msg: ContactMessage) => {
     setSelectedMessage(msg);
     setReplyNotes(msg.replyNotes || '');
+    setUpdateError('');
   };
 
   const handleSaveResolution = async (newStatus: 'unread' | 'read' | 'replied') => {
     if (!selectedMessage) return;
     setIsUpdating(true);
     try {
-      await onUpdateMessageStatus(selectedMessage.id, newStatus, replyNotes);
+      const success = await onUpdateMessageStatus(selectedMessage.id, newStatus, replyNotes);
+      if (!success) {
+        setUpdateError('The inquiry could not be saved. Nothing was marked as resolved.');
+        return;
+      }
       setSelectedMessage(null);
+      setUpdateError('');
     } catch (err) {
       console.error('Error resolving inquiry:', err);
+      setUpdateError('The inquiry could not be saved. Please retry.');
     } finally {
       setIsUpdating(false);
     }
@@ -208,6 +216,8 @@ export const AdminConcierge: React.FC<AdminConciergeProps> = ({
                   className="form-textarea-custom"
                 />
               </div>
+
+              {updateError && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{updateError}</div>}
 
               <div className="pt-4 border-t border-stone-100 flex flex-wrap items-center justify-end gap-2">
                 <button

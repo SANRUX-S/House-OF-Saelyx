@@ -1,101 +1,132 @@
-import React, { useState } from 'react';
-import { 
-  ShieldCheck, 
-  Key, 
-  Lock, 
-  FileCheck, 
-  Download, 
-  RefreshCw, 
-  CheckCircle2, 
+import React, { useCallback, useEffect, useState } from 'react';
+import { auth, getAppCheckRequestHeaders } from '../../lib/firebase';
+import {
+  ShieldCheck,
+  Download,
+  RefreshCw,
+  CheckCircle2,
   AlertTriangle,
   Server
 } from 'lucide-react';
 
 export interface AdminSecurityProps {
-  onExportDatabase: () => void;
+  onExportDatabase: () => Promise<void>;
+}
+
+interface HealthStatus {
+  firebaseAdminConfigured?: boolean;
+  transactionalEmailConfigured?: boolean;
+  mediaStorageConfigured?: boolean;
+  appCheckEnforced?: boolean;
+  abuseProtectionConfigured?: boolean;
+  payPalServerConfigured?: boolean;
 }
 
 export const AdminSecurity: React.FC<AdminSecurityProps> = ({
   onExportDatabase
 }) => {
-  const [isTestingSecurity, setIsTestingSecurity] = useState(false);
-  const [securityTestResults, setSecurityTestResults] = useState<{
-    id: string;
-    name: string;
-    description: string;
-    status: 'passed' | 'warning' | 'testing';
-    details: string;
-  }[]>([
-    {
-      id: 'test-1',
-      name: 'RBAC Privilege Boundary Enforcement',
-      description: 'Verifies normal admins cannot access cryptographic salts, delete staff, or wipe database.',
-      status: 'passed',
-      details: 'All privileged REST endpoints enforce role authorization checks and token validations.'
-    },
-    {
-      id: 'test-2',
-      name: 'Cryptographic Salt & Password Hashing',
-      description: 'Verifies SHA-256 password salting prevents rainbow table attacks.',
-      status: 'passed',
-      details: 'Active secret salt SAELYX_VAULT_SALT_v2 is applied to all atelier credentials.'
-    },
-    {
-      id: 'test-3',
-      name: 'Secure Order Data & PII Masking',
-      description: 'Validates customer shipping addresses, phone numbers, and payment details are stored safely.',
-      status: 'passed',
-      details: 'Client-side memory scrubbing active; sensitive financial tokens sanitized.'
-    },
-    {
-      id: 'test-4',
-      name: 'Hand-Delivery Tracking Isolation',
-      description: 'Ensures order tracking is bound strictly to order references without leaking patron identity.',
-      status: 'passed',
-      details: 'Direct lookup endpoint routes via indexed references only.'
-    },
-    {
-      id: 'test-5',
-      name: 'Cross-Site & CSRF Form Protections',
-      description: 'Verifies API mutation endpoints reject cross-origin payload injection.',
-      status: 'passed',
-      details: 'Strict Content-Type verification and CORS origin protection confirmed.'
-    }
-  ]);
+  const [health, setHealth] = useState<HealthStatus | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [healthError, setHealthError] = useState('');
 
-  const runSecurityTests = () => {
-    setIsTestingSecurity(true);
-    setTimeout(() => {
-      setIsTestingSecurity(false);
-    }, 800);
-  };
+  const refreshHealth = useCallback(async () => {
+    setIsRefreshing(true);
+    setHealthError('');
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error('Admin session expired.');
+      const token = await currentUser.getIdToken();
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const response = await fetch('/api/admin/health', {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...appCheckHeaders
+        },
+        cache: 'no-store'
+      });
+      if (!response.ok) {
+        throw new Error('Production health endpoint is unavailable.');
+      }
+      const payload = await response.json();
+      setHealth(payload);
+    } catch (error) {
+      setHealth(null);
+      setHealthError(error instanceof Error ? error.message : 'Unable to load production health status.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshHealth();
+  }, [refreshHealth]);
+
+  const checks = [
+    {
+      id: 'firebase-admin',
+      name: 'Firebase Admin',
+      description: 'Server-side Firebase access required for protected order and admin operations.',
+      configured: health?.firebaseAdminConfigured === true
+    },
+    {
+      id: 'app-check',
+      name: 'Firebase App Check',
+      description: 'App-integrity enforcement for protected public mutation endpoints.',
+      configured: health?.appCheckEnforced === true
+    },
+    {
+      id: 'abuse-protection',
+      name: 'Abuse Protection',
+      description: 'Server-side throttling and abuse controls are enabled.',
+      configured: health?.abuseProtectionConfigured === true
+    },
+    {
+      id: 'transactional-email',
+      name: 'Transactional Email',
+      description: 'Server-side order and operational email configuration.',
+      configured: health?.transactionalEmailConfigured === true
+    },
+    {
+      id: 'media-storage',
+      name: 'Media Storage',
+      description: 'Authenticated Cloudinary media configuration for admin uploads.',
+      configured: health?.mediaStorageConfigured === true
+    },
+    {
+      id: 'paypal-server',
+      name: 'PayPal Server',
+      description: 'Server credentials are available for PayPal order creation and verification.',
+      configured: health?.payPalServerConfigured === true
+    }
+  ];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Top Banner with Action */}
       <div className="admin-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h3 className="text-base font-extrabold text-stone-900 flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            <span>Cryptographic Hardening & Infrastructure Audit</span>
+            <span>Production Security Configuration</span>
           </h3>
           <p className="text-xs text-stone-500 max-w-2xl mt-1">
-            Real-time evaluation of token authorization boundaries, salted SHA-256 hash schemes, and state integrity across the SAELYXE boutique cluster.
+            Live configuration status from the SAELYXE production health endpoint. This panel does not fabricate penetration-test or authorization results.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={runSecurityTests}
-            disabled={isTestingSecurity}
+            onClick={() => void refreshHealth()}
+            disabled={isRefreshing}
             className="btn-saelyxe-primary text-xs"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isTestingSecurity ? 'animate-spin' : ''}`} />
-            <span>{isTestingSecurity ? 'Verifying Integrity...' : 'RUN AUDIT SUITE'}</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'REFRESH STATUS'}</span>
           </button>
 
           <button
-            onClick={onExportDatabase}
+            onClick={() => void onExportDatabase()}
             className="btn-saelyxe-lime text-xs"
           >
             <Download className="w-3.5 h-3.5" />
@@ -104,35 +135,47 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({
         </div>
       </div>
 
-      {/* Test Suite Results Cards */}
+      {healthError && (
+        <div className="admin-card !p-4 border-amber-200 bg-amber-50 text-amber-900 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-semibold">Live status unavailable</p>
+            <p className="text-[11px] mt-0.5">{healthError}</p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-3">
-        {securityTestResults.map((test, index) => (
-          <div key={test.id} className="admin-card !p-5 flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold text-stone-400">0{index + 1}.</span>
-                  <h4 className="text-sm font-bold text-stone-900">{test.name}</h4>
-                  <span className="status-pill status-paid !py-0.5 !text-[10px]">
-                    <span className="status-dot" />
-                    Passed
-                  </span>
+        {checks.map((check, index) => {
+          const loaded = health !== null;
+          const ok = loaded && check.configured;
+          return (
+            <div key={check.id} className="admin-card !p-5 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  ok ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'
+                }`}>
+                  {ok ? <CheckCircle2 className="w-4 h-4" /> : <Server className="w-4 h-4" />}
                 </div>
-                <p className="text-xs text-stone-500">{test.description}</p>
-                <p className="text-[11px] text-emerald-800 font-mono bg-emerald-50/60 p-2 rounded-lg inline-block mt-1">
-                  ✓ {test.details}
-                </p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono font-bold text-stone-400">0{index + 1}.</span>
+                    <h4 className="text-sm font-bold text-stone-900">{check.name}</h4>
+                    <span className={`status-pill !py-0.5 !text-[10px] ${ok ? 'status-paid' : ''}`}>
+                      <span className="status-dot" />
+                      {!loaded ? 'Loading' : ok ? 'Configured' : 'Not configured'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500">{check.description}</p>
+                </div>
               </div>
             </div>
+          );
+        })}
+      </div>
 
-            <span className="text-[11px] font-mono text-stone-400 whitespace-nowrap hidden sm:inline">
-              Latency: 14ms
-            </span>
-          </div>
-        ))}
+      <div className="admin-card !p-4 text-[11px] text-stone-500 leading-relaxed">
+        Configuration status is not a substitute for authorization, privacy, CSP, or end-to-end security testing. Those controls must be validated separately before declaring the production surface hardened.
       </div>
     </div>
   );

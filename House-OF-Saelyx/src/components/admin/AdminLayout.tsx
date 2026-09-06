@@ -17,14 +17,14 @@ import {
   Sparkles,
   Maximize,
   Minimize,
-  Sliders,
   GripVertical
 } from 'lucide-react';
 import { AppUser } from '../../types';
+import { sendAdminPasswordReset } from '../../lib/firebase';
 
 export interface AdminLayoutProps {
-  activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings';
-  onSwitchTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings') => void;
+  activeTab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config';
+  onSwitchTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config') => void;
   user: AppUser;
   isSuperAdmin: boolean;
   badges: {
@@ -39,6 +39,7 @@ export interface AdminLayoutProps {
   subtitle: string;
   breadcrumb?: { label: string; tab?: string }[];
   headerAction?: React.ReactNode;
+  globalSearchItems?: Array<{ id: string; label: string; meta: string; tab: 'products' | 'orders' | 'messages' | 'staff' }>;
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({
@@ -53,17 +54,22 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   title,
   subtitle,
   breadcrumb = [],
-  headerAction
+  headerAction,
+  globalSearchItems = []
 }) => {
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const searchResults = searchQuery.trim().length >= 2
+    ? globalSearchItems.filter(item => `${item.label} ${item.meta}`.toLowerCase().includes(searchQuery.trim().toLowerCase())).slice(0, 8)
+    : [];
   const [navOrder, setNavOrder] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('saelyxe_admin_nav_order') || '[]'); } catch { return []; }
   });
   const [draggedNavItem, setDraggedNavItem] = useState<string | null>(null);
+  const [accountMessage, setAccountMessage] = useState('');
   
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -80,6 +86,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
   }, []);
 
   const toggleFullscreen = () => {
@@ -122,8 +134,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           label: 'Restock Waitlist', 
           icon: Bell, 
           badge: badges.restock 
-        },
-        { id: 'section-settings', label: 'Section Settings', icon: Sliders }
+        }
       ]
     },
     {
@@ -240,15 +251,35 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </button>
 
             {/* Quick Search */}
-            <div className="navbar-search-container hidden sm:flex">
+            <div className="navbar-search-container hidden sm:flex relative">
               <Search className="w-4 h-4 text-stone-400 shrink-0" />
               <input
                 type="text"
-                placeholder="Search anything in Saelyxe..."
+                placeholder="Search orders, products, inquiries, staff..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="navbar-search-input"
               />
+              {searchQuery.trim().length >= 2 && (
+                <div className="absolute left-0 top-full mt-2 w-[min(32rem,80vw)] rounded-xl border border-stone-200 bg-white p-2 shadow-xl z-50">
+                  {searchResults.length ? searchResults.map(item => (
+                    <button
+                      key={`${item.tab}:${item.id}`}
+                      type="button"
+                      onClick={() => {
+                        onSwitchTab(item.tab);
+                        setSearchQuery('');
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-left hover:bg-stone-50"
+                    >
+                      <div className="text-xs font-bold text-stone-800">{item.label}</div>
+                      <div className="text-[10px] text-stone-500">{item.meta}</div>
+                    </button>
+                  )) : (
+                    <div className="px-3 py-4 text-center text-xs text-stone-400">No admin records match this search.</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -372,15 +403,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   </div>
                   
                   <div className="py-1">
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          onSwitchTab('staff');
+                        }}
+                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                      >
+                        <User className="w-3.5 h-3.5 text-stone-400" />
+                        <span>Administrator Access</span>
+                      </button>
+                    )}
                     <button
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        if (isSuperAdmin) onSwitchTab('staff');
+                      onClick={async () => {
+                        const result = await sendAdminPasswordReset(user.email);
+                        setAccountMessage(result.success ? 'Password reset request sent.' : (result.error || 'Unable to request password reset.'));
                       }}
                       className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
                     >
                       <User className="w-3.5 h-3.5 text-stone-400" />
-                      <span>My Account</span>
+                      <span>Send Password Reset</span>
                     </button>
                     
                     {isSuperAdmin && (
@@ -397,6 +440,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                     )}
 
                   </div>
+
+                  {accountMessage && <div className="mx-2 mb-1 rounded-lg bg-stone-50 px-2 py-2 text-[10px] text-stone-600">{accountMessage}</div>}
 
                   <div className="border-t border-stone-100 pt-1">
                     <button

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export interface AdminLoginProps {
-  onLogin: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  onLogin: (username: string, pass: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   onReturnToStore: () => void;
 }
 
@@ -40,7 +40,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     setIsLoggingIn(true);
 
     try {
-      const res = await onLogin(username.trim(), password);
+      const res = await onLogin(username.trim(), password, rememberMe);
       if (!res.success) {
         setErrorMsg(res.error || 'Authentication denied. Invalid credentials.');
       }
@@ -115,9 +115,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="form-label-custom">Firebase Administrator Email</label>
+            <label htmlFor="admin-email" className="form-label-custom">Firebase Administrator Email</label>
             <input
-              type="text"
+              id="admin-email"
+              type="email"
               required
               autoComplete="username"
               value={username}
@@ -128,9 +129,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           </div>
 
           <div>
-            <label className="form-label-custom">Cryptographic Password Key</label>
+            <label htmlFor="admin-password" className="form-label-custom">Cryptographic Password Key</label>
             <div className="relative">
               <input
+                id="admin-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="current-password"
@@ -188,7 +190,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             Secure operator access
           </div>
           <div className="text-[10px] text-stone-500">
-            Use credentials defined in your environment configuration.
+            Use a verified Firebase administrator account with active SAELYXE access.
           </div>
         </div>
 

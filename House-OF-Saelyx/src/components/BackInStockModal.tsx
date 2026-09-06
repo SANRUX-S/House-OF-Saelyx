@@ -182,11 +182,11 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                 </div>
               </div>
 
-              {/* Cloud Function Automation Guarantee Pill */}
+              {/* Automated Restock Email Status */}
               <div className="bg-neutral-900/60 border border-neutral-800 p-3 sm:p-3.5 flex items-start space-x-2.5 sm:space-x-3">
                 <Sparkles className="w-4 h-4 text-amber-300 flex-shrink-0 mt-0.5" />
                 <div className="text-xs text-neutral-300 leading-relaxed">
-                  <span className="text-amber-200 font-medium">Firebase Cloud Functions Integration:</span> You will receive an automated priority email dispatch the exact second our cutters replenishment batch is registered.
+                  <span className="text-amber-200 font-medium">Automated Restock Email:</span> You will receive an automated priority email dispatch the exact second our cutters replenishment batch is registered.
                 </div>
               </div>
 
@@ -377,7 +377,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                     {isSubmitting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-neutral-950 border-t-transparent rounded-full animate-spin" />
-                        <span>Registering with Cloud Functions...</span>
+                        <span>Registering for restock email...</span>
                       </>
                     ) : (
                       <>
@@ -425,7 +425,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                 </div>
                 <div className="flex justify-between text-neutral-400">
                   <span>Backend Trigger:</span>
-                  <span className="text-amber-300 text-[11px]">Firebase Cloud Functions (onStockReplenished)</span>
+                  <span className="text-amber-300 text-[11px]">Vercel API + Resend</span>
                 </div>
               </div>
 

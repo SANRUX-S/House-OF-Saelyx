@@ -44,7 +44,7 @@ export const LegalPrivacyPage: React.FC = () => {
             Privacy Policy
           </h1>
           <p className="text-xs text-[#7A6E60] uppercase tracking-widest font-mono">
-            Last Updated: September 3, 2026
+            Last Updated: September 6, 2026
           </p>
           <p className="text-sm text-[#7A6E60] font-light max-w-3xl leading-relaxed pt-1">
             At <strong className="font-semibold text-[#1A1816]">SAELYXE</strong>, we respect your privacy and are committed to protecting the personal information you provide when using our website, creating an account, placing an order, or contacting our customer support team.
@@ -203,6 +203,9 @@ export const LegalPrivacyPage: React.FC = () => {
             </p>
             <p className="text-xs text-[#7A6E60]">
               We may restrict, suspend, or terminate accounts where there is evidence of fraudulent, abusive, misleading, or unauthorised activity, subject to applicable law.
+            </p>
+            <p className="text-xs text-[#4A4036]">
+              Order tracking is account-protected. Tracking lookups require an authenticated SAELYXE session and are limited to the account that placed the order (or authorised SAELYXE administrators). The tracking endpoint does not expose the customer's email address, phone number, street address, or payment details.
             </p>
           </section>
 

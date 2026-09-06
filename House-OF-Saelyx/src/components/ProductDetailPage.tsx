@@ -377,7 +377,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                     <span className="text-[10px] font-mono text-neutral-400">Atelier Waitlist</span>
                   </div>
                   <p className="text-xs text-neutral-300 font-light leading-relaxed">
-                    This silhouette is currently fully allocated. Register your email below to receive an automated notification via Firebase Cloud Functions the moment restock cutters release the next batch.
+                    This silhouette is currently fully allocated. Register your email below to receive an automated notification by email when the next replenishment batch is released.
                   </p>
                 </div>
 
@@ -493,7 +493,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
 
                     <div className="flex items-center justify-center gap-1.5 text-[10px] text-[#7A6D5F]">
                       <Sparkles className="w-3 h-3 text-amber-700" />
-                      <span>Direct automated trigger via Firebase Cloud Functions</span>
+                      <span>Protected automated email dispatch via SAELYXE</span>
                     </div>
                   </form>
                 ) : (

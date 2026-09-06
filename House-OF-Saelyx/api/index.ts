@@ -20,11 +20,13 @@ app.use((_req, res, next) => {
 app.use(express.json({ limit: '64kb' }));
 
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
-const ADMIN_EMAILS = new Set([
-  'saelyx.co@gmail.com',
-  'saelyx.co+super@gmail.com',
-  'saelyx.co+admin@gmail.com'
+const ADMIN_EMAIL_ROLES = new Map<string, 'admin' | 'super_admin'>([
+  ['saelyx.co@gmail.com', 'super_admin'],
+  ['saelyx.co+super@gmail.com', 'super_admin'],
+  ['saelyx.co+admin@gmail.com', 'admin']
 ]);
+const ADMIN_EMAILS = new Set(ADMIN_EMAIL_ROLES.keys());
+const ROOT_ADMIN_EMAILS = new Set(['saelyx.co@gmail.com', 'saelyx.co+super@gmail.com']);
 
 const CURRENCIES = [
   { code: 'LKR', symbol: 'Rs', name: 'Sri Lankan Rupee', rateFromLKR: 1, symbolPosition: 'before', flag: 'LK' },
@@ -95,13 +97,54 @@ async function readBearerToken(req: Request): Promise<DecodedIdToken | null> {
   }
 }
 
-function isAdminToken(token: DecodedIdToken | null) {
-  if (!token) return false;
+async function getAdminRole(token: DecodedIdToken | null): Promise<'admin' | 'super_admin' | null> {
+  if (!token || token.email_verified !== true) return null;
   const email = typeof token.email === 'string' ? token.email.toLowerCase() : '';
-  return token.admin === true ||
-    token.role === 'admin' ||
-    token.role === 'super_admin' ||
-    ADMIN_EMAILS.has(email);
+  const configuredRole = ADMIN_EMAIL_ROLES.get(email);
+  if (configuredRole) return configuredRole;
+
+  const adminDb = getAdminDb();
+  if (!adminDb) return null;
+  const adminSnap = await adminDb.collection('admins').doc(token.uid).get();
+  if (!adminSnap.exists) return null;
+
+  const adminData: any = adminSnap.data() || {};
+  const recordEmail = safeString(adminData.email, 254).toLowerCase();
+  const recordRole = safeString(adminData.role, 30);
+  const status = safeString(adminData.status, 30);
+  if (status !== 'active' || !recordEmail || recordEmail !== email) return null;
+  return recordRole === 'super_admin' ? 'super_admin' : recordRole === 'admin' ? 'admin' : null;
+}
+
+async function isAdminToken(token: DecodedIdToken | null) {
+  return (await getAdminRole(token)) !== null;
+}
+
+async function isSuperAdminToken(token: DecodedIdToken | null) {
+  return (await getAdminRole(token)) === 'super_admin';
+}
+
+async function writeAdminAudit(
+  adminDb: NonNullable<ReturnType<typeof getAdminDb>>,
+  token: DecodedIdToken,
+  action: string,
+  details: string
+) {
+  const role = await getAdminRole(token);
+  await adminDb.collection('audit_logs').add({
+    timestamp: new Date().toISOString(),
+    actor: typeof token.email === 'string' ? token.email : token.uid,
+    actorUid: token.uid,
+    role: role || 'admin',
+    action: safeString(action, 80),
+    details: safeString(details, 1000)
+  });
+}
+
+function hasRecentAuthentication(token: DecodedIdToken, maxAgeSeconds = 10 * 60) {
+  const authTime = Number(token.auth_time);
+  if (!Number.isFinite(authTime) || authTime <= 0) return false;
+  return Math.floor(Date.now() / 1000) - authTime <= maxAgeSeconds;
 }
 
 async function hasValidAppCheck(req: Request) {
@@ -297,6 +340,43 @@ async function capturePayPalProviderOrder(paypalOrderId: string) {
   return { ok: response.ok, status: response.status, payload };
 }
 
+async function refundPayPalCapture(captureId: string, orderId: string) {
+  const access = await getPayPalAccessToken();
+  if (!access) throw new Error('PayPal is not configured.');
+  const response = await fetch(`${access.baseUrl}/v2/payments/captures/${encodeURIComponent(captureId)}/refund`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${access.token}`,
+      'Content-Type': 'application/json',
+      'PayPal-Request-Id': getPayPalRequestId('refund', `${orderId}:${captureId}`),
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify({ note_to_payer: `Refund for SAELYXE order ${orderId}` })
+  });
+  const payload: any = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw Object.assign(new Error(safeString(payload?.message, 240) || 'PayPal refund request failed.'), { statusCode: response.status });
+  }
+  return {
+    id: safeString(payload?.id, 160),
+    status: safeString(payload?.status, 30).toUpperCase()
+  };
+}
+
+async function getPayPalRefund(refundId: string) {
+  const access = await getPayPalAccessToken();
+  if (!access) throw new Error('PayPal is not configured.');
+  const response = await fetch(`${access.baseUrl}/v2/payments/refunds/${encodeURIComponent(refundId)}`, {
+    headers: { Authorization: `Bearer ${access.token}`, 'Content-Type': 'application/json' }
+  });
+  const payload: any = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error('PayPal refund status could not be verified.');
+  return {
+    id: safeString(payload?.id, 160),
+    status: safeString(payload?.status, 30).toUpperCase()
+  };
+}
+
 async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrderId: string) {
   const orderRef = adminDb.collection('orders').doc(orderId);
   const now = new Date().toISOString();
@@ -377,7 +457,7 @@ async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrder
   });
 }
 
-async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrderId: string) {
+async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrderId: string, verification?: any) {
   const ref = adminDb.collection('orders').doc(orderId);
   const now = new Date().toISOString();
 
@@ -397,6 +477,9 @@ async function markPayPalOrderVerified(adminDb: any, orderId: string, paypalOrde
       paymentVerifiedAt: current.paymentVerifiedAt || now,
       paymentCaptureState: 'completed',
       paymentCaptureCompletedAt: current.paymentCaptureCompletedAt || now,
+      paymentCaptureId: safeString(verification?.captureId, 160) || current.paymentCaptureId || '',
+      paymentCaptureAmount: Number.isFinite(Number(verification?.actualCaptureAmount)) ? Number(verification.actualCaptureAmount) : current.paymentCaptureAmount || null,
+      paymentCaptureCurrency: safeString(verification?.actualCaptureCurrency, 10) || current.paymentCaptureCurrency || '',
       paymentUpdatedAt: now
     };
 
@@ -582,6 +665,7 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
     actualAmount,
     actualCaptureCurrency: safeString(captureAmount?.currency_code, 10),
     actualCaptureAmount,
+    captureId: safeString(completedCapture?.id, 160),
     orderBindingMatches
   };
 }
@@ -628,21 +712,409 @@ async function sendOrderConfirmationEmail(order: any) {
   }
 }
 
-app.get('/api/health', (_req, res) => {
-  res.json({
-    ok: true,
-    service: 'saelyxe-api',
-    firebaseAdminConfigured: Boolean(getAdminDb()),
-    transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
-    mediaStorageConfigured: Boolean(
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET
-    ),
-    appCheckEnforced: process.env.FIREBASE_APP_CHECK_ENFORCE === 'true',
-    abuseProtectionConfigured: true,
-    payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
+async function sendStaffInvitationEmail(params: {
+  email: string;
+  name: string;
+  role: 'admin' | 'super_admin';
+  verifyLink?: string;
+  passwordLink: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) throw new Error('Transactional email is not configured.');
+
+  const verifySection = params.verifyLink
+    ? `<p><a href="${escapeHtml(params.verifyLink)}">1. Verify your email address</a></p>`
+    : '<p>1. Your Firebase email address is already verified.</p>';
+
+  const html = [
+    '<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#181614">',
+    '<h2>SAELYXE Administrator Invitation</h2>',
+    `<p>Hello ${escapeHtml(params.name)}, you have been invited as <strong>${escapeHtml(params.role)}</strong>.</p>`,
+    '<p>Administrator access remains disabled until your email is verified and a SAELYXE Super Admin activates the invitation.</p>',
+    verifySection,
+    `<p><a href="${escapeHtml(params.passwordLink)}">2. Set or reset your Firebase password</a></p>`,
+    '<p>3. After completing the steps above, ask the Super Admin to activate your access from the SAELYXE Admin Staff panel.</p>',
+    '<p>If you did not expect this invitation, do not use these links.</p>',
+    '</div>'
+  ].join('');
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from,
+      to: [params.email],
+      subject: 'SAELYXE Administrator Invitation',
+      html
+    })
   });
+  if (!response.ok) throw new Error('Administrator invitation email could not be delivered.');
+}
+
+app.post('/api/admin/password-reset', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `admin-password-reset:${getClientAddress(req)}`, 5, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many password reset requests. Please wait before trying again.' });
+    }
+
+    const email = safeString(req.body?.email, 254).trim().toLowerCase();
+    if (!isEmail(email)) return res.status(400).json({ error: 'Enter a valid administrator email address.' });
+
+    // Always use the same public success response so account existence is never disclosed.
+    const genericSuccess = () => res.status(202).json({
+      success: true,
+      message: 'If this email belongs to an active SAELYXE administrator, a password reset email will be sent.'
+    });
+
+    let eligible = ADMIN_EMAILS.has(email);
+    if (!eligible) {
+      const snapshot = await adminDb.collection('admins').where('email', '==', email).limit(1).get();
+      eligible = snapshot.docs.some(docSnap => docSnap.data()?.status === 'active');
+    }
+    if (!eligible) return genericSuccess();
+
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_EMAIL;
+    if (!apiKey || !from) {
+      console.error('Admin password reset requested while Resend is not configured.');
+      return genericSuccess();
+    }
+
+    try {
+      const authAdmin = getAuth();
+      const userRecord = await authAdmin.getUserByEmail(email);
+      if (!userRecord.emailVerified) return genericSuccess();
+
+      const resetLink = await authAdmin.generatePasswordResetLink(email, {
+        url: 'https://www.saelyxe.com/admin',
+        handleCodeInApp: false
+      });
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `saelyxe-admin-reset-${crypto.createHash('sha256').update(email).digest('hex').slice(0, 32)}-${Math.floor(Date.now() / 600000)}`
+        },
+        body: JSON.stringify({
+          from,
+          to: [email],
+          subject: 'Reset your SAELYXE administrator password',
+          html: [
+            '<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#181614">',
+            '<h2>SAELYXE Administrator Password Reset</h2>',
+            '<p>A password reset was requested for your administrator account.</p>',
+            `<p><a href="${escapeHtml(resetLink)}">Reset administrator password</a></p>`,
+            '<p>This link is generated by Firebase Authentication. If you did not request it, you can ignore this email.</p>',
+            '</div>'
+          ].join('')
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Admin password reset email failed:', response.status);
+      }
+    } catch (error: any) {
+      // User-not-found and transport failures intentionally share the generic response.
+      console.error('Admin password reset delivery note:', safeString(error?.code || error?.message, 160));
+    }
+
+    return genericSuccess();
+  } catch {
+    return res.status(500).json({ error: 'Unable to process password reset request.' });
+  }
+});
+
+app.post('/api/admin/staff/invite', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const name = safeString(req.body?.name, 120);
+    const username = safeString(req.body?.username, 60).toLowerCase();
+    const email = safeString(req.body?.email, 254).toLowerCase();
+    const role = safeString(req.body?.role, 30) as 'admin' | 'super_admin';
+    if (!name || !/^[a-z0-9._-]{3,60}$/.test(username) || !isEmail(email) || !['admin', 'super_admin'].includes(role)) {
+      return res.status(400).json({ error: 'Valid name, username, email, and administrator role are required.' });
+    }
+    if (ADMIN_EMAILS.has(email)) {
+      return res.status(409).json({ error: 'Configured bootstrap administrator emails are managed outside staff invitations.' });
+    }
+    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+      return res.status(503).json({ error: 'Transactional email must be configured before inviting staff.' });
+    }
+
+    const authAdmin = getAuth();
+    let userRecord: any;
+    try {
+      userRecord = await authAdmin.getUserByEmail(email);
+    } catch (error: any) {
+      if (error?.code !== 'auth/user-not-found') throw error;
+      userRecord = await authAdmin.createUser({
+        email,
+        displayName: name,
+        disabled: false
+      });
+    }
+
+    const existingAdmin = await adminDb.collection('admins').doc(userRecord.uid).get();
+    const existingData: any = existingAdmin.exists ? existingAdmin.data() || {} : {};
+    if (existingData.status === 'active') {
+      return res.status(409).json({ error: 'This Firebase account already has active administrator access.' });
+    }
+
+    const now = new Date().toISOString();
+    const actionSettings = { url: 'https://www.saelyxe.com/admin', handleCodeInApp: false };
+    const passwordLink = await authAdmin.generatePasswordResetLink(email, actionSettings);
+    const verifyLink = userRecord.emailVerified
+      ? undefined
+      : await authAdmin.generateEmailVerificationLink(email, actionSettings);
+
+    const adminRecord = {
+      uid: userRecord.uid,
+      firebaseUid: userRecord.uid,
+      email,
+      name,
+      username,
+      role,
+      status: 'invited',
+      emailVerified: Boolean(userRecord.emailVerified),
+      invitedAt: existingData.invitedAt || now,
+      updatedAt: now,
+      invitedBy: token.uid
+    };
+    const staffRecord = {
+      id: userRecord.uid,
+      firebaseUid: userRecord.uid,
+      username,
+      name,
+      email,
+      role,
+      status: 'invited',
+      emailVerified: Boolean(userRecord.emailVerified),
+      createdAt: existingData.invitedAt || now,
+      invitedAt: existingData.invitedAt || now
+    };
+
+    const batch = adminDb.batch();
+    batch.set(adminDb.collection('admins').doc(userRecord.uid), adminRecord, { merge: true });
+    batch.set(adminDb.collection('staff').doc(userRecord.uid), staffRecord, { merge: true });
+    await batch.commit();
+
+    try {
+      await sendStaffInvitationEmail({ email, name, role, verifyLink, passwordLink });
+      await adminDb.collection('admins').doc(userRecord.uid).set({ inviteDeliveryStatus: 'sent', inviteSentAt: now }, { merge: true });
+    } catch (error) {
+      await adminDb.collection('admins').doc(userRecord.uid).set({ inviteDeliveryStatus: 'failed', updatedAt: now }, { merge: true });
+      throw error;
+    }
+
+    await writeAdminAudit(adminDb, token, 'STAFF_INVITED', `Invited ${email} as ${role} (${userRecord.uid}).`);
+    return res.status(201).json(staffRecord);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to invite administrator.';
+    return res.status(message.includes('delivered') ? 502 : 500).json({ error: message });
+  }
+});
+
+app.post('/api/admin/staff/:uid/activate', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const uid = safeString(req.params.uid, 160);
+    const adminRef = adminDb.collection('admins').doc(uid);
+    const adminSnap = await adminRef.get();
+    if (!adminSnap.exists) return res.status(404).json({ error: 'Staff invitation was not found.' });
+    const record: any = adminSnap.data() || {};
+    const role = safeString(record.role, 30);
+    if (!['admin', 'super_admin'].includes(role)) return res.status(409).json({ error: 'Staff role is invalid.' });
+
+    const userRecord = await getAuth().getUser(uid);
+    if (!userRecord.emailVerified) {
+      return res.status(409).json({ error: 'The staff member must verify their Firebase email before activation.' });
+    }
+
+    const currentClaims = { ...(userRecord.customClaims || {}) };
+    await getAuth().setCustomUserClaims(uid, { ...currentClaims, admin: true, role });
+    const now = new Date().toISOString();
+    const batch = adminDb.batch();
+    batch.set(adminRef, { status: 'active', emailVerified: true, activatedAt: now, updatedAt: now, activatedBy: token.uid }, { merge: true });
+    batch.set(adminDb.collection('staff').doc(uid), { status: 'active', emailVerified: true, activatedAt: now }, { merge: true });
+    await batch.commit();
+
+    await writeAdminAudit(adminDb, token, 'STAFF_ACTIVATED', `Activated ${record.email || uid} as ${role}.`);
+    const updated = await adminDb.collection('staff').doc(uid).get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to activate administrator.' });
+  }
+});
+
+app.put('/api/admin/staff/:uid/role', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const uid = safeString(req.params.uid, 160);
+    const role = safeString(req.body?.role, 30) as 'admin' | 'super_admin';
+    if (!['admin', 'super_admin'].includes(role)) return res.status(400).json({ error: 'Invalid administrator role.' });
+
+    const userRecord = await getAuth().getUser(uid);
+    const email = userRecord.email?.toLowerCase() || '';
+    if (ROOT_ADMIN_EMAILS.has(email)) return res.status(409).json({ error: 'Bootstrap Super Admin role cannot be changed here.' });
+
+    const adminRef = adminDb.collection('admins').doc(uid);
+    const snap = await adminRef.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Administrator record not found.' });
+    const record: any = snap.data() || {};
+    const now = new Date().toISOString();
+
+    if (record.status === 'active') {
+      const currentClaims = { ...(userRecord.customClaims || {}) };
+      await getAuth().setCustomUserClaims(uid, { ...currentClaims, admin: true, role });
+    }
+
+    const batch = adminDb.batch();
+    batch.set(adminRef, { role, updatedAt: now }, { merge: true });
+    batch.set(adminDb.collection('staff').doc(uid), { role }, { merge: true });
+    await batch.commit();
+
+    await writeAdminAudit(adminDb, token, 'STAFF_ROLE_CHANGED', `Changed ${email || uid} role to ${role}.`);
+    const updated = await adminDb.collection('staff').doc(uid).get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to update staff role.' });
+  }
+});
+
+app.post('/api/admin/staff/:uid/revoke', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const uid = safeString(req.params.uid, 160);
+    if (uid === token.uid) return res.status(409).json({ error: 'You cannot revoke your own active Super Admin session.' });
+    const userRecord = await getAuth().getUser(uid);
+    const email = userRecord.email?.toLowerCase() || '';
+    if (ROOT_ADMIN_EMAILS.has(email)) return res.status(409).json({ error: 'Bootstrap Super Admin access cannot be revoked here.' });
+
+    const claims = { ...(userRecord.customClaims || {}) } as Record<string, unknown>;
+    delete claims.admin;
+    delete claims.role;
+    await getAuth().setCustomUserClaims(uid, claims);
+    await getAuth().revokeRefreshTokens(uid);
+
+    const now = new Date().toISOString();
+    const batch = adminDb.batch();
+    batch.set(adminDb.collection('admins').doc(uid), { status: 'revoked', revokedAt: now, updatedAt: now, revokedBy: token.uid }, { merge: true });
+    batch.set(adminDb.collection('staff').doc(uid), { status: 'revoked', revokedAt: now }, { merge: true });
+    await batch.commit();
+
+    await writeAdminAudit(adminDb, token, 'STAFF_ACCESS_REVOKED', `Revoked administrator access for ${email || uid}.`);
+    const updated = await adminDb.collection('staff').doc(uid).get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to revoke administrator access.' });
+  }
+});
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'saelyxe-api' });
+});
+
+app.get('/api/admin/export', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required. Sign out and sign in again before exporting.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-export:${token.uid}`, 3, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many backup exports. Please wait before exporting again.' });
+    }
+
+    const collectionNames = [
+      'products',
+      'settings',
+      'orders',
+      'staff',
+      'admins',
+      'messages',
+      'concierge_inquiries',
+      'audit_logs',
+      'subscribers',
+      'stock_notifications'
+    ] as const;
+
+    const entries = await Promise.all(collectionNames.map(async name => {
+      const snapshot = await adminDb.collection(name).get();
+      return [
+        name,
+        snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+      ] as const;
+    }));
+
+    const backup = Object.fromEntries(entries);
+    await writeAdminAudit(adminDb, token, 'DATABASE_EXPORT', 'Exported protected administrator database snapshot.');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="saelyxe-backup-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({
+      exportedAt: new Date().toISOString(),
+      exportedBy: token.uid,
+      schemaVersion: 1,
+      data: backup
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to export administrator backup.' });
+  }
+});
+
+app.get('/api/admin/health', async (req, res) => {
+  try {
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    return res.json({
+      ok: true,
+      firebaseAdminConfigured: Boolean(getAdminDb()),
+      transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
+      mediaStorageConfigured: Boolean(
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+      ),
+      appCheckEnforced: process.env.FIREBASE_APP_CHECK_ENFORCE === 'true',
+      abuseProtectionConfigured: true,
+      payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to load administrator health status.' });
+  }
 });
 
 app.post('/api/media/cloudinary-signature', async (req, res) => {
@@ -651,11 +1123,12 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Media service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!isAdminToken(token)) {
-      return res.status(403).json({ error: 'Admin access required.' });
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `media-signature:${token.uid}`, 30, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many media upload authorizations. Please wait and try again.' });
     }
-    // Admin media uploads rely on authenticated admin access only.
-    // No App Check or rate-limit friction is applied to the private admin panel.
+
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -663,11 +1136,12 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
       return res.status(503).json({ error: 'Media storage is not configured.' });
     }
 
+    const kind = safeString(req.body?.kind, 30);
+    const folder = kind === 'settings' ? 'saelyxe/settings' : 'saelyxe/products';
     const timestamp = Math.floor(Date.now() / 1000);
-    const folder = 'saelyxe/products';
     const signatureBase = `folder=${folder}&timestamp=${timestamp}`;
     const signature = crypto
-      .createHash('sha1')
+      .createHash('sha256')
       .update(`${signatureBase}${apiSecret}`)
       .digest('hex');
 
@@ -932,7 +1406,7 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
     if (!initialSnap.exists) return res.status(404).json({ error: 'Order not found.' });
     const initialOrder: any = { id: initialSnap.id, ...initialSnap.data() };
 
-    if (initialOrder.userId !== token.uid && !isAdminToken(token)) {
+    if (initialOrder.userId !== token.uid && !(await isAdminToken(token))) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (initialOrder.paymentMethod !== 'paypal') {
@@ -963,7 +1437,7 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
       if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
 
       const current: any = { id: orderSnap.id, ...orderSnap.data() };
-      if (current.userId !== token.uid && !isAdminToken(token)) {
+      if (current.userId !== token.uid && !(await isAdminToken(token))) {
         throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
       }
       if (current.paymentMethod !== 'paypal') {
@@ -1037,7 +1511,7 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !isAdminToken(token)) {
+    if (order.userId !== token.uid && !(await isAdminToken(token))) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -1078,7 +1552,7 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
       });
     }
 
-    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
     return res.json(updated);
   } catch (error: any) {
     const status = Number(error?.statusCode) || 500;
@@ -1107,7 +1581,7 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !isAdminToken(token)) {
+    if (order.userId !== token.uid && !(await isAdminToken(token))) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -1136,7 +1610,7 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
       return res.status(409).json({ error: 'PayPal payment could not be verified yet.', verification });
     }
 
-    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
     return res.json(updated);
   } catch (error: any) {
     return res.status(500).json({ error: safeString(error?.message, 240) || 'Unable to verify PayPal payment.' });
@@ -1163,7 +1637,7 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
 
-    if (order.userId !== token.uid && !isAdminToken(token)) {
+    if (order.userId !== token.uid && !(await isAdminToken(token))) {
       return res.status(403).json({ error: 'Order access denied.' });
     }
     if (order.paymentMethod !== 'paypal') {
@@ -1185,7 +1659,7 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
 
       const verification = await verifyPayPalOrder(order, paypalOrderId);
       if (verification.verified) {
-        const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId);
+        const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
         return res.status(409).json({
           error: 'PayPal payment is already completed, so checkout cancellation was blocked.',
           order: updated
@@ -1509,16 +1983,24 @@ app.post('/api/orders', async (req, res) => {
     }
 
     if (paymentMethod === 'paypal' && paymentProviderReference && responseOrder) {
-      const verification = await verifyPayPalOrder(responseOrder, paymentProviderReference).catch(() => ({ verified: false, reason: 'verification_error' }));
+      const verification: any = await verifyPayPalOrder(responseOrder, paymentProviderReference).catch(() => ({ verified: false, reason: 'verification_error' }));
       if (verification.verified) {
         const verifiedAt = new Date().toISOString();
         responseOrder.paymentStatus = 'verified';
         responseOrder.paymentVerificationSource = 'paypal_orders_api';
         responseOrder.paymentVerifiedAt = verifiedAt;
+        responseOrder.paymentCaptureId = verification.captureId || '';
+        responseOrder.paymentCaptureAmount = verification.actualCaptureAmount;
+        responseOrder.paymentCaptureCurrency = verification.actualCaptureCurrency || '';
         await orderRef.update({
           paymentStatus: 'verified',
           paymentVerificationSource: 'paypal_orders_api',
           paymentVerifiedAt: verifiedAt,
+          paymentCaptureState: 'completed',
+          paymentCaptureCompletedAt: verifiedAt,
+          paymentCaptureId: verification.captureId || '',
+          paymentCaptureAmount: verification.actualCaptureAmount,
+          paymentCaptureCurrency: verification.actualCaptureCurrency || '',
           paymentUpdatedAt: verifiedAt
         });
       } else {
@@ -1549,13 +2031,253 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
+app.put('/api/admin/messages/:id', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Concierge service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const id = safeString(req.params.id, 160);
+    const status = safeString(req.body?.status, 20);
+    const replyNotes = safeString(req.body?.replyNotes, 2000);
+    if (!id || !['unread', 'read', 'replied'].includes(status)) {
+      return res.status(400).json({ error: 'Valid message status is required.' });
+    }
+
+    const messageRef = adminDb.collection('messages').doc(id);
+    const inquiryRef = adminDb.collection('concierge_inquiries').doc(id);
+    const [messageSnap, inquirySnap] = await Promise.all([messageRef.get(), inquiryRef.get()]);
+    if (!messageSnap.exists && !inquirySnap.exists) return res.status(404).json({ error: 'Inquiry not found.' });
+
+    const update = {
+      status,
+      replyNotes,
+      updatedAt: new Date().toISOString(),
+      updatedBy: token.uid
+    };
+    const batch = adminDb.batch();
+    if (messageSnap.exists) batch.update(messageRef, update);
+    if (inquirySnap.exists) batch.update(inquiryRef, update);
+    await batch.commit();
+    await writeAdminAudit(adminDb, token, 'CONCIERGE_STATUS_UPDATED', `Updated inquiry ${id} to ${status}.`);
+
+    const source = inquirySnap.exists ? inquirySnap : messageSnap;
+    return res.json({ id, ...source.data(), ...update });
+  } catch {
+    return res.status(500).json({ error: 'Unable to update concierge inquiry.' });
+  }
+});
+
+app.put('/api/admin/products/:id', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Product service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const id = safeString(req.params.id, 100);
+    const title = safeString(req.body?.title, 200);
+    const subtitle = safeString(req.body?.subtitle, 300);
+    const description = safeString(req.body?.description, 5000);
+    const fabricDetails = safeString(req.body?.fabricDetails, 1000);
+    const category = safeString(req.body?.category, 40);
+    const priceLKR = Number(req.body?.priceLKR);
+    const stockCount = Number(req.body?.stockCount);
+    const allowedCategories = new Set(['men', 'women', 'new', 'collections', 'knits', 'sets', 'accessories']);
+    const images = Array.isArray(req.body?.images)
+      ? req.body.images.map((value: unknown) => safeString(value, 1200)).filter((value: string) => value.startsWith('https://')).slice(0, 16)
+      : [];
+    const sizes = Array.isArray(req.body?.sizes)
+      ? req.body.sizes.map((value: unknown) => safeString(value, 30)).filter(Boolean).slice(0, 30)
+      : [];
+    const bulletDetails = Array.isArray(req.body?.bulletDetails)
+      ? req.body.bulletDetails.map((value: unknown) => safeString(value, 300)).filter(Boolean).slice(0, 30)
+      : [];
+
+    if (!id || !title || !allowedCategories.has(category) || !Number.isFinite(priceLKR) || priceLKR <= 0 ||
+        !Number.isInteger(stockCount) || stockCount < 0 || images.length === 0) {
+      return res.status(400).json({ error: 'Product title, category, positive price, valid stock, and at least one HTTPS image are required.' });
+    }
+
+    const slug = safeString(req.body?.slug, 200) || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const slugCollision = await adminDb.collection('products').where('slug', '==', slug).limit(2).get();
+    if (slugCollision.docs.some(docSnap => docSnap.id !== id)) {
+      return res.status(409).json({ error: 'Another product already uses this slug.' });
+    }
+
+    const ref = adminDb.collection('products').doc(id);
+    const existing = await ref.get();
+    const now = new Date().toISOString();
+    const hoverImage = safeString(req.body?.hoverImage, 1200);
+    const completeTheSetProductId = safeString(req.body?.completeTheSetProductId, 100);
+    const payload = {
+      id,
+      slug,
+      title,
+      subtitle,
+      description,
+      fabricDetails,
+      category,
+      subCategory: safeString(req.body?.subCategory, 100),
+      priceLKR,
+      stockCount,
+      inStock: stockCount > 0 && req.body?.inStock !== false,
+      images,
+      hoverImage: hoverImage.startsWith('https://') ? hoverImage : '',
+      completeTheSetProductId,
+      sizes,
+      bulletDetails,
+      badge: safeString(req.body?.badge, 100),
+      color: safeString(req.body?.color, 100),
+      fit: safeString(req.body?.fit, 160),
+      createdAt: existing.exists ? safeString(existing.data()?.createdAt, 80) || now : now,
+      updatedAt: now
+    };
+
+    await ref.set(payload, { merge: true });
+    await writeAdminAudit(adminDb, token, existing.exists ? 'PRODUCT_UPDATED' : 'PRODUCT_CREATED', `${title} (${id}).`);
+    return res.json(payload);
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to save product.' });
+  }
+});
+
+app.delete('/api/admin/products/:id', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Product service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    const id = safeString(req.params.id, 100);
+    const ref = adminDb.collection('products').doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Product not found.' });
+    await ref.delete();
+    await writeAdminAudit(adminDb, token, 'PRODUCT_RETIRED', `Retired ${snap.data()?.title || id} (${id}).`);
+    return res.json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Unable to retire product.' });
+  }
+});
+
+app.put('/api/admin/settings', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Settings service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const update: Record<string, unknown> = {};
+    const stringFields: Array<[string, number]> = [
+      ['spotlightTitle', 300], ['spotlightSubhead', 500], ['spotlightDescription', 5000],
+      ['spotlightEyebrow', 120], ['announcementText', 500], ['heroHeadline', 300],
+      ['heroSubhead', 500]
+    ];
+    for (const [key, max] of stringFields) {
+      if (key in (req.body || {})) update[key] = safeString(req.body?.[key], max);
+    }
+
+    if ('spotlightBackgroundImage' in (req.body || {})) {
+      const image = safeString(req.body?.spotlightBackgroundImage, 1200);
+      if (image && !image.startsWith('https://')) return res.status(400).json({ error: 'Spotlight background must use an HTTPS image URL.' });
+      update.spotlightBackgroundImage = image;
+    }
+
+    for (const key of ['spotlightPriceLKR', 'freeShippingThresholdLKR'] as const) {
+      if (key in (req.body || {})) {
+        const value = Number(req.body?.[key]);
+        if (!Number.isFinite(value) || value < 0) return res.status(400).json({ error: `${key} must be zero or greater.` });
+        update[key] = value;
+      }
+    }
+
+    if ('countdownTarget' in (req.body || {})) {
+      const countdownTarget = safeString(req.body?.countdownTarget, 100);
+      if (!countdownTarget || Number.isNaN(Date.parse(countdownTarget))) return res.status(400).json({ error: 'Countdown target must be a valid date/time.' });
+      update.countdownTarget = new Date(countdownTarget).toISOString();
+    }
+
+    for (const key of ['showHeroSection', 'showSpotlightSection', 'showCollectionSection', 'showSocialFAQSection'] as const) {
+      if (key in (req.body || {})) update[key] = req.body?.[key] === true;
+    }
+
+    update.updatedAt = new Date().toISOString();
+    update.updatedBy = token.uid;
+    const ref = adminDb.collection('settings').doc('drop_config');
+    await ref.set(update, { merge: true });
+    await writeAdminAudit(adminDb, token, 'SETTINGS_UPDATED', 'Updated boutique homepage/drop settings.');
+    const updated = await ref.get();
+    return res.json(updated.data());
+  } catch {
+    return res.status(500).json({ error: 'Unable to update settings.' });
+  }
+});
+
+app.post('/api/admin/audit', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Audit service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    const action = safeString(req.body?.action, 80);
+    const details = safeString(req.body?.details, 1000);
+    const allowed = new Set(['ADMIN_LOGIN', 'ORDER_CSV_EXPORT', 'DATABASE_EXPORT']);
+    if (!allowed.has(action)) return res.status(400).json({ error: 'Unsupported audit action.' });
+    await writeAdminAudit(adminDb, token, action, details);
+    return res.status(201).json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Unable to write audit event.' });
+  }
+});
+
+app.get('/api/admin/orders/page', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const requestedLimit = Number(req.query.limit);
+    const pageSize = Number.isInteger(requestedLimit) ? Math.min(100, Math.max(10, requestedLimit)) : 100;
+    const cursorId = safeString(req.query.cursor, 120);
+
+    const ordersRef = adminDb.collection('orders');
+    let queryRef: any = ordersRef.orderBy('createdAt', 'desc');
+    if (cursorId) {
+      const cursorSnap = await ordersRef.doc(cursorId).get();
+      if (!cursorSnap.exists) return res.status(400).json({ error: 'Order pagination cursor is invalid.' });
+      queryRef = queryRef.startAfter(cursorSnap);
+    }
+
+    const snapshot = await queryRef.limit(pageSize + 1).get();
+    const docs = snapshot.docs.slice(0, pageSize);
+    const items = docs.map((docSnap: any) => ({ id: docSnap.id, ...docSnap.data() }));
+    const hasMore = snapshot.docs.length > pageSize;
+    return res.json({
+      items,
+      hasMore,
+      nextCursor: hasMore && docs.length ? docs[docs.length - 1].id : null
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to load older orders.' });
+  }
+});
+
 app.get('/api/orders', async (req, res) => {
   try {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
 
     const snapshot = await adminDb.collection('orders').orderBy('createdAt', 'desc').limit(250).get();
     return res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -1569,34 +2291,190 @@ app.get('/api/orders/:id', async (req, res) => {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
-    const clientKey = `tracking:${getClientAddress(req)}`;
-    if (!(await enforceRateLimit(adminDb, clientKey, 60, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many tracking requests. Please try again later.' });
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
     }
 
     const id = safeString(req.params.id, 120);
+    if (!id) return res.status(400).json({ error: 'Order reference is required.' });
+
+    if (!(await enforceRateLimit(adminDb, `tracking:${token.uid}:${id}`, 30, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many tracking requests. Please try again later.' });
+    }
+
     const snap = await adminDb.collection('orders').doc(id).get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
 
     const order: any = { id: snap.id, ...snap.data() };
+    if (order.userId !== token.uid && !(await isAdminToken(token))) {
+      // Use the same response as a missing order so the endpoint does not confirm
+      // whether another customer's order reference exists.
+      return res.status(404).json({ error: 'Order not found.' });
+    }
 
-    // Public tracking intentionally excludes email, phone, and street address.
+    const items = Array.isArray(order.items)
+      ? order.items.map((item: any) => ({
+          productId: safeString(item?.productId, 100),
+          title: safeString(item?.title, 200),
+          image: safeString(item?.image, 1000),
+          size: safeString(item?.size, 30),
+          quantity: Number(item?.quantity) || 0
+        }))
+      : [];
+
+    const statusHistory = Array.isArray(order.statusHistory)
+      ? order.statusHistory.map((entry: any) => ({
+          status: safeString(entry?.status, 40),
+          timestamp: safeString(entry?.timestamp, 80)
+        }))
+      : [];
+
     return res.json({
       id: order.id,
-      orderNumber: order.orderNumber,
-      customerName: order.customerName,
-      items: order.items,
-      status: order.status,
-      trackingNumber: order.trackingNumber || '',
-      courierName: order.courierName || '',
-      deliveryEta: order.deliveryEta || '',
-      createdAt: order.createdAt,
-      statusHistory: order.statusHistory || [],
-      city: order.city || '',
-      country: order.country || ''
+      orderNumber: safeString(order.orderNumber || order.id, 120),
+      items,
+      status: safeString(order.status, 40),
+      trackingNumber: safeString(order.trackingNumber, 160),
+      courierName: safeString(order.courierName, 160),
+      deliveryEta: safeString(order.deliveryEta, 160),
+      createdAt: safeString(order.createdAt, 80),
+      statusHistory,
+      city: safeString(order.city, 100),
+      country: safeString(order.country, 80)
     });
   } catch {
     return res.status(500).json({ error: 'Unable to load tracking information.' });
+  }
+});
+
+app.post('/api/admin/orders/:id/refund', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required for refunds.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const orderId = safeString(req.params.id, 120);
+    if (!(await enforceRateLimit(adminDb, `paypal-refund:${token.uid}:${orderId}`, 5, 30 * 60_000))) {
+      return res.status(429).json({ error: 'Too many refund attempts. Please wait and retry.' });
+    }
+
+    const ref = adminDb.collection('orders').doc(orderId);
+    let snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    let order: any = { id: snap.id, ...snap.data() };
+    if (order.paymentMethod !== 'paypal' || !['verified', 'refund_pending'].includes(order.paymentStatus)) {
+      if (order.paymentStatus === 'refunded') return res.json(order);
+      return res.status(409).json({ error: 'Only verified PayPal payments can be refunded.' });
+    }
+
+    let captureId = safeString(order.paymentCaptureId, 160);
+    if (!captureId) {
+      const paypalOrderId = safeString(order.paymentProviderReference, 160);
+      const verification = await verifyPayPalOrder(order, paypalOrderId);
+      if (!verification.verified || !verification.captureId) {
+        return res.status(409).json({ error: 'PayPal capture ID could not be verified for this order.' });
+      }
+      captureId = verification.captureId;
+      await ref.set({
+        paymentCaptureId: captureId,
+        paymentCaptureAmount: verification.actualCaptureAmount,
+        paymentCaptureCurrency: verification.actualCaptureCurrency || ''
+      }, { merge: true });
+    }
+
+    let refund: { id: string; status: string };
+    const existingRefundId = safeString(order.refundId, 160);
+    if (existingRefundId) {
+      refund = await getPayPalRefund(existingRefundId);
+    } else {
+      refund = await refundPayPalCapture(captureId, orderId);
+      await ref.set({
+        refundId: refund.id,
+        refundStatus: refund.status || 'PENDING',
+        refundRequestedAt: new Date().toISOString(),
+        refundRequestedBy: token.uid
+      }, { merge: true });
+    }
+
+    if (refund.status !== 'COMPLETED') {
+      await ref.set({ refundStatus: refund.status || 'PENDING', paymentStatus: 'refund_pending' }, { merge: true });
+      snap = await ref.get();
+      await writeAdminAudit(adminDb, token, 'PAYPAL_REFUND_PENDING', `Refund ${refund.id || 'pending'} for order ${orderId} is ${refund.status || 'PENDING'}.`);
+      return res.status(202).json({ id: snap.id, ...snap.data() });
+    }
+
+    const now = new Date().toISOString();
+    await adminDb.runTransaction(async transaction => {
+      const orderSnap = await transaction.get(ref);
+      if (!orderSnap.exists) throw new Error('Order not found.');
+      const current: any = orderSnap.data() || {};
+
+      const canAutoRestoreInventory =
+        current.inventoryCommitted === true &&
+        ['placed', 'confirmed', 'packed'].includes(safeString(current.status, 40));
+      const quantityByProduct = new Map<string, number>();
+      if (canAutoRestoreInventory) {
+        for (const item of Array.isArray(current.items) ? current.items : []) {
+          const productId = safeString(item?.productId, 100);
+          const quantity = Number(item?.quantity);
+          if (productId && Number.isInteger(quantity) && quantity > 0) {
+            quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
+          }
+        }
+      }
+
+      const products = new Map<string, { ref: any; stockCount: number }>();
+      for (const productId of quantityByProduct.keys()) {
+        const productRef = adminDb.collection('products').doc(productId);
+        const productSnap = await transaction.get(productRef);
+        if (productSnap.exists) {
+          products.set(productId, { ref: productRef, stockCount: Math.max(0, Number(productSnap.data()?.stockCount) || 0) });
+        }
+      }
+
+      for (const [productId, quantity] of quantityByProduct.entries()) {
+        const product = products.get(productId);
+        if (!product) continue;
+        const nextStock = product.stockCount + quantity;
+        transaction.update(product.ref, { stockCount: nextStock, inStock: nextStock > 0, updatedAt: now });
+      }
+
+      transaction.update(ref, {
+        status: 'cancelled',
+        paymentStatus: 'refunded',
+        refundId: refund.id,
+        refundStatus: 'COMPLETED',
+        refundedAt: now,
+        inventoryCommitted: canAutoRestoreInventory ? false : current.inventoryCommitted === true,
+        requiresManualReview: current.inventoryCommitted === true && !canAutoRestoreInventory,
+        inventoryException: current.inventoryCommitted === true && !canAutoRestoreInventory
+          ? 'Refund completed after dispatch; returned inventory requires manual physical review before restocking.'
+          : FieldValue.delete(),
+        updatedAt: now,
+        statusHistory: [
+          ...(Array.isArray(current.statusHistory) ? current.statusHistory : []),
+          {
+            status: 'cancelled',
+            timestamp: now,
+            note: canAutoRestoreInventory
+              ? 'PayPal refund completed, order cancelled, and pre-dispatch inventory restored.'
+              : 'PayPal refund completed. Dispatched inventory requires manual return review.',
+            location: 'SAELYXE Payments'
+          }
+        ]
+      });
+    });
+
+    await writeAdminAudit(adminDb, token, 'PAYPAL_REFUND_COMPLETED', `Refunded PayPal capture ${captureId} for order ${orderId} (refund ${refund.id}).`);
+    const updated = await ref.get();
+    return res.json({ id: updated.id, ...updated.data() });
+  } catch (error: any) {
+    const statusCode = Number(error?.statusCode) || 500;
+    return res.status(statusCode).json({ error: safeString(error?.message, 240) || 'Unable to process PayPal refund.' });
   }
 });
 
@@ -1606,7 +2484,8 @@ app.put('/api/orders/:id/status', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
 
     const id = safeString(req.params.id, 120);
     const status = safeString(req.body?.status, 40);
@@ -1621,6 +2500,14 @@ app.put('/api/orders/:id/status', async (req, res) => {
 
       const current: any = snap.data() || {};
       const currentStatus = safeString(current.status, 40) || 'placed';
+
+      if (
+        status === 'cancelled' &&
+        current.paymentMethod === 'paypal' &&
+        ['verified', 'refund_pending'].includes(safeString(current.paymentStatus, 40))
+      ) {
+        throw new Error('Verified PayPal orders must be cancelled through the Super Admin refund workflow.');
+      }
 
       if (!canTransitionOrderStatus(currentStatus, status)) {
         throw new Error(`Invalid order transition: ${currentStatus} → ${status}.`);
@@ -1722,11 +2609,13 @@ app.put('/api/orders/:id/status', async (req, res) => {
     });
 
     const updated = await ref.get();
+    if (token) await writeAdminAudit(adminDb, token, 'ORDER_STATUS_UPDATED', `Order ${id} updated to ${status}.`);
     return res.json({ id: updated.id, ...updated.data() });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to update order.';
     const statusCode =
       message.startsWith('Invalid order transition') ? 409 :
+      message.includes('must be cancelled through') ? 409 :
       message.includes('not enough stock') ? 409 :
       message === 'Order not found.' ? 404 : 400;
     return res.status(statusCode).json({ error: message });
@@ -1734,12 +2623,19 @@ app.put('/api/orders/:id/status', async (req, res) => {
 });
 
 app.post('/api/restock/dispatch', async (req, res) => {
+  const adminDb = getAdminDb();
+  let lockRef: any = null;
+  let lockAcquired = false;
+  let executionId = '';
   try {
-    const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Restock service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!isAdminToken(token)) return res.status(403).json({ error: 'Admin access required.' });
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `restock-dispatch:${token.uid}`, 12, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many restock dispatch attempts. Please wait before retrying.' });
+    }
 
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
@@ -1753,21 +2649,100 @@ app.post('/api/restock/dispatch', async (req, res) => {
     const productSnap = await adminDb.collection('products').doc(productId).get();
     if (!productSnap.exists) return res.status(404).json({ error: 'Product not found.' });
     const product: any = { id: productSnap.id, ...productSnap.data() };
+    if (product.inStock !== true || Math.max(0, Number(product.stockCount) || 0) < 1) {
+      return res.status(409).json({ error: 'Restock alerts can only be sent while this product is currently in stock.' });
+    }
 
-    const notificationSnap = await adminDb.collection('stock_notifications')
+    executionId = `restock-${crypto.randomBytes(8).toString('hex')}`;
+    const currentLockRef = adminDb.collection('restock_dispatch_locks').doc(productId);
+    lockRef = currentLockRef;
+    const nowMs = Date.now();
+    const lockTtlMs = 10 * 60_000;
+
+    await adminDb.runTransaction(async transaction => {
+      const lockSnap = await transaction.get(currentLockRef);
+      const lockData: any = lockSnap.exists ? lockSnap.data() || {} : {};
+      if (lockSnap.exists && Number(lockData.expiresAtMs) > nowMs) {
+        throw Object.assign(new Error('A restock dispatch for this product is already in progress.'), { statusCode: 409 });
+      }
+      transaction.set(currentLockRef, {
+        productId,
+        executionId,
+        ownerUid: token.uid,
+        createdAt: new Date(nowMs).toISOString(),
+        expiresAtMs: nowMs + lockTtlMs
+      });
+    });
+    lockAcquired = true;
+
+    const allNotifications = await adminDb.collection('stock_notifications')
       .where('productId', '==', productId)
-      .where('status', '==', 'pending')
+      .limit(500)
       .get();
 
-    const executionId = `restock-${crypto.randomBytes(6).toString('hex')}`;
+    const staleSendingThreshold = nowMs - 15 * 60_000;
+    const candidates = allNotifications.docs
+      .filter(docSnap => {
+        const data: any = docSnap.data() || {};
+        if (data.status === 'pending' || data.status === 'failed') return true;
+        if (data.status === 'sending') {
+          const started = Date.parse(safeString(data.dispatchStartedAt, 80));
+          return Number.isFinite(started) && started < staleSendingThreshold;
+        }
+        return false;
+      })
+      .slice(0, 200);
+
+    if (candidates.length === 0) {
+      await lockRef.delete().catch(() => undefined);
+      lockRef = null;
+      await writeAdminAudit(adminDb, token, 'RESTOCK_DISPATCH_NOOP', `No pending or failed restock recipients for ${product.title || productId}.`);
+      return res.json({
+        success: true,
+        productTitle: product.title || 'Selected Garment',
+        dispatchedCount: 0,
+        failedCount: 0,
+        processedCount: 0,
+        recipients: [],
+        executionId
+      });
+    }
+
+    const dispatchStartedAt = new Date().toISOString();
+    const claimBatch = adminDb.batch();
+    for (const docSnap of candidates) {
+      const data: any = docSnap.data() || {};
+      claimBatch.update(docSnap.ref, {
+        status: 'sending',
+        dispatchExecutionId: executionId,
+        dispatchStartedAt,
+        dispatchFinishedAt: FieldValue.delete(),
+        lastDispatchError: FieldValue.delete(),
+        dispatchAttempts: Math.max(0, Number(data.dispatchAttempts) || 0) + 1
+      });
+    }
+    await claimBatch.commit();
+
     const recipients: string[] = [];
+    const failedRecipients: string[] = [];
+    const productUrl = `https://www.saelyxe.com/product/${encodeURIComponent(safeString(product.slug, 160) || productId)}`;
 
-    for (const docSnap of notificationSnap.docs) {
-      const subscriber: any = docSnap.data();
+    for (const docSnap of candidates) {
+      const subscriber: any = docSnap.data() || {};
       const email = safeString(subscriber.customerEmail, 254).toLowerCase();
-      if (!isEmail(email)) continue;
+      const finishedAt = new Date().toISOString();
 
-      const productUrl = `https://www.saelyxe.com/product/${encodeURIComponent(safeString(product.slug, 160) || productId)}`;
+      if (!isEmail(email)) {
+        failedRecipients.push(email || docSnap.id);
+        await docSnap.ref.update({
+          status: 'failed',
+          notified: false,
+          dispatchFinishedAt: finishedAt,
+          lastDispatchError: 'Invalid subscriber email address.'
+        });
+        continue;
+      }
+
       const html = [
         '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#181614">',
         '<h2>SAELYXE — Back in Stock</h2>',
@@ -1779,61 +2754,89 @@ app.post('/api/restock/dispatch', async (req, res) => {
         '</div>'
       ].join('');
 
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from,
-          to: [email],
-          subject: `Back in stock: ${product.title || 'SAELYXE Garment'}`,
-          html
-        })
-      });
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `saelyxe-restock-${docSnap.id}`
+          },
+          body: JSON.stringify({
+            from,
+            to: [email],
+            subject: `Back in stock: ${product.title || 'SAELYXE Garment'}`,
+            html
+          })
+        });
 
-      if (!response.ok) {
-        console.error('Restock email failed:', response.status);
-        return res.status(502).json({ error: 'One or more restock emails could not be delivered.' });
+        const payload: any = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          failedRecipients.push(email);
+          await docSnap.ref.update({
+            status: 'failed',
+            notified: false,
+            dispatchFinishedAt: finishedAt,
+            lastDispatchError: `Resend HTTP ${response.status}`
+          });
+          continue;
+        }
+
+        recipients.push(email);
+        await docSnap.ref.update({
+          status: 'sent',
+          notified: true,
+          notifiedAt: finishedAt,
+          dispatchFinishedAt: finishedAt,
+          resendEmailId: safeString(payload?.id, 160),
+          lastDispatchError: FieldValue.delete()
+        });
+      } catch (error) {
+        failedRecipients.push(email);
+        await docSnap.ref.update({
+          status: 'failed',
+          notified: false,
+          dispatchFinishedAt: finishedAt,
+          lastDispatchError: safeString(error instanceof Error ? error.message : 'Email transport failed.', 240)
+        });
       }
-
-      recipients.push(email);
     }
 
-    const batch = adminDb.batch();
-    for (const docSnap of notificationSnap.docs) {
-      const subscriber: any = docSnap.data();
-      const email = safeString(subscriber.customerEmail, 254).toLowerCase();
-      if (!recipients.includes(email)) continue;
-      batch.update(docSnap.ref, {
-        status: 'sent',
-        notified: true,
-        notifiedAt: new Date().toISOString(),
-        cloudFunctionExecutionId: executionId
-      });
-    }
-    await batch.commit();
+    await writeAdminAudit(
+      adminDb,
+      token,
+      failedRecipients.length ? 'RESTOCK_DISPATCH_PARTIAL' : 'RESTOCK_ALERT_DISPATCHED',
+      `Restock dispatch ${executionId} for ${product.title || productId}: ${recipients.length} sent, ${failedRecipients.length} failed.`
+    );
 
-    await adminDb.collection('audit_logs').add({
-      timestamp: new Date().toISOString(),
-      actor: typeof token?.email === 'string' ? token.email : token?.uid || 'admin',
-      role: typeof token?.role === 'string' ? token.role : 'admin',
-      action: 'RESTOCK_ALERT_DISPATCHED',
-      details: `Dispatched ${recipients.length} restock emails for [${product.title || productId}] (Execution: ${executionId})`
-    });
-
-    return res.json({
-      success: true,
+    return res.status(failedRecipients.length ? 207 : 200).json({
+      success: failedRecipients.length === 0,
       productTitle: product.title || 'Selected Garment',
       dispatchedCount: recipients.length,
-      processedCount: notificationSnap.size,
+      failedCount: failedRecipients.length,
+      processedCount: candidates.length,
       recipients,
-      executionId
+      failedRecipients,
+      executionId,
+      error: failedRecipients.length ? 'Some recipients failed. Retry will target failed recipients only.' : undefined
     });
-  } catch (error) {
+  } catch (error: any) {
+    const statusCode = Number(error?.statusCode) || 500;
     console.error('Restock dispatch failed:', error);
-    return res.status(500).json({ error: 'Unable to dispatch restock alerts.' });
+    return res.status(statusCode).json({
+      error: safeString(error?.message, 240) || 'Unable to dispatch restock alerts.'
+    });
+  } finally {
+    if (lockAcquired && lockRef) {
+      try {
+        const snapshot = await lockRef.get();
+        if (snapshot.exists && snapshot.data()?.executionId === executionId) {
+          await lockRef.delete();
+        }
+      } catch {
+        // Lock TTL protects against a cleanup transport failure.
+      }
+    }
   }
 });
 

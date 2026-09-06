@@ -9,8 +9,7 @@ import {
   Zap, 
   Clock, 
   RefreshCw,
-  Mail,
-  Smartphone
+  Mail
 } from 'lucide-react';
 import { StockNotification, Product } from '../../types';
 
@@ -18,7 +17,6 @@ export interface AdminRestockProps {
   stockNotifications: StockNotification[];
   products: Product[];
   onTriggerRestock: (productId?: string) => Promise<{ success: boolean; message: string }>;
-  onDeleteNotification?: (id: string) => Promise<boolean>;
 }
 
 export const AdminRestock: React.FC<AdminRestockProps> = ({
@@ -33,7 +31,9 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
 
   const totalRequests = stockNotifications.length;
   const pendingRequests = stockNotifications.filter(n => n.status === 'pending').length;
-  const dispatchedRequests = stockNotifications.filter(n => n.status === 'dispatched' || n.notified).length;
+  const dispatchedRequests = stockNotifications.filter(n => n.status === 'sent' || n.status === 'dispatched' || n.notified).length;
+  const failedRequests = stockNotifications.filter(n => n.status === 'failed').length;
+  const sendingRequests = stockNotifications.filter(n => n.status === 'sending').length;
 
   const handleExecuteRestock = async () => {
     if (!selectedProductId) return;
@@ -80,19 +80,19 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
         <div className="card-stat !min-h-32">
           <span className="stat-label">Dispatched Alerts</span>
           <div className="stat-value text-emerald-600">{dispatchedRequests}</div>
-          <span className="text-xs text-stone-500">Notified via email & VIP SMS</span>
+          <span className="text-xs text-stone-500">Successfully accepted by the email provider</span>
         </div>
 
         <div className="card-stat !min-h-32 !bg-[#051C12] !text-white border-transparent">
           <div className="flex items-center gap-2 text-xs font-bold text-[#B4F105] uppercase tracking-wider">
             <Zap className="w-3.5 h-3.5" />
-            <span>Cloud Functions</span>
+            <span>Email Delivery</span>
           </div>
-          <div className="font-mono text-sm font-bold text-white mt-1 truncate">
-            onStockReplenished
+          <div className="font-mono text-sm font-bold text-white mt-1">
+            {sendingRequests} sending · {failedRequests} failed
           </div>
           <div className="text-[11px] text-stone-400">
-            Firestore Waitlist Connected
+            Failed recipients are safe to retry without re-sending successful entries.
           </div>
         </div>
       </div>
@@ -103,7 +103,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
           <div>
             <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-500" />
-              <span>Manual Restock Cloud Function Dispatcher</span>
+              <span>Restock Email Dispatcher</span>
             </h3>
             <p className="text-xs text-stone-500 max-w-2xl mt-1">
               When a replenishment is ready, select the garment below to send verified restock emails to pending Firestore waitlist subscribers. Notifications are marked as sent only after the transactional email provider accepts delivery.
@@ -136,7 +136,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
               <option value="">Select a Garment Silhouette to Restock...</option>
               {products.map(prod => (
                 <option key={prod.id} value={prod.id}>
-                  {prod.title} ({prod.badge || 'Active'} • {prod.stockCount || 50} units)
+                  {prod.title} ({prod.badge || 'Active'} • {prod.stockCount ?? 0} units)
                 </option>
               ))}
             </select>
@@ -150,7 +150,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
             {isTriggering ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Triggering Function...</span>
+                <span>Sending Emails...</span>
               </>
             ) : (
               <>
@@ -236,8 +236,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
                         {n.channel === 'both' ? (
                           <>
                             <Mail className="w-3.5 h-3.5 text-stone-400" />
-                            <Smartphone className="w-3.5 h-3.5 text-stone-400" />
-                            <span>Email + VIP SMS</span>
+                            <span>Email Alert</span>
                           </>
                         ) : (
                           <>
@@ -250,7 +249,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
 
                     <td>
                       <span className={`status-pill ${
-                        n.status === 'dispatched' || n.notified 
+                        n.status === 'sent' || n.status === 'dispatched' || n.notified 
                           ? 'status-paid' 
                           : 'status-processing'
                       }`}>
@@ -270,7 +269,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
                     <td className="text-center">
                       <button
                         onClick={() => onTriggerRestock(n.productId)}
-                        disabled={n.status === 'dispatched'}
+                        disabled={n.status === 'sent' || n.status === 'dispatched' || n.notified}
                         className="btn-saelyxe-primary !py-1 !px-2.5 text-[11px] disabled:opacity-40"
                       >
                         <Send className="w-3 h-3" />

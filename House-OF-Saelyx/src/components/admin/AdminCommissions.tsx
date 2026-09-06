@@ -19,12 +19,20 @@ export interface AdminCommissionsProps {
   orders: Order[];
   formatPrice: (priceLKR: number) => string;
   onUpdateOrderStatus: (orderId: string, status: OrderStatus, details: Partial<Order>) => Promise<boolean>;
+  isSuperAdmin: boolean;
+  onAudit?: (action: string, details: string) => Promise<void>;
+  hasMoreOrders: boolean;
+  onLoadOlderOrders: () => Promise<boolean>;
 }
 
 export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   orders,
   formatPrice,
-  onUpdateOrderStatus
+  onUpdateOrderStatus,
+  isSuperAdmin,
+  onAudit,
+  hasMoreOrders,
+  onLoadOlderOrders
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -38,6 +46,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
   const [newEta, setNewEta] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 
   // Open Dispatch Modal
   const handleOpenDispatchModal = (order: Order) => {
@@ -73,19 +82,38 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
     }
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
-    const headers = ['Order Number,Customer Name,Email,Phone,City,Total LKR,Status,Date,Tracking'];
-    const rows = orders.map(o => 
-      `"${o.orderNumber}","${o.customerName}","${o.customerEmail || ''}","${o.phone}","${o.city}",${o.totalLKR},"${o.status}","${o.createdAt}","${o.trackingNumber || ''}"`
-    );
-    const csvContent = headers.concat(rows).join('\n');
+  const csvCell = (value: unknown) => {
+    let text = String(value ?? '').replace(/\r?\n/g, ' ');
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const handleExportCSV = async () => {
+    if (!isSuperAdmin) return;
+    if (!window.confirm('Export customer order data to CSV? This file contains personal information and must be handled securely.')) return;
+
+    const headers = ['Order Number', 'Customer Name', 'Email', 'Phone', 'City', 'Total LKR', 'Payment Status', 'Order Status', 'Date', 'Tracking'];
+    const rows = orders.map(order => [
+      order.orderNumber,
+      order.customerName,
+      order.customerEmail || order.email || '',
+      order.phone,
+      order.city,
+      order.totalLKR,
+      order.paymentStatus || '',
+      order.status,
+      order.createdAt,
+      order.trackingNumber || ''
+    ].map(csvCell).join(','));
+    const csvContent = [headers.map(csvCell).join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `saelyxe_commissions_${new Date().toISOString().slice(0, 10)}.csv`);
     link.click();
+    URL.revokeObjectURL(url);
+    await onAudit?.('ORDER_CSV_EXPORT', `Exported ${orders.length} order records to CSV.`);
   };
 
   // Filter orders
@@ -165,14 +193,16 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
               )}
             </div>
 
-            <button
-              onClick={handleExportCSV}
-              className="btn-table-action"
-              type="button"
-            >
-              <FileDown className="w-3.5 h-3.5 text-stone-500" />
-              <span>Export CSV</span>
-            </button>
+            {isSuperAdmin && (
+              <button
+                onClick={() => void handleExportCSV()}
+                className="btn-table-action"
+                type="button"
+              >
+                <FileDown className="w-3.5 h-3.5 text-stone-500" />
+                <span>Export CSV</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -246,8 +276,16 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       </td>
 
                       {/* Amount */}
-                      <td className="font-extrabold text-stone-900 text-xs whitespace-nowrap">
-                        {formatPrice(order.totalLKR)}
+                      <td className="text-xs whitespace-nowrap">
+                        <div className="font-extrabold text-stone-900">{formatPrice(order.totalLKR)}</div>
+                        <div className={`mt-1 text-[10px] font-bold uppercase ${
+                          order.paymentStatus === 'verified' ? 'text-emerald-700' :
+                          order.paymentStatus === 'refunded' ? 'text-blue-700' :
+                          order.paymentStatus === 'refund_pending' ? 'text-amber-700' :
+                          'text-stone-400'
+                        }`}>
+                          {order.paymentStatus || 'pending'}
+                        </div>
                       </td>
 
                       {/* Order Date */}
@@ -292,9 +330,24 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
         </div>
 
         {/* Footer Summary */}
-        <div className="p-4 bg-[#FAFBFB] border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
-          <span>Showing <strong>{filteredOrders.length}</strong> of <strong>{orders.length}</strong> commissions</span>
-          <span className="font-mono text-[11px]">All orders synchronized in real-time</span>
+        <div className="p-4 bg-[#FAFBFB] border-t border-stone-100 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
+          <span>Showing <strong>{filteredOrders.length}</strong> loaded commission records</span>
+          {hasMoreOrders ? (
+            <button
+              type="button"
+              disabled={isLoadingOlder}
+              onClick={async () => {
+                setIsLoadingOlder(true);
+                await onLoadOlderOrders();
+                setIsLoadingOlder(false);
+              }}
+              className="btn-table-action"
+            >
+              {isLoadingOlder ? 'Loading...' : 'Load Older Orders'}
+            </button>
+          ) : (
+            <span className="font-mono text-[11px]">End of loaded order history</span>
+          )}
         </div>
       </div>
 
@@ -320,6 +373,12 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
             </div>
 
             <form onSubmit={handleSaveDispatch} className="p-6 space-y-4">
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-[11px] text-stone-600">
+                Payment: <strong>{selectedOrder.paymentStatus || 'pending'}</strong>
+                {selectedOrder.refundStatus ? <> · Refund: <strong>{selectedOrder.refundStatus}</strong></> : null}
+                {selectedOrder.paymentCaptureId ? <> · Capture: <span className="font-mono">{selectedOrder.paymentCaptureId}</span></> : null}
+              </div>
+
               <div>
                 <label className="form-label-custom">Commission Status</label>
                 <select
@@ -328,12 +387,19 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   className="form-input-custom font-semibold"
                 >
                   <option value="placed">Placed (Pending Review)</option>
-                  <option value="confirmed">Confirmed (Payment Manually Verified)</option>
+                  <option value="confirmed">Confirmed (Payment Verified)</option>
                   <option value="packed">Packed (Ready for Dispatch)</option>
                   <option value="dispatched">Dispatched (Courier Collected)</option>
                   <option value="out_for_delivery">Out for Delivery</option>
                   <option value="delivered">Delivered (Handover Complete)</option>
-                  <option value="cancelled">Cancelled / Refunded</option>
+                  <option
+                    value="cancelled"
+                    disabled={!isSuperAdmin && selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || '')}
+                  >
+                    {selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || '')
+                      ? 'Cancel & Refund PayPal Payment (Super Admin)'
+                      : 'Cancelled'}
+                  </option>
                 </select>
               </div>
 

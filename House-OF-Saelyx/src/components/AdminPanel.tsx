@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../styles/admin.css';
 import { useStore } from '../context/StoreContext';
 import { Product, Order, OrderStatus, AdminStaff } from '../types';
+import { auth, getAppCheckRequestHeaders } from '../lib/firebase';
 
 import { AdminLayout } from './admin/AdminLayout';
 import { AdminDashboard } from './admin/AdminDashboard';
@@ -12,17 +13,17 @@ import { AdminRestock } from './admin/AdminRestock';
 import { AdminStaffView } from './admin/AdminStaff';
 import { AdminSecurity } from './admin/AdminSecurity';
 import { AdminDropSettings } from './admin/AdminDropSettings';
-import { AdminSectionSettings } from './admin/AdminSectionSettings';
 import { AdminLogin } from './admin/AdminLogin';
 
-type AdminTab = 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config' | 'section-settings';
+type AdminTab = 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config';
 
 export const AdminPanel: React.FC = () => {
   const { 
     products, 
     orders, 
     messages, 
-    auditLogs, 
+    auditLogs,
+    logAuditEvent,
     settings, 
     stockNotifications,
     triggerStockReplenishedFunction,
@@ -32,12 +33,16 @@ export const AdminPanel: React.FC = () => {
     logout, 
     navigateTo, 
     refetchData, 
-    updateOrderStatus, 
+    updateOrderStatus,
+    hasMoreAdminOrders,
+    loadOlderOrders,
     updateMessageStatus,
     saveProduct,
     deleteProduct,
     staffList,
     addStaff,
+    activateStaff,
+    updateStaffRole,
     deleteStaff,
     updateSettings
   } = useStore();
@@ -47,10 +52,12 @@ export const AdminPanel: React.FC = () => {
     try {
       const search = new URLSearchParams(window.location.search);
       const tabParam = search.get('tab') as AdminTab;
-      if (tabParam && ['overview', 'products', 'orders', 'messages', 'restock', 'staff', 'security', 'drop-config', 'section-settings'].includes(tabParam)) {
+      if (tabParam && ['overview', 'products', 'orders', 'messages', 'restock', 'staff', 'security', 'drop-config'].includes(tabParam)) {
         return tabParam;
       }
-    } catch (e) {}
+    } catch (error) {
+      console.warn('Admin URL state note:', error);
+    }
     return 'overview';
   });
 
@@ -73,14 +80,16 @@ export const AdminPanel: React.FC = () => {
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
 
   useEffect(() => {
-    const superAdminOnlyTabs: AdminTab[] = ['staff', 'security', 'drop-config', 'section-settings'];
+    const superAdminOnlyTabs: AdminTab[] = ['staff', 'security', 'drop-config'];
     if (!isSuperAdmin && superAdminOnlyTabs.includes(activeTab)) {
       setActiveTab('overview');
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('tab', 'overview');
         window.history.replaceState(null, '', url.toString());
-      } catch (e) {}
+      } catch (error) {
+        console.warn('Admin permission URL sync note:', error);
+      }
     }
   }, [activeTab, isSuperAdmin]);
 
@@ -92,7 +101,9 @@ export const AdminPanel: React.FC = () => {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', tab);
       window.history.pushState(null, '', url.toString());
-    } catch (e) {}
+    } catch (error) {
+      console.warn('Admin tab URL sync note:', error);
+    }
   };
 
   // Safe delete product (Super Admin Only)
@@ -116,23 +127,23 @@ export const AdminPanel: React.FC = () => {
     });
   };
 
-  // Safe delete staff (Super Admin Only)
+  // Staff directory removal (Super Admin Only). This does not alter Firebase Auth access.
   const handleDeleteStaff = (id: string, name: string) => {
     if (!isSuperAdmin) return;
-    if (id === 'staff-01' || id === 'staff-001' || name === 'Atelier Director General') {
-      setCustomDialog({
-        type: 'alert',
-        title: 'Action Prohibited',
-        message: 'Cannot delete or revoke the root Super Admin director account.'
-      });
-      return;
-    }
     setCustomDialog({
       type: 'confirm',
-      title: 'Revoke Operator Privileges',
-      message: `Are you absolutely certain you want to revoke atelier access for ${name}? This operation takes effect immediately.`,
+      title: 'Revoke Administrator Access',
+      message: `Revoke administrator access for ${name}? This clears SAELYXE admin claims, revokes refresh tokens, and marks the staff record as revoked.`,
       onConfirm: async () => {
-        await deleteStaff(id);
+        const result = await deleteStaff(id);
+        if (!result.success) {
+          setCustomDialog({
+            type: 'alert',
+            title: 'Access Revoke Failed',
+            message: result.error || 'Unable to revoke this staff account.'
+          });
+          return;
+        }
         setCustomDialog(null);
       }
     });
@@ -149,39 +160,75 @@ export const AdminPanel: React.FC = () => {
         refetchData();
         return {
           success: true,
-          message: `Firebase Cloud Function (onStockReplenished) triggered successfully! Processed: ${res.processedCount || 0} notifications for product ID: ${productId}`
+          message: `Restock email dispatch completed successfully! Processed: ${res.processedCount || 0} notifications for product ID: ${productId}`
         };
       } else {
         return {
           success: false,
-          message: res.error || 'Failed to execute Cloud Function trigger.'
+          message: res.error || 'Failed to execute restock email dispatch.'
         };
       }
     } catch (err: any) {
       return {
         success: false,
-        message: err.message || 'Execution error in Cloud Function simulation.'
+        message: err.message || 'Restock email dispatch failed.'
       };
     }
   };
 
-  // Export JSON Database
-  const handleExportDatabase = () => {
-    const backupData = {
-      exportedAt: new Date().toISOString(),
-      products,
-      orders,
-      messages,
-      auditLogs,
-      staff: staffList,
-      settings
-    };
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `saelyxe_atelier_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
+  // Protected server-side database backup
+  const handleExportDatabase = async () => {
+    if (!isSuperAdmin) return;
+    if (!window.confirm('Export a protected administrator database snapshot? This file contains personal and operational data.')) return;
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setCustomDialog({
+          type: 'alert',
+          title: 'Authentication Required',
+          message: 'Sign in again before exporting a backup.'
+        });
+        return;
+      }
+
+      const token = await currentUser.getIdToken(true);
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const response = await fetch('/api/admin/export', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...appCheckHeaders
+        },
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        setCustomDialog({
+          type: 'alert',
+          title: 'Backup Export Blocked',
+          message: payload?.error || 'Unable to export the administrator backup.'
+        });
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `saelyxe-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setCustomDialog({
+        type: 'alert',
+        title: 'Backup Export Failed',
+        message: error instanceof Error ? error.message : 'Unable to export the administrator backup.'
+      });
+    }
   };
 
   // If not authenticated as Admin, show luxury Login Screen
@@ -235,7 +282,7 @@ export const AdminPanel: React.FC = () => {
       case 'restock':
         return {
           title: 'Restock Waitlist',
-          subtitle: 'Automated waitlist dispatches powered by Firebase Cloud Functions (onStockReplenished).',
+          subtitle: 'Automated waitlist email dispatches powered by the protected Vercel API and Resend.',
           breadcrumb: [{ label: 'Operations' }, { label: 'Restock Waitlist' }]
         };
       case 'staff':
@@ -256,16 +303,39 @@ export const AdminPanel: React.FC = () => {
           subtitle: 'Spotlight copy, pricing, editorial story, and background imagery.',
           breadcrumb: [{ label: 'Operations' }, { label: 'Drop Settings' }]
         };
-      case 'section-settings':
-        return {
-          title: 'Section Settings',
-          subtitle: 'Control which homepage sections are visible to boutique visitors.',
-          breadcrumb: [{ label: 'Operations' }, { label: 'Section Settings' }]
-        };
     }
   };
 
   const headerMeta = getHeaderMeta();
+
+  const globalSearchItems = [
+    ...products.map(product => ({
+      id: product.id,
+      label: product.title,
+      meta: `Product · ${product.category} · ${product.stockCount ?? 0} in stock`,
+      tab: 'products' as const
+    })),
+    ...orders.map(order => ({
+      id: order.id,
+      label: order.orderNumber,
+      meta: `Order · ${order.customerName} · ${order.status}`,
+      tab: 'orders' as const
+    })),
+    ...messages.map(message => ({
+      id: message.id,
+      label: message.name || message.email,
+      meta: `Inquiry · ${message.email} · ${message.status}`,
+      tab: 'messages' as const
+    })),
+    ...staffList.map(staff => ({
+      id: staff.id,
+      label: staff.name || staff.displayName || staff.username,
+      meta: `Staff · ${staff.email} · ${staff.status}`,
+      tab: 'staff' as const
+    }))
+  ];
+
+
 
   return (
     <AdminLayout
@@ -282,6 +352,7 @@ export const AdminPanel: React.FC = () => {
       title={headerMeta.title}
       subtitle={headerMeta.subtitle}
       breadcrumb={headerMeta.breadcrumb}
+      globalSearchItems={globalSearchItems}
     >
       {/* Tab Content Routers */}
       {activeTab === 'overview' && (
@@ -316,6 +387,10 @@ export const AdminPanel: React.FC = () => {
           orders={orders}
           formatPrice={formatPrice}
           onUpdateOrderStatus={updateOrderStatus}
+          isSuperAdmin={isSuperAdmin}
+          onAudit={logAuditEvent}
+          hasMoreOrders={hasMoreAdminOrders}
+          onLoadOlderOrders={loadOlderOrders}
         />
       )}
 
@@ -339,6 +414,8 @@ export const AdminPanel: React.FC = () => {
           staffList={staffList}
           isSuperAdmin={isSuperAdmin}
           onAddStaff={addStaff}
+          onActivateStaff={activateStaff}
+          onUpdateStaffRole={updateStaffRole}
           onDeleteStaff={handleDeleteStaff}
         />
       )}
@@ -355,8 +432,6 @@ export const AdminPanel: React.FC = () => {
           onUpdateSettings={updateSettings}
         />
       )}
-
-      {activeTab === 'section-settings' && <AdminSectionSettings settings={settings} onUpdateSettings={updateSettings} />}
 
       {/* Reusable Confirmation / Alert Dialog Modal */}
       {customDialog && (

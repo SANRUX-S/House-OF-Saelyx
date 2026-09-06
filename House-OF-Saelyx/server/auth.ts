@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 import type { Request, Response, NextFunction } from 'express';
 
 const ADMIN_ROLES: Record<string, 'admin' | 'super_admin'> = {
@@ -48,16 +49,17 @@ async function verifyWithFirebaseApi(idToken: string) {
   );
   if (!response.ok) return null;
 
-  const payload = await response.json() as { users?: Array<{ localId?: string; email?: string }> };
+  const payload = await response.json() as { users?: Array<{ localId?: string; email?: string; emailVerified?: boolean }> };
   const firebaseUser = payload.users?.[0];
   if (!firebaseUser?.email) return null;
   return {
     uid: firebaseUser.localId || '',
-    email: firebaseUser.email
+    email: firebaseUser.email,
+    email_verified: firebaseUser.emailVerified === true
   };
 }
 
-export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+export async function requireAuthenticated(req: Request, res: Response, next: NextFunction) {
   const authorization = req.headers.authorization || '';
   if (!authorization.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -70,11 +72,7 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
       ? await adminAuth.verifyIdToken(idToken)
       : await verifyWithFirebaseApi(idToken);
     if (!token) return res.status(503).json({ error: 'Firebase server authentication is not configured' });
-    const tokenClaims = token as { uid?: string; email?: string; admin?: boolean; role?: string; [key: string]: unknown };
-    const configuredRole = tokenClaims.email ? ADMIN_ROLES[tokenClaims.email.toLowerCase()] : undefined;
-    if (tokenClaims.admin !== true && tokenClaims.role !== 'admin' && tokenClaims.role !== 'super_admin' && !configuredRole) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
+    const tokenClaims = token as { uid?: string; email?: string; email_verified?: boolean; admin?: boolean; role?: string; [key: string]: unknown };
     (req as Request & { auth?: typeof tokenClaims }).auth = tokenClaims;
     return next();
   } catch {
@@ -82,11 +80,52 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   }
 }
 
+async function resolveAdminRole(req: Request): Promise<'admin' | 'super_admin' | null> {
+  const auth = (req as Request & {
+    auth?: {
+      uid?: string;
+      email?: string;
+      email_verified?: boolean;
+      adminRole?: 'admin' | 'super_admin';
+    };
+  }).auth;
+  const email = auth?.email?.toLowerCase() || '';
+  if (!auth?.uid || auth.email_verified !== true || !email) return null;
+
+  const configuredRole = ADMIN_ROLES[email];
+  if (configuredRole) return configuredRole;
+
+  const adminAuth = getAdminAuth();
+  if (!adminAuth) return null;
+
+  const snap = await getFirestore().collection('admins').doc(auth.uid).get();
+  if (!snap.exists) return null;
+  const data = snap.data() || {};
+  if (data.status !== 'active' || typeof data.email !== 'string' || data.email.toLowerCase() !== email) {
+    return null;
+  }
+  return data.role === 'super_admin' ? 'super_admin' : data.role === 'admin' ? 'admin' : null;
+}
+
+export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  return requireAuthenticated(req, res, async () => {
+    try {
+      const role = await resolveAdminRole(req);
+      if (!role) return res.status(403).json({ error: 'Admin access required' });
+      const auth = (req as Request & { auth?: Record<string, unknown> }).auth || {};
+      auth.adminRole = role;
+      (req as Request & { auth?: Record<string, unknown> }).auth = auth;
+      return next();
+    } catch {
+      return res.status(503).json({ error: 'Administrator authorization is unavailable' });
+    }
+  });
+}
+
 export async function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
   return requireAdmin(req, res, () => {
-    const auth = (req as Request & { auth?: { email?: string; role?: string; admin?: boolean } }).auth;
-    const email = auth?.email?.toLowerCase();
-    if (auth?.role !== 'super_admin' && email !== 'saelyx.co@gmail.com' && email !== 'saelyx.co+super@gmail.com') {
+    const auth = (req as Request & { auth?: { adminRole?: string } }).auth;
+    if (auth?.adminRole !== 'super_admin') {
       return res.status(403).json({ error: 'Super administrator access required' });
     }
     return next();

@@ -31,8 +31,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Security regression check
+        run: npm run security:check
+
       - name: TypeScript check
         run: npm run lint
 
       - name: Production build
         run: npm run build
+
+      - name: Setup Java 21 for Firebase Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install isolated QA tooling
+        run: npm install --no-save --package-lock=false @playwright/test firebase-tools @firebase/rules-unit-testing
+
+      - name: Firestore authorization emulator tests
+        run: npm run rules:test
+
+      - name: Install Chromium for browser QA
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser end-to-end security smoke
+        run: npm run e2e
