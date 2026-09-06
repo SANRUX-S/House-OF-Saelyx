@@ -57,6 +57,8 @@ assert(rules.includes("data.status == 'active'"), 'Firestore admin access must r
 assert(rules.includes('data.email == request.auth.token.email'), 'Firestore admin record must be bound to the verified token email');
 assert(rules.includes('allow create, update, delete: if false;'), 'sensitive collections must include server-only mutation rules');
 assert(!rules.includes("request.auth.token.role == 'admin'"), 'Firestore must not trust stale role claims as the sole admin source');
+assert(rules.includes('function isBootstrapRootAdmin()'), 'Firestore root bypass must be scoped to a dedicated helper');
+assert(rules.includes("request.auth.token.email == 'saelyx.co+super@gmail.com'"), 'Firestore root bypass must use the exact root email allowlist');
 
 assert(!store.includes('configuredAdminRole || data.role'), 'client session must not trust users/{uid}.role');
 assert(store.includes("adminData?.status === 'active'"), 'client admin session must require an active admin record');
@@ -65,7 +67,12 @@ assert(store.includes('/api/admin/products/'), 'product mutations must use the t
 assert(store.includes('/api/admin/messages/'), 'concierge mutations must use the trusted admin API');
 assert(store.includes('/api/admin/settings'), 'settings mutations must use the trusted admin API');
 
-assert(api.includes("token.email_verified !== true"), 'API administrator authorization must require verified email ownership');
+assert(
+  api.indexOf("ROOT_ADMIN_EMAILS.has(email)") >= 0 &&
+  api.indexOf("ROOT_ADMIN_EMAILS.has(email)") < api.indexOf("token.email_verified !== true"),
+  'API must allow only exact root bootstrap emails before the verified-email gate'
+);
+assert(api.includes("token.email_verified !== true"), 'secondary administrator authorization must still require verified email ownership');
 assert(api.includes("status !== 'active'"), 'API administrator authorization must require active admin records');
 assert(api.includes("collection('admins').doc(token.uid)"), 'API must resolve protected admin records');
 assert(firebaseClient.includes("adminData?.status === 'active'"), 'admin credential flow must require active administrator records');
@@ -76,7 +83,8 @@ assert(
 );
 assert(firebaseClient.includes("'auth/too-many-requests'"), 'admin login must surface Firebase throttling clearly');
 assert(firebaseClient.includes("'auth/network-request-failed'"), 'admin login must surface Firebase network failures clearly');
-assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified bootstrap admin must receive a verification path');
+assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(email)'), 'client must scope verification bypass to exact root bootstrap emails');
+assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified secondary admin must retain an email verification path');
 assert(firebaseClient.includes('browserLocalPersistence') && firebaseClient.includes('browserSessionPersistence'), 'Remember Me must control Firebase persistence');
 
 assert(api.includes("app.post('/api/admin/staff/invite'"), 'staff invitation API must exist');
