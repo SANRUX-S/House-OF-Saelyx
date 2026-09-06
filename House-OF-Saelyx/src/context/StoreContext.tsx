@@ -187,6 +187,44 @@ const DEFAULT_CURRENCY: CurrencyRate = {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+
+const LEGACY_DEMO_CUTOFF_MS = Date.parse('2026-09-06T08:00:00.000Z');
+const LEGACY_DEMO_ORDER_IDS = new Set([
+  'SOX-20260904-8740',
+  'SOX-20260903-3813',
+  'SOX-20260903-7964',
+  'SLX-85885',
+  'SLX-56850',
+  'SLX-79015',
+  'ord-mtj0jv8w',
+  'ord-mtizi1lr',
+  'ord-1002',
+  'ord-1001'
+]);
+const LEGACY_DEMO_ORDER_NUMBERS = new Set([
+  'SOX-20260904-8740',
+  'SOX-20260903-3813',
+  'SOX-20260903-7964',
+  'SLX-85885',
+  'SLX-56850',
+  'SLX-79015',
+  'SLX-64984',
+  'SLX-97200',
+  'SLX-94822',
+  'SLX-94821'
+]);
+
+function isLegacyDemoOrder(order: Order) {
+  return LEGACY_DEMO_ORDER_IDS.has(order.id || '') ||
+    LEGACY_DEMO_ORDER_NUMBERS.has(order.orderNumber || '');
+}
+
+function isPrelaunchLegacyRecord(createdAt?: string) {
+  if (!createdAt) return false;
+  const parsed = Date.parse(createdAt);
+  return Number.isFinite(parsed) && parsed <= LEGACY_DEMO_CUTOFF_MS;
+}
+
 function cryptoSafeClientId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
@@ -629,19 +667,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           list.push({ id: docSnap.id, ...docSnap.data() } as Order);
         });
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const visibleList = isAdminUser ? list.filter(order => !isLegacyDemoOrder(order)) : list;
         if (isAdminUser) {
           setOrders(previous => {
-            const merged = new Map(previous.map(order => [order.id, order]));
-            list.forEach(order => merged.set(order.id, order));
+            const merged = new Map(
+              previous
+                .filter(order => !isLegacyDemoOrder(order))
+                .map(order => [order.id, order])
+            );
+            visibleList.forEach(order => merged.set(order.id, order));
             return Array.from(merged.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           });
-          setHasMoreAdminOrders(list.length >= 250);
+          setHasMoreAdminOrders(visibleList.length >= 250);
         } else {
-          setOrders(list);
+          setOrders(visibleList);
           setHasMoreAdminOrders(false);
         }
 
-        for (const order of list) {
+        for (const order of visibleList) {
           const paypalOrderId = order.paymentProviderReference || '';
           const needsPayPalRecovery =
             order.paymentMethod === 'paypal' &&
@@ -691,7 +734,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const res = await fetchAdminApi('/api/orders');
             if (res.ok) {
               const data: Order[] = await res.json();
-              setOrders(data);
+              setOrders(data.filter(order => !isLegacyDemoOrder(order)));
             }
           } catch (e) {
             console.warn('Orders load note:', e);
@@ -715,7 +758,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           list.push({ id: docSnap.id, ...docSnap.data() } as StockNotification);
         });
         setStockNotifications(
-          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          list
+            .filter(notification => !isPrelaunchLegacyRecord(notification.createdAt))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         );
       }, (err) => {
         console.warn('Firestore stock_notifications listener note:', err);
@@ -738,7 +783,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           list.push({ id: docSnap.id, ...docSnap.data() } as ContactMessage);
         });
         setMessages(
-          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          list
+            .filter(message => !isPrelaunchLegacyRecord(message.createdAt))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         );
       }, (err) => {
         console.warn('Concierge inquiries listener note:', err);
