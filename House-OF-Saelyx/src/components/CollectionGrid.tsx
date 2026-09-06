@@ -105,7 +105,7 @@ export const CollectionGrid: React.FC = () => {
       <div className="max-w-7xl mx-auto px-5 sm:px-8 md:px-12">
         
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-6 sm:pb-10 border-b border-[#E5DFD7]">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-6 pb-6 sm:pb-10 border-b border-[#E5DFD7]">
           <div>
             <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] text-[#8C7E70] font-semibold mb-1 sm:mb-2">
               Ready-to-Wear Drops
@@ -116,8 +116,8 @@ export const CollectionGrid: React.FC = () => {
           </div>
 
           {/* Filter and Sorting Controls */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden bg-[#ECE6DD] rounded-full p-1 border border-[#DFD7CC] max-w-full">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 min-w-0">
+            <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden bg-[#ECE6DD] rounded-full p-1 border border-[#DFD7CC] max-w-full">
               {filterTabs.map(tab => (
                 <button
                   key={tab.value}
@@ -133,11 +133,11 @@ export const CollectionGrid: React.FC = () => {
               ))}
             </div>
 
-            <div className="relative w-full sm:w-auto" ref={dropdownRef}>
+            <div className="relative w-full lg:w-auto" ref={dropdownRef}>
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full sm:w-auto flex items-center justify-between gap-3 bg-[#ECE6DD] hover:bg-[#e2dacd] px-4 py-2.5 sm:py-2 rounded-full border border-[#DFD7CC] text-xs font-medium text-[#1A1816] transition-colors whitespace-nowrap cursor-pointer"
+                className="w-full lg:w-auto flex items-center justify-between gap-3 bg-[#ECE6DD] hover:bg-[#e2dacd] px-4 py-2.5 lg:py-2 rounded-full border border-[#DFD7CC] text-xs font-medium text-[#1A1816] transition-colors whitespace-nowrap cursor-pointer"
               >
                 <div className="flex items-center gap-2 whitespace-nowrap">
                   <SlidersHorizontal className="w-3.5 h-3.5 text-[#7A6D5E] flex-shrink-0" />
@@ -147,7 +147,7 @@ export const CollectionGrid: React.FC = () => {
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute left-0 right-0 sm:left-auto sm:right-0 mt-2 min-w-full sm:w-56 bg-[#FAF8F5] border border-[#E5DFD7] rounded-2xl shadow-xl z-50 p-1.5 space-y-1">
+                <div className="absolute left-0 right-0 lg:left-auto lg:right-0 mt-2 min-w-full lg:w-56 bg-[#FAF8F5] border border-[#E5DFD7] rounded-2xl shadow-xl z-50 p-1.5 space-y-1">
                   {sortOptions.map((option) => (
                     <button
                       key={option.value}
