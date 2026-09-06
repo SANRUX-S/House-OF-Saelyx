@@ -73,7 +73,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
         setSelectedOrder(null);
         setUpdateError('');
       } else {
-        setUpdateError('This status change is not valid yet, or the order could not be updated. Follow the order stages in sequence.');
+        setUpdateError('The order could not be updated. Check payment verification, stock, courier/tracking details, or cancellation/refund requirements.');
       }
     } catch (err) {
       console.error('Error updating order dispatch:', err);
@@ -382,6 +382,10 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                 Payment: <strong>{selectedOrder.paymentStatus || 'pending'}</strong>
                 {selectedOrder.refundStatus ? <> · Refund: <strong>{selectedOrder.refundStatus}</strong></> : null}
                 {selectedOrder.paymentCaptureId ? <> · Capture: <span className="font-mono">{selectedOrder.paymentCaptureId}</span></> : null}
+                <span className="block mt-1">
+                  Last customer email: <strong>{selectedOrder.lastStatusEmailStatus || selectedOrder.confirmationEmailStatus || 'not recorded'}</strong>
+                  {selectedOrder.lastStatusEmailFor ? <> · <span className="capitalize">{selectedOrder.lastStatusEmailFor.replace(/_/g, ' ')}</span></> : null}
+                </span>
               </div>
               {selectedOrder.cancellationRequestStatus === 'pending' && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
@@ -435,6 +439,9 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                       : 'Cancelled'}
                   </option>
                 </select>
+                <p className="mt-2 text-[10px] leading-relaxed text-stone-500">
+                  You can select any active order stage directly. Courier and tracking details are required for Dispatched, Out for Delivery, and Delivered. Cancelled orders remain terminal for payment and audit safety.
+                </p>
               </div>
 
               <div>
