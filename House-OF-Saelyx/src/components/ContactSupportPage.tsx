@@ -50,34 +50,34 @@ export const ContactSupportPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 sm:pt-28 pb-28 px-5 sm:px-8 md:px-12 lg:px-16">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-[\'Plus_Jakarta_Sans\'] pt-24 sm:pt-28 pb-28 px-5 sm:px-8 md:px-12 lg:px-16">
       <div className="max-w-3xl mx-auto space-y-10">
         
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-4">
           <button
             onClick={() => navigateTo({ name: 'home' })}
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#7A6E60] hover:text-[#1A1816] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#3E3730] hover:text-[#1A1816] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" />
+            <ArrowLeft className="w-3.5 h-3.5 stroke-[2]" />
             <span>Return to Boutique</span>
           </button>
 
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#7A6E60]">
-            <Clock className="w-4 h-4 text-emerald-800 stroke-[1.5]" />
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#3E3730]">
+            <Clock className="w-4 h-4 text-emerald-800 stroke-[2]" />
             <span>Atelier Response within 2h</span>
           </div>
         </div>
 
         {/* Page Header */}
         <div className="bg-white p-8 sm:p-10 rounded-3xl border border-[#EAE3D9] shadow-[0_2px_12px_rgba(0,0,0,0.02)] space-y-4 text-center">
-          <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#8C7A68]">
+          <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#3E3730]">
             CLIENT CONCIERGE & SUPPORT
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
             HOW MAY WE ASSIST YOU?
           </h1>
-          <p className="text-xs text-[#7A6E60] max-w-md mx-auto leading-relaxed">
+          <p className="text-xs text-[#3E3730] font-medium max-w-md mx-auto leading-relaxed">
             Our Colombo atelier directors and dedicated logistics concierges are on standby for your bespoke requests.
           </p>
         </div>
@@ -85,13 +85,13 @@ export const ContactSupportPage: React.FC = () => {
         {isSuccess ? (
           <div className="bg-white p-10 sm:p-12 rounded-3xl border border-[#EAE3D9] shadow-sm text-center space-y-6 animate-in fade-in">
             <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8 stroke-[1.5]" />
+              <CheckCircle2 className="w-8 h-8 stroke-[2]" />
             </div>
             <div className="space-y-2">
               <h2 className="font-serif text-2xl text-[#1A1816]">
                 Message Received by Atelier
               </h2>
-              <p className="text-xs text-[#7A6E60] max-w-md mx-auto leading-relaxed">
+              <p className="text-xs text-[#3E3730] font-medium max-w-md mx-auto leading-relaxed">
                 Thank you, {name}. Your inquiry has been registered in our concierge ledger. A private director will follow up directly at <strong className="text-[#1A1816]">{email}</strong>.
               </p>
             </div>
@@ -107,7 +107,7 @@ export const ContactSupportPage: React.FC = () => {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#3E3730] mb-1.5">
                   Your Full Name *
                 </label>
                 <input
@@ -120,7 +120,7 @@ export const ContactSupportPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#3E3730] mb-1.5">
                   Email Address *
                 </label>
                 <input
@@ -133,7 +133,7 @@ export const ContactSupportPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#3E3730] mb-1.5">
                   Contact Phone (Optional)
                 </label>
                 <input
@@ -146,7 +146,7 @@ export const ContactSupportPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#3E3730] mb-1.5">
                   Order Number (If Applicable)
                 </label>
                 <input
@@ -160,7 +160,7 @@ export const ContactSupportPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+              <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#3E3730] mb-1.5">
                 Inquiry Topic
               </label>
               <select
@@ -177,7 +177,7 @@ export const ContactSupportPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+              <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#3E3730] mb-1.5">
                 Your Message / Request *
               </label>
               <textarea
