@@ -45,3 +45,52 @@ test('public health endpoint is intentionally minimal', async ({ request }) => {
   expect(payload.firebaseAdminConfigured).toBeUndefined();
   expect(payload.payPalServerConfigured).toBeUndefined();
 });
+
+
+const responsiveViewports = [
+  { name: 'mobile', width: 375, height: 812 },
+  { name: 'tablet', width: 768, height: 1024 },
+  { name: 'desktop', width: 1440, height: 1000 }
+];
+
+for (const viewport of responsiveViewports) {
+  test(`responsive storefront routes avoid horizontal overflow on ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+    for (const route of ['/', '/contact-support', '/orders', '/track-order', '/checkout']) {
+      const response = await page.goto(route);
+      expect(response).not.toBeNull();
+      expect(response?.status()).toBeLessThan(400);
+      await expect(page.locator('body')).toContainText(/SAELYXE/i);
+      const metrics = await page.evaluate(() => ({
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        bodyWidth: document.body.scrollWidth
+      }));
+      expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth + 2);
+      expect(metrics.bodyWidth).toBeLessThanOrEqual(metrics.viewportWidth + 2);
+    }
+  });
+}
+
+for (const viewport of responsiveViewports) {
+  test(`admin login remains responsive on ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const response = await page.goto('/admin');
+    expect(response).not.toBeNull();
+    expect(response?.status()).toBeLessThan(400);
+    await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
+    const noHorizontalOverflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth <= window.innerWidth + 2 &&
+      document.body.scrollWidth <= window.innerWidth + 2
+    );
+    expect(noHorizontalOverflow).toBe(true);
+  });
+}
+
+test('unauthenticated account routes do not leak customer order details', async ({ page }) => {
+  for (const route of ['/orders', '/track-order?id=SOX-PRIVATE-CHECK']) {
+    await page.goto(route);
+    await expect(page.getByText(/customer@example\.com|Ward Place|payment capture/i)).toHaveCount(0);
+  }
+});
