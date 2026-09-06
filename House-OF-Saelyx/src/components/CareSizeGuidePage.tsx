@@ -7,13 +7,13 @@ export const CareSizeGuidePage: React.FC = () => {
   const [unit, setUnit] = useState<'inches' | 'cm'>('inches');
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 pb-20 px-5 sm:px-8">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-[\'Plus_Jakarta_Sans\'] pt-24 pb-20 px-5 sm:px-8">
       <div className="max-w-4xl mx-auto space-y-10">
         
         {/* Back Button */}
         <button
           onClick={() => navigateTo({ name: 'home' })}
-          className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7A6E60] hover:text-black transition-colors"
+          className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#3E3730] hover:text-black transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Return to Boutique</span>
@@ -21,27 +21,27 @@ export const CareSizeGuidePage: React.FC = () => {
 
         {/* Title */}
         <div className="space-y-2 border-b border-[#E3D9CD] pb-6">
-          <span className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
+          <span className="text-[11px] uppercase tracking-[0.25em] text-[#3E3730] font-semibold">
             HOUSE OF SAELYXE • SARTORIAL PROPORTIONS
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
             Garment Sizing & Fit Architecture
           </h1>
-          <p className="text-xs text-[#7A6E60]">
+          <p className="text-xs text-[#3E3730] font-medium">
             Cut for tailored drape, dropped shoulders, and architectural presence.
           </p>
         </div>
 
         {/* Unit Toggle */}
         <div className="flex items-center justify-between">
-          <div className="text-xs text-[#7A6E60]">
+          <div className="text-xs text-[#3E3730] font-medium">
             Measurements taken flat across garment.
           </div>
           <div className="flex items-center gap-1 bg-[#EAE2D5] p-1 rounded-full text-xs font-semibold">
             <button
               onClick={() => setUnit('inches')}
               className={`px-3 py-1 rounded-full transition-all ${
-                unit === 'inches' ? 'bg-[#1A1816] text-white shadow-sm' : 'text-[#5A4E40]'
+                unit === 'inches' ? 'bg-[#1A1816] text-white shadow-sm' : 'text-[#2B2723]'
               }`}
             >
               Inches (IN)
@@ -49,7 +49,7 @@ export const CareSizeGuidePage: React.FC = () => {
             <button
               onClick={() => setUnit('cm')}
               className={`px-3 py-1 rounded-full transition-all ${
-                unit === 'cm' ? 'bg-[#1A1816] text-white shadow-sm' : 'text-[#5A4E40]'
+                unit === 'cm' ? 'bg-[#1A1816] text-white shadow-sm' : 'text-[#2B2723]'
               }`}
             >
               Centimeters (CM)
@@ -64,7 +64,7 @@ export const CareSizeGuidePage: React.FC = () => {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#FAF8F5] text-[10px] uppercase tracking-wider text-[#7A6E60] border-b border-[#ECE3D8]">
+              <thead className="bg-[#FAF8F5] text-[10px] uppercase tracking-wider text-[#3E3730] border-b border-[#ECE3D8]">
                 <tr>
                   <th className="p-3.5 font-semibold">Size</th>
                   <th className="p-3.5 font-semibold">Chest / Bust</th>
@@ -114,7 +114,7 @@ export const CareSizeGuidePage: React.FC = () => {
               <Sparkles className="w-4 h-4 text-amber-700" />
               Need Bespoke Sizing Guidance?
             </h4>
-            <p className="text-xs text-[#7A6E60]">
+            <p className="text-xs text-[#3E3730] font-medium">
               Our Colombo studio advisors can recommend the exact size based on your height and preferred silhouette style.
             </p>
           </div>
