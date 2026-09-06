@@ -3,23 +3,11 @@ import { ChevronRight, Instagram, Check } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { getAppCheckRequestHeaders } from '../lib/firebase';
 
-const cardLogos = [
-  { name: 'Visa', src: 'https://cdn.simpleicons.org/visa/1434CB', max: 'max-w-[39px]' },
-  { name: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B', max: 'max-w-[35px]' },
-  { name: 'American Express', src: 'https://cdn.simpleicons.org/americanexpress/006FCF', max: 'max-w-[36px]' },
-  { name: 'Discover', src: 'https://cdn.simpleicons.org/discover/FF6000', max: 'max-w-[38px]' },
-  { name: 'Diners Club', src: 'https://cdn.simpleicons.org/dinersclub/0079BE', max: 'max-w-[34px]' },
-  { name: 'PayPal', src: 'https://cdn.simpleicons.org/paypal/003087', max: 'max-w-[30px]' },
-];
-
 export const Footer: React.FC = () => {
   const { navigateTo, setIsTrackerOpen, setActiveCategory } = useStore();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const currentYear = new Date().getFullYear();
-  const copyrightYears = currentYear > 2025 ? `2025–${currentYear}` : '2025';
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,19 +39,19 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="w-full bg-[#121110] text-[#E7E7E7] pt-16 pb-10 select-none border-t border-[#2A2928] font-sans">
+    <footer className="w-full bg-[#121110] text-[#e5e5e5] pt-16 pb-10 select-none border-t border-white/10 font-sans">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 space-y-16">
-
-        {/* Newsletter */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-[#2A2928]">
+        
+        {/* Top Newsletter Row - Highlighting luxury editorial title inspired by SAELYXE Hero */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-white/10">
           <div>
-            <span className="block text-[10px] tracking-[0.3em] text-[#C8C8C8] uppercase font-medium mb-2">
+            <span className="block text-[10px] tracking-[0.3em] text-white/60 uppercase font-medium mb-2">
               NEWSLETTER ACCESS
             </span>
             <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-wide text-white leading-tight">
               BE FIRST FOR THE NEXT DROP
             </h3>
-            <p className="text-xs text-[#B5B5B5] mt-2 tracking-widest uppercase font-normal">
+            <p className="text-xs text-neutral-400 mt-2 tracking-widest uppercase font-light">
               Exclusive early access & numbered edition alerts.
             </p>
           </div>
@@ -76,12 +64,12 @@ export const Footer: React.FC = () => {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={subscribed || loading}
-                className="w-full bg-transparent text-sm text-white placeholder:text-[#8F8F8F] focus:outline-none pr-8 font-normal"
+                className="w-full bg-transparent text-sm text-white placeholder:text-neutral-500 focus:outline-none pr-8 font-light"
               />
               <button
                 type="submit"
                 disabled={subscribed || loading}
-                className="p-1 text-[#B5B5B5] hover:text-white transition-all duration-300 disabled:opacity-50 cursor-pointer hover:translate-x-0.5"
+                className="p-1 text-neutral-400 hover:text-white transition-colors disabled:opacity-50 cursor-pointer"
                 aria-label="Subscribe"
               >
                 {subscribed ? (
@@ -96,117 +84,158 @@ export const Footer: React.FC = () => {
 
         {/* Links Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
+          
+          {/* LEGAL */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">LEGAL</h4>
-            <ul className="space-y-2.5 text-[13px] text-[#B5B5B5] font-normal">
-              <li><button onClick={() => navigateTo({ name: 'legal-privacy' })} className="hover:text-white transition-colors text-left">Privacy Policy</button></li>
-              <li><button onClick={() => navigateTo({ name: 'legal-terms' })} className="hover:text-white transition-colors text-left">Terms and Conditions</button></li>
-              <li><button onClick={() => navigateTo({ name: 'legal-returns' })} className="hover:text-white transition-colors text-left">Returns & Exchanges</button></li>
-              <li><button onClick={() => navigateTo({ name: 'care-authenticity' })} className="hover:text-white transition-colors text-left">Authenticity Certificate</button></li>
+            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
+              LEGAL
+            </h4>
+            <ul className="space-y-2.5 text-[13px] text-neutral-400 font-light">
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'legal-privacy' })} 
+                  className="hover:text-white transition-colors text-left"
+                >
+                  Privacy Policy
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'legal-terms' })} 
+                  className="hover:text-white transition-colors text-left"
+                >
+                  Terms and Conditions
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'legal-returns' })} 
+                  className="hover:text-white transition-colors text-left"
+                >
+                  Returns & Exchanges
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'care-authenticity' })} 
+                  className="hover:text-white transition-colors text-left"
+                >
+                  Authenticity Certificate
+                </button>
+              </li>
             </ul>
           </div>
 
+          {/* SHOP */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">SHOP</h4>
-            <ul className="space-y-2.5 text-[13px] text-[#B5B5B5] font-normal">
-              <li><button onClick={() => handleCategory('new')} className="hover:text-white transition-colors text-left">New Arrivals</button></li>
-              <li><button onClick={() => handleCategory('men')} className="hover:text-white transition-colors text-left">Men's Collection</button></li>
-              <li><button onClick={() => handleCategory('women')} className="hover:text-white transition-colors text-left">Women's Collection</button></li>
-              <li><button onClick={() => handleCategory('knits')} className="hover:text-white transition-colors text-left">Coordinates & Knits</button></li>
+            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
+              SHOP
+            </h4>
+            <ul className="space-y-2.5 text-[13px] text-neutral-400 font-light">
+              <li>
+                <button onClick={() => handleCategory('new')} className="hover:text-white transition-colors text-left">
+                  Drop 001
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleCategory('men')} className="hover:text-white transition-colors text-left">
+                  Men's Silhouettes
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleCategory('women')} className="hover:text-white transition-colors text-left">
+                  Women's Silhouettes
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleCategory('knits')} className="hover:text-white transition-colors text-left">
+                  Coordinates & Knits
+                </button>
+              </li>
             </ul>
           </div>
 
+          {/* CUSTOMER CARE */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">CUSTOMER CARE</h4>
-            <ul className="space-y-2.5 text-[13px] text-[#B5B5B5] font-normal">
+            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
+              CUSTOMER CARE
+            </h4>
+            <ul className="space-y-2.5 text-[13px] text-neutral-400 font-light">
               <li>
                 <button
                   onClick={() => setIsTrackerOpen(true)}
                   className="text-white hover:opacity-80 flex items-center gap-2 transition-opacity font-medium"
                 >
                   <span>Track Delivery Status</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 </button>
               </li>
-              <li><button onClick={() => navigateTo({ name: 'care-shipping' })} className="hover:text-white transition-colors text-left">Shipping & Delivery</button></li>
-              <li><button onClick={() => navigateTo({ name: 'care-size-guide' })} className="hover:text-white transition-colors text-left">Sizing Guide</button></li>
-              <li><button onClick={() => navigateTo({ name: 'care-concierge' })} className="hover:text-white transition-colors text-left">Contact Us</button></li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'care-shipping' })} 
+                  className="hover:text-white transition-colors text-left"
+                >
+                  Shipping & Delivery
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'care-size-guide' })} 
+                  className="hover:text-white transition-colors text-left"
+                >
+                  Sizing Guide
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'care-concierge' })} 
+                  className="hover:text-white transition-colors text-left"
+                >
+                  Contact Us
+                </button>
+              </li>
             </ul>
           </div>
 
+          {/* SOCIAL MEDIA */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">SOCIAL MEDIA</h4>
-            <div className="flex items-center gap-4 text-[#B5B5B5] pt-1">
-              <a
-                href="https://www.instagram.com/houseofsaelyx/?hl=en"
+            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
+              SOCIAL MEDIA
+            </h4>
+            <div className="flex items-center gap-4 text-neutral-400 pt-1">
+              <a 
+                href="https://www.instagram.com/houseofsaelyx/?hl=en" 
                 target="_blank"
-                rel="noopener noreferrer"
+                rel="noopener noreferrer" 
                 className="hover:text-white transition-colors"
                 aria-label="Instagram"
               >
                 <Instagram className="w-4 h-4" />
               </a>
             </div>
-            <p className="text-xs text-[#B5B5B5] font-normal leading-relaxed pt-2">
+            <p className="text-xs text-neutral-400 font-light leading-relaxed pt-2">
               Online Store · Sri Lanka
             </p>
           </div>
+
         </div>
 
-        {/* Compact Bottom Bar */}
-        <div className="pt-8 border-t border-[#2A2928] flex flex-col lg:flex-row lg:items-end lg:justify-between gap-7">
-          <div className="tracking-[0.14em] uppercase text-[10px] sm:text-[11px] text-[#BEBEBE] font-medium text-center lg:text-left whitespace-nowrap">
-            © {copyrightYears} SAELYXE. ALL RIGHTS RESERVED.
+        {/* Bottom Bar */}
+        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400 font-light">
+          <div className="tracking-widest uppercase text-[11px]">
+            © {new Date().getFullYear()} HOUSE OF SAELYXE
           </div>
 
-          <div className="flex flex-col items-center lg:items-end gap-3">
-            <div className="flex items-center justify-center lg:justify-end flex-wrap gap-2">
-              <a
-                href="https://www.payhere.lk"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="PayHere"
-                aria-label="PayHere"
-                className="h-8 min-w-[70px] px-2.5 inline-flex items-center justify-center rounded-[4px] bg-[#1268D5] text-white text-[11px] font-bold tracking-[-0.02em] leading-none"
+          {/* Payment Badges */}
+          <div className="flex items-center flex-wrap gap-2 text-xs opacity-80">
+            {['PayPal'].map((badge) => (
+              <span 
+                key={badge} 
+                className="px-2 py-0.5 rounded bg-white/10 text-neutral-200 text-[10px] font-mono"
               >
-                PayHere
-              </a>
-
-              {cardLogos.map((logo) => (
-                <span
-                  key={logo.name}
-                  title={logo.name}
-                  className="h-8 w-[50px] inline-flex items-center justify-center rounded-[4px] bg-white ring-1 ring-black/5"
-                >
-                  <img
-                    src={logo.src}
-                    alt={logo.name}
-                    loading="eager"
-                    decoding="async"
-                    className={`block max-h-[20px] ${logo.max} object-contain`}
-                  />
-                </span>
-              ))}
-
-              <span
-                title="Payzy"
-                aria-label="Payzy"
-                className="h-8 min-w-[62px] px-2.5 inline-flex items-center justify-center rounded-[4px] bg-white text-[#111111] text-[11px] font-bold tracking-[-0.02em] leading-none ring-1 ring-black/5"
-              >
-                Payzy
+                {badge}
               </span>
-            </div>
-
-            <span className="group relative overflow-hidden inline-flex items-center text-[10px] font-medium tracking-[0.035em] text-[#9B9B9B]">
-              Powered by&nbsp;
-              <span className="text-[#DADADA] group-hover:text-white transition-colors duration-300">
-                PENETIX Cyber Solutions
-              </span>
-              <span
-                aria-hidden="true"
-                className="absolute inset-y-0 -left-1/3 w-1/4 rotate-12 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-[500%] transition-transform duration-700 ease-out"
-              />
-            </span>
+            ))}
           </div>
         </div>
 
