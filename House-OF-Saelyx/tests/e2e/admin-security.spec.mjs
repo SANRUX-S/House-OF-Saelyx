@@ -23,7 +23,7 @@ test('admin route stays behind Firebase administrator login', async ({ page }) =
 test('admin login remains usable on a narrow mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/admin');
-  await expect(page.getByText('SAELYXE ADMIN')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
   const noHorizontalOverflow = await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 2
   );
