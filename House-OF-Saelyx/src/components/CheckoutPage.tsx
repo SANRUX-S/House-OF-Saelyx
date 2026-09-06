@@ -797,6 +797,60 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                   )}
 
+                  <div
+                    onClick={() => setPaymentMethod('cod')}
+                    className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+                      paymentMethod === 'cod'
+                        ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
+                        : 'border-[#EAE3D9] bg-[#FCFBF9]/60 hover:border-[#D5CBBF] hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] flex items-center justify-center flex-shrink-0">
+                          <Truck className="w-4 h-4 text-[#1A1816]" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs uppercase font-semibold tracking-wider text-[#1A1816]">
+                              Cash on Delivery
+                            </span>
+                            <span className="text-[9px] uppercase tracking-wider bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded font-medium">
+                              Temporary Test
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#7A6E60] mt-0.5">
+                            No online payment now · Pay when the order is delivered
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all flex-shrink-0 ${
+                        paymentMethod === 'cod' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'
+                      }`}>
+                        {paymentMethod === 'cod' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}
+                      </div>
+                    </div>
+
+                    {paymentMethod === 'cod' && (
+                      <div className="mt-4 pt-3.5 border-t border-[#EAE3D9] space-y-3 animate-in fade-in">
+                        <p className="text-[11px] leading-relaxed text-[#5A4E40]">
+                          This temporary COD option is enabled for checkout testing. The order will remain unpaid until delivery and will never be marked as PayPal verified.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleCodOrder();
+                          }}
+                          disabled={isSubmitting}
+                          className="w-full h-12 rounded-xl bg-[#1A1816] text-white text-[11px] uppercase tracking-[0.18em] font-semibold hover:bg-black transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          {isSubmitting ? 'PLACING ORDER...' : 'PLACE CASH ON DELIVERY ORDER'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {paymentConfigLoaded &&
                     !paymentConfig.paypal.enabled && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
