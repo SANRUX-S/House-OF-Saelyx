@@ -135,6 +135,12 @@ assert(api.includes("writeAdminAudit(adminDb, token, 'DATABASE_EXPORT'"), 'datab
 assert(api.includes("app.get('/api/admin/health'"), 'detailed health diagnostics must be protected');
 assert(api.includes("res.json({ ok: true, service: 'saelyxe-api' });"), 'public health endpoint must expose only minimal status');
 assert(adminSecurity.includes('/api/admin/health'), 'Admin Security must use protected diagnostics');
+assert(api.includes("app.get('/api/admin/maintenance/operational-data'"), 'operational reset preview endpoint must exist');
+assert(api.includes("app.post('/api/admin/maintenance/reset-operational-data'"), 'one-time operational reset endpoint must exist');
+assert(api.includes("confirmation !== 'RESET_OPERATIONS'"), 'operational reset must require an exact destructive confirmation phrase');
+assert(api.includes("OPERATIONAL_RESET_MARKER"), 'operational reset must be sealed by a persistent one-time marker');
+assert(api.includes("hasRecentAuthentication(token)"), 'destructive operational reset must require recent administrator authentication');
+assert(adminSecurity.includes('RESET_OPERATIONS'), 'Super Admin security UI must expose explicit typed confirmation for the one-time reset');
 
 assert(api.includes("app.post('/api/admin/password-reset'"), 'admin password reset must use a protected server endpoint');
 assert(api.includes('admin-password-reset:'), 'admin password reset must be rate limited');
