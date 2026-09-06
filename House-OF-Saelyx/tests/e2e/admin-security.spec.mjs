@@ -94,6 +94,6 @@ for (const viewport of responsiveViewports) {
 test('unauthenticated account routes do not leak customer order details', async ({ page }) => {
   for (const route of ['/orders', '/track-order?id=SOX-PRIVATE-CHECK']) {
     await page.goto(route);
-    await expect(page.getByText(/ashan\.perera@gmail\.com|sarah\.k@fashionstudio\.co\.uk|Ward Place|Cinnamon Gardens/i)).toHaveCount(0);
+    await expect(page.getByText(/ashan\.perera@gmail\.com|sarah\.k@fashionstudio\.co\.uk|Ashan Perera|Sarah Kingsley/i)).toHaveCount(0);
   }
 });
