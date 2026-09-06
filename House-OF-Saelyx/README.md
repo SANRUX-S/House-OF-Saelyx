@@ -41,3 +41,8 @@ Before promoting a deployment to production:
 5. For transactional email and staff invitations, configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in Vercel. Firebase Functions are intentionally not used; restock delivery runs through the protected Vercel API.
 6. Do not mark PayPal orders as paid until the payment has been verified server-side against the linked PayPal order and completed capture.
 7. Run `npm run lint` and `npm run build` before merging production changes.
+
+
+### Local development architecture
+
+The local VS Code server mounts the same `api/index.ts` implementation used by Vercel. Legacy local StoreDB and duplicate authentication/API routes are intentionally removed so development and production authorization behavior stay aligned.
