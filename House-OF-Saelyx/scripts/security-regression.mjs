@@ -69,6 +69,13 @@ assert(api.includes("token.email_verified !== true"), 'API administrator authori
 assert(api.includes("status !== 'active'"), 'API administrator authorization must require active admin records');
 assert(api.includes("collection('admins').doc(token.uid)"), 'API must resolve protected admin records');
 assert(firebaseClient.includes("adminData?.status === 'active'"), 'admin credential flow must require active administrator records');
+assert(
+  firebaseClient.indexOf('if (allowlistedRole)') >= 0 &&
+  firebaseClient.indexOf('if (allowlistedRole)') < firebaseClient.indexOf("getDoc(doc(db, 'admins', credential.user.uid))"),
+  'bootstrap administrator login must not depend on a Firestore admin-document read'
+);
+assert(firebaseClient.includes("'auth/too-many-requests'"), 'admin login must surface Firebase throttling clearly');
+assert(firebaseClient.includes("'auth/network-request-failed'"), 'admin login must surface Firebase network failures clearly');
 assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified bootstrap admin must receive a verification path');
 assert(firebaseClient.includes('browserLocalPersistence') && firebaseClient.includes('browserSessionPersistence'), 'Remember Me must control Firebase persistence');
 
