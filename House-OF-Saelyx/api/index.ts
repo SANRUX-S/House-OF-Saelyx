@@ -694,7 +694,7 @@ type EmailDeliveryResult = {
 
 function formatLkrEmail(value: unknown) {
   const amount = Number(value);
-  return \`LKR \${(Number.isFinite(amount) ? amount : 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}\`;
+  return `LKR ${(Number.isFinite(amount) ? amount : 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
 function formatOrderPaymentMethod(order: any) {
@@ -728,19 +728,19 @@ function buildOrderItemRows(order: any) {
     const price = Number(item?.priceLKR) || 0;
     const image = safeString(item?.image, 1000);
     const imageCell = image
-      ? \`<img src="\${escapeHtml(image)}" width="64" height="78" alt="" style="display:block;width:64px;height:78px;object-fit:cover;border-radius:10px;background:#f6f2ec;border:1px solid #e7dfd5">\`
+      ? `<img src="${escapeHtml(image)}" width="64" height="78" alt="" style="display:block;width:64px;height:78px;object-fit:cover;border-radius:10px;background:#f6f2ec;border:1px solid #e7dfd5">`
       : '<div style="width:64px;height:78px;border-radius:10px;background:#f6f2ec;border:1px solid #e7dfd5"></div>';
 
     return [
       '<tr>',
       '<td style="padding:14px 0;border-bottom:1px solid #eee8df">',
       '<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>',
-      \`<td width="78" valign="top">\${imageCell}</td>\`,
+      `<td width="78" valign="top">${imageCell}</td>`,
       '<td valign="top" style="padding:2px 12px 0 0">',
-      \`<div style="font-size:14px;line-height:1.45;font-weight:700;color:#1b1815">\${escapeHtml(item?.title || 'SAELYXE item')}</div>\`,
-      \`<div style="margin-top:7px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7f73">Size \${escapeHtml(item?.size || '—')} &nbsp;·&nbsp; Qty \${quantity}</div>\`,
+      `<div style="font-size:14px;line-height:1.45;font-weight:700;color:#1b1815">${escapeHtml(item?.title || 'SAELYXE item')}</div>`,
+      `<div style="margin-top:7px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7f73">Size ${escapeHtml(item?.size || '—')} &nbsp;·&nbsp; Qty ${quantity}</div>`,
       '</td>',
-      \`<td width="120" valign="top" align="right" style="padding-top:2px;font-size:13px;font-weight:700;color:#1b1815;white-space:nowrap">\${formatLkrEmail(price * quantity)}</td>\`,
+      `<td width="120" valign="top" align="right" style="padding-top:2px;font-size:13px;font-weight:700;color:#1b1815;white-space:nowrap">${formatLkrEmail(price * quantity)}</td>`,
       '</tr></table>',
       '</td>',
       '</tr>'
@@ -756,13 +756,13 @@ function buildOrderTotals(order: any) {
 
   return [
     '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:13px;color:#6f655c">',
-    \`<tr><td style="padding:5px 0">Subtotal</td><td align="right" style="padding:5px 0;color:#1b1815">\${formatLkrEmail(subtotal)}</td></tr>\`,
+    `<tr><td style="padding:5px 0">Subtotal</td><td align="right" style="padding:5px 0;color:#1b1815">${formatLkrEmail(subtotal)}</td></tr>`,
     discount > 0
-      ? \`<tr><td style="padding:5px 0;color:#35614b">Discount\${order?.promoCode ? \` (\${escapeHtml(order.promoCode)})\` : ''}</td><td align="right" style="padding:5px 0;color:#35614b">-\${formatLkrEmail(discount)}</td></tr>\`
+      ? `<tr><td style="padding:5px 0;color:#35614b">Discount${order?.promoCode ? ` (${escapeHtml(order.promoCode)})` : ''}</td><td align="right" style="padding:5px 0;color:#35614b">-${formatLkrEmail(discount)}</td></tr>`
       : '',
-    \`<tr><td style="padding:5px 0">Delivery</td><td align="right" style="padding:5px 0;color:#1b1815">\${shipping === 0 ? 'Complimentary' : formatLkrEmail(shipping)}</td></tr>\`,
+    `<tr><td style="padding:5px 0">Delivery</td><td align="right" style="padding:5px 0;color:#1b1815">${shipping === 0 ? 'Complimentary' : formatLkrEmail(shipping)}</td></tr>`,
     '<tr><td colspan="2" style="height:9px"></td></tr>',
-    \`<tr><td style="padding:13px 0 0;border-top:1px solid #dcd4ca;font-size:14px;font-weight:800;color:#1b1815">Total</td><td align="right" style="padding:13px 0 0;border-top:1px solid #dcd4ca;font-size:20px;font-weight:800;color:#1b1815">\${formatLkrEmail(total)}</td></tr>\`,
+    `<tr><td style="padding:13px 0 0;border-top:1px solid #dcd4ca;font-size:14px;font-weight:800;color:#1b1815">Total</td><td align="right" style="padding:13px 0 0;border-top:1px solid #dcd4ca;font-size:20px;font-weight:800;color:#1b1815">${formatLkrEmail(total)}</td></tr>`,
     '</table>'
   ].join('');
 }
@@ -780,7 +780,7 @@ function buildSaelyxeOrderEmail(params: {
   const dateLabel = createdAt && Number.isFinite(Date.parse(createdAt))
     ? new Date(createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
     : 'Recorded by SAELYXE';
-  const orderUrl = \`https://www.saelyxe.com/orders?id=\${encodeURIComponent(orderNumber)}\`;
+  const orderUrl = `https://www.saelyxe.com/orders?id=${encodeURIComponent(orderNumber)}`;
   const customerName = safeString(order?.customerName, 120) || 'Customer';
 
   return [
@@ -792,24 +792,24 @@ function buildSaelyxeOrderEmail(params: {
     '<div style="margin-top:6px;font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:#d8cec1">Made for Presence</div>',
     '</td></tr>',
     '<tr><td style="padding:34px 34px 10px">',
-    \`<div style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:#8a7f73">\${escapeHtml(params.eyebrow)}</div>\`,
-    \`<h1 style="margin:9px 0 13px;font-family:Georgia,Times New Roman,serif;font-size:34px;line-height:1.08;font-weight:500;color:#1b1815">\${escapeHtml(params.heading)}</h1>\`,
-    \`<p style="margin:0 0 7px;font-size:14px;line-height:1.7;color:#514942">Hello \${escapeHtml(customerName)},</p>\`,
-    \`<p style="margin:0;font-size:14px;line-height:1.7;color:#514942">\${escapeHtml(params.intro)}</p>\`,
+    `<div style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:#8a7f73">${escapeHtml(params.eyebrow)}</div>`,
+    `<h1 style="margin:9px 0 13px;font-family:Georgia,Times New Roman,serif;font-size:34px;line-height:1.08;font-weight:500;color:#1b1815">${escapeHtml(params.heading)}</h1>`,
+    `<p style="margin:0 0 7px;font-size:14px;line-height:1.7;color:#514942">Hello ${escapeHtml(customerName)},</p>`,
+    `<p style="margin:0;font-size:14px;line-height:1.7;color:#514942">${escapeHtml(params.intro)}</p>`,
     '</td></tr>',
     '<tr><td style="padding:20px 34px 0">',
     '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8f5f1;border:1px solid #e7dfd5;border-radius:14px">',
     '<tr>',
-    \`<td style="padding:16px 18px;border-right:1px solid #e7dfd5"><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#95897d">Order number</div><div style="margin-top:5px;font-family:monospace;font-size:13px;font-weight:700;color:#1b1815">#\${escapeHtml(orderNumber)}</div></td>\`,
-    \`<td style="padding:16px 18px"><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#95897d">Order date</div><div style="margin-top:5px;font-size:12px;font-weight:700;color:#1b1815">\${escapeHtml(dateLabel)}</div></td>\`,
+    `<td style="padding:16px 18px;border-right:1px solid #e7dfd5"><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#95897d">Order number</div><div style="margin-top:5px;font-family:monospace;font-size:13px;font-weight:700;color:#1b1815">#${escapeHtml(orderNumber)}</div></td>`,
+    `<td style="padding:16px 18px"><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#95897d">Order date</div><div style="margin-top:5px;font-size:12px;font-weight:700;color:#1b1815">${escapeHtml(dateLabel)}</div></td>`,
     '</tr>',
     '</table>',
     '</td></tr>',
     '<tr><td style="padding:24px 34px 0">',
     '<div style="padding-bottom:10px;border-bottom:1px solid #ded7ce;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#1b1815">Payment details</div>',
     '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:10px;font-size:13px">',
-    \`<tr><td style="padding:5px 0;color:#8a7f73">Payment method</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">\${escapeHtml(formatOrderPaymentMethod(order))}</td></tr>\`,
-    \`<tr><td style="padding:5px 0;color:#8a7f73">Payment status</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">\${escapeHtml(formatOrderPaymentStatus(order))}</td></tr>\`,
+    `<tr><td style="padding:5px 0;color:#8a7f73">Payment method</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">${escapeHtml(formatOrderPaymentMethod(order))}</td></tr>`,
+    `<tr><td style="padding:5px 0;color:#8a7f73">Payment status</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">${escapeHtml(formatOrderPaymentStatus(order))}</td></tr>`,
     '</table>',
     '</td></tr>',
     '<tr><td style="padding:25px 34px 0">',
@@ -823,7 +823,7 @@ function buildSaelyxeOrderEmail(params: {
     buildOrderTotals(order),
     '</td></tr>',
     '<tr><td style="padding:30px 34px 34px">',
-    \`<a href="\${escapeHtml(orderUrl)}" style="display:inline-block;background:#171411;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800">View order / receipt</a>\`,
+    `<a href="${escapeHtml(orderUrl)}" style="display:inline-block;background:#171411;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800">View order / receipt</a>`,
     '<p style="margin:24px 0 0;font-size:11px;line-height:1.7;color:#91867a">This is an automated transactional message for your SAELYXE order. Keep your order number for reference.</p>',
     '</td></tr>',
     '<tr><td style="background:#f8f5f1;border-top:1px solid #e7dfd5;padding:20px 34px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8b8075">SAELYXE &nbsp;·&nbsp; Made for Presence &nbsp;·&nbsp; Sri Lanka</td></tr>',
@@ -850,7 +850,7 @@ async function deliverTransactionalEmail(params: {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: \`Bearer \${apiKey}\`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'Idempotency-Key': params.idempotencyKey
       },
@@ -864,7 +864,7 @@ async function deliverTransactionalEmail(params: {
 
     const payload: any = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = safeString(payload?.message, 240) || \`resend_http_\${response.status}\`;
+      const error = safeString(payload?.message, 240) || `resend_http_${response.status}`;
       console.error('Transactional email failed:', params.subject, response.status, error);
       return { sent: false, error };
     }
@@ -894,12 +894,12 @@ async function sendOrderConfirmationEmail(order: any): Promise<EmailDeliveryResu
       : 'Thank you for choosing SAELYXE. Your order has been recorded securely. Payment verification is handled separately by the payment provider.'
   });
 
-  const idempotency = crypto.createHash('sha256').update(\`created|\${orderNumber}\`).digest('hex').slice(0, 40);
+  const idempotency = crypto.createHash('sha256').update(`created|${orderNumber}`).digest('hex').slice(0, 40);
   return deliverTransactionalEmail({
     to: email,
-    subject: \`SAELYXE Order \${orderNumber} — Order Summary\`,
+    subject: `SAELYXE Order ${orderNumber} — Order Summary`,
     html,
-    idempotencyKey: \`saelyxe-order-created-\${idempotency}\`
+    idempotencyKey: `saelyxe-order-created-${idempotency}`
   });
 }
 
@@ -912,36 +912,36 @@ async function sendOrderStatusEmail(order: any, previousStatus?: string): Promis
   const isCod = order?.paymentMethod === 'cod';
   const copy: Record<string, { subject: string; heading: string; message: string }> = {
     confirmed: {
-      subject: \`SAELYXE Order \${orderNumber} Confirmed\`,
+      subject: `SAELYXE Order ${orderNumber} Confirmed`,
       heading: 'Order confirmed',
       message: isCod
         ? 'Your order has been confirmed. Payment will be collected on delivery, and our team is preparing your pieces.'
         : 'Your payment and order have been confirmed. Our team is preparing your pieces.'
     },
     packed: {
-      subject: \`SAELYXE Order \${orderNumber} Is Packed\`,
+      subject: `SAELYXE Order ${orderNumber} Is Packed`,
       heading: 'Order packed',
       message: 'Your order has been packed and is ready for dispatch.'
     },
     dispatched: {
-      subject: \`SAELYXE Order \${orderNumber} Has Been Dispatched\`,
+      subject: `SAELYXE Order ${orderNumber} Has Been Dispatched`,
       heading: 'Order dispatched',
       message: 'Your order has been handed to the courier. Your real courier and tracking details are included below.'
     },
     out_for_delivery: {
-      subject: \`SAELYXE Order \${orderNumber} Is Out for Delivery\`,
+      subject: `SAELYXE Order ${orderNumber} Is Out for Delivery`,
       heading: 'Out for delivery',
       message: 'Your order is with the delivery team and is heading to your delivery destination.'
     },
     delivered: {
-      subject: \`SAELYXE Order \${orderNumber} Delivered\`,
+      subject: `SAELYXE Order ${orderNumber} Delivered`,
       heading: 'Order delivered',
       message: 'Your SAELYXE order has been marked as delivered. Thank you for choosing SAELYXE.'
     },
     cancelled: {
       subject: order?.paymentStatus === 'refunded'
-        ? \`SAELYXE Refund Completed — \${orderNumber}\`
-        : \`SAELYXE Order \${orderNumber} Cancelled\`,
+        ? `SAELYXE Refund Completed — ${orderNumber}`
+        : `SAELYXE Order ${orderNumber} Cancelled`,
       heading: order?.paymentStatus === 'refunded' ? 'Refund completed' : 'Order cancelled',
       message: order?.paymentStatus === 'refunded'
         ? 'Your PayPal refund has been completed and the order is cancelled.'
@@ -957,16 +957,16 @@ async function sendOrderStatusEmail(order: any, previousStatus?: string): Promis
   const deliveryEta = safeString(order?.deliveryEta, 160);
   const history = Array.isArray(order?.statusHistory) ? order.statusHistory : [];
   const eventTimestamp = safeString(history[history.length - 1]?.timestamp || order?.updatedAt || new Date().toISOString(), 100);
-  const idempotency = crypto.createHash('sha256').update(\`\${orderNumber}|\${status}|\${eventTimestamp}\`).digest('hex').slice(0, 40);
+  const idempotency = crypto.createHash('sha256').update(`${orderNumber}|${status}|${eventTimestamp}`).digest('hex').slice(0, 40);
 
   const logistics = (trackingNumber || courierName || deliveryEta)
     ? [
         '<tr><td style="padding:24px 34px 0">',
         '<div style="padding-bottom:10px;border-bottom:1px solid #ded7ce;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#1b1815">Delivery details</div>',
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:10px;font-size:13px">',
-        courierName ? \`<tr><td style="padding:5px 0;color:#8a7f73">Courier</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">\${escapeHtml(courierName)}</td></tr>\` : '',
-        trackingNumber ? \`<tr><td style="padding:5px 0;color:#8a7f73">Tracking number</td><td align="right" style="padding:5px 0;font-family:monospace;font-weight:700;color:#1b1815">\${escapeHtml(trackingNumber)}</td></tr>\` : '',
-        deliveryEta ? \`<tr><td style="padding:5px 0;color:#8a7f73">Estimated delivery</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">\${escapeHtml(deliveryEta)}</td></tr>\` : '',
+        courierName ? `<tr><td style="padding:5px 0;color:#8a7f73">Courier</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">${escapeHtml(courierName)}</td></tr>` : '',
+        trackingNumber ? `<tr><td style="padding:5px 0;color:#8a7f73">Tracking number</td><td align="right" style="padding:5px 0;font-family:monospace;font-weight:700;color:#1b1815">${escapeHtml(trackingNumber)}</td></tr>` : '',
+        deliveryEta ? `<tr><td style="padding:5px 0;color:#8a7f73">Estimated delivery</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">${escapeHtml(deliveryEta)}</td></tr>` : '',
         '</table>',
         '</td></tr>'
       ].join('')
@@ -984,7 +984,7 @@ async function sendOrderStatusEmail(order: any, previousStatus?: string): Promis
     to: email,
     subject: selected.subject,
     html,
-    idempotencyKey: \`saelyxe-order-status-\${idempotency}\`
+    idempotencyKey: `saelyxe-order-status-${idempotency}`
   });
 }
 
@@ -3264,7 +3264,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
         throw new Error(
           currentStatus === 'cancelled'
             ? 'Cancelled orders are terminal. Create a new order instead of reopening a cancelled payment record.'
-            : \`Invalid order transition: \${currentStatus} → \${status}.\`
+            : `Invalid order transition: ${currentStatus} → ${status}.`
         );
       }
 
@@ -3293,7 +3293,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
           {
             status,
             timestamp: now,
-            note: safeString(req.body?.note, 300) || \`Order status updated directly to \${status} by an administrator.\`,
+            note: safeString(req.body?.note, 300) || `Order status updated directly to ${status} by an administrator.`,
             location: safeString(req.body?.location, 160) || 'SAELYXE Operations'
           }
         ];
@@ -3346,7 +3346,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
           if (!cached) throw new Error('Order inventory could not be verified.');
           const stockCount = Number(cached.data.stockCount);
           if (!Number.isFinite(stockCount) || stockCount < quantity) {
-            throw new Error(\`\${cached.data.title || 'A product'} does not have enough stock for this order.\`);
+            throw new Error(`${cached.data.title || 'A product'} does not have enough stock for this order.`);
           }
           const nextStock = stockCount - quantity;
           transaction.update(cached.ref, {
@@ -3404,7 +3404,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
     const updated = await ref.get();
     const updatedOrder = { id: updated.id, ...updated.data() };
     if (token) {
-      await writeAdminAudit(adminDb, token, 'ORDER_STATUS_UPDATED', \`Order \${id} updated from \${previousStatus} to \${status}.\`);
+      await writeAdminAudit(adminDb, token, 'ORDER_STATUS_UPDATED', `Order ${id} updated from ${previousStatus} to ${status}.`);
     }
 
     if (previousStatus !== status) {
