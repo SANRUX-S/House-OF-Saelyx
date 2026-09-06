@@ -34,6 +34,9 @@ jobs:
       - name: Security regression check
         run: npm run security:check
 
+      - name: Final launch readiness contract
+        run: npm run final:readiness
+
       - name: Production dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
 
