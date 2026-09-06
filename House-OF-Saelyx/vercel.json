@@ -54,7 +54,8 @@
   "git": {
     "deploymentEnabled": {
       "**": false,
-      "main": true
+      "main": true,
+      "preview/sharp-rendering-20260906": true
     }
   }
 }
