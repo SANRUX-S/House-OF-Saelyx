@@ -16,6 +16,18 @@ import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
+function createPayPalCheckoutAttemptId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `paypal-${crypto.randomUUID()}`;
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const values = new Uint32Array(4);
+    crypto.getRandomValues(values);
+    return `paypal-${Array.from(values, value => value.toString(36)).join('-')}`;
+  }
+  throw new Error('Secure checkout identifier generation is unavailable.');
+}
+
 
 export const CheckoutPage: React.FC = () => {
   const { 
@@ -668,7 +680,7 @@ export const CheckoutPage: React.FC = () => {
                                     paymentMethod: 'paypal',
                                     promoCode: appliedPromo?.code,
                                     checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (
-                                      paypalCheckoutAttemptIdRef.current = `paypal-${Date.now()}-${Math.random().toString(36).slice(2)}`
+                                      paypalCheckoutAttemptIdRef.current = createPayPalCheckoutAttemptId()
                                     ),
                                     notes
                                   });
