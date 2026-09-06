@@ -11,10 +11,12 @@ import {
   ShieldCheck, 
   ExternalLink,
   CreditCard,
+  FileText,
   X
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Order, OrderStatus } from '../types';
+import { openOrderReceipt } from '../lib/orderReceipt';
 
 export const OrdersPage: React.FC = () => {
   const { user, orders, formatPrice, navigateTo, currentRoute, requestOrderCancellation } = useStore();
@@ -404,7 +406,7 @@ export const OrdersPage: React.FC = () => {
                       <span className="font-mono">{formatPrice(selectedOrder.subtotalLKR)}</span>
                     </div>
                     <div className="flex justify-between text-[#7A6E60]">
-                      <span>White-Glove Hand-Delivery</span>
+                      <span>Delivery</span>
                       <span className="font-mono">
                         {selectedOrder.shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(selectedOrder.shippingLKR)}
                       </span>
@@ -456,6 +458,18 @@ export const OrdersPage: React.FC = () => {
                 {/* Footer Action */}
                 <div className="p-4 sm:p-6 border-t border-[#ECE3D8] bg-[#FAF8F5] flex flex-col sm:flex-row gap-3 justify-end">
                   <button
+                    type="button"
+                    onClick={() => {
+                      if (!openOrderReceipt(selectedOrder)) {
+                        window.alert('Your browser blocked the receipt window. Please allow pop-ups for SAELYXE and try again.');
+                      }
+                    }}
+                    className="h-11 px-6 bg-white border border-[#D5CBBF] text-[#1A1816] text-[11px] uppercase tracking-[0.18em] font-medium rounded-xl hover:bg-white transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>RECEIPT / INVOICE</span>
+                  </button>
+                  <button
                     onClick={() => {
                       const id = selectedOrder.orderNumber;
                       setSelectedOrder(null);
@@ -464,7 +478,7 @@ export const OrdersPage: React.FC = () => {
                     className="h-11 px-6 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.18em] font-medium rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                   >
                     <Truck className="w-3.5 h-3.5" />
-                    <span>TRACK LIVE COURIER</span>
+                    <span>TRACK ORDER</span>
                   </button>
                   <button
                     onClick={() => setSelectedOrder(null)}
