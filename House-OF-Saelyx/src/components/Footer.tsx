@@ -3,7 +3,16 @@ import { ChevronRight, Instagram, Check } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { getAppCheckRequestHeaders } from '../lib/firebase';
 
-const paymentBadges = ['PayHere', 'VISA', 'Mastercard', 'Payzy', 'PayPal'];
+const paymentLogos = [
+  { name: 'PayHere', src: 'https://www.payhere.lk/downloads/images/payhere_long_banner_dark.png', wide: true, objectClass: 'object-cover object-left' },
+  { name: 'Visa', src: 'https://cdn.simpleicons.org/visa/1434CB' },
+  { name: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B' },
+  { name: 'American Express', src: 'https://cdn.simpleicons.org/americanexpress/006FCF' },
+  { name: 'Discover', src: 'https://cdn.simpleicons.org/discover/FF6000' },
+  { name: 'Diners Club', src: 'https://cdn.simpleicons.org/dinersclub/0079BE' },
+  { name: 'Payzy', src: 'https://payzy.lk/images/logo.png' },
+  { name: 'PayPal', src: 'https://cdn.simpleicons.org/paypal/003087' },
+];
 
 export const Footer: React.FC = () => {
   const { navigateTo, setIsTrackerOpen, setActiveCategory } = useStore();
@@ -153,12 +162,19 @@ export const Footer: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-center flex-wrap gap-2">
-            {paymentBadges.map((badge) => (
+            {paymentLogos.map((logo) => (
               <span
-                key={badge}
-                className="h-6 px-2.5 inline-flex items-center rounded border border-white/10 bg-white/[0.04] text-neutral-300 text-[9px] font-medium tracking-wide hover:bg-white/[0.07] hover:text-white transition-colors"
+                key={logo.name}
+                title={logo.name}
+                className={`h-7 ${logo.wide ? 'w-[74px]' : 'w-10'} inline-flex items-center justify-center overflow-hidden rounded-[4px] bg-white px-1.5 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-transform duration-200 hover:-translate-y-0.5`}
               >
-                {badge}
+                <img
+                  src={logo.src}
+                  alt={logo.name}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className={`${logo.wide ? 'h-full w-[118px] max-w-none' : 'max-h-4 max-w-full'} ${logo.objectClass || 'object-contain'}`}
+                />
               </span>
             ))}
           </div>
