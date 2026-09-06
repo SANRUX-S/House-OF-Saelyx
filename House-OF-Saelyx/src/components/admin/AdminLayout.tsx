@@ -13,8 +13,7 @@ import {
   Menu, 
   ChevronDown, 
   ExternalLink, 
-  Search, 
-  Sparkles,
+  Search,
   Maximize,
   Minimize
 } from 'lucide-react';
@@ -161,7 +160,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           <div className="sidebar-brand-icon">
             <span>SÆ</span>
           </div>
-          <span className="sidebar-brand-text">SAELYXE ADMIN</span>
+          <div className="min-w-0">
+            <div className="sidebar-brand-text">SAELYXE</div>
+            <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-white/35">Admin Console</div>
+          </div>
         </div>
 
         {/* Menu Items */}
@@ -213,8 +215,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       <div className="saelyxe-main-wrapper">
         {/* Top Navbar */}
         <header className="saelyxe-navbar">
-          <div className="flex items-center gap-3">
-            {/* Mobile Sidebar Hamburger Toggle */}
+          <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
               className="lg:hidden btn-nav-icon"
@@ -223,8 +224,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Quick Search */}
-            <div className="navbar-search-container hidden sm:flex relative">
+            <div className="hidden min-w-0 lg:block">
+              <div className="truncate text-xs font-extrabold text-stone-900">{title}</div>
+              <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-400">SAELYXE Admin</div>
+            </div>
+
+            <div className="navbar-search-container hidden md:flex relative">
               <Search className="w-4 h-4 text-stone-400 shrink-0" />
               <input
                 type="text"
@@ -258,16 +263,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
           {/* Right Actions */}
           <div className="navbar-actions">
-            {/* Public Store Link */}
-            <button
-              onClick={onNavigateHome}
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors"
-              title="Return to Public Store"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Public Store</span>
-            </button>
-
             {/* Fullscreen Toggle */}
             <button
               onClick={toggleFullscreen}
@@ -389,6 +384,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                       </button>
                     )}
                     <button
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        onNavigateHome();
+                      }}
+                      className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
+                      <span>Open Public Store</span>
+                    </button>
+                    <button
                       onClick={async () => {
                         const result = await sendAdminPasswordReset(user.email);
                         setAccountMessage(result.success ? 'Password reset request sent.' : (result.error || 'Unable to request password reset.'));
@@ -437,10 +442,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         {/* Page Header Banner */}
         <div className="admin-page-header">
           <div>
-            <h1 className="admin-page-title">{title}</h1>
-            <p className="admin-page-subtitle">{subtitle}</p>
             {breadcrumb.length > 0 && (
-              <div className="admin-breadcrumb mt-2">
+              <div className="admin-breadcrumb mb-2">
                 <button 
                   onClick={() => onSwitchTab('overview')}
                   className="hover:underline cursor-pointer"
@@ -464,6 +467,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 ))}
               </div>
             )}
+            <h1 className="admin-page-title">{title}</h1>
+            <p className="admin-page-subtitle">{subtitle}</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -479,10 +484,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         {/* Footer */}
         <footer className="admin-footer">
           <div>
-            <strong>SAELYXE ATELIER ADMIN</strong> &copy; {new Date().getFullYear()} • High-Fashion Boutique Control Plane
+            <strong>SAELYXE ADMIN</strong> &copy; {new Date().getFullYear()}
           </div>
           <div className="flex items-center gap-4 text-xs">
-            <span>Server: Active</span>
+            <span>Production</span>
             <span className="flex items-center gap-1.5 text-emerald-600 font-semibold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Online
