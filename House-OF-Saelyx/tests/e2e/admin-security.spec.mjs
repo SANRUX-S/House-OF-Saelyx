@@ -57,6 +57,7 @@ for (const viewport of responsiveViewports) {
   test(`responsive storefront routes avoid horizontal overflow on ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
+    const overflowFailures = [];
     for (const route of ['/', '/contact-support', '/orders', '/track-order', '/checkout']) {
       const response = await page.goto(route);
       expect(response).not.toBeNull();
@@ -67,9 +68,11 @@ for (const viewport of responsiveViewports) {
         viewportWidth: window.innerWidth,
         bodyWidth: document.body.scrollWidth
       }));
-      expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth + 2);
-      expect(metrics.bodyWidth).toBeLessThanOrEqual(metrics.viewportWidth + 2);
+      if (metrics.documentWidth > metrics.viewportWidth + 2 || metrics.bodyWidth > metrics.viewportWidth + 2) {
+        overflowFailures.push({ route, ...metrics });
+      }
     }
+    expect(overflowFailures, JSON.stringify(overflowFailures)).toEqual([]);
   });
 }
 
@@ -91,6 +94,6 @@ for (const viewport of responsiveViewports) {
 test('unauthenticated account routes do not leak customer order details', async ({ page }) => {
   for (const route of ['/orders', '/track-order?id=SOX-PRIVATE-CHECK']) {
     await page.goto(route);
-    await expect(page.getByText(/customer@example\.com|Ward Place|payment capture/i)).toHaveCount(0);
+    await expect(page.getByText(/ashan\.perera@gmail\.com|sarah\.k@fashionstudio\.co\.uk|Ward Place|Cinnamon Gardens/i)).toHaveCount(0);
   }
 });
