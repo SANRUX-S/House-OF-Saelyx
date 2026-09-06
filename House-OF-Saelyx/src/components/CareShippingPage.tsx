@@ -6,24 +6,24 @@ export const CareShippingPage: React.FC = () => {
   const { navigateTo } = useStore();
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 pb-20 px-5 sm:px-8">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-[\'Plus_Jakarta_Sans\'] pt-24 pb-20 px-5 sm:px-8">
       <div className="max-w-3xl mx-auto space-y-10">
         <button
           onClick={() => navigateTo({ name: 'home' })}
-          className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7A6E60] hover:text-black transition-colors"
+          className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#3E3730] hover:text-black transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Return to Boutique</span>
         </button>
 
         <div className="space-y-2 border-b border-[#E3D9CD] pb-6">
-          <span className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
+          <span className="text-[11px] uppercase tracking-[0.25em] text-[#3E3730] font-semibold">
             SAELYXE · DELIVERY
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
             Shipping & Delivery
           </h1>
-          <p className="text-xs text-[#7A6E60]">
+          <p className="text-xs text-[#3E3730] font-medium">
             Delivery charges and order status are calculated from the current store configuration and your order record.
           </p>
         </div>
@@ -35,7 +35,7 @@ export const CareShippingPage: React.FC = () => {
               <span>Sri Lanka Delivery</span>
             </div>
             <div className="text-xl font-serif font-bold text-[#1A1816]">Order-Based Dispatch</div>
-            <p className="text-xs text-[#574D42] leading-relaxed">
+            <p className="text-xs text-[#3E3730] font-medium leading-relaxed">
               Your checkout records the applicable delivery charge. Courier and tracking details are added when the order is dispatched.
             </p>
           </div>
@@ -46,13 +46,13 @@ export const CareShippingPage: React.FC = () => {
               <span>Other Destinations</span>
             </div>
             <div className="text-xl font-serif font-bold text-[#1A1816]">Availability Varies</div>
-            <p className="text-xs text-[#574D42] leading-relaxed">
+            <p className="text-xs text-[#3E3730] font-medium leading-relaxed">
               Delivery availability, courier selection, timing, and destination-specific charges are confirmed against the order rather than promised as a fixed carrier or delivery window.
             </p>
           </div>
         </div>
 
-        <div className="space-y-8 text-xs sm:text-sm text-[#4A4036] leading-relaxed font-light">
+        <div className="space-y-8 text-xs sm:text-sm text-[#2F2A25] leading-relaxed font-normal">
           <section className="space-y-3">
             <h2 className="font-serif text-lg text-[#1A1816] font-semibold tracking-wide flex items-center gap-2">
               <PackageCheck className="w-4 h-4" />

@@ -104,7 +104,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
     <div
       ref={dropdownRef}
       onClick={(e) => e.stopPropagation()}
-      className="absolute right-0 top-full mt-3 w-85 sm:w-92.5 bg-white text-[#1A1816] rounded-2xl border border-[#E8E1D5] shadow-[0_22px_55px_rgba(0,0,0,0.14)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 transform-gpu select-none"
+      className="absolute right-0 top-full mt-3 w-85 sm:w-92.5 bg-white text-[#1A1816] rounded-2xl border border-[#E8E1D5] shadow-[0_22px_55px_rgba(0,0,0,0.14)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 select-none"
     >
       {/* Top Header with Authenticated Customer Info */}
       <div className="p-4 sm:p-5 border-b border-[#EDE6DC] bg-[#FAF8F5]/90">
@@ -144,7 +144,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
             className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white hover:bg-[#F2ECE2] active:scale-[0.98] text-[#1A1816] text-[10.5px] uppercase font-semibold tracking-wider transition-all duration-200 cursor-pointer border border-[#EAE3D9] shadow-2xs group"
           >
             <div className="flex items-center gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-amber-800 stroke-[1.75] group-hover:scale-110 transition-transform duration-200" />
+              <ShieldCheck className="w-4 h-4 text-amber-800 stroke-[2] group-hover:scale-110 transition-transform duration-200" />
               <span>ATELIER ADMIN PANEL</span>
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-[#7A6E60] group-hover:translate-x-1 transition-transform duration-200" />
@@ -164,7 +164,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-[#FAF8F5] border border-[#EAE3D9] group-hover:bg-[#F2EDE4] group-hover:border-[#DDD3C5] group-hover:scale-105 flex items-center justify-center text-[#1A1816] transition-all duration-200 shrink-0 shadow-2xs">
-                    <Icon className="w-4.5 h-4.5 stroke-[1.5]" />
+                    <Icon className="w-4.5 h-4.5 stroke-[2]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-[11px] font-semibold tracking-wider uppercase text-[#1A1816] truncate group-hover:text-black transition-colors">
@@ -188,7 +188,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
           onClick={handleLogoutClick}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-rose-700 hover:text-rose-800 hover:bg-rose-50 active:scale-[0.98] text-[11px] font-semibold uppercase tracking-widest transition-all duration-200 cursor-pointer shadow-2xs border border-transparent hover:border-rose-200"
         >
-          <LogOut className="w-4 h-4 stroke-[1.75]" />
+          <LogOut className="w-4 h-4 stroke-[2]" />
           <span>LOG OUT</span>
         </button>
       </div>

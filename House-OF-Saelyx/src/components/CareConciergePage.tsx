@@ -44,24 +44,24 @@ export const CareConciergePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 pb-20 px-5 sm:px-8">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-[\'Plus_Jakarta_Sans\'] pt-24 pb-20 px-5 sm:px-8">
       <div className="max-w-4xl mx-auto space-y-10">
         <button
           onClick={() => navigateTo({ name: 'home' })}
-          className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7A6E60] hover:text-black transition-colors"
+          className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#3E3730] hover:text-black transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Return to Boutique</span>
         </button>
 
         <div className="space-y-2 border-b border-[#E3D9CD] pb-6">
-          <span className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
+          <span className="text-[11px] uppercase tracking-[0.25em] text-[#3E3730] font-semibold">
             SAELYXE · CLIENT CARE
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
             Client Care & Order Assistance
           </h1>
-          <p className="text-xs text-[#7A6E60]">
+          <p className="text-xs text-[#3E3730] font-medium">
             Submit sizing, order, authenticity, press, or general support inquiries through the secure form below.
           </p>
         </div>
@@ -70,13 +70,13 @@ export const CareConciergePage: React.FC = () => {
           <div className="md:col-span-5 space-y-6">
             <div className="bg-[#EFE9E0] p-6 rounded-2xl border border-[#DDD3C4] space-y-4">
               <div className="w-10 h-10 rounded-xl bg-white border border-[#DDD3C4] flex items-center justify-center">
-                <Mail className="w-4 h-4 text-[#7A6E60]" />
+                <Mail className="w-4 h-4 text-[#3E3730]" />
               </div>
               <h3 className="font-serif text-base font-semibold text-[#1A1816]">Online Concierge</h3>
-              <p className="text-xs leading-relaxed text-[#635546]">
+              <p className="text-xs leading-relaxed text-[#3E3730]">
                 SAELYXE support is handled through this online inquiry system so your request can be recorded and followed up by the admin team.
               </p>
-              <p className="text-[11px] leading-relaxed text-[#7A6E60]">
+              <p className="text-[11px] leading-relaxed text-[#3E3730]">
                 Only verified contact channels and operating details are published on the storefront.
               </p>
             </div>
@@ -89,7 +89,7 @@ export const CareConciergePage: React.FC = () => {
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="font-serif text-2xl font-semibold text-[#1A1816]">Inquiry Received</h3>
-                <p className="text-xs text-[#7A6E60] max-w-sm mx-auto leading-relaxed">
+                <p className="text-xs text-[#3E3730] max-w-sm mx-auto leading-relaxed">
                   Thank you, {name}. Your inquiry has been securely recorded for the SAELYXE support team.
                 </p>
                 <button
@@ -111,7 +111,7 @@ export const CareConciergePage: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#5A4E40] mb-1">Full Name *</label>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#2B2723] mb-1">Full Name *</label>
                     <input
                       type="text"
                       required
@@ -122,7 +122,7 @@ export const CareConciergePage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#5A4E40] mb-1">Email Address *</label>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#2B2723] mb-1">Email Address *</label>
                     <input
                       type="email"
                       required
@@ -136,7 +136,7 @@ export const CareConciergePage: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#5A4E40] mb-1">Phone (Optional)</label>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#2B2723] mb-1">Phone (Optional)</label>
                     <input
                       type="tel"
                       placeholder="Your contact number"
@@ -146,7 +146,7 @@ export const CareConciergePage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#5A4E40] mb-1">Topic</label>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#2B2723] mb-1">Topic</label>
                     <select
                       value={topic}
                       onChange={e => setTopic(e.target.value as ContactMessage['topic'])}
@@ -163,7 +163,7 @@ export const CareConciergePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#5A4E40] mb-1">Order Reference (Optional)</label>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#2B2723] mb-1">Order Reference (Optional)</label>
                   <input
                     type="text"
                     placeholder="Your SAELYXE order number"
@@ -174,7 +174,7 @@ export const CareConciergePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#5A4E40] mb-1">Your Message *</label>
+                  <label className="block text-[10px] uppercase tracking-wider font-semibold text-[#2B2723] mb-1">Your Message *</label>
                   <textarea
                     rows={4}
                     required
