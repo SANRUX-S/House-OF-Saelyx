@@ -14,6 +14,15 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.email_verified == true && request.auth.token.email is string;
     }
 
+    function isBootstrapRootAdmin() {
+      return isAuthenticated() &&
+        request.auth.token.email is string &&
+        (
+          request.auth.token.email == 'saelyx.co@gmail.com' ||
+          request.auth.token.email == 'saelyx.co+super@gmail.com'
+        );
+    }
+
     function hasActiveAdminRecord() {
       return hasVerifiedEmail() &&
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
@@ -22,23 +31,22 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return hasVerifiedEmail() && (
-        request.auth.token.email == 'saelyx.co@gmail.com' ||
-        request.auth.token.email == 'saelyx.co+super@gmail.com' ||
-        request.auth.token.email == 'saelyx.co+admin@gmail.com' ||
-        (hasActiveAdminRecord() && (
-          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin' ||
-          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin'
-        ))
+      return isBootstrapRootAdmin() || (
+        hasVerifiedEmail() && (
+          request.auth.token.email == 'saelyx.co+admin@gmail.com' ||
+          (hasActiveAdminRecord() && (
+            get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin' ||
+            get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin'
+          ))
+        )
       );
     }
 
     function isSuperAdmin() {
-      return hasVerifiedEmail() && (
-        request.auth.token.email == 'saelyx.co@gmail.com' ||
-        request.auth.token.email == 'saelyx.co+super@gmail.com' ||
-        (hasActiveAdminRecord() &&
-          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin')
+      return isBootstrapRootAdmin() || (
+        hasVerifiedEmail() &&
+        hasActiveAdminRecord() &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin'
       );
     }
 

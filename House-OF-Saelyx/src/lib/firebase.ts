@@ -90,8 +90,16 @@ const ADMIN_ROLES: Record<string, UserRole> = {
   'saelyx.co+admin@gmail.com': 'admin'
 };
 
+const ROOT_ADMIN_EMAILS = new Set([
+  'saelyx.co@gmail.com',
+  'saelyx.co+super@gmail.com'
+]);
+
 export function getConfiguredAdminRole(email?: string | null, emailVerified = false): UserRole | undefined {
-  return email && emailVerified ? ADMIN_ROLES[email.toLowerCase()] : undefined;
+  if (!email) return undefined;
+  const normalizedEmail = email.toLowerCase();
+  if (ROOT_ADMIN_EMAILS.has(normalizedEmail)) return 'super_admin';
+  return emailVerified ? ADMIN_ROLES[normalizedEmail] : undefined;
 }
 
 export async function verifyAdminCredentials(username: string, pass: string, rememberMe = true): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
@@ -105,11 +113,12 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
     const email = credential.user.email?.toLowerCase() || '';
     const allowlistedRole = email ? ADMIN_ROLES[email] : undefined;
 
-    // Bootstrap administrators are intentionally recoverable without depending on
-    // a Firestore admin document. Firebase Auth + verified allowlisted email is
-    // the trust boundary for these root accounts.
+    // Root bootstrap administrators are recoverable using Firebase Auth +
+    // the exact hard-coded root email allowlist. Invited/secondary admins still
+    // require verified email ownership.
     if (allowlistedRole) {
-      if (!credential.user.emailVerified) {
+      const isRootAdmin = ROOT_ADMIN_EMAILS.has(email);
+      if (!isRootAdmin && !credential.user.emailVerified) {
         try {
           await sendEmailVerification(credential.user);
         } catch {
@@ -118,7 +127,7 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
         await fbSignOut(auth);
         return {
           valid: false,
-          error: 'Verify this administrator email first. A verification email has been requested; then sign in again.'
+          error: 'Verify this administrator email first, then sign in again.'
         };
       }
 
