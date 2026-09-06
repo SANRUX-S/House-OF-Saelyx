@@ -393,7 +393,7 @@ export const OrdersPage: React.FC = () => {
                       <p className="font-semibold text-[#1A1816]">{selectedOrder.customerName}</p>
                       <p className="text-[#4A4036]">{selectedOrder.address}, {selectedOrder.city} {selectedOrder.postalCode}</p>
                       <p className="text-[#7A6E60]">Phone: {selectedOrder.phone}</p>
-                      <p className="text-[#7A6E60]">White-Glove Courier: {selectedOrder.courierName || 'Saelyxe Dedicated Courier'}</p>
+                      <p className="text-[#7A6E60]">Courier: {selectedOrder.courierName || 'Not assigned yet'}</p>
                     </div>
                   </div>
 

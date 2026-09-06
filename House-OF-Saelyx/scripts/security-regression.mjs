@@ -50,6 +50,10 @@ assert(!trackingRoute.includes('phone:'), 'tracking response must not expose pho
 assert(!trackingRoute.includes('address:'), 'tracking response must not expose street address');
 assert(!trackingRoute.includes('note: safeString(entry?.note'), 'tracking response must not expose operational notes');
 assert(!trackingRoute.includes('location: safeString(entry?.location'), 'tracking response must not expose detailed status locations');
+assert(tracker.includes("'Not assigned yet'"), 'tracking UI must not invent a courier');
+assert(tracker.includes("'Pending courier update'"), 'tracking UI must not invent a delivery ETA');
+assert(!tracker.includes('Real-Time Fleet Telemetry'), 'tracking UI must not claim live fleet telemetry without a courier integration');
+assert(tracker.includes("{ label: 'Order Placed'"), 'tracking UI must represent placed orders as placed, not confirmed');
 
 assert(rules.includes("request.resource.data.role == 'patron'"), 'new customer profiles must not self-assign privileged roles');
 assert(rules.includes('request.resource.data.role == resource.data.role'), 'customer profile updates must preserve role');
@@ -97,6 +101,9 @@ assert(adminStaff.includes('INVITE ADMINISTRATOR'), 'staff UI must expose the re
 assert(adminStaff.includes('Activate') && adminStaff.includes('Revoke'), 'staff UI must expose activation and revocation');
 
 assert(api.includes("app.post('/api/admin/orders/:id/refund'"), 'Super Admin PayPal refund endpoint must exist');
+assert(api.includes("app.post('/api/orders/:id/cancellation-request'"), 'customer cancellation request endpoint must exist');
+assert(api.includes("cancellationRequestedBy: token.uid"), 'customer cancellation request must be authenticated to the owning user');
+assert(api.includes("Cancellation requests are closed after dispatch."), 'customer cancellation requests must close after dispatch');
 assert(api.includes('/v2/payments/captures/') && api.includes('/refund'), 'refund must use PayPal Payments v2 capture refund');
 assert(api.includes('paymentCaptureId'), 'PayPal capture ID must be persisted');
 assert(api.includes("paymentStatus: 'refund_pending'"), 'pending refund state must be explicit');

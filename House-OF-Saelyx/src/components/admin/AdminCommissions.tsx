@@ -444,7 +444,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   value={newCourier}
                   required={['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus)}
                   onChange={e => setNewCourier(e.target.value)}
-                  placeholder="e.g. Saelyxe White-Glove Van 04"
+                  placeholder="Enter courier or logistics provider"
                   className="form-input-custom"
                 />
               </div>
@@ -456,7 +456,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   value={newTracking}
                   required={['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus)}
                   onChange={e => setNewTracking(e.target.value)}
-                  placeholder="e.g. EXP-751395"
+                  placeholder="Enter courier tracking number"
                   className="form-input-custom font-mono"
                 />
               </div>
