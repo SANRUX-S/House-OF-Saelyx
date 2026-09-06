@@ -1245,6 +1245,168 @@ app.post('/api/admin/maintenance/reset-operational-data', async (req, res) => {
   }
 });
 
+
+const LEGACY_DEMO_PURGE_MARKER = 'legacy-demo-purge-20260906-v1';
+const LEGACY_DEMO_CUTOFF_MS = Date.parse('2026-09-06T08:00:00.000Z');
+const LEGACY_DEMO_ORDER_IDS = new Set([
+  'SOX-20260904-8740',
+  'SOX-20260903-3813',
+  'SOX-20260903-7964',
+  'SLX-85885',
+  'SLX-56850',
+  'SLX-79015',
+  'ord-mtj0jv8w',
+  'ord-mtizi1lr',
+  'ord-1002',
+  'ord-1001'
+]);
+const LEGACY_DEMO_ORDER_NUMBERS = new Set([
+  'SOX-20260904-8740',
+  'SOX-20260903-3813',
+  'SOX-20260903-7964',
+  'SLX-85885',
+  'SLX-56850',
+  'SLX-79015',
+  'SLX-64984',
+  'SLX-97200',
+  'SLX-94822',
+  'SLX-94821'
+]);
+
+function isLegacyDemoTimestamp(value: unknown) {
+  if (!value) return true;
+  const parsed = Date.parse(String(value));
+  return Number.isFinite(parsed) && parsed <= LEGACY_DEMO_CUTOFF_MS;
+}
+
+async function purgeLegacyDemoFixtures(adminDb: any, token: any) {
+  const markerRef = adminDb.collection('maintenance').doc(LEGACY_DEMO_PURGE_MARKER);
+  const markerSnap = await markerRef.get();
+  const existing = markerSnap.exists ? markerSnap.data() || {} : {};
+  if (existing.status === 'completed') {
+    return {
+      alreadyCompleted: true,
+      deleted: existing.deleted || {},
+      deletedTotal: Number(existing.deletedTotal || 0),
+      completedAt: existing.completedAt || null
+    };
+  }
+
+  await markerRef.set({
+    status: 'in_progress',
+    startedAt: new Date().toISOString(),
+    startedBy: token.uid
+  }, { merge: true });
+
+  const deleted: Record<string, number> = {
+    orders: 0,
+    concierge_inquiries: 0,
+    messages: 0,
+    stock_notifications: 0,
+    restock_dispatch_locks: 0,
+    order_idempotency: 0,
+    paypal_order_links: 0
+  };
+
+  const orderSnapshot = await adminDb.collection('orders').get();
+  for (let offset = 0; offset < orderSnapshot.docs.length; offset += 400) {
+    const slice = orderSnapshot.docs.slice(offset, offset + 400);
+    const batch = adminDb.batch();
+    let batchCount = 0;
+    for (const docSnap of slice) {
+      const data = docSnap.data() || {};
+      const id = safeString(docSnap.id, 160);
+      const orderNumber = safeString(data.orderNumber, 160);
+      if (LEGACY_DEMO_ORDER_IDS.has(id) || LEGACY_DEMO_ORDER_NUMBERS.has(orderNumber)) {
+        batch.delete(docSnap.ref);
+        batchCount += 1;
+      }
+    }
+    if (batchCount > 0) {
+      await batch.commit();
+      deleted.orders += batchCount;
+    }
+  }
+
+  for (const collectionName of [
+    'concierge_inquiries',
+    'messages',
+    'stock_notifications',
+    'restock_dispatch_locks',
+    'order_idempotency',
+    'paypal_order_links'
+  ] as const) {
+    const snapshot = await adminDb.collection(collectionName).get();
+    for (let offset = 0; offset < snapshot.docs.length; offset += 400) {
+      const slice = snapshot.docs.slice(offset, offset + 400);
+      const batch = adminDb.batch();
+      let batchCount = 0;
+      for (const docSnap of slice) {
+        const data = docSnap.data() || {};
+        const createdAt =
+          data.createdAt ||
+          data.updatedAt ||
+          data.startedAt ||
+          data.expiresAt ||
+          data.timestamp ||
+          null;
+        if (isLegacyDemoTimestamp(createdAt)) {
+          batch.delete(docSnap.ref);
+          batchCount += 1;
+        }
+      }
+      if (batchCount > 0) {
+        await batch.commit();
+        deleted[collectionName] += batchCount;
+      }
+    }
+  }
+
+  const deletedTotal = Object.values(deleted).reduce((sum, count) => sum + Number(count || 0), 0);
+  const completedAt = new Date().toISOString();
+  await markerRef.set({
+    status: 'completed',
+    completedAt,
+    completedBy: token.uid,
+    deleted,
+    deletedTotal,
+    cutoff: '2026-09-06T08:00:00.000Z'
+  }, { merge: true });
+
+  await writeAdminAudit(
+    adminDb,
+    token,
+    'LEGACY_DEMO_FIXTURES_PURGED',
+    'Purged ' + deletedTotal + ' pre-launch demo/test operational records using the fixed legacy cutoff and exact historical order identifiers. Future customer records are outside this migration.'
+  );
+
+  return { alreadyCompleted: false, deleted, deletedTotal, completedAt };
+}
+
+app.post('/api/admin/maintenance/purge-legacy-demo-fixtures', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) {
+      return res.status(403).json({ error: 'Super Admin access required.' });
+    }
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+    if (!(await enforceRateLimit(adminDb, 'legacy-demo-purge:' + token.uid, 4, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Legacy cleanup is rate limited. Please wait before retrying.' });
+    }
+
+    const result = await purgeLegacyDemoFixtures(adminDb, token);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unable to purge legacy demo records.'
+    });
+  }
+});
+
 app.get('/api/admin/health', async (req, res) => {
   try {
     const token = await readBearerToken(req);
