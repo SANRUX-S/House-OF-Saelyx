@@ -33,7 +33,6 @@ const adminConcierge = read('src/components/admin/AdminConcierge.tsx');
 const adminTypes = read('src/types.ts');
 const ciWorkflow = read('../.github/workflows/ci.yml');
 const localServer = read('server.ts');
-const fallbackDb = read('server/db.ts');
 const fallbackJson = read('data/saelyx_store.json');
 
 const trackingStart = api.indexOf("app.get('/api/orders/:id'");
@@ -96,7 +95,6 @@ assert(vercel.includes('https://www.google.com/recaptcha/'), 'CSP must allow reC
 assert(vercel.includes('https://*.paypal.com'), 'CSP must allow PayPal SDK resources');
 
 assert(!firebaseClient.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'client must not depend on Firebase Storage');
-assert(!fallbackDb.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'server fallback must not depend on Firebase Storage');
 assert(!fs.existsSync('storage.rules'), 'Firebase Storage rules must not remain after Cloudinary migration');
 assert(!fs.existsSync('functions/index.js'), 'duplicate Firebase Functions runtime must be retired');
 assert(api.includes('CLOUDINARY_CLOUD_NAME') && api.includes('CLOUDINARY_API_SECRET'), 'media uploads must use server-signed Cloudinary configuration');
@@ -149,7 +147,10 @@ assert(!fs.existsSync('functions'), 'retired Firebase Functions directory must n
 
 
 assert(localServer.includes('app.use(productionApi);'), 'local VS Code server must mount the production API');
-assert(localServer.includes('retiredMutation'), 'legacy local admin mutations must be retired');
+assert(!localServer.includes("from './server/db.js'"), 'local server must not import the retired StoreDB');
+assert(!localServer.includes("from './server/auth.js'"), 'local server must not import duplicate legacy auth middleware');
+assert(!localServer.includes("app.get('/api/products'"), 'local server must not duplicate production API routes');
+assert(!fs.existsSync('server/db.ts') && !fs.existsSync('server/auth.ts'), 'legacy local DB/auth modules must stay removed');
 
 for (const [name, source] of [
   ['checkout', checkout],
@@ -175,7 +176,6 @@ for (const fake of [
   'SAELYX_VAULT_SALT_v2'
 ]) {
   assert(!store.includes(fake), `store context contains demo fixture: ${fake}`);
-  assert(!fallbackDb.includes(fake), `fallback DB contains demo fixture: ${fake}`);
   assert(!fallbackJson.includes(fake), `fallback JSON contains demo fixture: ${fake}`);
   assert(!adminSecurity.includes(fake), `admin security UI contains fake result: ${fake}`);
 }
@@ -251,6 +251,24 @@ for (const [name, source] of [
 
 assert(ciWorkflow.includes('Browser end-to-end security smoke') && ciWorkflow.includes('npm run e2e'), '#35 browser E2E must run in CI');
 assert(ciWorkflow.includes('Firestore authorization emulator tests') && ciWorkflow.includes('npm run rules:test'), '#36 Firestore emulator tests must run in CI');
+
+assert(!store.includes("localStorage.setItem('saelyx_user'"), 'user/customer/admin profile data must not persist in localStorage');
+assert(!store.includes('Math.random()'), 'StoreContext identifiers must use cryptographic randomness');
+assert(!checkout.includes('Math.random()'), 'PayPal checkout attempt identifiers must use cryptographic randomness');
+assert(checkout.includes('createPayPalCheckoutAttemptId'), 'checkout must use the cryptographic attempt ID helper');
+assert(ciWorkflow.includes('npm audit --omit=dev --audit-level=high'), 'CI must block high/critical production dependency vulnerabilities');
+
+for (const [name, source] of [
+  ['API', api],
+  ['Firebase client', firebaseClient],
+  ['StoreContext', store],
+  ['Checkout', checkout],
+  ['local server', localServer]
+]) {
+  assert(!source.includes('-----BEGIN PRIVATE KEY-----'), name + ' must not contain a committed private key');
+  assert(!/\b(?:sk_live_|sk_test_|ghp_|github_pat_|AKIA)[A-Za-z0-9_\-]+/.test(source), name + ' must not contain obvious committed secret tokens');
+}
+
 
 if (!process.exitCode) {
   console.log('SAELYXE security regression checks passed.');
