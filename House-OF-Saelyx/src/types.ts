@@ -115,6 +115,10 @@ export interface Order {
   inventoryReserved?: boolean;
   inventoryReservedAt?: string;
   inventoryReservationReleasedAt?: string;
+  cancellationRequestedAt?: string;
+  cancellationRequestedBy?: string;
+  cancellationReason?: string;
+  cancellationRequestStatus?: 'pending' | 'approved' | 'rejected' | 'completed';
 }
 
 export interface DropSettings {

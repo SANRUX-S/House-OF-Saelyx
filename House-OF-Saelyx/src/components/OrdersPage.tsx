@@ -17,8 +17,11 @@ import { useStore } from '../context/StoreContext';
 import { Order, OrderStatus } from '../types';
 
 export const OrdersPage: React.FC = () => {
-  const { user, orders, formatPrice, navigateTo, currentRoute } = useStore();
+  const { user, orders, formatPrice, navigateTo, currentRoute, requestOrderCancellation } = useStore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [cancellationError, setCancellationError] = useState('');
+  const [isRequestingCancellation, setIsRequestingCancellation] = useState(false);
 
   // Filter orders belonging to the authenticated customer
   const userOrders = orders.filter(o => {
@@ -35,6 +38,31 @@ export const OrdersPage: React.FC = () => {
       if (match) setSelectedOrder(match);
     }
   }, [currentRoute, orders]);
+
+  React.useEffect(() => {
+    if (!selectedOrder) return;
+    const latest = orders.find(order => order.id === selectedOrder.id || order.orderNumber === selectedOrder.orderNumber);
+    if (latest && latest !== selectedOrder) setSelectedOrder(latest);
+  }, [orders, selectedOrder]);
+
+  const canRequestCancellation = (order: Order) =>
+    ['placed', 'confirmed', 'packed'].includes(order.status) && order.cancellationRequestStatus !== 'pending';
+
+  const handleCancellationRequest = async () => {
+    if (!selectedOrder || !cancellationReason.trim()) {
+      setCancellationError('Please add a short reason for the cancellation request.');
+      return;
+    }
+    setIsRequestingCancellation(true);
+    setCancellationError('');
+    const result = await requestOrderCancellation(selectedOrder.id, cancellationReason.trim());
+    if (result.success) {
+      setCancellationReason('');
+    } else {
+      setCancellationError(result.error || 'Unable to submit cancellation request.');
+    }
+    setIsRequestingCancellation(false);
+  };
 
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
@@ -213,6 +241,11 @@ export const OrdersPage: React.FC = () => {
                         <span className={`text-[9.5px] uppercase tracking-wider px-2.5 py-0.5 rounded-full border font-medium ${payBadge.bg}`}>
                           Payment: {payBadge.label}
                         </span>
+                        {ord.cancellationRequestStatus === 'pending' && (
+                          <span className="text-[9.5px] uppercase tracking-wider px-2.5 py-0.5 rounded-full border font-medium bg-amber-50 text-amber-800 border-amber-200">
+                            Cancellation Requested
+                          </span>
+                        )}
                       </div>
 
                       <p className="text-xs text-[#7A6E60]">
@@ -381,6 +414,43 @@ export const OrdersPage: React.FC = () => {
                       <span className="font-serif text-base">{formatPrice(selectedOrder.totalLKR)}</span>
                     </div>
                   </div>
+
+                  {selectedOrder.cancellationRequestStatus === 'pending' ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+                      <div className="font-bold uppercase tracking-wider text-[10px]">Cancellation request submitted</div>
+                      <p className="mt-1 leading-relaxed">
+                        Our operations team will review this request before any cancellation or PayPal refund is processed.
+                      </p>
+                      {selectedOrder.cancellationReason && (
+                        <p className="mt-2 text-[11px] text-amber-800"><strong>Reason:</strong> {selectedOrder.cancellationReason}</p>
+                      )}
+                    </div>
+                  ) : canRequestCancellation(selectedOrder) ? (
+                    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 space-y-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-stone-500">Need to cancel?</div>
+                        <p className="mt-1 text-[11px] text-stone-500 leading-relaxed">
+                          Submit a request before dispatch. Paid orders are reviewed by SAELYXE before a secure PayPal refund is processed.
+                        </p>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={cancellationReason}
+                        onChange={event => setCancellationReason(event.target.value)}
+                        placeholder="Reason for cancellation..."
+                        className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs outline-none focus:border-stone-400"
+                      />
+                      {cancellationError && <p className="text-[11px] text-rose-700">{cancellationError}</p>}
+                      <button
+                        type="button"
+                        disabled={isRequestingCancellation || !cancellationReason.trim()}
+                        onClick={() => void handleCancellationRequest()}
+                        className="h-10 rounded-xl border border-rose-200 bg-white px-4 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-700 hover:bg-rose-50 disabled:opacity-40"
+                      >
+                        {isRequestingCancellation ? 'Submitting...' : 'Request Cancellation'}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Footer Action */}

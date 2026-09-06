@@ -2765,6 +2765,65 @@ app.get('/api/orders/:id', async (req, res) => {
   }
 });
 
+app.post('/api/orders/:id/cancellation-request', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const orderId = safeString(req.params.id, 120);
+    const reason = safeString(req.body?.reason, 500);
+    if (!orderId || !reason) return res.status(400).json({ error: 'Cancellation reason is required.' });
+    if (!(await enforceRateLimit(adminDb, `cancel-request:${token.uid}:${orderId}`, 5, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many cancellation requests. Please wait and try again.' });
+    }
+
+    const ref = adminDb.collection('orders').doc(orderId);
+    const now = new Date().toISOString();
+    await adminDb.runTransaction(async transaction => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
+      const order: any = { id: snap.id, ...snap.data() };
+      if (safeString(order.userId, 160) !== token.uid) {
+        throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
+      }
+      if (order.status === 'cancelled') {
+        throw Object.assign(new Error('This order is already cancelled.'), { statusCode: 409 });
+      }
+      if (!['placed', 'confirmed', 'packed'].includes(safeString(order.status, 40))) {
+        throw Object.assign(new Error('Cancellation requests are closed after dispatch.'), { statusCode: 409 });
+      }
+      if (order.cancellationRequestStatus === 'pending') return;
+
+      transaction.update(ref, {
+        cancellationRequestedAt: now,
+        cancellationRequestedBy: token.uid,
+        cancellationReason: reason,
+        cancellationRequestStatus: 'pending',
+        updatedAt: now
+      });
+    });
+
+    const updated = await ref.get();
+    const updatedOrder: any = { id: updated.id, ...updated.data() };
+    await adminDb.collection('audit_logs').add({
+      timestamp: now,
+      actor: typeof token.email === 'string' ? token.email : token.uid,
+      actorUid: token.uid,
+      role: 'patron',
+      action: 'ORDER_CANCELLATION_REQUESTED',
+      details: safeString(`Customer requested cancellation for ${updatedOrder.orderNumber || orderId}: ${reason}`, 1000)
+    });
+    return res.status(202).json(updatedOrder);
+  } catch (error: any) {
+    const status = Number(error?.statusCode) || 500;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to request cancellation.' });
+  }
+});
+
 app.post('/api/admin/orders/:id/refund', async (req, res) => {
   try {
     const adminDb = getAdminDb();
