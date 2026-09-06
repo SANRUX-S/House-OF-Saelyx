@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "security:check": "node scripts/security-regression.mjs",
     "rules:test": "firebase emulators:exec --only firestore --project demo-saelyxe-rules \"node scripts/firestore-rules.test.mjs\"",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "final:readiness": "node scripts/final-launch-readiness.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
