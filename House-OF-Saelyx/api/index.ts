@@ -28,6 +28,15 @@ const ADMIN_EMAIL_ROLES = new Map<string, 'admin' | 'super_admin'>([
 const ADMIN_EMAILS = new Set(ADMIN_EMAIL_ROLES.keys());
 const ROOT_ADMIN_EMAILS = new Set(['saelyx.co@gmail.com', 'saelyx.co+super@gmail.com']);
 
+const LEGACY_TEST_PRODUCT_IDS = new Set([
+  'prod-mtogg0qy',
+  'prod-mtiy4opf',
+  'prod-mtogbgv5',
+  'prod-mtogl585',
+  'prod-mtogck9y',
+  'prod-mtogokor'
+]);
+const LEGACY_TEST_PRODUCTS_PURGE_MARKER = 'legacy-test-products-purge-20260906-v1';
 const CURRENCIES = [
   { code: 'LKR', symbol: 'Rs', name: 'Sri Lankan Rupee', rateFromLKR: 1, symbolPosition: 'before', flag: 'LK' },
   { code: 'USD', symbol: '$', name: 'US Dollar', rateFromLKR: 0.0033, symbolPosition: 'before', flag: 'US' },
@@ -1702,6 +1711,50 @@ app.post('/api/restock/subscribe', async (req, res) => {
   }
 });
 
+app.post('/api/admin/maintenance/purge-legacy-test-products', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `legacy-test-products:${token.uid}`, 3, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Legacy product cleanup is rate limited.' });
+    }
+    if (safeString(req.body?.confirmation, 80) !== 'REMOVE_TEST_PRODUCTS') {
+      return res.status(400).json({ error: 'Type REMOVE_TEST_PRODUCTS exactly to continue.' });
+    }
+
+    const markerRef = adminDb.collection('maintenance').doc(LEGACY_TEST_PRODUCTS_PURGE_MARKER);
+    const markerSnap = await markerRef.get();
+    if (markerSnap.exists && markerSnap.data()?.status === 'completed') {
+      return res.json({ success: true, alreadyCompleted: true, deletedCount: Number(markerSnap.data()?.deletedCount || 0) });
+    }
+
+    const batch = adminDb.batch();
+    let deletedCount = 0;
+    for (const id of LEGACY_TEST_PRODUCT_IDS) {
+      const ref = adminDb.collection('products').doc(id);
+      const snap = await ref.get();
+      if (snap.exists) {
+        batch.delete(ref);
+        deletedCount += 1;
+      }
+    }
+    batch.set(markerRef, {
+      status: 'completed',
+      deletedCount,
+      completedAt: new Date().toISOString(),
+      completedBy: token.uid
+    }, { merge: true });
+    await batch.commit();
+    await writeAdminAudit(adminDb, token, 'LEGACY_TEST_PRODUCTS_PURGED', `Removed ${deletedCount} exact pre-launch test product records.`);
+    return res.json({ success: true, deletedCount });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to purge legacy test products.' });
+  }
+});
+
 app.get('/api/products', async (req, res) => {
   try {
     let products: any[];
@@ -1714,10 +1767,12 @@ app.get('/api/products', async (req, res) => {
       products = readStore().products;
     }
 
-    products = products.map(product => {
-      const stockCount = Math.max(0, Number(product.stockCount) || 0);
-      return { ...product, stockCount, inStock: stockCount > 0 };
-    });
+    products = products
+      .filter(product => !LEGACY_TEST_PRODUCT_IDS.has(safeString(product.id, 120)))
+      .map(product => {
+        const stockCount = Math.max(0, Number(product.stockCount) || 0);
+        return { ...product, stockCount, inStock: stockCount > 0 };
+      });
 
     const category = safeString(req.query.category, 60);
     const search = safeString(req.query.search, 100).toLowerCase();
