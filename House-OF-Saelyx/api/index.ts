@@ -49,19 +49,17 @@ const CURRENCIES = [
 
 const ORDER_STATUSES = new Set(['placed', 'confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']);
 
-const ORDER_TRANSITIONS: Record<string, Set<string>> = {
-  placed: new Set(['confirmed', 'cancelled']),
-  confirmed: new Set(['packed', 'cancelled']),
-  packed: new Set(['dispatched']),
-  dispatched: new Set(['out_for_delivery']),
-  out_for_delivery: new Set(['delivered']),
-  delivered: new Set(),
-  cancelled: new Set()
-};
+const ACTIVE_ORDER_STATUSES = new Set(['placed', 'confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered']);
+const INVENTORY_COMMIT_STATUSES = new Set(['confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered']);
 
 function canTransitionOrderStatus(current: string, next: string) {
   if (current === next) return true;
-  return ORDER_TRANSITIONS[current]?.has(next) === true;
+  if (!ORDER_STATUSES.has(next)) return false;
+  // Admins may jump directly between active operational stages. A cancelled
+  // order remains terminal so refunded/cancelled payment records are not
+  // accidentally reopened as fulfillment orders.
+  if (current === 'cancelled') return false;
+  return ACTIVE_ORDER_STATUSES.has(current) || current === 'placed';
 }
 
 function getAdminDb() {
@@ -688,137 +686,306 @@ async function verifyPayPalOrder(order: any, paypalOrderId: string) {
   };
 }
 
-async function sendOrderConfirmationEmail(order: any) {
+type EmailDeliveryResult = {
+  sent: boolean;
+  id?: string;
+  error?: string;
+};
+
+function formatLkrEmail(value: unknown) {
+  const amount = Number(value);
+  return \`LKR \${(Number.isFinite(amount) ? amount : 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}\`;
+}
+
+function formatOrderPaymentMethod(order: any) {
+  if (order?.paymentMethod === 'cod') return 'Cash on Delivery';
+  if (order?.paymentMethod === 'paypal') return 'PayPal';
+  return safeString(order?.paymentMethod, 40) || 'Payment method pending';
+}
+
+function formatOrderPaymentStatus(order: any) {
+  const status = safeString(order?.paymentStatus, 60);
+  if (order?.paymentMethod === 'cod') {
+    if (status === 'cancelled') return 'Cancelled';
+    if (status === 'cod_collected') return 'Collected on delivery';
+    return 'Pay on delivery';
+  }
+  if (status === 'verified') return 'Payment verified';
+  if (status === 'refunded') return 'Refund completed';
+  if (status === 'refund_pending') return 'Refund processing';
+  if (status === 'cancelled') return 'Payment cancelled';
+  return status ? status.replace(/_/g, ' ') : 'Pending verification';
+}
+
+function buildOrderItemRows(order: any) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  if (items.length === 0) {
+    return '<tr><td style="padding:16px 0;color:#7a7066;font-size:13px">No item details available.</td></tr>';
+  }
+
+  return items.map((item: any) => {
+    const quantity = Math.max(1, Number(item?.quantity) || 1);
+    const price = Number(item?.priceLKR) || 0;
+    const image = safeString(item?.image, 1000);
+    const imageCell = image
+      ? \`<img src="\${escapeHtml(image)}" width="64" height="78" alt="" style="display:block;width:64px;height:78px;object-fit:cover;border-radius:10px;background:#f6f2ec;border:1px solid #e7dfd5">\`
+      : '<div style="width:64px;height:78px;border-radius:10px;background:#f6f2ec;border:1px solid #e7dfd5"></div>';
+
+    return [
+      '<tr>',
+      '<td style="padding:14px 0;border-bottom:1px solid #eee8df">',
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>',
+      \`<td width="78" valign="top">\${imageCell}</td>\`,
+      '<td valign="top" style="padding:2px 12px 0 0">',
+      \`<div style="font-size:14px;line-height:1.45;font-weight:700;color:#1b1815">\${escapeHtml(item?.title || 'SAELYXE item')}</div>\`,
+      \`<div style="margin-top:7px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7f73">Size \${escapeHtml(item?.size || '—')} &nbsp;·&nbsp; Qty \${quantity}</div>\`,
+      '</td>',
+      \`<td width="120" valign="top" align="right" style="padding-top:2px;font-size:13px;font-weight:700;color:#1b1815;white-space:nowrap">\${formatLkrEmail(price * quantity)}</td>\`,
+      '</tr></table>',
+      '</td>',
+      '</tr>'
+    ].join('');
+  }).join('');
+}
+
+function buildOrderTotals(order: any) {
+  const subtotal = Number(order?.subtotalLKR) || 0;
+  const shipping = Number(order?.shippingLKR) || 0;
+  const discount = Number(order?.discountLKR) || 0;
+  const total = Number(order?.totalLKR) || 0;
+
+  return [
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:13px;color:#6f655c">',
+    \`<tr><td style="padding:5px 0">Subtotal</td><td align="right" style="padding:5px 0;color:#1b1815">\${formatLkrEmail(subtotal)}</td></tr>\`,
+    discount > 0
+      ? \`<tr><td style="padding:5px 0;color:#35614b">Discount\${order?.promoCode ? \` (\${escapeHtml(order.promoCode)})\` : ''}</td><td align="right" style="padding:5px 0;color:#35614b">-\${formatLkrEmail(discount)}</td></tr>\`
+      : '',
+    \`<tr><td style="padding:5px 0">Delivery</td><td align="right" style="padding:5px 0;color:#1b1815">\${shipping === 0 ? 'Complimentary' : formatLkrEmail(shipping)}</td></tr>\`,
+    '<tr><td colspan="2" style="height:9px"></td></tr>',
+    \`<tr><td style="padding:13px 0 0;border-top:1px solid #dcd4ca;font-size:14px;font-weight:800;color:#1b1815">Total</td><td align="right" style="padding:13px 0 0;border-top:1px solid #dcd4ca;font-size:20px;font-weight:800;color:#1b1815">\${formatLkrEmail(total)}</td></tr>\`,
+    '</table>'
+  ].join('');
+}
+
+function buildSaelyxeOrderEmail(params: {
+  order: any;
+  eyebrow: string;
+  heading: string;
+  intro: string;
+  logistics?: string;
+}) {
+  const order = params.order;
+  const orderNumber = safeString(order?.orderNumber || order?.id, 120);
+  const createdAt = safeString(order?.createdAt, 100);
+  const dateLabel = createdAt && Number.isFinite(Date.parse(createdAt))
+    ? new Date(createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+    : 'Recorded by SAELYXE';
+  const orderUrl = \`https://www.saelyxe.com/orders?id=\${encodeURIComponent(orderNumber)}\`;
+  const customerName = safeString(order?.customerName, 120) || 'Customer';
+
+  return [
+    '<!doctype html><html><body style="margin:0;padding:0;background:#efece7;font-family:Arial,Helvetica,sans-serif;color:#1b1815">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#efece7;padding:30px 12px"><tr><td align="center">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border:1px solid #e4ddd4;border-radius:18px;overflow:hidden">',
+    '<tr><td style="background:#171411;padding:28px 34px;color:#fff">',
+    '<div style="font-family:Georgia,Times New Roman,serif;font-size:30px;letter-spacing:.14em;font-weight:700">SAELYXE</div>',
+    '<div style="margin-top:6px;font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:#d8cec1">Made for Presence</div>',
+    '</td></tr>',
+    '<tr><td style="padding:34px 34px 10px">',
+    \`<div style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:#8a7f73">\${escapeHtml(params.eyebrow)}</div>\`,
+    \`<h1 style="margin:9px 0 13px;font-family:Georgia,Times New Roman,serif;font-size:34px;line-height:1.08;font-weight:500;color:#1b1815">\${escapeHtml(params.heading)}</h1>\`,
+    \`<p style="margin:0 0 7px;font-size:14px;line-height:1.7;color:#514942">Hello \${escapeHtml(customerName)},</p>\`,
+    \`<p style="margin:0;font-size:14px;line-height:1.7;color:#514942">\${escapeHtml(params.intro)}</p>\`,
+    '</td></tr>',
+    '<tr><td style="padding:20px 34px 0">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8f5f1;border:1px solid #e7dfd5;border-radius:14px">',
+    '<tr>',
+    \`<td style="padding:16px 18px;border-right:1px solid #e7dfd5"><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#95897d">Order number</div><div style="margin-top:5px;font-family:monospace;font-size:13px;font-weight:700;color:#1b1815">#\${escapeHtml(orderNumber)}</div></td>\`,
+    \`<td style="padding:16px 18px"><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#95897d">Order date</div><div style="margin-top:5px;font-size:12px;font-weight:700;color:#1b1815">\${escapeHtml(dateLabel)}</div></td>\`,
+    '</tr>',
+    '</table>',
+    '</td></tr>',
+    '<tr><td style="padding:24px 34px 0">',
+    '<div style="padding-bottom:10px;border-bottom:1px solid #ded7ce;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#1b1815">Payment details</div>',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:10px;font-size:13px">',
+    \`<tr><td style="padding:5px 0;color:#8a7f73">Payment method</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">\${escapeHtml(formatOrderPaymentMethod(order))}</td></tr>\`,
+    \`<tr><td style="padding:5px 0;color:#8a7f73">Payment status</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">\${escapeHtml(formatOrderPaymentStatus(order))}</td></tr>\`,
+    '</table>',
+    '</td></tr>',
+    '<tr><td style="padding:25px 34px 0">',
+    '<div style="padding-bottom:10px;border-bottom:1px solid #ded7ce;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#1b1815">Your items</div>',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0">',
+    buildOrderItemRows(order),
+    '</table>',
+    '</td></tr>',
+    params.logistics || '',
+    '<tr><td style="padding:24px 34px 0">',
+    buildOrderTotals(order),
+    '</td></tr>',
+    '<tr><td style="padding:30px 34px 34px">',
+    \`<a href="\${escapeHtml(orderUrl)}" style="display:inline-block;background:#171411;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800">View order / receipt</a>\`,
+    '<p style="margin:24px 0 0;font-size:11px;line-height:1.7;color:#91867a">This is an automated transactional message for your SAELYXE order. Keep your order number for reference.</p>',
+    '</td></tr>',
+    '<tr><td style="background:#f8f5f1;border-top:1px solid #e7dfd5;padding:20px 34px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8b8075">SAELYXE &nbsp;·&nbsp; Made for Presence &nbsp;·&nbsp; Sri Lanka</td></tr>',
+    '</table>',
+    '</td></tr></table>',
+    '</body></html>'
+  ].join('');
+}
+
+async function deliverTransactionalEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  idempotencyKey: string;
+}): Promise<EmailDeliveryResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !from || !order?.email) return;
+  const to = safeString(params.to, 254).toLowerCase();
 
-  const itemLines = Array.isArray(order.items)
-    ? order.items.map((item: any) =>
-        `<li>${escapeHtml(item.title)} · Size ${escapeHtml(item.size)} · Qty ${Number(item.quantity) || 1}</li>`
-      ).join('')
-    : '';
+  if (!apiKey || !from) return { sent: false, error: 'transactional_email_not_configured' };
+  if (!isEmail(to)) return { sent: false, error: 'invalid_customer_email' };
 
-  const html = [
-    '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#181614">',
-    '<h2>SAELYXE — Made for Presence</h2>',
-    `<p>Thank you, ${escapeHtml(order.customerName)}. Your order has been securely recorded.</p>`,
-    `<p><strong>Order:</strong> ${escapeHtml(order.orderNumber)}</p>`,
-    `<ul>${itemLines}</ul>`,
-    `<p><strong>Total:</strong> LKR ${Number(order.totalLKR).toLocaleString('en-US')}</p>`,
-    `<p><strong>Payment status:</strong> ${escapeHtml(order.paymentStatus)}</p>`,
-    '<p>We will send a separate update when payment and dispatch are confirmed.</p>',
-    '</div>'
-  ].join('');
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: \`Bearer \${apiKey}\`,
+        'Content-Type': 'application/json',
+        'Idempotency-Key': params.idempotencyKey
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: params.subject,
+        html: params.html
+      })
+    });
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from,
-      to: [order.email],
-      subject: `SAELYXE Order ${order.orderNumber}`,
-      html
-    })
-  });
+    const payload: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = safeString(payload?.message, 240) || \`resend_http_\${response.status}\`;
+      console.error('Transactional email failed:', params.subject, response.status, error);
+      return { sent: false, error };
+    }
 
-  if (!response.ok) {
-    console.error('Order confirmation email failed:', response.status);
+    return {
+      sent: true,
+      id: safeString(payload?.id, 160) || undefined
+    };
+  } catch (error: any) {
+    const message = safeString(error?.message, 240) || 'transactional_email_transport_error';
+    console.error('Transactional email transport failed:', params.subject, message);
+    return { sent: false, error: message };
   }
 }
 
-async function sendOrderStatusEmail(order: any, previousStatus?: string) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
+async function sendOrderConfirmationEmail(order: any): Promise<EmailDeliveryResult> {
+  const orderNumber = safeString(order?.orderNumber || order?.id, 120);
   const email = safeString(order?.email || order?.customerEmail, 254).toLowerCase();
-  if (!apiKey || !from || !isEmail(email)) return;
+  const isCod = order?.paymentMethod === 'cod';
 
+  const html = buildSaelyxeOrderEmail({
+    order,
+    eyebrow: 'Order received',
+    heading: 'Order summary',
+    intro: isCod
+      ? 'Thank you for choosing SAELYXE. Your order has been recorded and payment will be collected on delivery.'
+      : 'Thank you for choosing SAELYXE. Your order has been recorded securely. Payment verification is handled separately by the payment provider.'
+  });
+
+  const idempotency = crypto.createHash('sha256').update(\`created|\${orderNumber}\`).digest('hex').slice(0, 40);
+  return deliverTransactionalEmail({
+    to: email,
+    subject: \`SAELYXE Order \${orderNumber} — Order Summary\`,
+    html,
+    idempotencyKey: \`saelyxe-order-created-\${idempotency}\`
+  });
+}
+
+async function sendOrderStatusEmail(order: any, previousStatus?: string): Promise<EmailDeliveryResult> {
+  const email = safeString(order?.email || order?.customerEmail, 254).toLowerCase();
   const status = safeString(order?.status, 40);
-  if (!status || status === previousStatus) return;
+  if (!status || status === previousStatus) return { sent: false, error: 'status_unchanged' };
 
+  const orderNumber = safeString(order?.orderNumber || order?.id, 120);
+  const isCod = order?.paymentMethod === 'cod';
   const copy: Record<string, { subject: string; heading: string; message: string }> = {
     confirmed: {
-      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Confirmed`,
-      heading: 'ORDER CONFIRMED',
-      message: 'Your payment and order have been confirmed. Our atelier is preparing your pieces.'
+      subject: \`SAELYXE Order \${orderNumber} Confirmed\`,
+      heading: 'Order confirmed',
+      message: isCod
+        ? 'Your order has been confirmed. Payment will be collected on delivery, and our team is preparing your pieces.'
+        : 'Your payment and order have been confirmed. Our team is preparing your pieces.'
     },
     packed: {
-      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Is Packed`,
-      heading: 'ORDER PACKED',
+      subject: \`SAELYXE Order \${orderNumber} Is Packed\`,
+      heading: 'Order packed',
       message: 'Your order has been packed and is ready for dispatch.'
     },
     dispatched: {
-      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Has Shipped`,
-      heading: 'ORDER DISPATCHED',
-      message: 'Your order has been handed to the courier and is on its way.'
+      subject: \`SAELYXE Order \${orderNumber} Has Been Dispatched\`,
+      heading: 'Order dispatched',
+      message: 'Your order has been handed to the courier. Your real courier and tracking details are included below.'
     },
     out_for_delivery: {
-      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Is Out for Delivery`,
-      heading: 'OUT FOR DELIVERY',
-      message: 'Your order is with the delivery team and is heading to your destination.'
+      subject: \`SAELYXE Order \${orderNumber} Is Out for Delivery\`,
+      heading: 'Out for delivery',
+      message: 'Your order is with the delivery team and is heading to your delivery destination.'
     },
     delivered: {
-      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Delivered`,
-      heading: 'ORDER DELIVERED',
+      subject: \`SAELYXE Order \${orderNumber} Delivered\`,
+      heading: 'Order delivered',
       message: 'Your SAELYXE order has been marked as delivered. Thank you for choosing SAELYXE.'
     },
     cancelled: {
       subject: order?.paymentStatus === 'refunded'
-        ? `SAELYXE Refund Completed — ${safeString(order.orderNumber, 120)}`
-        : `SAELYXE Order ${safeString(order.orderNumber, 120)} Cancelled`,
-      heading: order?.paymentStatus === 'refunded' ? 'REFUND COMPLETED' : 'ORDER CANCELLED',
+        ? \`SAELYXE Refund Completed — \${orderNumber}\`
+        : \`SAELYXE Order \${orderNumber} Cancelled\`,
+      heading: order?.paymentStatus === 'refunded' ? 'Refund completed' : 'Order cancelled',
       message: order?.paymentStatus === 'refunded'
         ? 'Your PayPal refund has been completed and the order is cancelled.'
-        : 'Your order has been cancelled.'
+        : 'Your order has been cancelled. If a payment review is required, SAELYXE will process it through the original payment workflow.'
     }
   };
 
   const selected = copy[status];
-  if (!selected) return;
+  if (!selected) return { sent: false, error: 'unsupported_status_email' };
+
   const trackingNumber = safeString(order?.trackingNumber, 160);
   const courierName = safeString(order?.courierName, 160);
   const deliveryEta = safeString(order?.deliveryEta, 160);
-  const orderNumber = safeString(order?.orderNumber || order?.id, 120);
   const history = Array.isArray(order?.statusHistory) ? order.statusHistory : [];
   const eventTimestamp = safeString(history[history.length - 1]?.timestamp || order?.updatedAt || new Date().toISOString(), 100);
-  const idempotency = crypto.createHash('sha256').update(`${orderNumber}|${status}|${eventTimestamp}`).digest('hex').slice(0, 40);
+  const idempotency = crypto.createHash('sha256').update(\`\${orderNumber}|\${status}|\${eventTimestamp}\`).digest('hex').slice(0, 40);
 
-  const logistics = (trackingNumber || courierName || deliveryEta) ? [
-    '<div style="margin-top:20px;padding:16px;background:#f7f5f2;border-radius:12px">',
-    courierName ? `<p style="margin:4px 0"><strong>Courier:</strong> ${escapeHtml(courierName)}</p>` : '',
-    trackingNumber ? `<p style="margin:4px 0"><strong>Tracking:</strong> ${escapeHtml(trackingNumber)}</p>` : '',
-    deliveryEta ? `<p style="margin:4px 0"><strong>ETA:</strong> ${escapeHtml(deliveryEta)}</p>` : '',
-    '</div>'
-  ].join('') : '';
+  const logistics = (trackingNumber || courierName || deliveryEta)
+    ? [
+        '<tr><td style="padding:24px 34px 0">',
+        '<div style="padding-bottom:10px;border-bottom:1px solid #ded7ce;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#1b1815">Delivery details</div>',
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:10px;font-size:13px">',
+        courierName ? \`<tr><td style="padding:5px 0;color:#8a7f73">Courier</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">\${escapeHtml(courierName)}</td></tr>\` : '',
+        trackingNumber ? \`<tr><td style="padding:5px 0;color:#8a7f73">Tracking number</td><td align="right" style="padding:5px 0;font-family:monospace;font-weight:700;color:#1b1815">\${escapeHtml(trackingNumber)}</td></tr>\` : '',
+        deliveryEta ? \`<tr><td style="padding:5px 0;color:#8a7f73">Estimated delivery</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">\${escapeHtml(deliveryEta)}</td></tr>\` : '',
+        '</table>',
+        '</td></tr>'
+      ].join('')
+    : '';
 
-  const html = [
-    '<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#181614">',
-    '<p style="font-size:12px;letter-spacing:2px">SAELYXE — MADE FOR PRESENCE</p>',
-    `<h2>${escapeHtml(selected.heading)}</h2>`,
-    `<p>Hello ${escapeHtml(safeString(order?.customerName, 120) || 'Customer')},</p>`,
-    `<p>${escapeHtml(selected.message)}</p>`,
-    `<p><strong>Order:</strong> ${escapeHtml(orderNumber)}</p>`,
-    logistics,
-    `<p style="margin-top:24px"><a href="https://www.saelyxe.com/orders?id=${encodeURIComponent(orderNumber)}">View your order</a></p>`,
-    '</div>'
-  ].join('');
-
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': `saelyxe-order-status-${idempotency}`
-    },
-    body: JSON.stringify({ from, to: [email], subject: selected.subject, html })
+  const html = buildSaelyxeOrderEmail({
+    order,
+    eyebrow: 'Order update',
+    heading: selected.heading,
+    intro: selected.message,
+    logistics
   });
 
-  if (!response.ok) {
-    console.error('Order status email failed:', status, response.status);
-  }
+  return deliverTransactionalEmail({
+    to: email,
+    subject: selected.subject,
+    html,
+    idempotencyKey: \`saelyxe-order-status-\${idempotency}\`
+  });
 }
 
 async function sendStaffInvitationEmail(params: {
@@ -2508,12 +2675,29 @@ app.post('/api/orders', async (req, res) => {
       console.warn('Security cleanup note:', error);
     });
 
-    // Email failure must never roll back a successfully committed order.
-    sendOrderConfirmationEmail(responseOrder).catch(error => {
-      console.error('Order confirmation email error:', error);
+    // Await delivery before returning so Vercel cannot freeze the serverless
+    // invocation while the Resend request is still in flight. Email failure
+    // never rolls back a successfully committed order.
+    const confirmationEmail = await sendOrderConfirmationEmail(responseOrder).catch(error => ({
+      sent: false,
+      error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_email_error'
+    }));
+    const confirmationEmailRecordedAt = new Date().toISOString();
+    await orderRef.set({
+      confirmationEmailStatus: confirmationEmail.sent ? 'sent' : 'failed',
+      confirmationEmailId: confirmationEmail.id || null,
+      confirmationEmailError: confirmationEmail.sent ? null : confirmationEmail.error || 'unknown_error',
+      confirmationEmailSentAt: confirmationEmail.sent ? confirmationEmailRecordedAt : null,
+      confirmationEmailAttemptedAt: confirmationEmailRecordedAt
+    }, { merge: true }).catch(error => {
+      console.error('Order confirmation email delivery state could not be recorded:', error);
     });
 
-    return res.status(201).json(responseOrder);
+    return res.status(201).json({
+      ...responseOrder,
+      confirmationEmailStatus: confirmationEmail.sent ? 'sent' : 'failed',
+      confirmationEmailId: confirmationEmail.id || undefined
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to create order.';
     return res.status(400).json({ error: message });
@@ -3020,10 +3204,23 @@ app.post('/api/admin/orders/:id/refund', async (req, res) => {
     await writeAdminAudit(adminDb, token, 'PAYPAL_REFUND_COMPLETED', `Refunded PayPal capture ${captureId} for order ${orderId} (refund ${refund.id}).`);
     const updated = await ref.get();
     const updatedOrder = { id: updated.id, ...updated.data() };
-    sendOrderStatusEmail(updatedOrder, safeString(order.status, 40)).catch(error => {
-      console.error('Refund completion email error:', error);
+    const refundEmail = await sendOrderStatusEmail(updatedOrder, safeString(order.status, 40)).catch(error => ({
+      sent: false,
+      error: safeString(error instanceof Error ? error.message : error, 240) || 'refund_email_error'
+    }));
+    const refundEmailAttemptedAt = new Date().toISOString();
+    await ref.set({
+      lastStatusEmailStatus: refundEmail.sent ? 'sent' : 'failed',
+      lastStatusEmailId: refundEmail.id || null,
+      lastStatusEmailError: refundEmail.sent ? null : refundEmail.error || 'unknown_error',
+      lastStatusEmailSentAt: refundEmail.sent ? refundEmailAttemptedAt : null,
+      lastStatusEmailAttemptedAt: refundEmailAttemptedAt,
+      lastStatusEmailFor: 'cancelled'
+    }, { merge: true }).catch(error => {
+      console.error('Refund email delivery state could not be recorded:', error);
     });
-    return res.json(updatedOrder);
+    const finalRefundOrder = await ref.get();
+    return res.json({ id: finalRefundOrder.id, ...finalRefundOrder.data() });
   } catch (error: any) {
     const statusCode = Number(error?.statusCode) || 500;
     return res.status(statusCode).json({ error: safeString(error?.message, 240) || 'Unable to process PayPal refund.' });
@@ -3064,7 +3261,11 @@ app.put('/api/orders/:id/status', async (req, res) => {
       }
 
       if (!canTransitionOrderStatus(currentStatus, status)) {
-        throw new Error(`Invalid order transition: ${currentStatus} → ${status}.`);
+        throw new Error(
+          currentStatus === 'cancelled'
+            ? 'Cancelled orders are terminal. Create a new order instead of reopening a cancelled payment record.'
+            : \`Invalid order transition: \${currentStatus} → \${status}.\`
+        );
       }
 
       const update: Record<string, unknown> = {
@@ -3079,7 +3280,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
       const effectiveCourierName = requestedCourierName || safeString(current.courierName, 160);
 
       if (['dispatched', 'out_for_delivery', 'delivered'].includes(status) && (!effectiveTrackingNumber || !effectiveCourierName)) {
-        throw new Error('Courier and tracking number are required before dispatch.');
+        throw new Error('Courier and tracking number are required for dispatched, out-for-delivery, and delivered statuses.');
       }
 
       if (requestedTrackingNumber) update.trackingNumber = requestedTrackingNumber;
@@ -3092,7 +3293,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
           {
             status,
             timestamp: now,
-            note: safeString(req.body?.note, 300) || `Order status updated to ${status}.`,
+            note: safeString(req.body?.note, 300) || \`Order status updated directly to \${status} by an administrator.\`,
             location: safeString(req.body?.location, 160) || 'SAELYXE Operations'
           }
         ];
@@ -3104,7 +3305,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
         const productId = safeString(item?.productId, 100);
         const quantity = Number(item?.quantity);
         if (!productId || !Number.isInteger(quantity) || quantity < 1) {
-          if (status === 'confirmed' || status === 'cancelled') {
+          if (INVENTORY_COMMIT_STATUSES.has(status) || status === 'cancelled') {
             throw new Error('Order inventory data is invalid.');
           }
           continue;
@@ -3112,12 +3313,18 @@ app.put('/api/orders/:id/status', async (req, res) => {
         quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantity);
       }
 
-      // Firestore transactions require all reads before writes. Read every affected
-      // product first, then apply inventory mutations as a second phase.
-      const productSnapshots = new Map<string, { ref: any; data: any }>();
-      const needsInventoryCommit = status === 'confirmed' && current.inventoryCommitted !== true;
-      const needsInventoryRestore = status === 'cancelled' && current.inventoryCommitted === true;
+      const canAutoRestoreInventory =
+        status === 'cancelled' &&
+        current.inventoryCommitted === true &&
+        !['dispatched', 'out_for_delivery', 'delivered'].includes(currentStatus);
+      const needsInventoryCommit =
+        INVENTORY_COMMIT_STATUSES.has(status) &&
+        current.inventoryCommitted !== true;
+      const needsInventoryRestore = canAutoRestoreInventory;
 
+      // Firestore transactions require all reads before writes. Read every
+      // affected product first, then apply inventory mutations.
+      const productSnapshots = new Map<string, { ref: any; data: any }>();
       if (needsInventoryCommit || needsInventoryRestore) {
         for (const productId of quantityByProduct.keys()) {
           const productRef = adminDb.collection('products').doc(productId);
@@ -3131,7 +3338,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
 
       if (needsInventoryCommit) {
         if (current.paymentMethod === 'paypal' && current.paymentStatus !== 'verified') {
-          throw new Error('Payment must be verified by the payment provider before confirming this order.');
+          throw new Error('Payment must be verified by PayPal before moving this order into an active fulfillment stage.');
         }
 
         for (const [productId, quantity] of quantityByProduct.entries()) {
@@ -3139,7 +3346,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
           if (!cached) throw new Error('Order inventory could not be verified.');
           const stockCount = Number(cached.data.stockCount);
           if (!Number.isFinite(stockCount) || stockCount < quantity) {
-            throw new Error(`${cached.data.title || 'A product'} does not have enough stock to confirm this order.`);
+            throw new Error(\`\${cached.data.title || 'A product'} does not have enough stock for this order.\`);
           }
           const nextStock = stockCount - quantity;
           transaction.update(cached.ref, {
@@ -3150,22 +3357,45 @@ app.put('/api/orders/:id/status', async (req, res) => {
         }
 
         update.inventoryCommitted = true;
+        update.inventoryCommittedAt = current.inventoryCommittedAt || now;
+        update.requiresManualReview = false;
+        update.inventoryException = null;
+        if (current.paymentMethod === 'cod' && current.paymentStatus === 'cancelled') {
+          update.paymentStatus = 'cod_pending';
+        }
       }
 
-      if (needsInventoryRestore) {
-        for (const [productId, quantity] of quantityByProduct.entries()) {
-          const cached = productSnapshots.get(productId);
-          if (!cached) continue;
-          const stockCount = Number(cached.data.stockCount);
-          const nextStock = Math.max(0, Number.isFinite(stockCount) ? stockCount : 0) + quantity;
-          transaction.update(cached.ref, {
-            stockCount: nextStock,
-            inStock: nextStock > 0,
-            updatedAt: now
-          });
+      if (status === 'cancelled') {
+        if (needsInventoryRestore) {
+          for (const [productId, quantity] of quantityByProduct.entries()) {
+            const cached = productSnapshots.get(productId);
+            if (!cached) continue;
+            const stockCount = Number(cached.data.stockCount);
+            const nextStock = Math.max(0, Number.isFinite(stockCount) ? stockCount : 0) + quantity;
+            transaction.update(cached.ref, {
+              stockCount: nextStock,
+              inStock: nextStock > 0,
+              updatedAt: now
+            });
+          }
+          update.inventoryCommitted = false;
+          update.inventoryReservationReleasedAt = now;
+          update.requiresManualReview = false;
+          update.inventoryException = null;
+        } else if (current.inventoryCommitted === true) {
+          // Once a courier has collected the parcel, inventory is not silently
+          // restored. A real return must be reviewed before stock is increased.
+          update.requiresManualReview = true;
+          update.inventoryException = 'Cancellation after dispatch requires manual physical-return inventory review.';
         }
-        update.inventoryCommitted = false;
-        update.paymentStatus = current.paymentStatus === 'verified' ? 'refund_required' : 'cancelled';
+
+        if (current.paymentMethod !== 'paypal' || current.paymentStatus !== 'verified') {
+          update.paymentStatus = 'cancelled';
+        }
+      }
+
+      if (status === 'delivered' && current.paymentMethod === 'cod') {
+        update.paymentStatus = 'cod_collected';
       }
 
       transaction.update(ref, update);
@@ -3173,18 +3403,37 @@ app.put('/api/orders/:id/status', async (req, res) => {
 
     const updated = await ref.get();
     const updatedOrder = { id: updated.id, ...updated.data() };
-    if (token) await writeAdminAudit(adminDb, token, 'ORDER_STATUS_UPDATED', `Order ${id} updated to ${status}.`);
+    if (token) {
+      await writeAdminAudit(adminDb, token, 'ORDER_STATUS_UPDATED', \`Order \${id} updated from \${previousStatus} to \${status}.\`);
+    }
+
     if (previousStatus !== status) {
-      sendOrderStatusEmail(updatedOrder, previousStatus).catch(error => {
-        console.error('Order status email error:', error);
+      const emailDelivery = await sendOrderStatusEmail(updatedOrder, previousStatus).catch(error => ({
+        sent: false,
+        error: safeString(error instanceof Error ? error.message : error, 240) || 'order_status_email_error'
+      }));
+      const attemptedAt = new Date().toISOString();
+      await ref.set({
+        lastStatusEmailStatus: emailDelivery.sent ? 'sent' : 'failed',
+        lastStatusEmailId: emailDelivery.id || null,
+        lastStatusEmailError: emailDelivery.sent ? null : emailDelivery.error || 'unknown_error',
+        lastStatusEmailSentAt: emailDelivery.sent ? attemptedAt : null,
+        lastStatusEmailAttemptedAt: attemptedAt,
+        lastStatusEmailFor: status
+      }, { merge: true }).catch(error => {
+        console.error('Order status email delivery state could not be recorded:', error);
       });
     }
-    return res.json(updatedOrder);
+
+    const finalOrder = await ref.get();
+    return res.json({ id: finalOrder.id, ...finalOrder.data() });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to update order.';
     const statusCode =
       message.startsWith('Invalid order transition') ? 409 :
+      message.includes('Cancelled orders are terminal') ? 409 :
       message.includes('must be cancelled through') ? 409 :
+      message.includes('Payment must be verified') ? 409 :
       message.includes('not enough stock') ? 409 :
       message.includes('Courier and tracking number are required') ? 409 :
       message === 'Order not found.' ? 404 : 400;
