@@ -88,6 +88,10 @@ try {
     email: 'owner@saelyxe.com',
     email_verified: true
   }).firestore();
+  const unverifiedRootDb = testEnv.authenticatedContext('root-bootstrap', {
+    email: 'saelyx.co+super@gmail.com',
+    email_verified: false
+  }).firestore();
 
   await assertSucceeds(getDoc(doc(publicDb, 'products', 'prod-1')));
 
@@ -111,6 +115,7 @@ try {
 
   await assertSucceeds(getDoc(doc(adminDb, 'orders', 'order-owner')));
   await assertFails(getDoc(doc(unverifiedAdminDb, 'orders', 'order-owner')));
+  await assertSucceeds(getDoc(doc(unverifiedRootDb, 'orders', 'order-owner')));
   await assertFails(updateDoc(doc(adminDb, 'products', 'prod-1'), { stockCount: 99 }));
   await assertFails(updateDoc(doc(superDb, 'products', 'prod-1'), { stockCount: 99 }));
   await assertFails(setDoc(doc(adminDb, 'audit_logs', 'forged'), {
@@ -133,6 +138,11 @@ try {
 
   await assertSucceeds(setDoc(doc(superDb, 'admins', 'new-admin'), {
     email: 'new-admin@saelyxe.com',
+    role: 'admin',
+    status: 'active'
+  }));
+  await assertSucceeds(setDoc(doc(unverifiedRootDb, 'admins', 'root-created-admin'), {
+    email: 'root-created-admin@saelyxe.com',
     role: 'admin',
     status: 'active'
   }));
