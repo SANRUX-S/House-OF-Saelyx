@@ -421,7 +421,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   className="form-input-custom font-semibold"
                 >
                   <option value="placed">Placed (Pending Review)</option>
-                  <option value="confirmed">Confirmed (Payment Verified)</option>
+                  <option value="confirmed">Confirmed (Payment/COD Approved)</option>
                   <option value="packed">Packed (Ready for Dispatch)</option>
                   <option value="dispatched">Dispatched (Courier Collected)</option>
                   <option value="out_for_delivery">Out for Delivery</option>

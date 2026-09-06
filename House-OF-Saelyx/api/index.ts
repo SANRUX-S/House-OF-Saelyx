@@ -2300,8 +2300,8 @@ app.post('/api/orders', async (req, res) => {
     const requestedCurrency = safeString(body.currencyUsed, 10).toUpperCase();
     const currency = CURRENCIES.find(item => item.code === requestedCurrency) || CURRENCIES[0];
     const paymentMethod = safeString(body.paymentMethod, 30);
-    if (paymentMethod !== 'paypal') {
-      return res.status(400).json({ error: 'PayPal is the only supported payment method.' });
+    if (!['paypal', 'cod'].includes(paymentMethod)) {
+      return res.status(400).json({ error: 'Unsupported payment method.' });
     }
     // The PayPal provider reference is created and linked server-side after the local order exists.
     const paymentProviderReference = '';
@@ -2416,8 +2416,9 @@ app.post('/api/orders', async (req, res) => {
         totalInCurrency,
         status: 'placed',
         paymentMethod,
-        paymentStatus: 'pending_verification',
+        paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification',
         paymentProviderReference: paymentProviderReference || null,
+        paymentVerificationSource: paymentMethod === 'cod' ? 'cash_on_delivery' : null,
         inventoryCommitted: false,
         trackingNumber: '',
         courierName: '',
