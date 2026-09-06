@@ -1623,6 +1623,11 @@ app.get('/api/products', async (req, res) => {
       products = readStore().products;
     }
 
+    products = products.map(product => {
+      const stockCount = Math.max(0, Number(product.stockCount) || 0);
+      return { ...product, stockCount, inStock: stockCount > 0 };
+    });
+
     const category = safeString(req.query.category, 60);
     const search = safeString(req.query.search, 100).toLowerCase();
 
@@ -2444,7 +2449,7 @@ app.put('/api/admin/products/:id', async (req, res) => {
       subCategory: safeString(req.body?.subCategory, 100),
       priceLKR,
       stockCount,
-      inStock: stockCount > 0 && req.body?.inStock !== false,
+      inStock: stockCount > 0,
       images,
       hoverImage: hoverImage.startsWith('https://') ? hoverImage : '',
       completeTheSetProductId,
