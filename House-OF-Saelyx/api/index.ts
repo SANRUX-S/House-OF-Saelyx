@@ -98,8 +98,15 @@ async function readBearerToken(req: Request): Promise<DecodedIdToken | null> {
 }
 
 async function getAdminRole(token: DecodedIdToken | null): Promise<'admin' | 'super_admin' | null> {
-  if (!token || token.email_verified !== true) return null;
+  if (!token) return null;
   const email = typeof token.email === 'string' ? token.email.toLowerCase() : '';
+
+  // Root bootstrap accounts are authenticated by Firebase Auth plus the exact
+  // hard-coded root email allowlist. Secondary/invited admins still require a
+  // verified Firebase email.
+  if (ROOT_ADMIN_EMAILS.has(email)) return 'super_admin';
+  if (token.email_verified !== true) return null;
+
   const configuredRole = ADMIN_EMAIL_ROLES.get(email);
   if (configuredRole) return configuredRole;
 
@@ -790,7 +797,7 @@ app.post('/api/admin/password-reset', async (req, res) => {
     try {
       const authAdmin = getAuth();
       const userRecord = await authAdmin.getUserByEmail(email);
-      if (!userRecord.emailVerified) return genericSuccess();
+      if (!userRecord.emailVerified && !ROOT_ADMIN_EMAILS.has(email)) return genericSuccess();
 
       const resetLink = await authAdmin.generatePasswordResetLink(email, {
         url: 'https://www.saelyxe.com/admin',
