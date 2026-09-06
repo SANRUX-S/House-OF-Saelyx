@@ -188,6 +188,15 @@ const DEFAULT_CURRENCY: CurrencyRate = {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+const LEGACY_TEST_PRODUCT_IDS = new Set([
+  'prod-mtogg0qy',
+  'prod-mtiy4opf',
+  'prod-mtogbgv5',
+  'prod-mtogl585',
+  'prod-mtogck9y',
+  'prod-mtogokor'
+]);
+
 
 const LEGACY_DEMO_CUTOFF_MS = Date.parse('2026-09-06T08:00:00.000Z');
 const LEGACY_DEMO_ORDER_IDS = new Set([
@@ -608,6 +617,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   useEffect(() => {
+    if (user?.role !== 'super_admin') return;
+
+    const sessionKey = 'saelyxe_legacy_test_products_purge_v1';
+    try {
+      if (sessionStorage.getItem(sessionKey) === '1') return;
+      sessionStorage.setItem(sessionKey, '1');
+    } catch {
+      // Server marker still makes the migration one-time.
+    }
+
+    void fetchAdminApi('/api/admin/maintenance/purge-legacy-test-products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation: 'REMOVE_TEST_PRODUCTS' })
+    }).catch(error => {
+      console.warn('Legacy test product cleanup note:', error);
+    });
+  }, [fetchAdminApi, user?.role]);
+
+  useEffect(() => {
     fetchData();
   }, [fetchData]);
 
@@ -620,6 +649,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const list: Product[] = [];
         snap.forEach(docSnap => {
           const product = { id: docSnap.id, ...docSnap.data() } as Product;
+          if (LEGACY_TEST_PRODUCT_IDS.has(product.id)) return;
           const stockCount = Math.max(0, Number(product.stockCount) || 0);
           list.push({ ...product, stockCount, inStock: stockCount > 0 });
         });

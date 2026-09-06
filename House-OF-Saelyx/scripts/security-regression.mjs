@@ -132,6 +132,12 @@ assert(adminDashboard.includes("paymentStatus === 'verified'"), 'dashboard reven
 assert(!adminProducts.includes('stockCount || 50'), 'product admin must preserve real zero stock');
 assert(!adminRestock.includes('stockCount || 50'), 'restock admin must preserve real zero stock');
 assert(adminProducts.includes('min={0}') && adminProducts.includes('min={1}'), 'product editor must validate stock and price ranges');
+assert(api.includes('LEGACY_TEST_PRODUCT_IDS'), 'legacy test product cleanup must use exact IDs');
+assert(api.includes("app.post('/api/admin/maintenance/purge-legacy-test-products'"), 'legacy test product cleanup endpoint must exist');
+assert(api.includes("testFingerprint.includes('test')"), 'legacy test product cleanup must verify a test fingerprint before deletion');
+assert(api.includes("confirmation, 80) !== 'REMOVE_TEST_PRODUCTS'"), 'legacy test product cleanup must require explicit confirmation');
+assert(store.includes('LEGACY_TEST_PRODUCT_IDS.has(product.id)'), 'realtime product state must exclude exact legacy test products');
+assert(store.includes('saelyxe_legacy_test_products_purge_v1'), 'Super Admin must trigger the one-time exact test product migration');
 
 assert(adminOrders.includes("if (/^[=+\\-@]/.test(text))"), 'CSV export must neutralize spreadsheet formulas');
 assert(adminOrders.includes('isSuperAdmin &&'), 'PII CSV export must be Super Admin restricted');

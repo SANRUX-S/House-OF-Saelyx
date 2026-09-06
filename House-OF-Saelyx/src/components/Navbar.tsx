@@ -70,7 +70,7 @@ export const Navbar: React.FC = () => {
       {/* 1. MOBILE NAVBAR (< md)                                   */}
       {/* ========================================================= */}
       <nav
-        className={`w-full md:hidden transition-colors duration-300 px-5 py-4 flex items-center justify-between select-none relative z-50 transform-gpu ${
+        className={`w-full lg:hidden transition-colors duration-300 px-5 py-4 flex items-center justify-between select-none relative z-50 transform-gpu ${
           isDarkNav
             ? 'bg-[#141210]/90 backdrop-blur-md border-b border-white/10 text-white'
             : 'bg-gradient-to-b from-black/60 via-black/20 to-transparent text-white'
@@ -173,7 +173,7 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Menu Fullscreen Drawer Overlay */}
       <div
-        className={`md:hidden fixed inset-0 top-0 h-screen w-screen bg-[#121110]/95 backdrop-blur-xl z-40 px-6 pt-24 pb-12 flex flex-col justify-between transition-[opacity,transform] duration-300 ease-out transform-gpu will-change-transform ${
+        className={`lg:hidden fixed inset-0 top-0 h-screen w-screen bg-[#121110]/95 backdrop-blur-xl z-40 px-6 pt-24 pb-12 flex flex-col justify-between transition-[opacity,transform] duration-300 ease-out transform-gpu will-change-transform ${
           isMobileMenuOpen
             ? 'opacity-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 -translate-y-2 pointer-events-none'
@@ -250,7 +250,7 @@ export const Navbar: React.FC = () => {
       {/* 2. DESKTOP NAVBAR (>= md)                                 */}
       {/* ========================================================= */}
       <nav
-        className={`hidden md:flex w-full transition-colors duration-300 px-6 lg:px-10 py-3.5 items-center justify-between relative z-50 ${
+        className={`hidden lg:flex w-full transition-colors duration-300 px-6 lg:px-10 py-3.5 items-center justify-between relative z-50 ${
           isDarkNav
             ? 'bg-[#141210]/80 backdrop-blur-2xl border-b border-white/10 shadow-2xl text-white'
             : 'bg-gradient-to-b from-black/50 via-black/20 to-transparent backdrop-blur-[2px] text-white'

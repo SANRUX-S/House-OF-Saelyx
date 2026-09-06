@@ -45,3 +45,74 @@ test('public health endpoint is intentionally minimal', async ({ request }) => {
   expect(payload.firebaseAdminConfigured).toBeUndefined();
   expect(payload.payPalServerConfigured).toBeUndefined();
 });
+
+
+const responsiveViewports = [
+  { name: 'mobile', width: 375, height: 812 },
+  { name: 'tablet', width: 768, height: 1024 },
+  { name: 'desktop', width: 1440, height: 1000 }
+];
+
+for (const viewport of responsiveViewports) {
+  test(`responsive storefront routes avoid horizontal overflow on ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+    const overflowFailures = [];
+    for (const route of ['/', '/contact-support', '/orders', '/track-order', '/checkout']) {
+      const response = await page.goto(route);
+      expect(response).not.toBeNull();
+      expect(response?.status()).toBeLessThan(400);
+      await expect(page.locator('body')).toContainText(/SAELYXE/i);
+      const metrics = await page.evaluate(() => ({
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        bodyWidth: document.body.scrollWidth
+      }));
+      if (metrics.documentWidth > metrics.viewportWidth + 2 || metrics.bodyWidth > metrics.viewportWidth + 2) {
+        const offenders = await page.evaluate(() => {
+          const width = window.innerWidth;
+          return Array.from(document.querySelectorAll('body *'))
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              return {
+                tag: element.tagName,
+                className: typeof element.className === 'string' ? element.className.slice(0, 180) : '',
+                text: (element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80),
+                left: Math.round(rect.left),
+                right: Math.round(rect.right),
+                width: Math.round(rect.width),
+                scrollWidth: element.scrollWidth
+              };
+            })
+            .filter(item => item.right > width + 2 || item.left < -2 || item.scrollWidth > Math.max(item.width + 2, width + 2))
+            .sort((a, b) => Math.max(b.right - width, b.scrollWidth - width) - Math.max(a.right - width, a.scrollWidth - width))
+            .slice(0, 12);
+        });
+        overflowFailures.push({ route, ...metrics, offenders });
+      }
+    }
+    expect(overflowFailures, JSON.stringify(overflowFailures)).toEqual([]);
+  });
+}
+
+for (const viewport of responsiveViewports) {
+  test(`admin login remains responsive on ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const response = await page.goto('/admin');
+    expect(response).not.toBeNull();
+    expect(response?.status()).toBeLessThan(400);
+    await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
+    const noHorizontalOverflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth <= window.innerWidth + 2 &&
+      document.body.scrollWidth <= window.innerWidth + 2
+    );
+    expect(noHorizontalOverflow).toBe(true);
+  });
+}
+
+test('unauthenticated account routes do not leak customer order details', async ({ page }) => {
+  for (const route of ['/orders', '/track-order?id=SOX-PRIVATE-CHECK']) {
+    await page.goto(route);
+    await expect(page.getByText(/ashan\.perera@gmail\.com|sarah\.k@fashionstudio\.co\.uk|Ashan Perera|Sarah Kingsley/i)).toHaveCount(0);
+  }
+});
