@@ -27,6 +27,24 @@ export interface AdminProductsProps {
   setEditingProduct: (prod: Product | null) => void;
 }
 
+function getProductStock(product: Partial<Product>) {
+  return Math.max(0, Number(product.stockCount) || 0);
+}
+
+function getProductCompletion(product: Partial<Product>) {
+  const missing: string[] = [];
+  if (!product.title?.trim()) missing.push('title');
+  if (!(Number(product.priceLKR) > 0)) missing.push('price');
+  if (!product.category) missing.push('category');
+  if (!Array.isArray(product.images) || !product.images.some(url => String(url).startsWith('https://'))) missing.push('image');
+  if (!product.description?.trim()) missing.push('description');
+  if (!product.fabricDetails?.trim()) missing.push('fabric');
+  if (!product.color?.trim()) missing.push('color');
+  if (!product.fit?.trim()) missing.push('fit');
+  if (product.category !== 'accessories' && (!Array.isArray(product.sizes) || product.sizes.length === 0)) missing.push('sizes');
+  return { complete: missing.length === 0, missing };
+}
+
 export const AdminProducts: React.FC<AdminProductsProps> = ({
   products,
   formatPrice,
@@ -178,7 +196,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         ...form,
         priceLKR: price,
         stockCount: stock,
-        inStock: stock > 0 && form.inStock !== false,
+        inStock: stock > 0,
         images: parsedImages,
         sizes: normalizedSizes,
         bulletDetails: parsedBullets,
@@ -277,10 +295,17 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {[...filteredProducts].sort((a, b) =>
             new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-          ).map(prod => (
+          ).map(prod => {
+            const stock = getProductStock(prod);
+            const isAvailable = stock > 0;
+            const completion = getProductCompletion(prod);
+
+            return (
             <div 
               key={prod.id} 
-              className="admin-card p-0! overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all"
+              className={`admin-card p-0! overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all border-2 ${
+                completion.complete ? 'border-emerald-300' : 'border-amber-200'
+              }`}
             >
               <div>
                 {/* Image Aspect Box */}
@@ -306,19 +331,31 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                   )}
                   <div className="absolute top-3 right-3 flex items-center gap-1">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      prod.inStock 
-                        ? 'bg-emerald-500 text-white' 
+                      isAvailable
+                        ? 'bg-emerald-500 text-white'
                         : 'bg-rose-500 text-white'
                     }`}>
-                      {prod.inStock ? `${prod.stockCount ?? 0} in stock` : 'Sold Out'}
+                      {isAvailable ? `${stock} in stock` : 'Sold Out'}
                     </span>
                   </div>
                 </div>
 
                 {/* Garment Details */}
-                <div className="p-4 space-y-1.5">
-                  <div className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
-                    {prod.category} • {prod.sizes?.join(', ')}
+                <div className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
+                      {prod.category} • {prod.sizes?.join(', ')}
+                    </div>
+                    <span
+                      title={completion.complete ? 'Product setup complete' : `Missing: ${completion.missing.join(', ')}`}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider ${
+                        completion.complete
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {completion.complete ? 'Complete' : `${completion.missing.length} missing`}
+                    </span>
                   </div>
                   <h3 className="text-sm font-bold text-stone-900 line-clamp-1">
                     {prod.title}
@@ -358,7 +395,8 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -476,24 +514,24 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                     min={0}
                     step={1}
                     value={form.stockCount ?? 0}
-                    onChange={e => setForm({ ...form, stockCount: Number(e.target.value) })}
+                    onChange={e => {
+                      const stock = Math.max(0, Number(e.target.value) || 0);
+                      setForm({ ...form, stockCount: stock, inStock: stock > 0 });
+                    }}
                     className="form-input-custom"
                   />
                 </div>
                 <div className="flex flex-col justify-center">
-                  <label className="form-label-custom">In Stock Status</label>
-                  <div className="flex items-center gap-3 pt-1">
-                    <label className="ios-switch">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(form.inStock)}
-                        onChange={e => setForm({ ...form, inStock: e.target.checked })}
-                      />
-                      <span className="ios-slider" />
-                    </label>
-                    <span className="text-xs font-semibold text-stone-700">
-                      {form.inStock ? 'Available' : 'Sold Out'}
-                    </span>
+                  <label className="form-label-custom">Availability</label>
+                  <div className={`rounded-xl border px-3 py-2.5 ${
+                    getProductStock(form) > 0 ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'
+                  }`}>
+                    <div className={`text-xs font-bold ${
+                      getProductStock(form) > 0 ? 'text-emerald-800' : 'text-rose-800'
+                    }`}>
+                      {getProductStock(form) > 0 ? 'In Stock' : 'Sold Out'}
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-stone-500">Automatic from Stock Units</div>
                   </div>
                 </div>
               </div>

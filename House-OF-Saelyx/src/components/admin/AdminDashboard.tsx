@@ -64,7 +64,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     0
   );
   const totalStockCount = products.reduce((sum, product) => sum + Math.max(0, Number(product.stockCount) || 0), 0);
-  const lowStockCount = products.filter(product => product.inStock && Math.max(0, Number(product.stockCount) || 0) <= 5).length;
+  const availableProductsCount = products.filter(product => Math.max(0, Number(product.stockCount) || 0) > 0).length;
+  const soldOutProductsCount = Math.max(0, products.length - availableProductsCount);
+  const lowStockCount = products.filter(product => {
+    const stock = Math.max(0, Number(product.stockCount) || 0);
+    return stock > 0 && stock <= 5;
+  }).length;
   const unreadSupportCount = messages.filter(message => message.status === 'unread').length;
   const restockRequestCount = stockNotifications.filter(notification =>
     ['pending', 'failed'].includes(notification.status)
@@ -126,9 +131,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       icon: CheckCircle2
     },
     {
-      label: 'Inventory Units',
-      value: totalStockCount.toLocaleString(),
-      detail: lowStockCount ? `${lowStockCount} low-stock product${lowStockCount === 1 ? '' : 's'}` : 'No low-stock alerts',
+      label: 'Available Products',
+      value: availableProductsCount.toLocaleString(),
+      detail: products.length
+        ? `${totalStockCount.toLocaleString()} tracked stock unit${totalStockCount === 1 ? '' : 's'} · ${soldOutProductsCount} sold out`
+        : 'No products added yet',
       icon: Boxes
     }
   ];
@@ -238,8 +245,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <div className="space-y-3">
             <div className="rounded-xl bg-stone-50 border border-stone-100 p-4 flex items-center justify-between">
-              <span className="text-xs font-semibold text-stone-600">Active products</span>
+              <span className="text-xs font-semibold text-stone-600">Products configured</span>
               <strong className="text-sm text-stone-900">{products.length}</strong>
+            </div>
+            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 flex items-center justify-between">
+              <span className="text-xs font-semibold text-emerald-800">Available products</span>
+              <strong className="text-sm text-emerald-800">{availableProductsCount}</strong>
+            </div>
+            <div className="rounded-xl bg-stone-50 border border-stone-100 p-4 flex items-center justify-between">
+              <span className="text-xs font-semibold text-stone-600">Tracked stock units</span>
+              <strong className="text-sm text-stone-900">{totalStockCount}</strong>
             </div>
             <div className="rounded-xl bg-stone-50 border border-stone-100 p-4 flex items-center justify-between">
               <span className="text-xs font-semibold text-stone-600">Verified units sold</span>
