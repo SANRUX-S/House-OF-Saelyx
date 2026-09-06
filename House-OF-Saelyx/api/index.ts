@@ -2678,7 +2678,7 @@ app.post('/api/orders', async (req, res) => {
     // Await delivery before returning so Vercel cannot freeze the serverless
     // invocation while the Resend request is still in flight. Email failure
     // never rolls back a successfully committed order.
-    const confirmationEmail = await sendOrderConfirmationEmail(responseOrder).catch(error => ({
+    const confirmationEmail: EmailDeliveryResult = await sendOrderConfirmationEmail(responseOrder).catch(error => ({
       sent: false,
       error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_email_error'
     }));
@@ -3204,7 +3204,7 @@ app.post('/api/admin/orders/:id/refund', async (req, res) => {
     await writeAdminAudit(adminDb, token, 'PAYPAL_REFUND_COMPLETED', `Refunded PayPal capture ${captureId} for order ${orderId} (refund ${refund.id}).`);
     const updated = await ref.get();
     const updatedOrder = { id: updated.id, ...updated.data() };
-    const refundEmail = await sendOrderStatusEmail(updatedOrder, safeString(order.status, 40)).catch(error => ({
+    const refundEmail: EmailDeliveryResult = await sendOrderStatusEmail(updatedOrder, safeString(order.status, 40)).catch(error => ({
       sent: false,
       error: safeString(error instanceof Error ? error.message : error, 240) || 'refund_email_error'
     }));
@@ -3408,7 +3408,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
     }
 
     if (previousStatus !== status) {
-      const emailDelivery = await sendOrderStatusEmail(updatedOrder, previousStatus).catch(error => ({
+      const emailDelivery: EmailDeliveryResult = await sendOrderStatusEmail(updatedOrder, previousStatus).catch(error => ({
         sent: false,
         error: safeString(error instanceof Error ? error.message : error, 240) || 'order_status_email_error'
       }));
