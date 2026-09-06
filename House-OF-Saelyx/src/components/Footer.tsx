@@ -39,7 +39,7 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="w-full bg-[#121110] text-[#e5e5e5] pt-16 pb-10 select-none border-t border-white/10 font-sans">
+    <footer className="w-full bg-[#121110] text-white pt-16 pb-10 select-none border-t border-white/10 font-['Plus_Jakarta_Sans']">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 space-y-16">
         
         {/* Top Newsletter Row - Highlighting luxury editorial title inspired by SAELYXE Hero */}
@@ -51,7 +51,7 @@ export const Footer: React.FC = () => {
             <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-wide text-white leading-tight">
               BE FIRST FOR THE NEXT DROP
             </h3>
-            <p className="text-xs text-neutral-300 mt-2 tracking-[0.14em] uppercase font-normal">
+            <p className="text-xs text-[#E6E6E6] mt-2 tracking-[0.14em] uppercase font-medium">
               Exclusive early access & numbered edition alerts.
             </p>
           </div>
@@ -64,7 +64,7 @@ export const Footer: React.FC = () => {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={subscribed || loading}
-                className="w-full bg-transparent text-sm text-white placeholder:text-neutral-500 focus:outline-none pr-8 font-normal"
+                className="w-full bg-transparent text-sm text-white placeholder:text-[#A8A8A8] focus:outline-none pr-8 font-medium"
               />
               <button
                 type="submit"
@@ -90,11 +90,11 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
               LEGAL
             </h4>
-            <ul className="space-y-2.5 text-[13px] text-[#D2D2D2] font-normal">
+            <ul className="space-y-2.5 text-[13px] text-[#F1F1F1] font-medium">
               <li>
                 <button 
                   onClick={() => navigateTo({ name: 'legal-privacy' })} 
-                  className="hover:text-white transition-colors text-left"
+                  className="text-[#F1F1F1] hover:text-white transition-colors text-left"
                 >
                   Privacy Policy
                 </button>
@@ -102,7 +102,7 @@ export const Footer: React.FC = () => {
               <li>
                 <button 
                   onClick={() => navigateTo({ name: 'legal-terms' })} 
-                  className="hover:text-white transition-colors text-left"
+                  className="text-[#F1F1F1] hover:text-white transition-colors text-left"
                 >
                   Terms and Conditions
                 </button>
@@ -110,7 +110,7 @@ export const Footer: React.FC = () => {
               <li>
                 <button 
                   onClick={() => navigateTo({ name: 'legal-returns' })} 
-                  className="hover:text-white transition-colors text-left"
+                  className="text-[#F1F1F1] hover:text-white transition-colors text-left"
                 >
                   Returns & Exchanges
                 </button>
@@ -118,7 +118,7 @@ export const Footer: React.FC = () => {
               <li>
                 <button 
                   onClick={() => navigateTo({ name: 'care-authenticity' })} 
-                  className="hover:text-white transition-colors text-left"
+                  className="text-[#F1F1F1] hover:text-white transition-colors text-left"
                 >
                   Authenticity Certificate
                 </button>
@@ -131,24 +131,24 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
               SHOP
             </h4>
-            <ul className="space-y-2.5 text-[13px] text-[#D2D2D2] font-normal">
+            <ul className="space-y-2.5 text-[13px] text-[#F1F1F1] font-medium">
               <li>
-                <button onClick={() => handleCategory('new')} className="hover:text-white transition-colors text-left">
+                <button onClick={() => handleCategory('new')} className="text-[#F1F1F1] hover:text-white transition-colors text-left">
                   Drop 001
                 </button>
               </li>
               <li>
-                <button onClick={() => handleCategory('men')} className="hover:text-white transition-colors text-left">
+                <button onClick={() => handleCategory('men')} className="text-[#F1F1F1] hover:text-white transition-colors text-left">
                   Men's Silhouettes
                 </button>
               </li>
               <li>
-                <button onClick={() => handleCategory('women')} className="hover:text-white transition-colors text-left">
+                <button onClick={() => handleCategory('women')} className="text-[#F1F1F1] hover:text-white transition-colors text-left">
                   Women's Silhouettes
                 </button>
               </li>
               <li>
-                <button onClick={() => handleCategory('knits')} className="hover:text-white transition-colors text-left">
+                <button onClick={() => handleCategory('knits')} className="text-[#F1F1F1] hover:text-white transition-colors text-left">
                   Coordinates & Knits
                 </button>
               </li>
@@ -160,11 +160,11 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
               CUSTOMER CARE
             </h4>
-            <ul className="space-y-2.5 text-[13px] text-[#D2D2D2] font-normal">
+            <ul className="space-y-2.5 text-[13px] text-[#F1F1F1] font-medium">
               <li>
                 <button
                   onClick={() => setIsTrackerOpen(true)}
-                  className="text-white hover:opacity-80 flex items-center gap-2 transition-opacity font-medium"
+                  className="text-white flex items-center gap-2 font-medium"
                 >
                   <span>Track Delivery Status</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -173,7 +173,7 @@ export const Footer: React.FC = () => {
               <li>
                 <button 
                   onClick={() => navigateTo({ name: 'care-shipping' })} 
-                  className="hover:text-white transition-colors text-left"
+                  className="text-[#F1F1F1] hover:text-white transition-colors text-left"
                 >
                   Shipping & Delivery
                 </button>
@@ -181,7 +181,7 @@ export const Footer: React.FC = () => {
               <li>
                 <button 
                   onClick={() => navigateTo({ name: 'care-size-guide' })} 
-                  className="hover:text-white transition-colors text-left"
+                  className="text-[#F1F1F1] hover:text-white transition-colors text-left"
                 >
                   Sizing Guide
                 </button>
@@ -189,7 +189,7 @@ export const Footer: React.FC = () => {
               <li>
                 <button 
                   onClick={() => navigateTo({ name: 'care-concierge' })} 
-                  className="hover:text-white transition-colors text-left"
+                  className="text-[#F1F1F1] hover:text-white transition-colors text-left"
                 >
                   Contact Us
                 </button>
@@ -202,7 +202,7 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
               SOCIAL MEDIA
             </h4>
-            <div className="flex items-center gap-4 text-[#D2D2D2] pt-1">
+            <div className="flex items-center gap-4 text-[#F1F1F1] pt-1">
               <a 
                 href="https://www.instagram.com/houseofsaelyx/?hl=en" 
                 target="_blank"
@@ -213,7 +213,7 @@ export const Footer: React.FC = () => {
                 <Instagram className="w-4 h-4 stroke-[2]" />
               </a>
             </div>
-            <p className="text-xs text-[#D2D2D2] font-normal leading-relaxed pt-2">
+            <p className="text-xs text-[#F1F1F1] font-medium leading-relaxed pt-2">
               Online Store · Sri Lanka
             </p>
           </div>
@@ -221,8 +221,8 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#CFCFCF] font-normal">
-          <div className="tracking-[0.14em] uppercase text-[11px] font-medium">
+        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#E2E2E2] font-medium">
+          <div className="tracking-[0.14em] uppercase text-[11px] font-semibold">
             © {new Date().getFullYear()} HOUSE OF SAELYXE
           </div>
 
