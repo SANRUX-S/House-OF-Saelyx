@@ -110,6 +110,16 @@ assert(api.includes("paymentStatus: 'refund_pending'"), 'pending refund state mu
 assert(api.includes("paymentStatus: 'refunded'"), 'completed refund state must be explicit');
 assert(api.includes('canAutoRestoreInventory'), 'refund flow must avoid blindly restocking dispatched items');
 assert(api.includes('Verified PayPal orders must be cancelled through the Super Admin refund workflow.'), 'normal status API must not fake a paid cancellation');
+assert(checkout.includes("'paypal' | 'cod'"), 'temporary COD checkout must be explicit in the payment selector state');
+assert(checkout.includes('Cash on Delivery'), 'checkout must expose Cash on Delivery for the temporary customer-flow test');
+assert(checkout.includes('Temporary Test'), 'temporary COD must be visibly labelled as a test-only option');
+assert(checkout.includes("paymentMethod: 'cod'"), 'COD checkout must create a server-backed order instead of faking local success');
+assert(checkout.includes('createCodCheckoutAttemptId'), 'COD checkout must use an idempotent checkout attempt identifier');
+assert(api.includes("!['paypal', 'cod'].includes(paymentMethod)"), 'order API must allow only PayPal or COD');
+assert(api.includes("paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'"), 'COD orders must remain explicitly unpaid');
+assert(api.includes("paymentVerificationSource: paymentMethod === 'cod' ? 'cash_on_delivery' : null"), 'COD must never masquerade as provider-verified payment');
+assert(api.includes("current.paymentMethod === 'paypal' && current.paymentStatus !== 'verified'"), 'provider verification requirement must remain PayPal-specific so COD can be admin-approved');
+assert(api.includes("order.paymentMethod !== 'paypal' || !['verified', 'refund_pending'].includes(order.paymentStatus)"), 'refund endpoint must stay restricted to verified PayPal payments');
 
 assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enforced');
 assert(!vercel.includes('Content-Security-Policy-Report-Only'), 'report-only CSP must not remain');
