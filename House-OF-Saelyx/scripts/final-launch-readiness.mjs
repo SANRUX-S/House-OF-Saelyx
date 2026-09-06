@@ -31,12 +31,12 @@ check(api.includes('purge-legacy-demo-fixtures') && api.includes('purge-legacy-t
 check(checkout.includes("paymentMethod: 'cod'") && checkout.includes('PLACE CASH ON DELIVERY ORDER'), 3, 'Normal customer COD checkout path is implemented');
 check(api.includes("app.post('/api/payments/paypal/capture/:orderId'") && api.includes('verifyPayPalOrder'), 4, 'Real PayPal payment path is implemented', 'requires-real-money');
 check(api.includes("app.post('/api/orders'") && adminOrders.includes('Order Timeline'), 5, 'Customer order persists to the Admin order workspace');
-check(api.includes('needsInventoryCommit') && api.includes('stockCount: nextStock'), 6, 'Inventory decrements transactionally on confirmation');
+check(api.includes('INVENTORY_COMMIT_STATUSES.has(status)') && api.includes('stockCount: nextStock'), 6, 'Inventory decrements transactionally when an order enters an active fulfillment stage');
 check(api.includes('confirmed:') && api.includes("status === 'confirmed'"), 7, 'Confirmed lifecycle transition is implemented');
-check(api.includes('confirmed:') && api.includes('sendOrderStatusEmail'), 8, 'Confirmed lifecycle email is implemented');
+check(api.includes('confirmed:') && api.includes('await sendOrderStatusEmail(updatedOrder, previousStatus)'), 8, 'Confirmed lifecycle email is implemented and awaited');
 check(api.includes('packed:') && api.includes('canTransitionOrderStatus'), 9, 'Packed lifecycle transition is implemented');
-check(api.includes('packed:') && api.includes('sendOrderStatusEmail'), 10, 'Packed lifecycle email is implemented');
-check(api.includes('Courier and tracking number are required before dispatch.') && api.includes("['dispatched', 'out_for_delivery', 'delivered'].includes(status)"), 11, 'Dispatch requires courier and tracking');
+check(api.includes('packed:') && api.includes('await sendOrderStatusEmail(updatedOrder, previousStatus)'), 10, 'Packed lifecycle email is implemented and awaited');
+check(api.includes('Courier and tracking number are required for dispatched, out-for-delivery, and delivered statuses.') && api.includes("['dispatched', 'out_for_delivery', 'delivered'].includes(status)"), 11, 'Dispatch-related statuses require courier and tracking');
 check(api.includes('dispatched:') && api.includes('sendOrderStatusEmail'), 12, 'Dispatched lifecycle email is implemented');
 check(tracker.includes("'Not assigned yet'") && tracker.includes("'Pending courier update'") && !tracker.includes('Real-Time Fleet Telemetry'), 13, 'Authenticated tracking avoids fake telemetry');
 check(api.includes('out_for_delivery:') && api.includes('out_for_delivery'), 14, 'Out-for-delivery lifecycle transition is implemented');
