@@ -618,7 +618,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const unsub = onSnapshot(colRef, async (snap) => {
         const list: Product[] = [];
         snap.forEach(docSnap => {
-          list.push({ id: docSnap.id, ...docSnap.data() } as Product);
+          const product = { id: docSnap.id, ...docSnap.data() } as Product;
+          const stockCount = Math.max(0, Number(product.stockCount) || 0);
+          list.push({ ...product, stockCount, inStock: stockCount > 0 });
         });
         setProducts(list);
         setIsLoadingProducts(false);
