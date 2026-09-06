@@ -36,7 +36,7 @@ check(api.includes('confirmed:') && api.includes("status === 'confirmed'"), 7, '
 check(api.includes('confirmed:') && api.includes('sendOrderStatusEmail'), 8, 'Confirmed lifecycle email is implemented');
 check(api.includes('packed:') && api.includes('canTransitionOrderStatus'), 9, 'Packed lifecycle transition is implemented');
 check(api.includes('packed:') && api.includes('sendOrderStatusEmail'), 10, 'Packed lifecycle email is implemented');
-check(api.includes('Courier and tracking number are required before dispatch.') && api.includes("status === 'dispatched'"), 11, 'Dispatch requires courier and tracking');
+check(api.includes('Courier and tracking number are required before dispatch.') && api.includes("['dispatched', 'out_for_delivery', 'delivered'].includes(status)"), 11, 'Dispatch requires courier and tracking');
 check(api.includes('dispatched:') && api.includes('sendOrderStatusEmail'), 12, 'Dispatched lifecycle email is implemented');
 check(tracker.includes("'Not assigned yet'") && tracker.includes("'Pending courier update'") && !tracker.includes('Real-Time Fleet Telemetry'), 13, 'Authenticated tracking avoids fake telemetry');
 check(api.includes('out_for_delivery:') && api.includes('out_for_delivery'), 14, 'Out-for-delivery lifecycle transition is implemented');
