@@ -1736,10 +1736,14 @@ app.post('/api/admin/maintenance/purge-legacy-test-products', async (req, res) =
     for (const id of LEGACY_TEST_PRODUCT_IDS) {
       const ref = adminDb.collection('products').doc(id);
       const snap = await ref.get();
-      if (snap.exists) {
-        batch.delete(ref);
-        deletedCount += 1;
-      }
+      if (!snap.exists) continue;
+      const data: any = snap.data() || {};
+      const testFingerprint = [data.title, data.slug, data.fabricDetails]
+        .map(value => safeString(value, 240).toLowerCase())
+        .join(' ');
+      if (!testFingerprint.includes('test')) continue;
+      batch.delete(ref);
+      deletedCount += 1;
     }
     batch.set(markerRef, {
       status: 'completed',
