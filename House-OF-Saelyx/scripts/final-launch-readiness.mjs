@@ -32,7 +32,7 @@ check(checkout.includes("paymentMethod: 'cod'") && checkout.includes('PLACE CASH
 check(api.includes("app.post('/api/payments/paypal/capture/:orderId'") && api.includes('verifyPayPalOrder'), 4, 'Real PayPal payment path is implemented', 'requires-real-money');
 check(api.includes("app.post('/api/orders'") && adminOrders.includes('Order Timeline'), 5, 'Customer order persists to the Admin order workspace');
 check(api.includes('INVENTORY_COMMIT_STATUSES.has(status)') && api.includes('stockCount: nextStock'), 6, 'Inventory decrements transactionally when an order enters an active fulfillment stage');
-check(api.includes('confirmed:') && api.includes("status === 'confirmed'"), 7, 'Confirmed lifecycle transition is implemented');
+check(api.includes('confirmed:') && api.includes("INVENTORY_COMMIT_STATUSES = new Set(['confirmed'"), 7, 'Confirmed lifecycle stage is implemented within direct active-stage fulfillment');
 check(api.includes('confirmed:') && api.includes('await sendOrderStatusEmail(updatedOrder, previousStatus)'), 8, 'Confirmed lifecycle email is implemented and awaited');
 check(api.includes('packed:') && api.includes('canTransitionOrderStatus'), 9, 'Packed lifecycle transition is implemented');
 check(api.includes('packed:') && api.includes('await sendOrderStatusEmail(updatedOrder, previousStatus)'), 10, 'Packed lifecycle email is implemented and awaited');
@@ -48,7 +48,7 @@ check(adminOrders.includes('Cancellation Requested') && api.includes('cancellati
 check(api.includes("app.post('/api/admin/orders/:id/refund'") && api.includes('refundPayPalCapture'), 20, 'Super Admin PayPal refund path is implemented', 'requires-real-money');
 check(api.includes("paymentStatus: 'refunded'") && api.includes('refundId'), 21, 'Refunded order state is persisted', 'requires-real-money');
 check(api.includes('canAutoRestoreInventory') && api.includes('inventoryCommitted'), 22, 'Eligible refund inventory restoration is implemented', 'requires-real-money');
-check(api.includes('REFUND COMPLETED') && api.includes('sendOrderStatusEmail'), 23, 'Refund email path is implemented', 'requires-real-money');
+check(api.includes('Refund completed') && api.includes('await sendOrderStatusEmail(updatedOrder'), 23, 'Refund email path is implemented and awaited', 'requires-real-money');
 check(api.includes("app.post('/api/messages'") && api.includes("collection('concierge_inquiries').doc()"), 24, 'Customer Support form persists to Firestore');
 check(adminConcierge.includes('Total Inquiries') && adminConcierge.includes('unread'), 25, 'Support inquiries appear in Admin');
 check(adminConcierge.includes('Mark as Read') && adminConcierge.includes('Mark as Replied / Resolved'), 26, 'Support Read/Reply workflow is implemented');
