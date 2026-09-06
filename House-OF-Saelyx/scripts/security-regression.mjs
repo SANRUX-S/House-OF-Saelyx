@@ -126,8 +126,17 @@ assert(!adminProducts.includes('stockCount || 50'), 'product admin must preserve
 assert(!adminRestock.includes('stockCount || 50'), 'restock admin must preserve real zero stock');
 assert(adminProducts.includes('min={0}') && adminProducts.includes('min={1}'), 'product editor must validate stock and price ranges');
 
-assert(adminOrders.includes("if (/^[=+\\-@]/.test(text))"), 'CSV export must neutralize spreadsheet formulas');
-assert(adminOrders.includes('isSuperAdmin &&'), 'PII CSV export must be Super Admin restricted');
+assert(
+  adminOrders.includes('csvCell') &&
+  adminOrders.includes("/^[=+\\-@]/") &&
+  adminOrders.includes("text.replace(/\"/g, '\"\"')"),
+  'CSV export must neutralize formulas and quote spreadsheet data safely'
+);
+assert(
+  adminOrders.includes('if (!isSuperAdmin) return;') &&
+  adminOrders.includes('isSuperAdmin &&'),
+  'PII CSV export must be Super Admin restricted'
+);
 assert(api.includes("app.get('/api/admin/export'"), 'database export must use a protected server endpoint');
 assert(api.includes('hasRecentAuthentication(token)'), 'database export must require recent administrator authentication');
 assert(api.includes("writeAdminAudit(adminDb, token, 'DATABASE_EXPORT'"), 'database export must create a trusted server audit event');
@@ -214,8 +223,17 @@ assert(!adminDrop.includes('readAsDataURL'), '#9 settings image must not be save
 assert(!adminOrders.includes('Cancelled / Refunded'), '#10 order UI must not claim a refund before provider completion');
 assert(api.includes('paymentCaptureId') && api.includes('refundId'), '#11 payment lifecycle must retain capture/refund references');
 assert(api.includes("isSuperAdminToken(token)") && api.includes("app.post('/api/admin/orders/:id/refund'"), '#12 paid refunds must require Super Admin');
-assert(adminOrders.includes('csvCell') && adminOrders.includes("if (/^[=+\\-@]/.test(text))"), '#13 CSV export must escape formulas and quoted data');
-assert(adminOrders.includes('isSuperAdmin') && adminOrders.includes('Export CSV'), '#14 customer-data CSV export must be Super Admin only');
+assert(
+  adminOrders.includes('csvCell') &&
+  adminOrders.includes("/^[=+\\-@]/") &&
+  adminOrders.includes("text.replace(/\"/g, '\"\"')"),
+  '#13 CSV export must escape formulas and quoted data'
+);
+assert(
+  adminOrders.includes('if (!isSuperAdmin) return;') &&
+  adminOrders.includes('isSuperAdmin &&'),
+  '#14 customer-data CSV export must be Super Admin only'
+);
 assert(api.includes("app.get('/api/admin/export'") && api.includes('hasRecentAuthentication(token)'), '#15 backup export must be server-side and step-up protected');
 
 const messageRouteStart = api.indexOf("app.put('/api/admin/messages/:id'");
