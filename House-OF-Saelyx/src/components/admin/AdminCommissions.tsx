@@ -308,6 +308,11 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                           <span className="status-dot" />
                           <span className="capitalize">{order.status}</span>
                         </span>
+                        {order.cancellationRequestStatus === 'pending' && (
+                          <div className="mt-1 text-[9px] font-extrabold uppercase tracking-wider text-amber-700">
+                            Cancellation Requested
+                          </div>
+                        )}
                       </td>
 
                       {/* Actions */}
@@ -378,6 +383,15 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                 {selectedOrder.refundStatus ? <> · Refund: <strong>{selectedOrder.refundStatus}</strong></> : null}
                 {selectedOrder.paymentCaptureId ? <> · Capture: <span className="font-mono">{selectedOrder.paymentCaptureId}</span></> : null}
               </div>
+              {selectedOrder.cancellationRequestStatus === 'pending' && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
+                  <div className="font-extrabold uppercase tracking-wider text-[10px]">Customer Cancellation Request</div>
+                  <p className="mt-1">{selectedOrder.cancellationReason || 'No reason supplied.'}</p>
+                  {selectedOrder.cancellationRequestedAt && (
+                    <p className="mt-1 font-mono text-[9px] text-amber-700">{new Date(selectedOrder.cancellationRequestedAt).toLocaleString()}</p>
+                  )}
+                </div>
+              )}
 
               <div className="rounded-xl border border-stone-200 bg-white p-3">
                 <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-stone-400 mb-2">Order Timeline</div>
