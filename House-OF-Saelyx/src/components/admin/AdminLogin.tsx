@@ -31,7 +31,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setErrorMsg('Please enter both username and password key.');
+      setErrorMsg('Enter your admin email and password.');
       return;
     }
 
@@ -54,7 +54,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const handlePasswordReset = async () => {
     const email = username.trim();
     if (!email) {
-      setErrorMsg('Enter your Firebase administrator email first.');
+      setErrorMsg('Enter your admin email first.');
       return;
     }
     setErrorMsg('');
@@ -95,7 +95,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             SAELYXE ADMIN
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            Please sign in to access your atelier dashboard
+            Sign in to manage SAELYXE
           </p>
         </div>
 
@@ -115,7 +115,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="admin-email" className="form-label-custom">Firebase Administrator Email</label>
+            <label htmlFor="admin-email" className="form-label-custom">Admin Email</label>
             <input
               id="admin-email"
               type="email"
@@ -129,7 +129,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           </div>
 
           <div>
-            <label htmlFor="admin-password" className="form-label-custom">Cryptographic Password Key</label>
+            <label htmlFor="admin-password" className="form-label-custom">Password</label>
             <div className="relative">
               <input
                 id="admin-password"
@@ -180,17 +180,17 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             disabled={isLoggingIn}
             className="w-full py-3 bg-[#051C12] hover:bg-[#072F1F] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 mt-2 cursor-pointer"
           >
-            <span>{isLoggingIn ? 'Verifying Key...' : 'Sign In to Dashboard'}</span>
+            <span>{isLoggingIn ? 'Signing in...' : 'Sign In'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
         <div className="mt-6 pt-5 border-t border-stone-100 text-center">
           <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-2.5">
-            Secure operator access
+            Secure admin access
           </div>
           <div className="text-[10px] text-stone-500">
-            Use a verified Firebase administrator account with active SAELYXE access.
+            Only verified SAELYXE administrator accounts can access this dashboard.
           </div>
         </div>
 
@@ -201,7 +201,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             className="text-xs text-stone-500 hover:text-stone-800 font-semibold inline-flex items-center gap-1.5 transition-colors"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            <span>Return to Public Boutique</span>
+            <span>Return to Store</span>
           </button>
         </div>
       </div>
