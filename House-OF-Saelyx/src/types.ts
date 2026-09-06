@@ -81,6 +81,8 @@ export interface Order {
   country: string;
   items: OrderItem[];
   subtotalLKR: number;
+  discountLKR?: number;
+  promoCode?: string | null;
   shippingLKR: number;
   totalLKR: number;
   currencyUsed: string;
@@ -119,6 +121,17 @@ export interface Order {
   cancellationRequestedBy?: string;
   cancellationReason?: string;
   cancellationRequestStatus?: 'pending' | 'approved' | 'rejected' | 'completed';
+  confirmationEmailStatus?: 'sent' | 'failed';
+  confirmationEmailId?: string;
+  confirmationEmailError?: string | null;
+  confirmationEmailSentAt?: string | null;
+  confirmationEmailAttemptedAt?: string;
+  lastStatusEmailStatus?: 'sent' | 'failed';
+  lastStatusEmailId?: string;
+  lastStatusEmailError?: string | null;
+  lastStatusEmailSentAt?: string | null;
+  lastStatusEmailAttemptedAt?: string;
+  lastStatusEmailFor?: OrderStatus;
 }
 
 export interface DropSettings {

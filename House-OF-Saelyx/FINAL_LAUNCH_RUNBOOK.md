@@ -31,17 +31,17 @@ This file is the single source of truth for the final production release.
 | 3 | Normal customer COD test order | Pending production | Customer account places a COD order |
 | 4 | Real PayPal payment | Deferred if no funds | Complete later with explicit real-money approval |
 | 5 | Customer order reaches Admin Orders | Pending production | Same COD order is visible in Admin |
-| 6 | Stock decreases after confirmation | Pending production | Confirming COD order reduces stock by exact quantity |
-| 7 | Confirmed status | Pending production | Placed → Confirmed succeeds |
+| 6 | Stock decreases when fulfillment starts | Pending production | Moving COD into Confirmed or a later active stage reduces stock exactly once |
+| 7 | Confirmed status | Pending production | Admin can select Confirmed directly from any active non-cancelled stage |
 | 8 | Confirmed email | Pending production | Customer receives Confirmed email |
-| 9 | Packed status | Pending production | Confirmed → Packed succeeds |
+| 9 | Packed status | Pending production | Admin can select Packed directly; inventory/payment guards still apply |
 | 10 | Packed email | Pending production | Customer receives Packed email |
-| 11 | Dispatched with courier + tracking | Pending production | Packed → Dispatched succeeds only with real test courier/tracking values |
+| 11 | Dispatched with courier + tracking | Pending production | Dispatched succeeds from an active stage only with real courier/tracking values |
 | 12 | Dispatched email | Pending production | Customer receives courier/tracking email |
 | 13 | Customer tracking page | Pending production | Customer sees correct status/courier/tracking and no fake telemetry |
-| 14 | Out for Delivery status | Pending production | Dispatched → Out for Delivery succeeds |
+| 14 | Out for Delivery status | Pending production | Admin can select Out for Delivery directly when real courier/tracking details exist |
 | 15 | Out for Delivery email | Pending production | Customer receives lifecycle email |
-| 16 | Delivered status | Pending production | Out for Delivery → Delivered succeeds |
+| 16 | Delivered status | Pending production | Admin can select Delivered directly when real courier/tracking details exist |
 | 17 | Delivered email | Pending production | Customer receives Delivered email |
 | 18 | Customer cancellation request | Pending production | A separate placed/confirmed/packed COD test order submits cancellation request |
 | 19 | Admin cancellation visibility | Pending production | Admin sees reason and request state |
@@ -72,7 +72,7 @@ This file is the single source of truth for the final production release.
 5. Place the COD order and record the order number.
 6. In a separate normal Admin window, open Admin Orders.
 7. Verify the same order appears with payment method COD and unpaid/COD-pending state.
-8. Move the order through each allowed lifecycle stage in order.
+8. Test direct active-stage selection deliberately. For example, move a test order directly to Packed, then to Delivered after entering a real test courier and tracking number. Verify payment and stock guards still hold.
 9. At Confirmed, verify stock decreases exactly once.
 10. At Dispatched, enter a deliberate test courier name and tracking number; never use fake built-in fallbacks.
 11. Verify every lifecycle email in the customer inbox.
@@ -94,7 +94,7 @@ This file is the single source of truth for the final production release.
 - Never run a PayPal refund for COD.
 - Never perform a real PayPal payment/refund without explicit real-money approval.
 - Never delete real products, real customers, real orders, staff, settings or audit history during legacy cleanup.
-- Never skip order lifecycle transitions.
+- Admins may select any active non-cancelled lifecycle stage directly. Cancelled orders remain terminal, and payment/inventory/logistics safety checks must never be bypassed.
 - Require courier + tracking from Dispatched onward.
 - Do not claim email delivery until the inbox is actually checked.
 - Do not claim physical legacy cleanup until Admin Security reports the server marker as completed.
@@ -126,3 +126,21 @@ The release is considered launch-ready when:
 - Added `npm run final:readiness` to CI as the 36-point code-readiness gate.
 
 “Code ready” is not the same as “production verified.” Customer inbox delivery, real PayPal money movement, and physical cleanup markers are only marked verified after the final deployment.
+
+
+## Post-production order/email/receipt hotfix batch
+
+This batch is intentionally prepared on `fix/order-status-email-receipt-20260906` and must not be deployed until it is reviewed and approved.
+
+- Replaces the strict sequential Admin order-stage rule with direct selection between active non-cancelled stages.
+- Keeps cancelled orders terminal and preserves PayPal refund protections.
+- Commits inventory exactly once when an order enters Confirmed or any later active fulfillment stage.
+- Does not silently restore stock after dispatch; post-dispatch cancellation requires manual physical-return review.
+- Requires real courier + tracking details for Dispatched, Out for Delivery, and Delivered.
+- Awaits Resend order-status email delivery before the serverless status response completes.
+- Persists confirmation/status email delivery state on the order for operational visibility.
+- Fixes COD Confirmed email wording so it does not claim payment was already collected.
+- Replaces the basic order emails with a branded SAELYXE order-summary layout containing payment, items, totals, delivery details, and a View Order / Receipt action.
+- Adds a customer Receipt / Invoice view from checkout confirmation and My Orders with browser Print / Save PDF support.
+- Removes remaining unsupported checkout GPS/live-tracking, courier-insurance, and guaranteed exchange-delivery wording.
+- No Vercel deployment is permitted from this branch; feature-branch deployment remains disabled.

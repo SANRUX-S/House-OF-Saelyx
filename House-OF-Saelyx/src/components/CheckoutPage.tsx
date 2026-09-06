@@ -974,7 +974,7 @@ export const CheckoutPage: React.FC = () => {
                 <span className="font-mono text-[#1A1816]">{formatPrice(subtotalLKR)}</span>
               </div>
               <div className="flex justify-between text-[#7A6E60]">
-                <span>WHITE-GLOVE DELIVERY</span>
+                <span>DELIVERY</span>
                 <span className="font-mono text-emerald-900 font-medium">
                   {shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(shippingLKR)}
                 </span>
@@ -991,7 +991,7 @@ export const CheckoutPage: React.FC = () => {
                     TOTAL
                   </span>
                   <span className="text-[10px] text-[#8F8171] uppercase tracking-wider">
-                    Taxes and courier insurance included
+                    Final amount includes configured delivery charges
                   </span>
                 </div>
                 <div className="font-serif text-2xl font-normal text-[#1A1816]">
@@ -1006,10 +1006,10 @@ export const CheckoutPage: React.FC = () => {
                 <ShieldCheck className="w-4 h-4 text-emerald-800 flex-shrink-0 mt-0.5 stroke-[1.5]" />
                 <div>
                   <span className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#1A1816]">
-                    14-Day Size Exchange
+                    Size & Exchange Support
                   </span>
                   <p className="text-[11px] text-[#7A6E60] leading-relaxed">
-                    Complimentary doorstep size and silhouette exchange on eligible garments.
+                    Eligibility and timelines follow the SAELYXE Returns & Exchanges policy.
                   </p>
                 </div>
               </div>
@@ -1017,10 +1017,10 @@ export const CheckoutPage: React.FC = () => {
                 <Truck className="w-4 h-4 text-amber-800 flex-shrink-0 mt-0.5 stroke-[1.5]" />
                 <div>
                   <span className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#1A1816]">
-                    Live Order Tracking
+                    Courier & Tracking Updates
                   </span>
                   <p className="text-[11px] text-[#7A6E60] leading-relaxed">
-                    Receive live courier GPS updates from atelier dispatch to arrival.
+                    Courier and tracking details appear after dispatch and are updated by SAELYXE operations.
                   </p>
                 </div>
               </div>

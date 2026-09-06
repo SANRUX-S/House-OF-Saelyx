@@ -1,7 +1,8 @@
 import React from 'react';
-import { CheckCircle2, ShoppingBag, ArrowRight, X, Truck, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, ArrowRight, X, Truck, ShieldCheck, FileText } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
+import { openOrderReceipt } from '../lib/orderReceipt';
 
 interface OrderConfirmationModalProps {
   order: Order | null;
@@ -135,18 +136,30 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <button
                 onClick={handleContinueToOrders}
-                className="flex-1 h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                className="h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>CONTINUE TO MY ORDERS</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
               <button
+                onClick={() => {
+                  if (!openOrderReceipt(order)) {
+                    window.alert('Your browser blocked the receipt window. Please allow pop-ups for SAELYXE and try again.');
+                  }
+                }}
+                className="h-12 bg-white border border-[#D5CBBF] hover:bg-[#FAF8F5] text-[#1A1816] text-[11px] uppercase tracking-[0.18em] font-medium rounded-2xl transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                RECEIPT / INVOICE
+              </button>
+
+              <button
                 onClick={onClose}
-                className="px-6 h-12 bg-white border border-[#D5CBBF] hover:bg-[#FAF8F5] text-[#1A1816] text-[11px] uppercase tracking-[0.18em] font-medium rounded-2xl transition-colors cursor-pointer"
+                className="sm:col-span-2 h-11 bg-transparent text-[#7A6E60] text-[10px] uppercase tracking-[0.18em] font-medium rounded-xl hover:bg-[#FAF8F5] hover:text-[#1A1816] transition-colors cursor-pointer"
               >
                 RETURN TO BOUTIQUE
               </button>

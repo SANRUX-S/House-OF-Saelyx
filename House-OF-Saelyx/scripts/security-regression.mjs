@@ -39,6 +39,9 @@ const footer = read('src/components/Footer.tsx');
 const careConcierge = read('src/components/CareConciergePage.tsx');
 const careShipping = read('src/components/CareShippingPage.tsx');
 const profilePage = read('src/components/ProfilePage.tsx');
+const orderConfirmation = read('src/components/OrderConfirmationModal.tsx');
+const ordersPage = read('src/components/OrdersPage.tsx');
+const orderReceipt = read('src/lib/orderReceipt.ts');
 
 const trackingStart = api.indexOf("app.get('/api/orders/:id'");
 const trackingEnd = api.indexOf("app.post('/api/admin/orders/:id/refund'", trackingStart);
@@ -222,8 +225,22 @@ assert(api.includes('async function sendOrderStatusEmail(order: any, previousSta
 for (const status of ['confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']) {
   assert(api.includes(status + ':'), `order lifecycle email must support ${status}`);
 }
-assert(api.includes("'Idempotency-Key': `saelyxe-order-status-"), 'order lifecycle emails must be idempotent');
-assert(api.includes('Courier and tracking number are required before dispatch.'), 'dispatch transitions must require real logistics data');
+assert(
+  api.includes('idempotencyKey: `saelyxe-order-status-') &&
+  api.includes("'Idempotency-Key': params.idempotencyKey"),
+  'order lifecycle emails must be idempotent'
+);
+assert(api.includes('await sendOrderStatusEmail(updatedOrder, previousStatus)'), 'status updates must await Resend delivery before the serverless response completes');
+assert(api.includes('lastStatusEmailStatus'), 'order records must persist the last lifecycle email delivery result');
+assert(api.includes('INVENTORY_COMMIT_STATUSES.has(status)'), 'direct active-stage selection must still commit inventory safely');
+assert(adminOrders.includes('You can select any active order stage directly'), 'Admin Orders must explain direct active-stage selection');
+assert(!adminOrders.includes('Follow the order stages in sequence'), 'Admin Orders must not enforce the retired sequential-stage UI rule');
+assert(orderReceipt.includes('Print / Save PDF'), 'customer receipt view must support print/save-as-PDF');
+assert(orderConfirmation.includes('RECEIPT / INVOICE'), 'checkout confirmation must expose the receipt/invoice action');
+assert(ordersPage.includes('RECEIPT / INVOICE'), 'My Orders must expose the receipt/invoice action');
+assert(!checkout.includes('live courier GPS'), 'checkout must not claim courier GPS telemetry without a real integration');
+assert(!checkout.includes('Live Order Tracking'), 'checkout must not claim live tracking without a real courier integration');
+assert(api.includes('Courier and tracking number are required for dispatched, out-for-delivery, and delivered statuses.'), 'dispatch-related statuses must require real logistics data');
 assert(adminOrders.includes('Order Timeline'), 'Admin Orders must display the persisted order timeline');
 assert(adminOrders.includes("required={['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus)}"), 'Admin must require courier/tracking from dispatch onward');
 assert(adminOrders.includes('Cancellation Requested'), 'Admin Orders must surface customer cancellation requests');
