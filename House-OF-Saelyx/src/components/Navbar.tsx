@@ -271,7 +271,7 @@ export const Navbar: React.FC = () => {
 
         {/* Center: Category Navigation Pill */}
         <div className="absolute inset-x-0 mx-auto w-max flex items-center bg-black/70 border border-white/20 rounded-full px-4 py-1.5 shadow-2xl pointer-events-auto">
-          <div className="flex items-center gap-1 sm:gap-2 text-[11px] lg:text-[11.5px] font-semibold tracking-[0.2em] uppercase text-white/90">
+          <div className="flex items-center gap-1 sm:gap-2 text-[11px] lg:text-[11.5px] font-semibold tracking-[0.2em] uppercase text-white">
             {navCategories.map((cat) => {
               const isActive = activeCategory === cat.value && (currentRoute.name === 'collection');
               return (
@@ -281,7 +281,7 @@ export const Navbar: React.FC = () => {
                   className={`transition-all duration-200 cursor-pointer rounded-full px-3 py-1 whitespace-nowrap ${
                     isActive
                       ? 'text-white bg-white/20 font-bold'
-                      : 'text-white/85 hover:text-white hover:bg-white/10'
+                      : 'text-white/95 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {cat.label}
@@ -295,7 +295,7 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center gap-3.5 lg:gap-4.5">
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="p-1 text-white/90 hover:text-white transition-colors cursor-pointer"
+            className="p-1 text-white hover:text-white transition-colors cursor-pointer"
             aria-label="Search garments"
           >
             <Search className="w-4.5 h-4.5 lg:w-5 lg:h-5 stroke-[2]" />
@@ -310,7 +310,7 @@ export const Navbar: React.FC = () => {
                   e.stopPropagation();
                   setIsAccountDropdownOpen((prev) => !prev);
                 }}
-                className="flex items-center gap-2 text-[11px] lg:text-xs uppercase tracking-[0.18em] font-medium text-white/90 hover:text-white px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all cursor-pointer shadow-sm"
+                className="flex items-center gap-2 text-[11px] lg:text-xs uppercase tracking-[0.18em] font-medium text-white hover:text-white px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all cursor-pointer shadow-sm"
               >
                 <div className="w-4 h-4 rounded-full bg-white/20 text-[9px] flex items-center justify-center font-serif font-bold">
                   {user.name ? user.name[0]?.toUpperCase() : 'S'}
@@ -331,7 +331,7 @@ export const Navbar: React.FC = () => {
                   setAuthMode('signin');
                   setIsAuthOpen(true);
                 }}
-                className="text-[11px] lg:text-xs uppercase tracking-[0.2em] font-medium text-white/90 hover:text-white transition-colors cursor-pointer"
+                className="text-[11px] lg:text-xs uppercase tracking-[0.2em] font-medium text-white hover:text-white transition-colors cursor-pointer"
               >
                 LOGIN
               </button>
