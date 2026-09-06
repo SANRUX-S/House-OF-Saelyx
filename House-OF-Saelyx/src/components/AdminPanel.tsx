@@ -276,31 +276,31 @@ export const AdminPanel: React.FC = () => {
       case 'messages':
         return {
           title: 'Customer Support',
-          subtitle: 'Review customer messages and keep support requests moving.'
+          subtitle: 'Review customer messages and keep support requests moving.',
           breadcrumb: [{ label: 'Operations' }, { label: 'Customer Support' }]
         };
       case 'restock':
         return {
           title: 'Restock',
-          subtitle: 'Review waitlist demand and send verified restock notifications.'
+          subtitle: 'Review waitlist demand and send verified restock notifications.',
           breadcrumb: [{ label: 'Operations' }, { label: 'Restock' }]
         };
       case 'staff':
         return {
           title: 'Staff',
-          subtitle: 'Manage administrator access, roles, activation, and revocation.'
+          subtitle: 'Manage administrator access, roles, activation, and revocation.',
           breadcrumb: [{ label: 'Administration' }, { label: 'Staff' }]
         };
       case 'security':
         return {
           title: 'Security',
-          subtitle: 'Review protected service health, authorization controls, and backups.'
+          subtitle: 'Review protected service health, authorization controls, and backups.',
           breadcrumb: [{ label: 'Administration' }, { label: 'Security & Audit' }]
         };
       case 'drop-config':
         return {
           title: 'Store Settings',
-          subtitle: 'Manage homepage content, promotional copy, thresholds, and visibility.'
+          subtitle: 'Manage homepage content, promotional copy, thresholds, and visibility.',
           breadcrumb: [{ label: 'Administration' }, { label: 'Store Settings' }]
         };
     }
