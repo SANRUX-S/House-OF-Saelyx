@@ -54,7 +54,8 @@
   "git": {
     "deploymentEnabled": {
       "**": false,
-      "main": true
+      "main": true,
+      "preview/luxury-footer-20260906": true
     }
   }
 }
