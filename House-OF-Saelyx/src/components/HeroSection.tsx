@@ -54,7 +54,7 @@ export const HeroSection: React.FC = () => {
         }}
       >
         <img
-          src="https://saelyxe.com/images/hero19201080.avif"
+          src="https://res.cloudinary.com/qt3rdzmd/image/upload/v1788705356/saelyxe/hero/saelyxe-hero-2026-09-06.webp"
           alt="SAELYXE Editorial Lifestyle Collection"
           className="w-full h-full object-cover object-[55%_center] md:object-center filter brightness-[0.95]"
           referrerPolicy="no-referrer"
