@@ -207,11 +207,17 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
                   <tr key={n.id}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <img
-                          src={n.productImage || 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=120&q=80'}
-                          alt={n.productTitle}
-                          className="w-10 h-10 rounded-lg object-cover bg-stone-100 flex-shrink-0"
-                        />
+                        {n.productImage ? (
+                          <img
+                            src={n.productImage}
+                            alt={n.productTitle}
+                            className="w-10 h-10 rounded-lg object-cover bg-stone-100 flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-stone-100 flex items-center justify-center text-[8px] font-bold text-stone-400 text-center px-1 flex-shrink-0">
+                            NO IMAGE
+                          </div>
+                        )}
                         <div>
                           <div className="text-xs font-bold text-stone-900">{n.productTitle}</div>
                           <div className="text-[10px] text-stone-400 font-mono">ID: {n.productId}</div>
