@@ -34,6 +34,11 @@ const adminTypes = read('src/types.ts');
 const ciWorkflow = read('../.github/workflows/ci.yml');
 const localServer = read('server.ts');
 const fallbackJson = read('data/saelyx_store.json');
+const heroSection = read('src/components/HeroSection.tsx');
+const footer = read('src/components/Footer.tsx');
+const careConcierge = read('src/components/CareConciergePage.tsx');
+const careShipping = read('src/components/CareShippingPage.tsx');
+const profilePage = read('src/components/ProfilePage.tsx');
 
 const trackingStart = api.indexOf("app.get('/api/orders/:id'");
 const trackingEnd = api.indexOf("app.post('/api/admin/orders/:id/refund'", trackingStart);
@@ -146,6 +151,12 @@ assert(adminProducts.includes('min={0}') && adminProducts.includes('min={1}'), '
 assert(api.includes('LEGACY_TEST_PRODUCT_IDS'), 'legacy test product cleanup must use exact IDs');
 assert(api.includes("app.post('/api/admin/maintenance/purge-legacy-test-products'"), 'legacy test product cleanup endpoint must exist');
 assert(api.includes("testFingerprint.includes('test')"), 'legacy test product cleanup must verify a test fingerprint before deletion');
+assert(api.includes("'prod-mtj5ymhb'") && api.includes("'prod-mtmk3gor'"), 'all known legacy test product IDs must be covered');
+assert(api.includes('if (!value) return false;'), 'legacy cleanup must never delete records with unknown timestamps');
+assert(!JSON.stringify(JSON.parse(fallbackJson).products).toLowerCase().includes('"title":"test'), 'fallback product data must not contain test-labelled products');
+assert(!heroSection.includes("title: 'SÆ SIGNATURE TEE'"), 'hero must not invent fallback product inventory');
+assert(!adminProducts.includes('images.unsplash.com'), 'Admin Products must not invent a fallback fashion image');
+assert(!adminRestock.includes('images.unsplash.com'), 'Admin Restock must not invent a fallback fashion image');
 assert(api.includes("confirmation, 80) !== 'REMOVE_TEST_PRODUCTS'"), 'legacy test product cleanup must require explicit confirmation');
 assert(store.includes('LEGACY_TEST_PRODUCT_IDS.has(product.id)'), 'realtime product state must exclude exact legacy test products');
 assert(store.includes('saelyxe_prelaunch_cleanup_v2'), 'Super Admin must trigger the one-time combined pre-launch cleanup');
@@ -230,6 +241,19 @@ assert(fs.existsSync('playwright.config.mjs'), 'Playwright configuration must ex
 assert(!adminPanel.includes('Firebase Cloud Function'), 'admin panel must not describe the retired Firebase Functions architecture');
 assert(!store.includes('triggerRestockCloudFunction'), 'store context must not expose retired Cloud Function naming');
 assert(!fs.existsSync('functions'), 'retired Firebase Functions directory must not remain');
+assert(!footer.includes('74 Ward Place'), 'public footer must not publish an unverified physical address');
+assert(!footer.includes('https://twitter.com'), 'public footer must not link to a generic placeholder social profile');
+assert(!careConcierge.includes('wa.me/94771234567'), 'concierge must not publish a placeholder WhatsApp number');
+assert(!careConcierge.includes('+94 11 234 5678'), 'concierge must not publish a placeholder phone number');
+assert(!careConcierge.includes('Private Showroom'), 'concierge must not claim an unverified showroom');
+assert(!careConcierge.includes('respond within 4 hours'), 'concierge must not promise an unverified response SLA');
+assert(!careShipping.includes('DHL'), 'shipping page must not claim an unconfigured carrier');
+assert(!careShipping.includes('Same-Day & Next-Day'), 'shipping page must not promise an unverified delivery SLA');
+assert(!careShipping.includes('live tracking'), 'shipping page must not claim live courier telemetry');
+assert(checkout.includes('settings?.freeShippingThresholdLKR'), 'checkout must use the same configurable free-shipping threshold as the server');
+assert(checkout.includes('settings?.standardShippingLKR'), 'checkout must support the server standard-shipping setting');
+assert(!checkout.includes('74 Ward Place'), 'checkout placeholders must not suggest the old fake address');
+assert(!profilePage.includes('74 Ward Place'), 'profile placeholders must not suggest the old fake address');
 
 
 assert(localServer.includes('app.use(productionApi);'), 'local VS Code server must mount the production API');
