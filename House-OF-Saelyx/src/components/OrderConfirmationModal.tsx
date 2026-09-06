@@ -79,7 +79,11 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
                 <span className="font-medium text-[#1A1816] text-right">
                   {formatPaymentMethod(order.paymentMethod)}
                   <span className="block text-[9px] uppercase tracking-wider text-[#7A6E60] mt-0.5">
-                    {order.paymentStatus === 'paid' || order.paymentStatus === 'verified' ? 'Verified' : 'Pending verification'}
+                    {order.paymentMethod === 'cod'
+                      ? 'Pay on delivery'
+                      : order.paymentStatus === 'paid' || order.paymentStatus === 'verified'
+                        ? 'Verified'
+                        : 'Pending verification'}
                   </span>
                 </span>
               </div>
