@@ -98,45 +98,69 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
   if (!isFirebaseConfigured) {
     return { valid: false, error: 'Firebase administrator authentication is not configured.' };
   }
+
   try {
     await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
     const credential = await signInWithEmailAndPassword(auth, username.trim(), pass);
+    const email = credential.user.email?.toLowerCase() || '';
+    const allowlistedRole = email ? ADMIN_ROLES[email] : undefined;
+
+    // Bootstrap administrators are intentionally recoverable without depending on
+    // a Firestore admin document. Firebase Auth + verified allowlisted email is
+    // the trust boundary for these root accounts.
+    if (allowlistedRole) {
+      if (!credential.user.emailVerified) {
+        try {
+          await sendEmailVerification(credential.user);
+        } catch {
+          // Firebase may throttle repeated verification emails.
+        }
+        await fbSignOut(auth);
+        return {
+          valid: false,
+          error: 'Verify this administrator email first. A verification email has been requested; then sign in again.'
+        };
+      }
+
+      return {
+        valid: true,
+        user: {
+          uid: credential.user.uid,
+          name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Administrator',
+          email: credential.user.email || '',
+          role: allowlistedRole,
+          joinedDate: new Date().toISOString().slice(0, 10)
+        }
+      };
+    }
+
+    // Invited staff accounts must additionally have an active protected admin
+    // record bound to the same verified Firebase email.
     const adminDoc = await getDoc(doc(db, 'admins', credential.user.uid));
     const adminData = adminDoc.exists() ? adminDoc.data() : null;
-    const email = credential.user.email?.toLowerCase() || '';
     const adminRecordMatches =
       credential.user.emailVerified &&
       adminData?.status === 'active' &&
       typeof adminData?.email === 'string' &&
       adminData.email.toLowerCase() === email;
-    const adminDocRole: UserRole | undefined = adminRecordMatches
+
+    const trustedRole: UserRole | undefined = adminRecordMatches
       ? adminData?.role === 'super_admin'
         ? 'super_admin'
         : adminData?.role === 'admin'
           ? 'admin'
           : undefined
       : undefined;
-    const allowlistedRole = email ? ADMIN_ROLES[email] : undefined;
-    const configuredRole = credential.user.emailVerified ? allowlistedRole : undefined;
-    const trustedRole = configuredRole || adminDocRole;
 
     if (!trustedRole) {
-      if (allowlistedRole && !credential.user.emailVerified) {
-        try {
-          await sendEmailVerification(credential.user);
-        } catch {
-          // A verification email may already have been sent recently.
-        }
+      if (adminData?.status === 'invited') {
         await fbSignOut(auth);
         return {
           valid: false,
-          error: 'Administrator email verification is required. Check the administrator inbox, verify the address, then sign in again.'
+          error: credential.user.emailVerified
+            ? 'Your administrator invitation is waiting for Super Admin activation.'
+            : 'Verify your administrator email, then ask a Super Admin to activate the account.'
         };
-      }
-
-      if (adminData?.status === 'invited') {
-        await fbSignOut(auth);
-        return { valid: false, error: 'Administrator invitation is pending activation by a Super Admin after email verification.' };
       }
       if (adminData?.status === 'revoked' || adminData?.status === 'suspended') {
         await fbSignOut(auth);
@@ -144,25 +168,46 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
       }
 
       await fbSignOut(auth);
-      return { valid: false, error: 'Access denied. This Firebase account is not an active administrator.' };
+      return { valid: false, error: 'This Firebase account does not have active SAELYXE administrator access.' };
     }
 
     return {
       valid: true,
       user: {
         uid: credential.user.uid,
-        name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Atelier Operator',
+        name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Administrator',
         email: credential.user.email || '',
         role: trustedRole,
         joinedDate: new Date().toISOString().slice(0, 10)
       }
     };
-
   } catch (err: any) {
-    return {
-      valid: false,
-      error: err?.code === 'auth/invalid-credential' ? 'Invalid Firebase administrator credentials.' : 'Firebase administrator authentication failed.'
-    };
+    const code = String(err?.code || '');
+
+    if (['auth/invalid-credential', 'auth/invalid-login-credentials', 'auth/user-not-found', 'auth/wrong-password'].includes(code)) {
+      return { valid: false, error: 'Email or password is incorrect.' };
+    }
+    if (code === 'auth/invalid-email') {
+      return { valid: false, error: 'Enter a valid administrator email address.' };
+    }
+    if (code === 'auth/user-disabled') {
+      return { valid: false, error: 'This Firebase administrator account is disabled.' };
+    }
+    if (code === 'auth/too-many-requests') {
+      return { valid: false, error: 'Too many sign-in attempts. Wait a few minutes, then try again or reset the password.' };
+    }
+    if (code === 'auth/network-request-failed') {
+      return { valid: false, error: 'Could not reach Firebase Authentication. Check the connection and try again.' };
+    }
+    if (code === 'auth/operation-not-allowed') {
+      return { valid: false, error: 'Email/password sign-in is not enabled for this Firebase project.' };
+    }
+    if (code === 'permission-denied' || code === 'firestore/permission-denied') {
+      return { valid: false, error: 'Firebase signed in, but administrator access data could not be read. Please try again.' };
+    }
+
+    console.warn('Administrator sign-in diagnostic:', code || err);
+    return { valid: false, error: 'Administrator sign-in could not be completed. Please try again.' };
   }
 }
 
