@@ -194,7 +194,9 @@ const LEGACY_TEST_PRODUCT_IDS = new Set([
   'prod-mtogbgv5',
   'prod-mtogl585',
   'prod-mtogck9y',
-  'prod-mtogokor'
+  'prod-mtogokor',
+  'prod-mtj5ymhb',
+  'prod-mtmk3gor'
 ]);
 
 
