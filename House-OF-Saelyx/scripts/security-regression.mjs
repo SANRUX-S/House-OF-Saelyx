@@ -160,6 +160,43 @@ assert(api.includes("'Idempotency-Key':"), 'restock delivery must use an idempot
 assert(api.includes('Some recipients failed. Retry will target failed recipients only.'), 'restock retry semantics must preserve successful recipients');
 assert(api.includes("writeAdminAudit(") && api.includes('RESTOCK_DISPATCH_PARTIAL'), 'restock dispatch must use trusted server audit logging');
 
+const conciergeRouteStart = api.indexOf("app.post('/api/messages'");
+const conciergeRouteEnd = api.indexOf("app.post('/api/restock/subscribe'", conciergeRouteStart);
+const conciergeRoute = conciergeRouteStart >= 0 && conciergeRouteEnd > conciergeRouteStart
+  ? api.slice(conciergeRouteStart, conciergeRouteEnd)
+  : '';
+assert(conciergeRoute.length > 0, 'customer concierge submission endpoint must exist');
+assert(conciergeRoute.includes('hasValidAppCheck(req)'), 'customer concierge submission must enforce App Check');
+assert(conciergeRoute.includes('messages:${getClientAddress(req)}'), 'customer concierge submission must be rate limited');
+assert(conciergeRoute.includes("allowedTopics = new Set(['order_inquiry', 'bespoke_sizing', 'concierge', 'press', 'authenticity', 'other'])"), 'customer concierge topic values must be allowlisted');
+assert(conciergeRoute.includes("collection('concierge_inquiries').doc()"), 'customer concierge submission must persist to the real inquiry collection');
+assert(conciergeRoute.includes("collection('messages').doc(ref.id)"), 'customer concierge submission must mirror the real admin message collection atomically');
+assert(conciergeRoute.includes("status: 'unread'"), 'new concierge submissions must arrive unread in Admin');
+
+const restockSubscribeStart = api.indexOf("app.post('/api/restock/subscribe'");
+const restockSubscribeEnd = api.indexOf("app.get('/api/products'", restockSubscribeStart);
+const restockSubscribeRoute = restockSubscribeStart >= 0 && restockSubscribeEnd > restockSubscribeStart
+  ? api.slice(restockSubscribeStart, restockSubscribeEnd)
+  : '';
+assert(restockSubscribeRoute.length > 0, 'customer restock subscription endpoint must exist');
+assert(restockSubscribeRoute.includes('hasValidAppCheck(req)'), 'customer restock subscription must enforce App Check');
+assert(restockSubscribeRoute.includes('restock-subscribe:${getClientAddress(req)}'), 'customer restock subscription must be rate limited');
+assert(restockSubscribeRoute.includes("collection('products').doc(productId).get()"), 'restock subscription must validate a real product');
+assert(restockSubscribeRoute.includes("createHash('sha256')"), 'restock subscription must deduplicate by stable hash');
+assert(restockSubscribeRoute.includes("status: 'pending'"), 'new restock subscriptions must enter the pending queue');
+assert(restockSubscribeRoute.includes("collection('stock_notifications').doc(dedupeId).set"), 'restock subscription must persist to the real notification queue');
+
+assert(api.includes('async function sendOrderStatusEmail(order: any, previousStatus?: string)'), 'order lifecycle email helper must exist');
+for (const status of ['confirmed', 'packed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled']) {
+  assert(api.includes(status + ':'), `order lifecycle email must support ${status}`);
+}
+assert(api.includes("'Idempotency-Key': `saelyxe-order-status-"), 'order lifecycle emails must be idempotent');
+assert(api.includes('Courier and tracking number are required before dispatch.'), 'dispatch transitions must require real logistics data');
+assert(adminOrders.includes('Order Timeline'), 'Admin Orders must display the persisted order timeline');
+assert(adminOrders.includes("required={['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus)}"), 'Admin must require courier/tracking from dispatch onward');
+assert(adminOrders.includes('Cancellation Requested'), 'Admin Orders must surface customer cancellation requests');
+assert(store.includes('requestOrderCancellation'), 'customer store context must expose secure cancellation requests');
+
 const adminMedia = read('src/lib/adminMedia.ts');
 assert(adminMedia.includes('createImageBitmap(file)'), 'admin media must decode images before upload');
 assert(adminMedia.includes('MAX_IMAGE_MEGAPIXELS'), 'admin media must enforce megapixel limits');
