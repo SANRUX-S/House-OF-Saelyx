@@ -11,11 +11,13 @@ import {
   AlertTriangle,
   Plus
 } from 'lucide-react';
-import { Order, Product } from '../../types';
+import { ContactMessage, Order, Product, StockNotification } from '../../types';
 
 export interface AdminDashboardProps {
   products: Product[];
   orders: Order[];
+  messages: ContactMessage[];
+  stockNotifications: StockNotification[];
   formatPrice: (priceLKR: number) => string;
   onNavigateToTab: (tab: 'overview' | 'products' | 'orders' | 'messages' | 'restock' | 'staff' | 'security' | 'drop-config') => void;
   onOpenProductModal: () => void;
@@ -28,6 +30,8 @@ function toDateInput(date: Date) {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   products,
   orders,
+  messages,
+  stockNotifications,
   formatPrice,
   onNavigateToTab,
   onOpenProductModal
@@ -61,6 +65,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   );
   const totalStockCount = products.reduce((sum, product) => sum + Math.max(0, Number(product.stockCount) || 0), 0);
   const lowStockCount = products.filter(product => product.inStock && Math.max(0, Number(product.stockCount) || 0) <= 5).length;
+  const unreadSupportCount = messages.filter(message => message.status === 'unread').length;
+  const restockRequestCount = stockNotifications.filter(notification =>
+    ['pending', 'failed'].includes(notification.status)
+  ).length;
+
+  const operationCounts = [
+    { label: 'Products', value: products.length, action: 'products' as const },
+    { label: 'Total Orders', value: orders.length, action: 'orders' as const },
+    { label: 'Open Orders', value: orders.filter(order => !['delivered', 'cancelled'].includes(order.status)).length, action: 'orders' as const },
+    { label: 'Unread Support', value: unreadSupportCount, action: 'messages' as const },
+    { label: 'Restock Requests', value: restockRequestCount, action: 'restock' as const },
+    { label: 'Low Stock', value: lowStockCount, action: 'products' as const }
+  ];
 
   const recentOrders = [...rangeOrders]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -121,8 +138,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Production overview</span>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">Live data</span>
+            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Store overview</span>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">Live</span>
           </div>
           <p className="mt-1 text-xs text-stone-400">Revenue counts only provider-verified, non-cancelled payments.</p>
         </div>
@@ -136,9 +153,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
           <button onClick={onOpenProductModal} className="btn-saelyxe-lime text-xs">
             <Plus className="h-4 w-4" />
-            New Garment
+            Add Product
           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        {operationCounts.map(item => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => onNavigateToTab(item.action)}
+            className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md"
+          >
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-stone-400">{item.label}</div>
+            <div className="mt-1 text-xl font-extrabold tracking-tight text-stone-900">{item.value.toLocaleString()}</div>
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -163,7 +194,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="xl:col-span-8 admin-card">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <div>
-              <h2 className="text-base font-bold text-stone-900">Verified Revenue — Last 6 Months</h2>
+              <h2 className="text-base font-bold text-stone-900">Revenue — Last 6 Months</h2>
               <p className="text-xs text-stone-500 mt-1">Calculated from actual verified order records. No estimated expense data is shown.</p>
             </div>
             <button onClick={() => onNavigateToTab('orders')} className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1">
@@ -199,7 +230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="xl:col-span-4 admin-card">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-bold text-stone-900">Catalogue Health</h2>
+              <h2 className="text-base font-bold text-stone-900">Inventory</h2>
               <p className="text-xs text-stone-500 mt-1">Live inventory summary.</p>
             </div>
             <Package className="h-5 w-5 text-stone-400" />
@@ -225,7 +256,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             )}
             <button onClick={() => onNavigateToTab('products')} className="btn-saelyxe-primary w-full justify-center text-xs">
-              Manage Catalogue
+              Manage Products
             </button>
           </div>
         </div>
