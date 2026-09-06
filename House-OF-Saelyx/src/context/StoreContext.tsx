@@ -189,7 +189,12 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 function cryptoSafeClientId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const values = new Uint32Array(4);
+    crypto.getRandomValues(values);
+    return Array.from(values, value => value.toString(36)).join('-');
+  }
+  throw new Error('Secure random identifier generation is unavailable.');
 }
 
 // Helper to parse current window location into AppRoute
@@ -368,18 +373,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [cart]);
 
-  // Save user to localStorage
+  // Authentication state is restored only by Firebase Auth. Remove legacy cached
+  // user records so customer/admin profile data is not persisted in localStorage.
   useEffect(() => {
     try {
-      if (user) {
-        localStorage.setItem('saelyx_user', JSON.stringify(user));
-      } else {
-        localStorage.removeItem('saelyx_user');
-      }
-    } catch (e) {
-      console.error(e);
+      localStorage.removeItem('saelyx_user');
+      localStorage.removeItem('saelyx_admin_user');
+    } catch (error) {
+      console.warn('Legacy user cache cleanup note:', error);
     }
-  }, [user]);
+  }, []);
 
   // Listen to Firebase Auth state. Privileged roles come only from trusted
   // Firebase custom claims, the protected admins collection, or the configured
@@ -1093,9 +1096,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const updatedUser: AppUser = { ...user, ...profileUpdates, uid: user.uid, email: user.email, role: user.role };
       setUser(updatedUser);
-      try {
-        localStorage.setItem('saelyx_user', JSON.stringify(updatedUser));
-      } catch (e) { console.warn('Non-fatal store operation note:', e); }
 
       try {
         const userRef = doc(db, 'users', user.uid);
