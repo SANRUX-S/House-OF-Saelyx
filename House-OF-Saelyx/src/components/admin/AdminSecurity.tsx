@@ -133,7 +133,7 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({
       if (!currentUser) throw new Error('Admin session expired.');
       const token = await currentUser.getIdToken();
       const appCheckHeaders = await getAppCheckRequestHeaders();
-      const response = await fetch('/api/admin/maintenance/reset-operational-data', {
+      const response = await fetch('/api/admin/maintenance/purge-legacy-demo-fixtures', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,8 +150,8 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({
 
       setResetPhrase('');
       setResetMessage(
-        'Reset complete. ' + Number(payload?.deletedTotal || 0).toLocaleString() +
-        ' current test/legacy operational records were removed. Future customer records are now protected from this one-time reset.'
+        'Legacy cleanup complete. ' + Number(payload?.deletedTotal || 0).toLocaleString() +
+        ' pre-launch demo/test operational records were removed. Future customer records are now protected from this one-time reset.'
       );
       await loadOperationalData();
       window.setTimeout(() => window.location.reload(), 1000);
