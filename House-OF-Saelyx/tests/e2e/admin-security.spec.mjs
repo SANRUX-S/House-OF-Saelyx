@@ -69,7 +69,26 @@ for (const viewport of responsiveViewports) {
         bodyWidth: document.body.scrollWidth
       }));
       if (metrics.documentWidth > metrics.viewportWidth + 2 || metrics.bodyWidth > metrics.viewportWidth + 2) {
-        overflowFailures.push({ route, ...metrics });
+        const offenders = await page.evaluate(() => {
+          const width = window.innerWidth;
+          return Array.from(document.querySelectorAll('body *'))
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              return {
+                tag: element.tagName,
+                className: typeof element.className === 'string' ? element.className.slice(0, 180) : '',
+                text: (element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80),
+                left: Math.round(rect.left),
+                right: Math.round(rect.right),
+                width: Math.round(rect.width),
+                scrollWidth: element.scrollWidth
+              };
+            })
+            .filter(item => item.right > width + 2 || item.left < -2 || item.scrollWidth > Math.max(item.width + 2, width + 2))
+            .sort((a, b) => Math.max(b.right - width, b.scrollWidth - width) - Math.max(a.right - width, a.scrollWidth - width))
+            .slice(0, 12);
+        });
+        overflowFailures.push({ route, ...metrics, offenders });
       }
     }
     expect(overflowFailures, JSON.stringify(overflowFailures)).toEqual([]);
