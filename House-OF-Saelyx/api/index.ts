@@ -1101,6 +1101,150 @@ app.get('/api/admin/export', async (req, res) => {
   }
 });
 
+
+const OPERATIONAL_RESET_COLLECTIONS = [
+  'messages',
+  'concierge_inquiries',
+  'stock_notifications',
+  'restock_dispatch_locks',
+  'order_idempotency',
+  'paypal_order_links',
+  'orders'
+] as const;
+const OPERATIONAL_RESET_MARKER = 'operational-reset-20260906';
+
+async function getOperationalResetCounts(adminDb: any) {
+  const entries = await Promise.all(OPERATIONAL_RESET_COLLECTIONS.map(async collectionName => {
+    const snapshot = await adminDb.collection(collectionName).get();
+    return [collectionName, snapshot.size] as const;
+  }));
+  const counts = Object.fromEntries(entries) as Record<(typeof OPERATIONAL_RESET_COLLECTIONS)[number], number>;
+  const total = Object.values(counts).reduce((sum, count) => sum + Number(count || 0), 0);
+  return { counts, total };
+}
+
+async function deleteCollectionInBatches(adminDb: any, collectionName: string) {
+  let deleted = 0;
+  while (true) {
+    const snapshot = await adminDb.collection(collectionName).limit(400).get();
+    if (snapshot.empty) break;
+    const batch = adminDb.batch();
+    snapshot.docs.forEach((docSnap: any) => batch.delete(docSnap.ref));
+    await batch.commit();
+    deleted += snapshot.size;
+    if (snapshot.size < 400) break;
+  }
+  return deleted;
+}
+
+app.get('/api/admin/maintenance/operational-data', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+
+    const markerRef = adminDb.collection('maintenance').doc(OPERATIONAL_RESET_MARKER);
+    const [markerSnap, snapshot] = await Promise.all([
+      markerRef.get(),
+      getOperationalResetCounts(adminDb)
+    ]);
+    const markerData = markerSnap.exists ? markerSnap.data() || {} : {};
+    return res.json({
+      ...snapshot,
+      resetCompleted: markerData.status === 'completed',
+      completedAt: markerData.completedAt || null
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to inspect operational data.' });
+  }
+});
+
+app.post('/api/admin/maintenance/reset-operational-data', async (req, res) => {
+  let adminDb: any = null;
+  let markerRef: any = null;
+  let token: any = null;
+  try {
+    adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    token = await readBearerToken(req);
+    if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required. Sign out and sign in again before resetting test data.' });
+    }
+    if (!(await enforceRateLimit(adminDb, 'operational-reset:' + token.uid, 2, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Operational reset is rate limited. Please wait before retrying.' });
+    }
+
+    const confirmation = safeString(req.body?.confirmation, 80);
+    if (confirmation !== 'RESET_OPERATIONS') {
+      return res.status(400).json({ error: 'Exact reset confirmation is required.' });
+    }
+
+    markerRef = adminDb.collection('maintenance').doc(OPERATIONAL_RESET_MARKER);
+    await adminDb.runTransaction(async (transaction: any) => {
+      const markerSnap = await transaction.get(markerRef);
+      const markerData = markerSnap.exists ? markerSnap.data() || {} : {};
+      if (markerData.status === 'completed') {
+        throw Object.assign(new Error('The one-time operational reset has already been completed. Future customer data is protected.'), { statusCode: 409 });
+      }
+      if (markerData.status === 'in_progress') {
+        throw Object.assign(new Error('An operational reset is already in progress.'), { statusCode: 409 });
+      }
+      transaction.set(markerRef, {
+        status: 'in_progress',
+        startedAt: new Date().toISOString(),
+        startedBy: token.uid
+      }, { merge: true });
+    });
+
+    const deleted: Record<string, number> = {};
+    for (const collectionName of OPERATIONAL_RESET_COLLECTIONS) {
+      deleted[collectionName] = await deleteCollectionInBatches(adminDb, collectionName);
+    }
+    const deletedTotal = Object.values(deleted).reduce((sum, count) => sum + Number(count || 0), 0);
+    const completedAt = new Date().toISOString();
+
+    await markerRef.set({
+      status: 'completed',
+      completedAt,
+      completedBy: token.uid,
+      deleted,
+      deletedTotal
+    }, { merge: true });
+
+    await writeAdminAudit(
+      adminDb,
+      token,
+      'OPERATIONAL_TEST_DATA_RESET',
+      'One-time production reset removed ' + deletedTotal + ' current order/support/restock and checkout-artifact records. Products, settings, users, staff, subscribers, and audit history were preserved.'
+    );
+
+    return res.json({
+      success: true,
+      resetCompleted: true,
+      completedAt,
+      deleted,
+      deletedTotal
+    });
+  } catch (error: any) {
+    if (markerRef && adminDb && Number(error?.statusCode) !== 409) {
+      await markerRef.set({
+        status: 'failed',
+        failedAt: new Date().toISOString(),
+        failedBy: token?.uid || null,
+        error: safeString(error?.message, 240)
+      }, { merge: true }).catch(() => undefined);
+    }
+    const status = Number(error?.statusCode) || 500;
+    return res.status(status).json({
+      error: safeString(error?.message, 240) || 'Unable to reset operational test data.'
+    });
+  }
+});
+
 app.get('/api/admin/health', async (req, res) => {
   try {
     const token = await readBearerToken(req);
