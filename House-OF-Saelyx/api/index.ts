@@ -34,7 +34,9 @@ const LEGACY_TEST_PRODUCT_IDS = new Set([
   'prod-mtogbgv5',
   'prod-mtogl585',
   'prod-mtogck9y',
-  'prod-mtogokor'
+  'prod-mtogokor',
+  'prod-mtj5ymhb',
+  'prod-mtmk3gor'
 ]);
 const LEGACY_TEST_PRODUCTS_PURGE_MARKER = 'legacy-test-products-purge-20260906-v1';
 const CURRENCIES = [
@@ -1388,7 +1390,8 @@ const LEGACY_DEMO_ORDER_NUMBERS = new Set([
 ]);
 
 function isLegacyDemoTimestamp(value: unknown) {
-  if (!value) return true;
+  // Unknown timestamps are never deleted by the legacy migration.
+  if (!value) return false;
   const parsed = Date.parse(String(value));
   return Number.isFinite(parsed) && parsed <= LEGACY_DEMO_CUTOFF_MS;
 }
