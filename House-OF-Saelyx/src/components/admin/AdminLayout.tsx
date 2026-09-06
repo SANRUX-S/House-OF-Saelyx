@@ -114,7 +114,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         { id: 'products', label: 'Products', icon: Package },
         { 
           id: 'orders', 
-          label: 'Commissions & Dispatch', 
+          label: 'Orders', 
           icon: ShoppingBag, 
           badge: badges.orders 
         },
