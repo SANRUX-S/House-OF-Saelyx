@@ -142,8 +142,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
       order.trackingNumber || ''
     ].map(csvCell).join(','));
 
-    const csvContent = [headers.map(csvCell).join(','), ...rows].join('
-');
+    const csvContent = [headers.map(csvCell).join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
