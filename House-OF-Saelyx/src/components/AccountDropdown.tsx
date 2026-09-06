@@ -104,7 +104,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
     <div
       ref={dropdownRef}
       onClick={(e) => e.stopPropagation()}
-      className="absolute right-0 top-full mt-3 w-85 sm:w-92.5 bg-white text-[#1A1816] rounded-2xl border border-[#E8E1D5] shadow-[0_22px_55px_rgba(0,0,0,0.14)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 select-none"
+      className="absolute right-0 top-full mt-3 w-85 sm:w-92.5 bg-white text-[#1A1816] rounded-2xl border border-[#E8E1D5] shadow-[0_22px_55px_rgba(0,0,0,0.14)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 transform-gpu select-none"
     >
       {/* Top Header with Authenticated Customer Info */}
       <div className="p-4 sm:p-5 border-b border-[#EDE6DC] bg-[#FAF8F5]/90">
