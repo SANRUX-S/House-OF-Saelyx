@@ -113,3 +113,16 @@ The release is considered launch-ready when:
 - Legacy physical cleanup is confirmed.
 - Final QA records are removed.
 - Real PayPal payment/refund checks are either passed or explicitly deferred because no real-money test was authorized.
+
+## Final pre-deploy hardening added in PR #32
+
+- Removed all explicitly test-labelled products from the local fallback catalog.
+- Expanded exact server/client legacy test-product IDs to cover every known historical test record.
+- Legacy cleanup now refuses to delete records when their timestamp is unknown.
+- Removed invented hero product inventory when the live catalog is empty.
+- Removed unrelated stock-photo fallbacks from Admin Products and Admin Restock.
+- Removed unverified showroom address, placeholder phone/WhatsApp contacts, fixed response SLA, generic Twitter link, and unsupported DHL/same-day/live-tracking claims.
+- Checkout shipping summary now uses the same configurable free-shipping threshold and standard shipping charge as the server.
+- Added `npm run final:readiness` to CI as the 36-point code-readiness gate.
+
+“Code ready” is not the same as “production verified.” Customer inbox delivery, real PayPal money movement, and physical cleanup markers are only marked verified after the final deployment.
