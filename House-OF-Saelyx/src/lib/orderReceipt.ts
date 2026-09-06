@@ -10,7 +10,7 @@ const escapeReceiptHtml = (value: unknown) =>
 
 const formatLkr = (value: unknown) => {
   const amount = Number(value);
-  return \`LKR \${(Number.isFinite(amount) ? amount : 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}\`;
+  return `LKR ${(Number.isFinite(amount) ? amount : 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 };
 
 const formatPaymentMethod = (order: Order) => {
@@ -40,20 +40,20 @@ export const buildOrderReceiptHtml = (order: Order) => {
 
   const items = (order.items || []).map(item => {
     const image = /^https:\/\//i.test(item.image || '')
-      ? \`<img src="\${escapeReceiptHtml(item.image)}" alt="" />\`
+      ? `<img src="${escapeReceiptHtml(item.image)}" alt="" />`
       : '<div class="image-placeholder"></div>';
 
-    return \`
+    return `
       <div class="item">
-        <div class="item-image">\${image}</div>
+        <div class="item-image">${image}</div>
         <div class="item-copy">
-          <div class="item-title">\${escapeReceiptHtml(item.title)}</div>
-          <div class="item-meta">Size \${escapeReceiptHtml(item.size || '—')} &nbsp;·&nbsp; Qty \${Math.max(1, Number(item.quantity) || 1)}</div>
-          <div class="item-unit">Unit price \${formatLkr(item.priceLKR)}</div>
+          <div class="item-title">${escapeReceiptHtml(item.title)}</div>
+          <div class="item-meta">Size ${escapeReceiptHtml(item.size || '—')} &nbsp;·&nbsp; Qty ${Math.max(1, Number(item.quantity) || 1)}</div>
+          <div class="item-unit">Unit price ${formatLkr(item.priceLKR)}</div>
         </div>
-        <div class="item-price">\${formatLkr((Number(item.priceLKR) || 0) * (Math.max(1, Number(item.quantity) || 1)))}</div>
+        <div class="item-price">${formatLkr((Number(item.priceLKR) || 0) * (Math.max(1, Number(item.quantity) || 1)))}</div>
       </div>
-    \`;
+    `;
   }).join('');
 
   const discount = Number(order.discountLKR) || 0;
@@ -65,12 +65,12 @@ export const buildOrderReceiptHtml = (order: Order) => {
     order.country
   ].filter(Boolean).map(escapeReceiptHtml).join(', ');
 
-  return \`<!doctype html>
+  return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SAELYXE Receipt \${escapeReceiptHtml(order.orderNumber)}</title>
+  <title>SAELYXE Receipt ${escapeReceiptHtml(order.orderNumber)}</title>
   <style>
     :root { color-scheme: light; }
     * { box-sizing: border-box; }
@@ -139,45 +139,45 @@ export const buildOrderReceiptHtml = (order: Order) => {
       <div class="info-grid">
         <div class="info">
           <div class="label">Order number</div>
-          <div class="value">#\${escapeReceiptHtml(order.orderNumber)}</div>
+          <div class="value">#${escapeReceiptHtml(order.orderNumber)}</div>
         </div>
         <div class="info">
           <div class="label">Order date</div>
-          <div class="value">\${escapeReceiptHtml(createdAt)}</div>
+          <div class="value">${escapeReceiptHtml(createdAt)}</div>
         </div>
       </div>
 
       <div class="section">
         <div class="section-title">Customer & delivery</div>
-        <div class="row"><span>Customer</span><strong>\${escapeReceiptHtml(order.customerName)}</strong></div>
-        <div class="row"><span>Email</span><strong>\${escapeReceiptHtml(order.email || order.customerEmail || '')}</strong></div>
-        <div class="row"><span>Phone</span><strong>\${escapeReceiptHtml(order.phone || '')}</strong></div>
-        <div class="row"><span>Delivery address</span><strong style="text-align:right">\${address || '—'}</strong></div>
+        <div class="row"><span>Customer</span><strong>${escapeReceiptHtml(order.customerName)}</strong></div>
+        <div class="row"><span>Email</span><strong>${escapeReceiptHtml(order.email || order.customerEmail || '')}</strong></div>
+        <div class="row"><span>Phone</span><strong>${escapeReceiptHtml(order.phone || '')}</strong></div>
+        <div class="row"><span>Delivery address</span><strong style="text-align:right">${address || '—'}</strong></div>
       </div>
 
       <div class="section">
         <div class="section-title">Payment details</div>
-        <div class="row"><span>Payment method</span><strong>\${escapeReceiptHtml(formatPaymentMethod(order))}</strong></div>
-        <div class="row"><span>Payment status</span><strong>\${escapeReceiptHtml(formatPaymentStatus(order))}</strong></div>
-        <div class="row"><span>Order status</span><strong>\${escapeReceiptHtml((order.status || 'placed').replace(/_/g, ' '))}</strong></div>
+        <div class="row"><span>Payment method</span><strong>${escapeReceiptHtml(formatPaymentMethod(order))}</strong></div>
+        <div class="row"><span>Payment status</span><strong>${escapeReceiptHtml(formatPaymentStatus(order))}</strong></div>
+        <div class="row"><span>Order status</span><strong>${escapeReceiptHtml((order.status || 'placed').replace(/_/g, ' '))}</strong></div>
       </div>
 
       <div class="section">
         <div class="section-title">Your items</div>
-        \${items || '<div class="muted" style="padding:18px 0">No item details available.</div>'}
+        ${items || '<div class="muted" style="padding:18px 0">No item details available.</div>'}
       </div>
 
       <div class="totals">
-        <div class="row"><span>Subtotal</span><strong>\${formatLkr(order.subtotalLKR)}</strong></div>
-        \${discount > 0 ? \`<div class="row"><span>Discount\${order.promoCode ? \` (\${escapeReceiptHtml(order.promoCode)})\` : ''}</span><strong>-\${formatLkr(discount)}</strong></div>\` : ''}
-        <div class="row"><span>Delivery</span><strong>\${delivery === 0 ? 'Complimentary' : formatLkr(delivery)}</strong></div>
-        <div class="total"><span>Total</span><span>\${formatLkr(order.totalLKR)}</span></div>
+        <div class="row"><span>Subtotal</span><strong>${formatLkr(order.subtotalLKR)}</strong></div>
+        ${discount > 0 ? `<div class="row"><span>Discount${order.promoCode ? ` (${escapeReceiptHtml(order.promoCode)})` : ''}</span><strong>-${formatLkr(discount)}</strong></div>` : ''}
+        <div class="row"><span>Delivery</span><strong>${delivery === 0 ? 'Complimentary' : formatLkr(delivery)}</strong></div>
+        <div class="total"><span>Total</span><span>${formatLkr(order.totalLKR)}</span></div>
       </div>
     </section>
     <footer class="footer">SAELYXE · Made for Presence · Sri Lanka</footer>
   </main>
 </body>
-</html>\`;
+</html>`;
 };
 
 export const openOrderReceipt = (order: Order) => {
