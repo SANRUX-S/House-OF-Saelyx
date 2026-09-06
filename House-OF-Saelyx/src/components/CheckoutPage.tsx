@@ -28,6 +28,18 @@ function createPayPalCheckoutAttemptId() {
   throw new Error('Secure checkout identifier generation is unavailable.');
 }
 
+function createCodCheckoutAttemptId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `cod-${crypto.randomUUID()}`;
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const values = new Uint32Array(4);
+    crypto.getRandomValues(values);
+    return `cod-${Array.from(values, value => value.toString(36)).join('-')}`;
+  }
+  throw new Error('Secure checkout identifier generation is unavailable.');
+}
+
 
 export const CheckoutPage: React.FC = () => {
   const { 
@@ -90,7 +102,7 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [user]);
 
-  const paymentMethod = 'paypal' as const;
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'cod'>('paypal');
   const [paymentConfig, setPaymentConfig] = useState({
     paypal: { enabled: false, clientId: '', mode: 'sandbox' }
   });
@@ -132,6 +144,7 @@ export const CheckoutPage: React.FC = () => {
   const [paypalPendingOrder, setPaypalPendingOrder] = useState<Order | null>(null);
   const paypalPendingOrderRef = useRef<Order | null>(null);
   const paypalCheckoutAttemptIdRef = useRef<string | null>(null);
+  const codCheckoutAttemptIdRef = useRef<string | null>(null);
 
   // Sync details if user state loads or changes
   useEffect(() => {
@@ -316,6 +329,50 @@ export const CheckoutPage: React.FC = () => {
       } catch {
         alert(`Your PayPal payment outcome needs verification. SAELYXE order ${pendingOrder.orderNumber} is already recorded. Please do not pay again.`);
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCodOrder = async () => {
+    if (!customerName || !email || phone.replace(/\D/g, '').length < 9 || !address || !city || !country) {
+      alert('Please complete your delivery and contact details before placing a Cash on Delivery order.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const order = await createOrder({
+        customerName,
+        email,
+        phone,
+        address,
+        city,
+        postalCode,
+        country,
+        items: cart.map(item => ({
+          productId: item.productId,
+          title: item.title,
+          image: item.image,
+          priceLKR: item.priceLKR,
+          size: item.size,
+          quantity: item.quantity
+        })),
+        currencyUsed: selectedCurrency?.code || 'LKR',
+        paymentMethod: 'cod',
+        promoCode: appliedPromo?.code,
+        checkoutAttemptId: codCheckoutAttemptIdRef.current || (
+          codCheckoutAttemptIdRef.current = createCodCheckoutAttemptId()
+        ),
+        notes
+      });
+
+      setConfirmedOrder(order);
+      codCheckoutAttemptIdRef.current = null;
+      clearCart();
+    } catch (err) {
+      console.error('Cash on Delivery checkout exception:', err);
+      alert(err instanceof Error ? err.message : 'Cash on Delivery order could not be placed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -598,7 +655,7 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  {/* PayPal — the only enabled checkout payment method */}
+                  {/* PayPal */}
                   {paymentConfig.paypal.enabled && paypalClientId && (
                   <div 
                     className={`p-4 sm:p-4.5 rounded-xl border transition-all duration-200 cursor-pointer ${
