@@ -6,7 +6,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --admin-body-bg: #F4F6F5;
+  --admin-body-bg: #F6F7F6;
   --admin-font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   
   --brand-forest-dark: #051C12;
@@ -33,9 +33,9 @@
   --sys-blue: #3B82F6;
   --sys-blue-bg: #DBEAFE;
   
-  --sidebar-width: 280px;
+  --sidebar-width: 248px;
   --sidebar-collapsed-width: 80px;
-  --navbar-height: 76px;
+  --navbar-height: 68px;
   
   --radius-xxl: 24px;
   --radius-xl: 18px;
@@ -63,7 +63,9 @@
 --------------------------------------------------------------------- */
 .saelyxe-sidebar {
   width: var(--sidebar-width);
-  background-color: var(--brand-forest-dark);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(180, 241, 5, 0.08), transparent 28%),
+    linear-gradient(180deg, #071A12 0%, #05150E 100%);
   color: #FFFFFF;
   height: 100vh;
   position: fixed;
@@ -82,7 +84,7 @@
 
 .sidebar-brand {
   height: var(--navbar-height);
-  padding: 0 24px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -91,31 +93,31 @@
 }
 
 .sidebar-brand-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--brand-forest-light);
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: rgba(255,255,255,0.08);
   color: var(--brand-lime);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   font-size: 14px;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.7px;
   flex-shrink: 0;
   border: 1px solid rgba(180, 241, 5, 0.25);
 }
 
 .sidebar-brand-text {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
   color: #FFFFFF;
   white-space: nowrap;
 }
 
 .sidebar-menu-section {
-  padding: 20px 16px 8px 16px;
+  padding: 18px 14px 6px 14px;
 }
 
 .sidebar-menu-title {
@@ -131,11 +133,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 14px;
-  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  border-radius: 12px;
   color: var(--text-sidebar-muted);
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   transition: all 0.2s ease;
   position: relative;
@@ -152,13 +154,14 @@
 }
 
 .sidebar-menu-link.active {
-  color: #051C12;
-  background-color: var(--brand-lime);
+  color: #FFFFFF;
+  background: rgba(180, 241, 5, 0.10);
+  box-shadow: inset 3px 0 0 var(--brand-lime);
   font-weight: 700;
 }
 
 .sidebar-menu-link.active .sidebar-menu-icon {
-  color: #051C12;
+  color: var(--brand-lime);
 }
 
 .sidebar-menu-icon {
@@ -179,18 +182,18 @@
 }
 
 .sidebar-menu-link.active .sidebar-badge {
-  background-color: #051C12;
-  color: var(--brand-lime);
+  background-color: var(--brand-lime);
+  color: #051C12;
 }
 
 .sidebar-profile {
   margin-top: auto;
-  padding: 16px 20px;
+  padding: 15px 16px;
   border-top: 1px solid var(--border-dark-green);
   display: flex;
   align-items: center;
   gap: 12px;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(255, 255, 255, 0.025);
 }
 
 .sidebar-profile-avatar {
@@ -265,9 +268,10 @@
 --------------------------------------------------------------------- */
 .saelyxe-navbar {
   height: var(--navbar-height);
-  background-color: #FFFFFF;
-  border-bottom: 1px solid var(--border-light);
-  padding: 0 28px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(226, 232, 228, 0.9);
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -280,11 +284,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background-color: #F8FAFA;
+  background-color: #F7F9F8;
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 8px 16px;
-  width: 320px;
+  border-radius: 12px;
+  padding: 8px 13px;
+  width: min(34vw, 410px);
   transition: all 0.2s ease;
 }
 
@@ -305,7 +309,7 @@
 .navbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .btn-nav-icon {
@@ -361,7 +365,7 @@
    Page Header (.admin-page-header)
 --------------------------------------------------------------------- */
 .admin-page-header {
-  padding: 24px 32px 16px 32px;
+  padding: 26px 32px 18px 32px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -376,7 +380,7 @@
 }
 
 .admin-page-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.5px;
@@ -384,7 +388,7 @@
 }
 
 .admin-page-subtitle {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-muted-green);
   margin: 4px 0 0 0;
 }
@@ -436,7 +440,7 @@
    Cards & Content Area (.admin-content-card)
 --------------------------------------------------------------------- */
 .admin-content-container {
-  padding: 0 32px 32px 32px;
+  padding: 0 32px 36px 32px;
   flex: 1;
 }
 
@@ -1074,5 +1078,52 @@ input:checked + .ios-slider:before {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+}
+
+
+/* Admin responsive polish */
+@media (max-width: 767px) {
+  .saelyxe-navbar {
+    padding: 0 14px;
+  }
+
+  .admin-page-header {
+    padding: 20px 16px 14px 16px;
+  }
+
+  .admin-page-title {
+    font-size: 22px;
+  }
+
+  .admin-content-container {
+    padding: 0 16px 24px 16px;
+  }
+
+  .admin-footer {
+    padding: 16px;
+  }
+
+  .navbar-actions {
+    gap: 8px;
+  }
+
+  .btn-nav-icon {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .admin-content-container {
+    max-width: 1680px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .admin-page-header {
+    max-width: 1680px;
+    width: 100%;
+    margin: 0 auto;
   }
 }
