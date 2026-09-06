@@ -122,21 +122,21 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 sm:pt-28 pb-28 px-5 sm:px-8 md:px-12 lg:px-16">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-[\'Plus_Jakarta_Sans\'] pt-24 sm:pt-28 pb-28 px-5 sm:px-8 md:px-12 lg:px-16">
       <div className="max-w-3xl mx-auto space-y-10">
         
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-4">
           <button
             onClick={() => navigateTo({ name: 'home' })}
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#7A6E60] hover:text-[#1A1816] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#3E3730] hover:text-[#1A1816] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" />
+            <ArrowLeft className="w-3.5 h-3.5 stroke-[2]" />
             <span>Return to Boutique</span>
           </button>
 
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#7A6E60]">
-            <ShieldCheck className="w-4 h-4 text-emerald-800 stroke-[1.5]" />
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#3E3730]">
+            <ShieldCheck className="w-4 h-4 text-emerald-800 stroke-[2]" />
             <span>Authenticated Order Tracking</span>
           </div>
         </div>
@@ -144,13 +144,13 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
         {/* Page Header & Search Form */}
         <div className="bg-white p-8 sm:p-10 rounded-3xl border border-[#EAE3D9] shadow-[0_2px_12px_rgba(0,0,0,0.02)] space-y-6">
           <div className="text-center space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#8C7A68]">
+            <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#3E3730]">
               LOGISTICS CONCIERGE
             </span>
             <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
               TRACK YOUR ORDER
             </h1>
-            <p className="text-xs text-[#7A6E60] max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-[#3E3730] font-medium max-w-md mx-auto leading-relaxed">
               Sign in with the account used at checkout, then enter your private order reference to follow its delivery journey.
             </p>
           </div>
@@ -213,19 +213,19 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
             {/* Order Identity Row */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#ECE3D8] pb-6">
               <div>
-                <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-[#8C7A68] block mb-1">
+                <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-[#3E3730] block mb-1">
                   ORDER REFERENCE
                 </span>
                 <h3 className="font-mono text-xl sm:text-2xl font-semibold text-[#1A1816]">
                   #{order.orderNumber}
                 </h3>
-                <p className="text-xs text-[#7A6E60] mt-1">
+                <p className="text-xs text-[#3E3730] mt-1">
                   Placed on {formatDate(order.createdAt)} · Private client tracking
                 </p>
               </div>
 
               <div className="bg-[#FAF8F5] p-3.5 sm:p-4 rounded-2xl border border-[#EAE3D9] text-left sm:text-right space-y-0.5">
-                <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] block">
+                <span className="text-[10px] uppercase tracking-wider text-[#3E3730] block">
                   Current Status
                 </span>
                 <span className="font-serif text-lg font-medium text-emerald-900 uppercase">
@@ -264,10 +264,10 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
                               ? 'bg-[#1A1816] text-white border-[#1A1816]' 
                               : 'bg-white text-[#A89D8F] border-[#EAE3D9]'
                           }`}>
-                            <Icon className="w-4 h-4 stroke-[1.75]" />
+                            <Icon className="w-4 h-4 stroke-[2]" />
                           </div>
                           <span className={`text-[10.5px] uppercase tracking-wider font-semibold mt-2 ${
-                            isCurrent ? 'text-[#1A1816]' : isDone ? 'text-[#4A4036]' : 'text-[#A89D8F]'
+                            isCurrent ? 'text-[#1A1816]' : isDone ? 'text-[#2F2A25]' : 'text-[#A89D8F]'
                           }`}>
                             {step.label}
                           </span>
@@ -296,11 +296,11 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
                           <Icon className="w-3.5 h-3.5" />
                         </div>
                         <h5 className={`text-xs uppercase tracking-wider font-semibold ${
-                          isCurrent ? 'text-[#1A1816]' : isDone ? 'text-[#4A4036]' : 'text-[#A89D8F]'
+                          isCurrent ? 'text-[#1A1816]' : isDone ? 'text-[#2F2A25]' : 'text-[#A89D8F]'
                         }`}>
                           {step.label}
                         </h5>
-                        <p className="text-[11px] text-[#7A6E60] mt-0.5">{step.desc}</p>
+                        <p className="text-[11px] text-[#3E3730] font-medium mt-0.5">{step.desc}</p>
                       </div>
                     );
                   })}
@@ -311,21 +311,21 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
             {/* Courier & Delivery Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-[#ECE3D8] text-xs">
               <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-[#EAE3D9] space-y-2">
-                <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] font-semibold block">
+                <span className="text-[10px] uppercase tracking-wider text-[#3E3730] font-semibold block">
                   COURIER ASSIGNMENT
                 </span>
                 <p className="text-sm font-semibold text-[#1A1816]">{order.courierName || 'Not assigned yet'}</p>
-                <p className="text-[#4A4036]">Tracking Ref: <span className="font-mono font-medium text-[#1A1816]">{order.trackingNumber || 'Pending'}</span></p>
+                <p className="text-[#2F2A25]">Tracking Ref: <span className="font-mono font-medium text-[#1A1816]">{order.trackingNumber || 'Pending'}</span></p>
                 <p className="text-emerald-900 font-medium">ETA: {order.deliveryEta || 'Pending courier update'}</p>
               </div>
 
               <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-[#EAE3D9] space-y-2">
-                <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] font-semibold block">
+                <span className="text-[10px] uppercase tracking-wider text-[#3E3730] font-semibold block">
                   DELIVERY REGION
                 </span>
                 <p className="text-sm font-semibold text-[#1A1816]">{order.city || 'Destination pending'}</p>
-                <p className="text-[#4A4036]">{order.country || 'Delivery destination protected'}</p>
-                <p className="text-[#7A6E60]">Full address and contact details remain private in your account.</p>
+                <p className="text-[#2F2A25]">{order.country || 'Delivery destination protected'}</p>
+                <p className="text-[#3E3730]">Full address and contact details remain private in your account.</p>
               </div>
             </div>
 
@@ -343,10 +343,10 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
                       </div>
                       <div>
                         <h6 className="text-xs font-semibold text-[#1A1816]">{item.title}</h6>
-                        <p className="text-[11px] text-[#7A6E60]">Size: {item.size} · Quantity: {item.quantity}</p>
+                        <p className="text-[11px] text-[#3E3730] font-medium">Size: {item.size} · Quantity: {item.quantity}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] font-semibold">
+                    <span className="text-[10px] uppercase tracking-wider text-[#3E3730] font-semibold">
                       Qty {item.quantity}
                     </span>
                   </div>
@@ -356,7 +356,7 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
 
             {/* Assistance Footer */}
             <div className="p-4 bg-[#FAF8F5] rounded-2xl border border-[#EAE3D9] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2 text-[#7A6E60]">
+              <div className="flex items-center gap-2 text-[#3E3730]">
                 <Headset className="w-4 h-4 text-[#1A1816]" />
                 <span>Need to adjust delivery gate instructions or timing?</span>
               </div>
