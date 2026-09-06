@@ -379,6 +379,26 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                 {selectedOrder.paymentCaptureId ? <> · Capture: <span className="font-mono">{selectedOrder.paymentCaptureId}</span></> : null}
               </div>
 
+              <div className="rounded-xl border border-stone-200 bg-white p-3">
+                <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-stone-400 mb-2">Order Timeline</div>
+                <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                  {(selectedOrder.statusHistory || []).length > 0 ? [...selectedOrder.statusHistory].reverse().map((event, index) => (
+                    <div key={`${event.status}-${event.timestamp}-${index}`} className="flex gap-2.5 text-[11px]">
+                      <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
+                      <div>
+                        <div className="font-bold capitalize text-stone-800">{event.status.replace(/_/g, ' ')}</div>
+                        <div className="text-stone-500">{event.note}</div>
+                        <div className="mt-0.5 font-mono text-[9px] text-stone-400">
+                          {new Date(event.timestamp).toLocaleString()} {event.location ? `· ${event.location}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-[11px] text-stone-400">No timeline events recorded yet.</div>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <label className="form-label-custom">Order Status</label>
                 <select
@@ -408,6 +428,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                 <input
                   type="text"
                   value={newCourier}
+                  required={['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus)}
                   onChange={e => setNewCourier(e.target.value)}
                   placeholder="e.g. Saelyxe White-Glove Van 04"
                   className="form-input-custom"
@@ -419,6 +440,7 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                 <input
                   type="text"
                   value={newTracking}
+                  required={['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus)}
                   onChange={e => setNewTracking(e.target.value)}
                   placeholder="e.g. EXP-751395"
                   className="form-input-custom font-mono"
@@ -435,6 +457,11 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   className="form-input-custom"
                 />
               </div>
+              {['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus) && (!newCourier.trim() || !newTracking.trim()) && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                  Courier and tracking number are required from Dispatch onward.
+                </div>
+              )}
 
               {updateError && (
                 <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">

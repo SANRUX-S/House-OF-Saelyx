@@ -719,6 +719,97 @@ async function sendOrderConfirmationEmail(order: any) {
   }
 }
 
+async function sendOrderStatusEmail(order: any, previousStatus?: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  const email = safeString(order?.email || order?.customerEmail, 254).toLowerCase();
+  if (!apiKey || !from || !isEmail(email)) return;
+
+  const status = safeString(order?.status, 40);
+  if (!status || status === previousStatus) return;
+
+  const copy: Record<string, { subject: string; heading: string; message: string }> = {
+    confirmed: {
+      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Confirmed`,
+      heading: 'ORDER CONFIRMED',
+      message: 'Your payment and order have been confirmed. Our atelier is preparing your pieces.'
+    },
+    packed: {
+      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Is Packed`,
+      heading: 'ORDER PACKED',
+      message: 'Your order has been packed and is ready for dispatch.'
+    },
+    dispatched: {
+      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Has Shipped`,
+      heading: 'ORDER DISPATCHED',
+      message: 'Your order has been handed to the courier and is on its way.'
+    },
+    out_for_delivery: {
+      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Is Out for Delivery`,
+      heading: 'OUT FOR DELIVERY',
+      message: 'Your order is with the delivery team and is heading to your destination.'
+    },
+    delivered: {
+      subject: `SAELYXE Order ${safeString(order.orderNumber, 120)} Delivered`,
+      heading: 'ORDER DELIVERED',
+      message: 'Your SAELYXE order has been marked as delivered. Thank you for choosing SAELYXE.'
+    },
+    cancelled: {
+      subject: order?.paymentStatus === 'refunded'
+        ? `SAELYXE Refund Completed — ${safeString(order.orderNumber, 120)}`
+        : `SAELYXE Order ${safeString(order.orderNumber, 120)} Cancelled`,
+      heading: order?.paymentStatus === 'refunded' ? 'REFUND COMPLETED' : 'ORDER CANCELLED',
+      message: order?.paymentStatus === 'refunded'
+        ? 'Your PayPal refund has been completed and the order is cancelled.'
+        : 'Your order has been cancelled.'
+    }
+  };
+
+  const selected = copy[status];
+  if (!selected) return;
+  const trackingNumber = safeString(order?.trackingNumber, 160);
+  const courierName = safeString(order?.courierName, 160);
+  const deliveryEta = safeString(order?.deliveryEta, 160);
+  const orderNumber = safeString(order?.orderNumber || order?.id, 120);
+  const history = Array.isArray(order?.statusHistory) ? order.statusHistory : [];
+  const eventTimestamp = safeString(history[history.length - 1]?.timestamp || order?.updatedAt || new Date().toISOString(), 100);
+  const idempotency = crypto.createHash('sha256').update(`${orderNumber}|${status}|${eventTimestamp}`).digest('hex').slice(0, 40);
+
+  const logistics = (trackingNumber || courierName || deliveryEta) ? [
+    '<div style="margin-top:20px;padding:16px;background:#f7f5f2;border-radius:12px">',
+    courierName ? `<p style="margin:4px 0"><strong>Courier:</strong> ${escapeHtml(courierName)}</p>` : '',
+    trackingNumber ? `<p style="margin:4px 0"><strong>Tracking:</strong> ${escapeHtml(trackingNumber)}</p>` : '',
+    deliveryEta ? `<p style="margin:4px 0"><strong>ETA:</strong> ${escapeHtml(deliveryEta)}</p>` : '',
+    '</div>'
+  ].join('') : '';
+
+  const html = [
+    '<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#181614">',
+    '<p style="font-size:12px;letter-spacing:2px">SAELYXE — MADE FOR PRESENCE</p>',
+    `<h2>${escapeHtml(selected.heading)}</h2>`,
+    `<p>Hello ${escapeHtml(safeString(order?.customerName, 120) || 'Customer')},</p>`,
+    `<p>${escapeHtml(selected.message)}</p>`,
+    `<p><strong>Order:</strong> ${escapeHtml(orderNumber)}</p>`,
+    logistics,
+    `<p style="margin-top:24px"><a href="https://www.saelyxe.com/orders?id=${encodeURIComponent(orderNumber)}">View your order</a></p>`,
+    '</div>'
+  ].join('');
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': `saelyxe-order-status-${idempotency}`
+    },
+    body: JSON.stringify({ from, to: [email], subject: selected.subject, html })
+  });
+
+  if (!response.ok) {
+    console.error('Order status email failed:', status, response.status);
+  }
+}
+
 async function sendStaffInvitationEmail(params: {
   email: string;
   name: string;
@@ -2796,7 +2887,11 @@ app.post('/api/admin/orders/:id/refund', async (req, res) => {
 
     await writeAdminAudit(adminDb, token, 'PAYPAL_REFUND_COMPLETED', `Refunded PayPal capture ${captureId} for order ${orderId} (refund ${refund.id}).`);
     const updated = await ref.get();
-    return res.json({ id: updated.id, ...updated.data() });
+    const updatedOrder = { id: updated.id, ...updated.data() };
+    sendOrderStatusEmail(updatedOrder, safeString(order.status, 40)).catch(error => {
+      console.error('Refund completion email error:', error);
+    });
+    return res.json(updatedOrder);
   } catch (error: any) {
     const statusCode = Number(error?.statusCode) || 500;
     return res.status(statusCode).json({ error: safeString(error?.message, 240) || 'Unable to process PayPal refund.' });
@@ -2818,6 +2913,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
 
     const ref = adminDb.collection('orders').doc(id);
     const now = new Date().toISOString();
+    let previousStatus = '';
 
     await adminDb.runTransaction(async transaction => {
       const snap = await transaction.get(ref);
@@ -2825,6 +2921,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
 
       const current: any = snap.data() || {};
       const currentStatus = safeString(current.status, 40) || 'placed';
+      previousStatus = currentStatus;
 
       if (
         status === 'cancelled' &&
@@ -2843,10 +2940,19 @@ app.put('/api/orders/:id/status', async (req, res) => {
         updatedAt: now
       };
 
-      for (const key of ['trackingNumber', 'courierName', 'deliveryEta'] as const) {
-        const value = safeString(req.body?.[key], 160);
-        if (value) update[key] = value;
+      const requestedTrackingNumber = safeString(req.body?.trackingNumber, 160);
+      const requestedCourierName = safeString(req.body?.courierName, 160);
+      const requestedDeliveryEta = safeString(req.body?.deliveryEta, 160);
+      const effectiveTrackingNumber = requestedTrackingNumber || safeString(current.trackingNumber, 160);
+      const effectiveCourierName = requestedCourierName || safeString(current.courierName, 160);
+
+      if (['dispatched', 'out_for_delivery', 'delivered'].includes(status) && (!effectiveTrackingNumber || !effectiveCourierName)) {
+        throw new Error('Courier and tracking number are required before dispatch.');
       }
+
+      if (requestedTrackingNumber) update.trackingNumber = requestedTrackingNumber;
+      if (requestedCourierName) update.courierName = requestedCourierName;
+      if (requestedDeliveryEta) update.deliveryEta = requestedDeliveryEta;
 
       if (status !== currentStatus) {
         update.statusHistory = [
@@ -2934,14 +3040,21 @@ app.put('/api/orders/:id/status', async (req, res) => {
     });
 
     const updated = await ref.get();
+    const updatedOrder = { id: updated.id, ...updated.data() };
     if (token) await writeAdminAudit(adminDb, token, 'ORDER_STATUS_UPDATED', `Order ${id} updated to ${status}.`);
-    return res.json({ id: updated.id, ...updated.data() });
+    if (previousStatus !== status) {
+      sendOrderStatusEmail(updatedOrder, previousStatus).catch(error => {
+        console.error('Order status email error:', error);
+      });
+    }
+    return res.json(updatedOrder);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to update order.';
     const statusCode =
       message.startsWith('Invalid order transition') ? 409 :
       message.includes('must be cancelled through') ? 409 :
       message.includes('not enough stock') ? 409 :
+      message.includes('Courier and tracking number are required') ? 409 :
       message === 'Order not found.' ? 404 : 400;
     return res.status(statusCode).json({ error: message });
   }
