@@ -1146,15 +1146,22 @@ app.get('/api/admin/maintenance/operational-data', async (req, res) => {
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
 
     const markerRef = adminDb.collection('maintenance').doc(OPERATIONAL_RESET_MARKER);
-    const [markerSnap, snapshot] = await Promise.all([
+    const legacyMarkerRef = adminDb.collection('maintenance').doc(LEGACY_DEMO_PURGE_MARKER);
+    const [markerSnap, legacyMarkerSnap, snapshot] = await Promise.all([
       markerRef.get(),
+      legacyMarkerRef.get(),
       getOperationalResetCounts(adminDb)
     ]);
     const markerData = markerSnap.exists ? markerSnap.data() || {} : {};
+    const legacyMarkerData = legacyMarkerSnap.exists ? legacyMarkerSnap.data() || {} : {};
+    const resetCompleted =
+      markerData.status === 'completed' ||
+      legacyMarkerData.status === 'completed';
     return res.json({
       ...snapshot,
-      resetCompleted: markerData.status === 'completed',
-      completedAt: markerData.completedAt || null
+      resetCompleted,
+      completedAt: markerData.completedAt || legacyMarkerData.completedAt || null,
+      cleanupMode: legacyMarkerData.status === 'completed' ? 'legacy-demo-purge' : markerData.status === 'completed' ? 'operational-reset' : null
     });
   } catch (error) {
     return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to inspect operational data.' });
