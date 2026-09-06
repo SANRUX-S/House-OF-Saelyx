@@ -70,7 +70,7 @@ export const Navbar: React.FC = () => {
       {/* 1. MOBILE NAVBAR (< md)                                   */}
       {/* ========================================================= */}
       <nav
-        className={`w-full lg:hidden transition-colors duration-300 px-5 py-4 flex items-center justify-between select-none relative z-50 transform-gpu ${
+        className={`w-full lg:hidden transition-colors duration-300 px-5 py-4 flex items-center justify-between select-none relative z-50 ${
           isDarkNav
             ? 'bg-[#141210]/90 backdrop-blur-md border-b border-white/10 text-white'
             : 'bg-gradient-to-b from-black/60 via-black/20 to-transparent text-white'
@@ -152,16 +152,16 @@ export const Navbar: React.FC = () => {
               className="p-1 text-white/90 hover:text-white cursor-pointer"
               aria-label="User account"
             >
-              <User className="w-6 h-6 stroke-[1.75]" />
+              <User className="w-6 h-6 stroke-[2]" />
             </button>
           )}
 
           <button
             onClick={() => setIsCartOpen(true)}
-            className="relative p-1 text-white/90 hover:text-white transition-transform active:scale-95 cursor-pointer transform-gpu"
+            className="relative p-1 text-white/90 hover:text-white transition-transform active:scale-95 cursor-pointer"
             aria-label="Shopping Bag"
           >
-            <ShoppingBag className="w-6 h-6 stroke-[1.5]" />
+            <ShoppingBag className="w-6 h-6 stroke-[2]" />
             {cartCount > 0 && (
               <span className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center bg-white text-black text-[10px] font-bold rounded-full px-1 border border-black/10 shadow-md">
                 {cartCount}
@@ -252,8 +252,8 @@ export const Navbar: React.FC = () => {
       <nav
         className={`hidden lg:flex w-full transition-colors duration-300 px-6 lg:px-10 py-3.5 items-center justify-between relative z-50 ${
           isDarkNav
-            ? 'bg-[#141210]/80 backdrop-blur-2xl border-b border-white/10 shadow-2xl text-white'
-            : 'bg-gradient-to-b from-black/50 via-black/20 to-transparent backdrop-blur-[2px] text-white'
+            ? 'bg-[#141210]/95 border-b border-white/10 shadow-2xl text-white'
+            : 'bg-gradient-to-b from-black/50 via-black/20 to-transparent text-white'
         }`}
       >
         {/* Left: Brand Logo */}
@@ -270,7 +270,7 @@ export const Navbar: React.FC = () => {
         </button>
 
         {/* Center: Category Navigation Pill */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-black/40 backdrop-blur-2xl border border-white/20 rounded-full px-4 py-1.5 shadow-2xl pointer-events-auto">
+        <div className="absolute inset-x-0 mx-auto w-max flex items-center bg-black/70 border border-white/20 rounded-full px-4 py-1.5 shadow-2xl pointer-events-auto">
           <div className="flex items-center gap-1 sm:gap-2 text-[11px] lg:text-[11.5px] font-semibold tracking-[0.2em] uppercase text-white/90">
             {navCategories.map((cat) => {
               const isActive = activeCategory === cat.value && (currentRoute.name === 'collection');
@@ -298,7 +298,7 @@ export const Navbar: React.FC = () => {
             className="p-1 text-white/90 hover:text-white transition-colors cursor-pointer"
             aria-label="Search garments"
           >
-            <Search className="w-4.5 h-4.5 lg:w-5 lg:h-5 stroke-[1.75]" />
+            <Search className="w-4.5 h-4.5 lg:w-5 lg:h-5 stroke-[2]" />
           </button>
 
           <div className="w-[1px] h-4 bg-white/20" />
@@ -341,7 +341,7 @@ export const Navbar: React.FC = () => {
                   setAuthMode('signup');
                   setIsAuthOpen(true);
                 }}
-                className="text-[10.5px] lg:text-[11px] uppercase tracking-[0.18em] font-semibold text-[#181614] bg-white hover:bg-white/90 px-4 lg:px-5 py-1.5 rounded-full shadow-md transition-all active:scale-95 cursor-pointer transform-gpu"
+                className="text-[10.5px] lg:text-[11px] uppercase tracking-[0.18em] font-semibold text-[#181614] bg-white hover:bg-white/90 px-4 lg:px-5 py-1.5 rounded-full shadow-md transition-all active:scale-95 cursor-pointer"
               >
                 SIGN UP
               </button>
@@ -353,7 +353,7 @@ export const Navbar: React.FC = () => {
             className="relative p-1 text-white/90 hover:text-white transition-transform active:scale-95 cursor-pointer transform-gpu"
             aria-label="Shopping Bag"
           >
-            <ShoppingBag className="w-4.5 h-4.5 lg:w-5 lg:h-5 stroke-[1.5]" />
+            <ShoppingBag className="w-4.5 h-4.5 lg:w-5 lg:h-5 stroke-[2]" />
             {cartCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center bg-white text-black text-[9px] font-bold rounded-full px-1 shadow-md border border-black/10">
                 {cartCount}
