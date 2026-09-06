@@ -619,21 +619,55 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (user?.role !== 'super_admin') return;
 
-    const sessionKey = 'saelyxe_legacy_test_products_purge_v1';
+    const sessionKey = 'saelyxe_prelaunch_cleanup_v2';
     try {
       if (sessionStorage.getItem(sessionKey) === '1') return;
-      sessionStorage.setItem(sessionKey, '1');
     } catch {
-      // Server marker still makes the migration one-time.
+      // The persistent server markers remain the source of truth.
     }
 
-    void fetchAdminApi('/api/admin/maintenance/purge-legacy-test-products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmation: 'REMOVE_TEST_PRODUCTS' })
-    }).catch(error => {
-      console.warn('Legacy test product cleanup note:', error);
-    });
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [operationsResponse, productsResponse] = await Promise.all([
+          fetchAdminApi('/api/admin/maintenance/purge-legacy-demo-fixtures', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmation: 'RESET_OPERATIONS' })
+          }),
+          fetchAdminApi('/api/admin/maintenance/purge-legacy-test-products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmation: 'REMOVE_TEST_PRODUCTS' })
+          })
+        ]);
+
+        const cleanupSucceeded =
+          (operationsResponse.ok || operationsResponse.status === 409) &&
+          (productsResponse.ok || productsResponse.status === 409);
+
+        if (!cancelled && cleanupSucceeded) {
+          try {
+            sessionStorage.setItem(sessionKey, '1');
+          } catch {
+            // Persistent server markers still prevent repeat destructive work.
+          }
+        }
+
+        if (!operationsResponse.ok && operationsResponse.status !== 409) {
+          console.warn('Legacy operational cleanup response:', operationsResponse.status);
+        }
+        if (!productsResponse.ok && productsResponse.status !== 409) {
+          console.warn('Legacy test product cleanup response:', productsResponse.status);
+        }
+      } catch (error) {
+        console.warn('Pre-launch cleanup note:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [fetchAdminApi, user?.role]);
 
   useEffect(() => {

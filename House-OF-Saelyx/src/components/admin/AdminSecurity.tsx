@@ -36,6 +36,10 @@ interface OperationalDataStatus {
   total?: number;
   resetCompleted?: boolean;
   completedAt?: string | null;
+  legacyDemoCleanupCompleted?: boolean;
+  legacyDemoDeletedTotal?: number;
+  legacyTestProductCleanupCompleted?: boolean;
+  legacyTestProductDeletedCount?: number;
 }
 
 export const AdminSecurity: React.FC<AdminSecurityProps> = ({
@@ -315,6 +319,20 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({
                   This reset cannot run again, so future real customer orders, support requests and restock requests are protected.
                   {operationalData.completedAt ? ' Completed ' + new Date(operationalData.completedAt).toLocaleString() + '.' : ''}
                 </p>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-lg border border-emerald-200/80 bg-white/70 px-3 py-2">
+                    <span className="font-bold">Legacy operations:</span>{' '}
+                    {operationalData.legacyDemoCleanupCompleted
+                      ? `cleaned (${Number(operationalData.legacyDemoDeletedTotal || 0)} removed)`
+                      : 'pending physical cleanup'}
+                  </div>
+                  <div className="rounded-lg border border-emerald-200/80 bg-white/70 px-3 py-2">
+                    <span className="font-bold">Legacy test products:</span>{' '}
+                    {operationalData.legacyTestProductCleanupCompleted
+                      ? `cleaned (${Number(operationalData.legacyTestProductDeletedCount || 0)} removed)`
+                      : 'pending physical cleanup'}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -367,6 +385,35 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>{isResettingOperationalData ? 'RESETTING...' : 'RESET CURRENT TEST OPERATIONS'}</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {operationalData && !operationalData.resetCompleted && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className={`rounded-xl border p-3 text-xs ${
+              operationalData.legacyDemoCleanupCompleted
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                : 'border-amber-200 bg-amber-50 text-amber-900'
+            }`}>
+              <div className="font-bold">Legacy operations physical cleanup</div>
+              <div className="mt-1 text-[11px]">
+                {operationalData.legacyDemoCleanupCompleted
+                  ? `Completed · ${Number(operationalData.legacyDemoDeletedTotal || 0)} records removed`
+                  : 'Pending · runs automatically for the Super Admin after the final deployment'}
+              </div>
+            </div>
+            <div className={`rounded-xl border p-3 text-xs ${
+              operationalData.legacyTestProductCleanupCompleted
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                : 'border-amber-200 bg-amber-50 text-amber-900'
+            }`}>
+              <div className="font-bold">Legacy test product physical cleanup</div>
+              <div className="mt-1 text-[11px]">
+                {operationalData.legacyTestProductCleanupCompleted
+                  ? `Completed · ${Number(operationalData.legacyTestProductDeletedCount || 0)} products removed`
+                  : 'Pending · exact test IDs only; real products are protected'}
               </div>
             </div>
           </div>

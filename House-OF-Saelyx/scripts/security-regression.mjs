@@ -125,6 +125,7 @@ assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enf
 assert(!vercel.includes('Content-Security-Policy-Report-Only'), 'report-only CSP must not remain');
 assert(vercel.includes('https://www.google.com/recaptcha/'), 'CSP must allow reCAPTCHA Enterprise used by App Check');
 assert(vercel.includes('https://*.paypal.com'), 'CSP must allow PayPal SDK resources');
+assert(vercel.includes('"deploymentEnabled"') && vercel.includes('"**": false') && vercel.includes('"main": true'), 'Vercel preview deployments must stay disabled while main remains deployable');
 
 assert(!firebaseClient.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'client must not depend on Firebase Storage');
 assert(!fs.existsSync('storage.rules'), 'Firebase Storage rules must not remain after Cloudinary migration');
@@ -147,7 +148,10 @@ assert(api.includes("app.post('/api/admin/maintenance/purge-legacy-test-products
 assert(api.includes("testFingerprint.includes('test')"), 'legacy test product cleanup must verify a test fingerprint before deletion');
 assert(api.includes("confirmation, 80) !== 'REMOVE_TEST_PRODUCTS'"), 'legacy test product cleanup must require explicit confirmation');
 assert(store.includes('LEGACY_TEST_PRODUCT_IDS.has(product.id)'), 'realtime product state must exclude exact legacy test products');
-assert(store.includes('saelyxe_legacy_test_products_purge_v1'), 'Super Admin must trigger the one-time exact test product migration');
+assert(store.includes('saelyxe_prelaunch_cleanup_v2'), 'Super Admin must trigger the one-time combined pre-launch cleanup');
+assert(store.includes('/api/admin/maintenance/purge-legacy-demo-fixtures'), 'Super Admin cleanup must include legacy operational fixtures');
+assert(store.includes('/api/admin/maintenance/purge-legacy-test-products'), 'Super Admin cleanup must include exact legacy test products');
+assert(api.includes("req.body?.confirmation, 80) !== 'RESET_OPERATIONS'"), 'legacy operational purge must require explicit confirmation');
 
 assert(adminOrders.includes("if (/^[=+\\-@]/.test(text))"), 'CSV export must neutralize spreadsheet formulas');
 assert(adminOrders.includes('isSuperAdmin &&'), 'PII CSV export must be Super Admin restricted');
@@ -164,6 +168,7 @@ assert(api.includes("confirmation !== 'RESET_OPERATIONS'"), 'operational reset m
 assert(api.includes("OPERATIONAL_RESET_MARKER"), 'operational reset must be sealed by a persistent one-time marker');
 assert(api.includes("hasRecentAuthentication(token)"), 'destructive operational reset must require recent administrator authentication');
 assert(adminSecurity.includes('RESET_OPERATIONS'), 'Super Admin security UI must expose explicit typed confirmation for the one-time reset');
+assert(adminSecurity.includes('legacyDemoCleanupCompleted') && adminSecurity.includes('legacyTestProductCleanupCompleted'), 'Admin Security must show physical legacy cleanup completion status');
 
 assert(api.includes("app.post('/api/admin/password-reset'"), 'admin password reset must use a protected server endpoint');
 assert(api.includes('admin-password-reset:'), 'admin password reset must be rate limited');
