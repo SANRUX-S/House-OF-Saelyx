@@ -92,21 +92,22 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
     const map: Record<OrderStatus, number> = {
       placed: 0,
       confirmed: 1,
-      packed: 1,
-      dispatched: 2,
-      out_for_delivery: 3,
-      delivered: 4,
+      packed: 2,
+      dispatched: 3,
+      out_for_delivery: 4,
+      delivered: 5,
       cancelled: 0
     };
     return map[status] ?? 0;
   };
 
   const trackingSteps = [
-    { label: 'Order Confirmed', desc: 'Verified & registered in atelier ledger', icon: CheckCircle2 },
-    { label: 'Atelier Packaging', desc: 'Hand-folded in archival garment dust sleeve', icon: Package },
-    { label: 'Dispatched', desc: 'Handed to white-glove logistics courier', icon: Truck },
-    { label: 'Out for Delivery', desc: 'En route to customer doorstep', icon: MapPin },
-    { label: 'Hand-Delivered', desc: 'Directly verified upon recipient handover', icon: ShieldCheck }
+    { label: 'Order Placed', desc: 'Order securely recorded and awaiting payment/operations confirmation', icon: Clock },
+    { label: 'Confirmed', desc: 'Payment verified and order confirmed', icon: CheckCircle2 },
+    { label: 'Packed', desc: 'Order prepared and packed for dispatch', icon: Package },
+    { label: 'Dispatched', desc: 'Courier assignment and tracking recorded', icon: Truck },
+    { label: 'Out for Delivery', desc: 'Courier marked the order as out for delivery', icon: MapPin },
+    { label: 'Delivered', desc: 'Order marked as delivered', icon: ShieldCheck }
   ];
 
   const currentStep = order ? getStatusStepIndex(order.status) : 0;
@@ -136,7 +137,7 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
 
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#7A6E60]">
             <ShieldCheck className="w-4 h-4 text-emerald-800 stroke-[1.5]" />
-            <span>Real-Time Fleet Telemetry</span>
+            <span>Authenticated Order Tracking</span>
           </div>
         </div>
 
@@ -311,11 +312,11 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-[#ECE3D8] text-xs">
               <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-[#EAE3D9] space-y-2">
                 <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] font-semibold block">
-                  COURIER FLEET ASSIGNMENT
+                  COURIER ASSIGNMENT
                 </span>
-                <p className="text-sm font-semibold text-[#1A1816]">{order.courierName || 'House of Saelyxe Direct Courier'}</p>
-                <p className="text-[#4A4036]">Tracking Ref: <span className="font-mono font-medium text-[#1A1816]">{order.trackingNumber}</span></p>
-                <p className="text-emerald-900 font-medium">ETA: {order.deliveryEta || 'Estimated in 1-2 Days'}</p>
+                <p className="text-sm font-semibold text-[#1A1816]">{order.courierName || 'Not assigned yet'}</p>
+                <p className="text-[#4A4036]">Tracking Ref: <span className="font-mono font-medium text-[#1A1816]">{order.trackingNumber || 'Pending'}</span></p>
+                <p className="text-emerald-900 font-medium">ETA: {order.deliveryEta || 'Pending courier update'}</p>
               </div>
 
               <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-[#EAE3D9] space-y-2">
