@@ -45,7 +45,7 @@ export const Footer: React.FC = () => {
         {/* Top Newsletter Row - Highlighting luxury editorial title inspired by SAELYXE Hero */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-white/10">
           <div>
-            <span className="block text-[10px] tracking-[0.3em] text-white/85 uppercase font-semibold mb-2">
+            <span className="block text-[10px] tracking-[0.3em] text-white uppercase font-semibold mb-2">
               NEWSLETTER ACCESS
             </span>
             <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-wide text-white leading-tight">
@@ -69,7 +69,7 @@ export const Footer: React.FC = () => {
               <button
                 type="submit"
                 disabled={subscribed || loading}
-                className="p-1 text-neutral-400 hover:text-white transition-colors disabled:opacity-50 cursor-pointer"
+                className="p-1 text-white hover:text-white transition-colors disabled:opacity-50 cursor-pointer"
                 aria-label="Subscribe"
               >
                 {subscribed ? (
@@ -231,7 +231,7 @@ export const Footer: React.FC = () => {
             {['PayPal'].map((badge) => (
               <span 
                 key={badge} 
-                className="px-2 py-0.5 rounded bg-white/10 text-neutral-200 text-[10px] font-mono"
+                className="px-2 py-0.5 rounded bg-white/10 text-white text-[10px] font-semibold"
               >
                 {badge}
               </span>
