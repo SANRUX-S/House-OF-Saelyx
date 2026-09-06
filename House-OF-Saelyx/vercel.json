@@ -54,7 +54,8 @@
   "git": {
     "deploymentEnabled": {
       "**": false,
-      "main": true
+      "main": true,
+      "preview/pr33-order-email-receipt-20260906": true
     }
   }
 }
