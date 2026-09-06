@@ -45,13 +45,13 @@ export const Footer: React.FC = () => {
         {/* Top Newsletter Row - Highlighting luxury editorial title inspired by SAELYXE Hero */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-white/10">
           <div>
-            <span className="block text-[10px] tracking-[0.3em] text-white/60 uppercase font-medium mb-2">
+            <span className="block text-[10px] tracking-[0.3em] text-white/85 uppercase font-semibold mb-2">
               NEWSLETTER ACCESS
             </span>
             <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-wide text-white leading-tight">
               BE FIRST FOR THE NEXT DROP
             </h3>
-            <p className="text-xs text-neutral-400 mt-2 tracking-widest uppercase font-light">
+            <p className="text-xs text-neutral-300 mt-2 tracking-[0.14em] uppercase font-normal">
               Exclusive early access & numbered edition alerts.
             </p>
           </div>
@@ -64,7 +64,7 @@ export const Footer: React.FC = () => {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={subscribed || loading}
-                className="w-full bg-transparent text-sm text-white placeholder:text-neutral-500 focus:outline-none pr-8 font-light"
+                className="w-full bg-transparent text-sm text-white placeholder:text-neutral-500 focus:outline-none pr-8 font-normal"
               />
               <button
                 type="submit"
@@ -90,7 +90,7 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
               LEGAL
             </h4>
-            <ul className="space-y-2.5 text-[13px] text-neutral-400 font-light">
+            <ul className="space-y-2.5 text-[13px] text-[#D2D2D2] font-normal">
               <li>
                 <button 
                   onClick={() => navigateTo({ name: 'legal-privacy' })} 
@@ -131,7 +131,7 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
               SHOP
             </h4>
-            <ul className="space-y-2.5 text-[13px] text-neutral-400 font-light">
+            <ul className="space-y-2.5 text-[13px] text-[#D2D2D2] font-normal">
               <li>
                 <button onClick={() => handleCategory('new')} className="hover:text-white transition-colors text-left">
                   Drop 001
@@ -160,7 +160,7 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
               CUSTOMER CARE
             </h4>
-            <ul className="space-y-2.5 text-[13px] text-neutral-400 font-light">
+            <ul className="space-y-2.5 text-[13px] text-[#D2D2D2] font-normal">
               <li>
                 <button
                   onClick={() => setIsTrackerOpen(true)}
@@ -202,7 +202,7 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
               SOCIAL MEDIA
             </h4>
-            <div className="flex items-center gap-4 text-neutral-400 pt-1">
+            <div className="flex items-center gap-4 text-[#D2D2D2] pt-1">
               <a 
                 href="https://www.instagram.com/houseofsaelyx/?hl=en" 
                 target="_blank"
@@ -210,10 +210,10 @@ export const Footer: React.FC = () => {
                 className="hover:text-white transition-colors"
                 aria-label="Instagram"
               >
-                <Instagram className="w-4 h-4" />
+                <Instagram className="w-4 h-4 stroke-[2]" />
               </a>
             </div>
-            <p className="text-xs text-neutral-400 font-light leading-relaxed pt-2">
+            <p className="text-xs text-[#D2D2D2] font-normal leading-relaxed pt-2">
               Online Store · Sri Lanka
             </p>
           </div>
@@ -221,8 +221,8 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400 font-light">
-          <div className="tracking-widest uppercase text-[11px]">
+        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#CFCFCF] font-normal">
+          <div className="tracking-[0.14em] uppercase text-[11px] font-medium">
             © {new Date().getFullYear()} HOUSE OF SAELYXE
           </div>
 
