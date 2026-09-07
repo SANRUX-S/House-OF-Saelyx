@@ -105,6 +105,14 @@ export interface Order {
   courierName: string;
   deliveryEta: string;
   notes?: string;
+  whatsappOptIn?: boolean;
+  whatsappOptInAt?: string | null;
+  whatsappOptInSource?: 'checkout' | string | null;
+  confirmationWhatsAppStatus?: 'sending' | 'sent' | 'failed';
+  confirmationWhatsAppMessageId?: string | null;
+  confirmationWhatsAppError?: string | null;
+  confirmationWhatsAppSentAt?: string | null;
+  confirmationWhatsAppAttemptedAt?: string;
   createdAt: string;
   statusHistory: OrderStatusUpdate[];
   userId?: string;
