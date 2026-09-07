@@ -22,8 +22,9 @@ type RawBodyRequest = Request & { rawBody?: Buffer };
 app.use(express.json({
   limit: '64kb',
   verify: (req, _res, buffer) => {
-    if (req.originalUrl.startsWith('/api/whatsapp/webhook')) {
-      (req as RawBodyRequest).rawBody = Buffer.from(buffer);
+    const expressReq = req as Request;
+    if (expressReq.originalUrl.startsWith('/api/whatsapp/webhook')) {
+      (expressReq as RawBodyRequest).rawBody = Buffer.from(buffer);
     }
   }
 }));
@@ -1061,7 +1062,7 @@ async function dispatchOrderConfirmationWhatsApp(
     return { sent: false, error: 'whatsapp_confirmation_not_claimed' };
   }
 
-  const delivery = await sendOrderConfirmationWhatsApp(claimedOrder).catch(error => ({
+  const delivery: WhatsAppDeliveryResult = await sendOrderConfirmationWhatsApp(claimedOrder).catch(error => ({
     sent: false,
     error: safeString(error instanceof Error ? error.message : error, 240) || 'whatsapp_transport_error'
   }));
@@ -3178,7 +3179,7 @@ app.post('/api/orders', async (req, res) => {
     let confirmationWhatsAppStatus = 'not_requested';
     let confirmationWhatsAppMessageId: string | undefined;
     if ((paymentMethod === 'cod' || responseOrder.paymentStatus === 'verified') && responseOrder.whatsappOptIn === true) {
-      const whatsappDelivery = await dispatchOrderConfirmationWhatsApp(adminDb, orderRef, responseOrder).catch(error => ({
+      const whatsappDelivery: WhatsAppDeliveryResult = await dispatchOrderConfirmationWhatsApp(adminDb, orderRef, responseOrder).catch(error => ({
         sent: false,
         error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_whatsapp_error'
       }));
