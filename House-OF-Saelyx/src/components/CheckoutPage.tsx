@@ -919,8 +919,8 @@ export const CheckoutPage: React.FC = () => {
                           <span className="text-xs uppercase font-semibold tracking-wider text-[#1A1816]">
                             Cash on Delivery
                           </span>
-                          <span className="text-[9px] uppercase tracking-wider bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded font-medium">
-                            Temporary Test
+                          <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 rounded font-medium">
+                            Hand-Delivery Settlement
                           </span>
                         </div>
                         <p className="text-[11px] text-[#665A4E] mt-0.5">

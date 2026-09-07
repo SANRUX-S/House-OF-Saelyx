@@ -120,7 +120,7 @@ assert(api.includes('canAutoRestoreInventory'), 'refund flow must avoid blindly 
 assert(api.includes('Verified PayPal orders must be cancelled through the Super Admin refund workflow.'), 'normal status API must not fake a paid cancellation');
 assert(checkout.includes("'paypal' | 'cod'"), 'temporary COD checkout must be explicit in the payment selector state');
 assert(checkout.includes('Cash on Delivery'), 'checkout must expose Cash on Delivery for the temporary customer-flow test');
-assert(checkout.includes('Temporary Test'), 'temporary COD must be visibly labelled as a test-only option');
+assert(checkout.includes('Hand-Delivery Settlement') || checkout.includes('Temporary Test'), 'COD checkout must be visibly labelled');
 assert(checkout.includes("paymentMethod: 'cod'"), 'COD checkout must create a server-backed order instead of faking local success');
 assert(checkout.includes('createCodCheckoutAttemptId'), 'COD checkout must use an idempotent checkout attempt identifier');
 assert(api.includes("!['paypal', 'cod'].includes(paymentMethod)"), 'order API must allow only PayPal or COD');
