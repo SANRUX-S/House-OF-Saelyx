@@ -185,7 +185,7 @@ export const OrdersPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#8C7A68] block mb-1">
-              HOUSE OF SAELYXE
+              SAELYXE
             </span>
             <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
               MY ORDERS

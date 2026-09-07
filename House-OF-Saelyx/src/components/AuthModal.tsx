@@ -145,11 +145,11 @@ export const AuthModal: React.FC = () => {
   const socialButtonClassName = 'flex h-11 w-full items-center justify-center gap-3 border border-[#D8D0C4] bg-[#FFFEFC] px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#29241F] transition-colors hover:border-[#AA9B88] hover:bg-[#F6F1E9] disabled:cursor-not-allowed disabled:opacity-55';
 
   return (
-    <div className="fixed inset-0 z-[70]" aria-hidden={!isAuthOpen}>
+    <div className="fixed inset-0 z-[70] overflow-hidden select-none" aria-hidden={!isAuthOpen}>
       <button
         type="button"
         onClick={() => setIsAuthOpen(false)}
-        className={`absolute inset-0 h-full w-full cursor-default bg-[#171310]/28 backdrop-blur-[4px] transition-opacity duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isAnimating ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed inset-0 h-full w-full cursor-default bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out ${isAnimating ? 'opacity-100' : 'opacity-0'}`}
         aria-label="Close authentication panel"
       />
 
@@ -159,29 +159,29 @@ export const AuthModal: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-drawer-title"
-        className={`absolute right-2.5 top-1/2 flex max-h-[calc(100dvh-1.25rem)] w-[calc(100%-1.25rem)] -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-[#E2DBD0] bg-[#FAF8F4] text-[#25211D] shadow-[-16px_20px_52px_rgba(31,25,19,0.2),0_2px_10px_rgba(255,255,255,0.65)_inset] outline-none transition-[transform,opacity] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity] sm:right-5 sm:max-h-[calc(100dvh-2.5rem)] sm:w-[420px] sm:rounded-[28px] ${isAnimating ? 'translate-x-0 scale-100 opacity-100' : 'translate-x-[110%] scale-[0.985] opacity-0'}`}
+        className={`fixed top-0 right-0 bottom-0 h-full w-full max-w-full sm:max-w-[420px] bg-[#FAF8F4] text-[#25211D] border-l border-[#E2DBD0] shadow-[-16px_0_40px_rgba(0,0,0,0.2)] z-[80] flex flex-col justify-between transition-transform duration-300 ease-out transform-gpu will-change-transform ${isAnimating ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <header className="flex shrink-0 items-start justify-between border-b border-[#E7E0D6] px-5 py-5 sm:px-7 sm:py-5.5">
-          <div className="pr-5">
-            <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#938574]">Private client access</p>
-            <h2 id="auth-drawer-title" className="font-serif text-[25px] font-normal tracking-[0.035em] text-[#25211D]">
-              WELCOME TO SAELYXE
+          <div className="pr-4">
+            <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#938574]">Private client access</p>
+            <h2 id="auth-drawer-title" className="font-serif text-[24px] font-normal tracking-[0.035em] text-[#25211D]">
+              {isSignUp ? 'CREATE ACCOUNT' : 'WELCOME TO SAELYXE'}
             </h2>
-            <p className="mt-2 text-xs leading-relaxed text-[#786F64]">
-              {isSignUp ? 'Create your account for a more considered experience.' : 'Sign in to continue your SAELYXE experience.'}
+            <p className="mt-1.5 text-xs leading-relaxed text-[#786F64]">
+              {isSignUp ? 'Create your client profile for express checkout & numbered drop access.' : 'Sign in to access your orders and private client records.'}
             </p>
           </div>
           <button
             type="button"
             onClick={() => setIsAuthOpen(false)}
-            className="-mr-2 -mt-1 flex h-9 w-9 items-center justify-center text-[#6F665C] transition-colors hover:bg-[#EFE9E0] hover:text-[#25211D] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#776958]"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#6F665C] transition-colors hover:bg-[#EFE9E0] hover:text-[#25211D] cursor-pointer"
             aria-label="Close authentication panel"
           >
             <X className="h-5 w-5 stroke-[1.4]" />
           </button>
         </header>
 
-        <div className="min-h-0 overflow-y-auto px-5 py-6 sm:px-7 sm:py-6.5">
+        <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-7 sm:py-6.5">
           <form onSubmit={handleEmailSubmit} className="space-y-5" noValidate>
             {isSignUp && (
               <label className="block">

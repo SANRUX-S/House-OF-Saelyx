@@ -274,7 +274,7 @@ export const CheckoutPage: React.FC = () => {
               Authentication Required
             </h1>
             <p className="text-xs text-[#665A4E] leading-relaxed">
-              A House of Saelyxe client profile is required to reserve limited atelier garment stock and arrange priority hand-delivery.
+              A SAELYXE client profile is required to reserve limited atelier garment stock and arrange priority hand-delivery.
             </p>
           </div>
 
@@ -307,6 +307,30 @@ export const CheckoutPage: React.FC = () => {
     );
   }
 
+  const persistDeliveryDetailsIfNeeded = () => {
+    if (rememberDetails || updateSavedDetails) {
+      try {
+        const detailsToSave = {
+          customerName,
+          email,
+          phone,
+          address,
+          city,
+          postalCode,
+          country,
+          notes
+        };
+        localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(detailsToSave));
+        setSavedDetailsObj(detailsToSave);
+        setHasSavedDetails(true);
+        setRememberDetails(false);
+        setUpdateSavedDetails(false);
+      } catch (e) {
+        console.warn('Non-fatal delivery details persistence note:', e);
+      }
+    }
+  };
+
   const handlePaypalApprovedOrder = async (paypalOrderId: string) => {
     const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
     if (!pendingOrder || !paypalOrderId) {
@@ -320,6 +344,7 @@ export const CheckoutPage: React.FC = () => {
         pendingOrder.id || pendingOrder.orderNumber,
         paypalOrderId
       );
+      persistDeliveryDetailsIfNeeded();
       setConfirmedOrder(verifiedOrder);
       paypalPendingOrderRef.current = null;
       paypalCheckoutAttemptIdRef.current = null;
@@ -374,6 +399,7 @@ export const CheckoutPage: React.FC = () => {
         notes
       });
 
+      persistDeliveryDetailsIfNeeded();
       setConfirmedOrder(order);
       codCheckoutAttemptIdRef.current = null;
       clearCart();
@@ -689,7 +715,7 @@ export const CheckoutPage: React.FC = () => {
                             </span>
                           </div>
                           <p className="text-[11px] text-[#665A4E] mt-0.5">
-                            Global / USD / EUR / International Cards
+                            Global online checkout processed securely via PayPal
                           </p>
                         </div>
                       </div>
@@ -703,7 +729,7 @@ export const CheckoutPage: React.FC = () => {
                     {paymentMethod === 'paypal' && (
                       <div className="mt-4 pt-3.5 border-t border-[#EAE3D9] space-y-3.5 animate-in fade-in">
                         <p className="text-[11px] leading-relaxed text-[#5A4E40]">
-                          Pay securely using your PayPal account or eligible international payment card. PayPal will charge {paypalCurrency} {paypalDisplayAmount.toFixed(2)}.
+                          Pay securely using your PayPal account. PayPal will charge {paypalCurrency} {paypalDisplayAmount.toFixed(2)}.
                         </p>
 
                         {/* Customer-facing PayPal SDK UI; provider order creation and capture remain server-authoritative. */}

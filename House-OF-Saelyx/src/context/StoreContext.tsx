@@ -538,11 +538,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (prodRes.ok) {
         const prodData: Product[] = await prodRes.json();
         // Ensure all products have slug
-        const withSlugs = prodData.map(p => ({
-          ...p,
-          slug: p.slug || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-        }));
-        setProducts(withSlugs);
+        if (Array.isArray(prodData) && prodData.length > 0) {
+          const withSlugs = prodData.map(p => ({
+            ...p,
+            slug: p.slug || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+          }));
+          setProducts(prev => (prev.length > 0 ? prev : withSlugs));
+        }
       }
 
       if (currRes.ok) {
@@ -689,15 +691,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const stockCount = Math.max(0, Number(product.stockCount) || 0);
           list.push({ ...product, stockCount, inStock: stockCount > 0 });
         });
-        setProducts(list);
-        setIsLoadingProducts(false);
+        if (list.length > 0) {
+          setProducts(list);
+          setIsLoadingProducts(false);
+        }
       }, (err) => {
         console.warn('Products listener note:', err);
-        setIsLoadingProducts(false);
       });
       return () => unsub();
     } catch (e) {
-      setIsLoadingProducts(false);
+      console.warn('Products listener initialization note:', e);
     }
   }, []);
 
