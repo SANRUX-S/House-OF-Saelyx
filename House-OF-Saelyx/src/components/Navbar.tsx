@@ -152,6 +152,7 @@ export const Navbar: React.FC = () => {
             </div>
           ) : (
             <button
+              id="btn-nav-login-mobile"
               onClick={() => {
                 setAuthMode('signin');
                 setIsAuthOpen(true);
@@ -331,6 +332,8 @@ export const Navbar: React.FC = () => {
           ) : (
             <div className="flex items-center gap-3.5 lg:gap-4">
               <button
+                id="btn-nav-login-desktop"
+                aria-label="User account"
                 onClick={() => {
                   setAuthMode('signin');
                   setIsAuthOpen(true);

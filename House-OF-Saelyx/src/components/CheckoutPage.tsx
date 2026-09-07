@@ -122,7 +122,7 @@ export const CheckoutPage: React.FC = () => {
   // Payment Method State: defaults to null (explicit selection required)
   const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'cod' | null>(null);
   const [paymentConfig, setPaymentConfig] = useState({
-    paypal: { enabled: false, clientId: '', mode: 'sandbox' }
+    paypal: { enabled: true, clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || '', mode: 'sandbox' }
   });
   const [paymentConfigLoaded, setPaymentConfigLoaded] = useState(false);
 
@@ -134,8 +134,8 @@ export const CheckoutPage: React.FC = () => {
         if (!active || !config) return;
         setPaymentConfig({
           paypal: {
-            enabled: Boolean(config.paypal?.enabled),
-            clientId: String(config.paypal?.clientId || ''),
+            enabled: config.paypal?.enabled !== false,
+            clientId: String(config.paypal?.clientId || (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || ''),
             mode: config.paypal?.mode === 'live' ? 'live' : 'sandbox'
           }
         });
@@ -147,7 +147,7 @@ export const CheckoutPage: React.FC = () => {
     return () => { active = false; };
   }, []);
 
-  const paypalClientId = paymentConfig.paypal.clientId || '';
+  const paypalClientId = paymentConfig.paypal.clientId || (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || '';
 
   // Promo / Voucher Code state
   const [isPromoOpen, setIsPromoOpen] = useState(false);
@@ -190,7 +190,7 @@ export const CheckoutPage: React.FC = () => {
   const standardShippingLKR = Number(settings?.standardShippingLKR) >= 0
     ? Number(settings?.standardShippingLKR)
     : 2500;
-  const shippingLKR = discountedSubtotalLKR >= freeShippingThresholdLKR ? 0 : standardShippingLKR;
+  const shippingLKR = cart.length === 0 ? 0 : (discountedSubtotalLKR >= freeShippingThresholdLKR ? 0 : standardShippingLKR);
   const totalLKR = discountedSubtotalLKR + shippingLKR;
   const totalInCurrency = Number((totalLKR * (selectedCurrency?.rateFromLKR || 1)).toFixed(2));
   const paypalCurrency = ['USD', 'EUR', 'GBP'].includes(selectedCurrency?.code || '')
@@ -398,6 +398,11 @@ export const CheckoutPage: React.FC = () => {
 
   // COD Order Handler
   const handleCodOrder = async () => {
+    if (cart.length === 0) {
+      setFieldErrors(prev => ({ ...prev, general: 'Your shopping bag is empty. Please select garments before placing an order.' }));
+      return;
+    }
+
     if (!validateDeliveryDetails()) {
       return;
     }
@@ -447,75 +452,6 @@ export const CheckoutPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-  // Empty Bag Guard
-  if (cart.length === 0 && !confirmedOrder) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-36 pb-20 px-5 flex items-center justify-center select-none">
-        <div className="max-w-md w-full bg-white p-8 sm:p-12 rounded-2xl border border-[#EAE3D9] shadow-[0_2px_12px_rgba(0,0,0,0.03)] text-center space-y-6">
-          <div className="w-16 h-16 bg-[#FAF8F5] border border-[#EAE3D9] text-[#7A6E60] rounded-full flex items-center justify-center mx-auto">
-            <ShoppingBag className="w-6 h-6 stroke-[1.25]" />
-          </div>
-
-          <div className="space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.25em] text-[#8F8171] font-medium">
-              SHOPPING BAG EMPTY
-            </span>
-            <h1 className="font-serif text-2xl text-[#1A1816] font-normal">
-              Your Bag is Currently Empty
-            </h1>
-            <p className="text-xs text-[#665A4E] leading-relaxed max-w-xs mx-auto">
-              Explore the latest Drop 001 collection and reserve bespoke garments before checking out.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              navigateTo({ name: 'home' });
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="w-full h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase font-medium tracking-[0.2em] rounded-xl transition-all cursor-pointer"
-          >
-            Explore Collection
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Enforce logged-in checkout
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-36 pb-20 px-5 flex items-center justify-center select-none">
-        <div className="max-w-md w-full bg-white p-8 sm:p-12 rounded-2xl border border-[#EAE3D9] shadow-[0_2px_12px_rgba(0,0,0,0.03)] text-center space-y-6">
-          <div className="w-14 h-14 bg-[#1A1816] text-white rounded-full flex items-center justify-center mx-auto shadow-sm">
-            <Lock className="w-5 h-5 stroke-[1.5]" />
-          </div>
-
-          <div className="space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.25em] text-[#8F8171] font-medium">
-              PATRON CHECKOUT
-            </span>
-            <h1 className="font-serif text-2xl text-[#1A1816] font-normal">
-              Authentication Required
-            </h1>
-            <p className="text-xs text-[#665A4E] leading-relaxed">
-              A SAELYXE client profile is required to reserve limited atelier garment stock and arrange priority hand-delivery.
-            </p>
-          </div>
-
-          <button
-            onClick={() => setIsAuthOpen(true)}
-            className="w-full h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase font-medium tracking-[0.2em] rounded-xl transition-all flex items-center justify-center gap-3 cursor-pointer"
-          >
-            <Lock className="w-4 h-4" />
-            <span>Sign In or Create Account</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // Confirmed Order Screen
   if (confirmedOrder) {
@@ -619,6 +555,22 @@ export const CheckoutPage: React.FC = () => {
           {/* Left Column: Delivery Details & Payment Accordion (7 Cols) */}
           <div className="lg:col-span-7 space-y-8">
             
+            {!user && (
+              <div className="bg-[#FAF8F5] p-4 rounded-xl border border-[#EAE3D9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#665A4E]">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5 text-[#8C7A68] shrink-0" />
+                  <span>Checking out as guest. Have a SAELYXE account?</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAuthOpen(true)}
+                  className="font-semibold text-[#1A1816] underline underline-offset-2 hover:text-[#8C7A68] cursor-pointer self-start sm:self-auto"
+                >
+                  Sign in for faster checkout
+                </button>
+              </div>
+            )}
+
             {/* Delivery Destination Section */}
             <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
               
@@ -983,7 +935,7 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 {/* 2. PayPal (Global Online Checkout) */}
-                {paymentConfig.paypal.enabled && paypalClientId && (
+                {paymentConfig.paypal.enabled && (
                   <div
                     className={`rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden ${
                       paymentMethod === 'paypal'
@@ -1146,28 +1098,35 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Product List */}
             <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
-              {cart.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between gap-4 text-xs border-b border-[#F5F2EC] pb-4 last:border-0 last:pb-0">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <img 
-                      src={item.image} 
-                      alt="" 
-                      className="w-16 h-20 sm:w-20 sm:h-24 object-cover rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] flex-shrink-0" 
-                    />
-                    <div className="min-w-0">
-                      <h4 className="font-serif text-sm text-[#1A1816] font-normal leading-snug tracking-wide truncate">
-                        {item.title}
-                      </h4>
-                      <p className="text-[11px] text-[#665A4E] uppercase tracking-wider font-sans mt-0.5">
-                        Size {item.size} · Qty {item.quantity}
-                      </p>
+              {cart.length === 0 ? (
+                <div className="py-6 text-center text-xs text-[#8F8171] bg-[#FAF8F5]/60 rounded-xl border border-dashed border-[#EAE3D9] flex flex-col items-center justify-center gap-1.5">
+                  <ShoppingBag className="w-4 h-4 text-[#8C7A68]" />
+                  <span>Your shopping bag is currently empty.</span>
+                </div>
+              ) : (
+                cart.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between gap-4 text-xs border-b border-[#F5F2EC] pb-4 last:border-0 last:pb-0">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <img 
+                        src={item.image} 
+                        alt="" 
+                        className="w-16 h-20 sm:w-20 sm:h-24 object-cover rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] flex-shrink-0" 
+                      />
+                      <div className="min-w-0">
+                        <h4 className="font-serif text-sm text-[#1A1816] font-normal leading-snug tracking-wide truncate">
+                          {item.title}
+                        </h4>
+                        <p className="text-[11px] text-[#665A4E] uppercase tracking-wider font-sans mt-0.5">
+                          Size {item.size} · Qty {item.quantity}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="font-serif text-sm font-semibold text-[#1A1816] whitespace-nowrap">
+                      {formatPrice(item.priceLKR * item.quantity)}
                     </div>
                   </div>
-                  <div className="font-serif text-sm font-semibold text-[#1A1816] whitespace-nowrap">
-                    {formatPrice(item.priceLKR * item.quantity)}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Collapsible Coupon / Coupon or Voucher Section */}

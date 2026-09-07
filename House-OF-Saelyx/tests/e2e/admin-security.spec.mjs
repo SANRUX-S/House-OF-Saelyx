@@ -197,7 +197,7 @@ test('storefront social proof shows 10+ Customers without fake testimonials', as
 
 test('auth drawer enforces min 8-character password and neutral forgot-password status', async ({ page }) => {
   await page.goto('/');
-  const userAccountBtn = page.locator('button[aria-label="User account"]').first();
+  const userAccountBtn = page.locator('button[aria-label="User account"]:visible, #btn-nav-login-desktop:visible').first();
   await expect(userAccountBtn).toBeVisible();
   await userAccountBtn.click();
 
