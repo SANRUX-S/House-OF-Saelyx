@@ -121,8 +121,15 @@ export const Navbar: React.FC = () => {
           </span>
         </button>
 
-        {/* Right: User & Shopping Bag Actions */}
-        <div className="flex items-center gap-3.5 relative">
+        {/* Right: Search, User & Shopping Bag Actions */}
+        <div className="flex items-center gap-2.5 sm:gap-3.5 relative">
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="p-1 text-white/90 hover:text-white cursor-pointer"
+            aria-label="Search garments"
+          >
+            <Search className="w-5 h-5 stroke-[2]" />
+          </button>
           {user ? (
             <div className="relative">
               <button
@@ -235,7 +242,7 @@ export const Navbar: React.FC = () => {
         </div>
 
         <div className="pt-6 border-t border-white/10 flex items-center justify-between px-2">
-          <span className="text-[11px] text-neutral-400 tracking-[0.2em] uppercase">HOUSE OF SAELYXE</span>
+          <span className="text-[11px] text-neutral-400 tracking-[0.2em] uppercase">SAELYXE</span>
           <div className="flex items-center gap-2 bg-white/5 px-3.5 py-2 rounded-full border border-white/10">
             <span className="text-sm">{selectedCurrency?.flag}</span>
             <span className="text-xs font-mono text-white tracking-widest">{selectedCurrency?.code}</span>
@@ -244,10 +251,7 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* ========================================================= */}
-      {/* 2. DESKTOP NAVBAR (>= md)                                 */}
-      {/* ========================================================= */}
-      {/* ========================================================= */}
-      {/* 2. DESKTOP NAVBAR (>= md)                                 */}
+      {/* 2. DESKTOP NAVBAR (>= lg)                                 */}
       {/* ========================================================= */}
       <nav
         className={`hidden lg:flex w-full transition-colors duration-300 px-6 lg:px-10 py-3.5 items-center justify-between relative z-50 ${
@@ -273,7 +277,7 @@ export const Navbar: React.FC = () => {
         <div className="absolute inset-x-0 mx-auto w-max flex items-center bg-white/15 border border-white/20 rounded-full px-4 py-1 shadow-2xl pointer-events-auto">
           <div className="flex items-center gap-1 sm:gap-2 text-[11px] lg:text-[11.5px] font-semibold tracking-[0.2em] uppercase text-white">
             {navCategories.map((cat) => {
-              const isActive = activeCategory === cat.value && (currentRoute.name === 'collection');
+              const isActive = activeCategory === cat.value && (currentRoute.name === 'home' || currentRoute.name === 'collection');
               return (
                 <button
                   key={cat.value}

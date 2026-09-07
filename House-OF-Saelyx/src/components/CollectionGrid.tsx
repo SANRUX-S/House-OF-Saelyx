@@ -13,6 +13,7 @@ export const CollectionGrid: React.FC = () => {
     activeCategory,
     setActiveCategory,
     searchQuery,
+    setSearchQuery,
     openRestockModal
   } = useStore();
 
@@ -67,7 +68,7 @@ export const CollectionGrid: React.FC = () => {
     }
 
     if (activeCategory !== 'all') {
-      if (activeCategory === 'new' && !(p.category === 'new' || p.badge?.includes('DROP'))) {
+      if (activeCategory === 'new' && !(p.category === 'new' || p.badge?.includes('DROP') || p.badge?.includes('NEW'))) {
         return false;
       }
       if ((activeCategory === 'men' || activeCategory === 'mens') && p.category !== 'men' && p.category !== 'new' && p.category !== 'collections') {
@@ -99,6 +100,7 @@ export const CollectionGrid: React.FC = () => {
   }
 
   const activeSortLabel = sortOptions.find(o => o.value === sortBy)?.label || 'Featured First';
+  const showSkeleton = isLoadingProducts || products.length === 0;
 
   return (
     <section id="collection-grid" className="w-full py-20 sm:py-28 bg-[#FAF8F5] text-[#1A1816]">
@@ -117,21 +119,29 @@ export const CollectionGrid: React.FC = () => {
 
           {/* Filter and Sorting Controls */}
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 min-w-0">
-            <div className="grid grid-cols-5 flex-1 min-w-0 items-stretch gap-0.5 sm:gap-1.5 bg-[#ECE6DD] rounded-full p-1 border border-[#DFD7CC]" role="group" aria-label="Filter releases">
-              {filterTabs.map(tab => (
-                <button
-                  key={tab.value}
-                  onClick={() => setSelectedFilter(tab.value as any)}
-                  aria-pressed={selectedFilter === tab.value}
-                  className={`min-w-0 px-1 sm:px-3.5 py-1.5 rounded-full text-[9px] sm:text-[11px] font-semibold tracking-normal sm:tracking-wider uppercase transition-colors whitespace-normal lg:whitespace-nowrap break-words cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B5F52] ${
-                    selectedFilter === tab.value
-                      ? 'bg-[#1A1816] text-white shadow-sm'
-                      : 'text-[#6B5F52] hover:text-[#1A1816]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            {/* Filter Tabs: Horizontal swipeable chips on mobile, unified pill group on desktop */}
+            <div 
+              className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 lg:overflow-visible lg:grid lg:grid-cols-5 flex-1 min-w-0 lg:items-stretch lg:gap-1.5 lg:bg-[#ECE6DD] lg:rounded-full lg:p-1 lg:border lg:border-[#DFD7CC] scrollbar-none" 
+              role="group" 
+              aria-label="Filter releases"
+            >
+              {filterTabs.map(tab => {
+                const isActive = selectedFilter === tab.value;
+                return (
+                  <button
+                    key={tab.value}
+                    onClick={() => setSelectedFilter(tab.value as any)}
+                    aria-pressed={isActive}
+                    className={`flex-shrink-0 lg:flex-shrink min-w-0 px-4 py-2 lg:px-3.5 lg:py-1.5 rounded-full text-[11px] font-semibold tracking-wider uppercase transition-all duration-200 whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B5F52] ${
+                      isActive
+                        ? 'bg-[#1A1816] text-white shadow-sm border border-[#1A1816]'
+                        : 'bg-[#ECE6DD] text-[#6B5F52] hover:text-[#1A1816] hover:bg-[#e2dacd] border border-[#DFD7CC] lg:border-transparent lg:bg-transparent'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="relative w-full lg:w-auto" ref={dropdownRef}>
@@ -172,7 +182,7 @@ export const CollectionGrid: React.FC = () => {
         </div>
 
         {/* Product Cards Grid */}
-        {isLoadingProducts ? (
+        {showSkeleton ? (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 lg:gap-10 pt-8 sm:pt-12">
             {[1, 2, 3, 4, 5, 6].map(n => (
               <div key={n} className="animate-pulse space-y-3">
@@ -184,13 +194,14 @@ export const CollectionGrid: React.FC = () => {
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center space-y-4">
-            <p className="text-lg font-serif text-[#6B5F52]">No drop garments match your selection.</p>
+            <p className="text-base sm:text-lg font-sans text-[#6B5F52]">No drop garments match your selection.</p>
             <button
               onClick={() => {
                 setActiveCategory('all');
                 setSelectedFilter('all');
+                setSearchQuery('');
               }}
-              className="text-xs uppercase tracking-widest font-semibold text-black underline underline-offset-4 cursor-pointer"
+              className="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-[#1A1816] text-white text-xs uppercase tracking-widest font-semibold hover:bg-black transition-colors cursor-pointer"
             >
               Reset Filters
             </button>
@@ -212,7 +223,7 @@ export const CollectionGrid: React.FC = () => {
                 >
                   <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#E7DFD5] border border-[#DDD3C7] shadow-sm transition-all duration-500 group-hover:shadow-xl group-hover:border-[#C5B7A6]">
                     <img
-                      src={isHovered && product.hoverImage ? product.hoverImage : product.images[0]}
+                      src={isHovered && product.hoverImage ? product.hoverImage : product.images?.[0] || ''}
                       alt={product.title}
                       className="w-full h-full object-cover object-center transition-all duration-700 ease-out group-hover:scale-105"
                       referrerPolicy="no-referrer"
@@ -220,13 +231,13 @@ export const CollectionGrid: React.FC = () => {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-                    {product.badge ? (
-                      <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 bg-white/90 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-semibold tracking-widest text-[#1A1816] uppercase shadow-sm">
-                        {product.badge}
-                      </div>
-                    ) : isOutOfStock ? (
+                    {isOutOfStock ? (
                       <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 bg-red-950/90 text-red-200 border border-red-800/80 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-sans tracking-widest uppercase shadow-sm">
                         Sold Out
+                      </div>
+                    ) : product.badge ? (
+                      <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 bg-white/90 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-semibold tracking-widest text-[#1A1816] uppercase shadow-sm">
+                        {product.badge}
                       </div>
                     ) : null}
 

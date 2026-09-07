@@ -356,7 +356,8 @@ export const CartDrawer: React.FC = () => {
                         <div className="flex items-center bg-black/40 rounded-full border border-white/10 px-2 py-1 gap-2">
                           <button
                             onClick={() => updateQuantity(item.productId, item.size, item.quantity - 1)}
-                            className="min-w-[28px] min-h-[28px] flex items-center justify-center text-neutral-400 hover:text-white cursor-pointer"
+                            disabled={item.quantity <= 1}
+                            className="min-w-[28px] min-h-[28px] flex items-center justify-center text-neutral-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                             aria-label="Decrease quantity"
                           >
                             <Minus className="w-3 h-3" />
@@ -410,10 +411,10 @@ export const CartDrawer: React.FC = () => {
 
               <button
                 onClick={() => {
+                  handleClose();
                   if (!user) {
                     setIsAuthOpen(true);
                   } else {
-                    handleClose();
                     navigateTo({ name: 'checkout' });
                   }
                 }}

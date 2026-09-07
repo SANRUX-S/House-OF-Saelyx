@@ -33,9 +33,12 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     user
   } = useStore();
 
-  const product = products.find(p => p.slug === slug || p.id === slug) || products[0];
+  const product = products.find(p => p.slug === slug || p.id === slug);
 
   const isOutOfStock = !product || product.inStock === false || (product.stockCount !== undefined && product.stockCount <= 0);
+  const maxAvailableStock = (product && typeof product.stockCount === 'number' && product.stockCount > 0)
+    ? product.stockCount
+    : undefined;
 
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
@@ -522,15 +525,21 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                   <div className="flex items-center bg-white border border-[#D5C9B8] rounded-full px-3 sm:px-4 py-2 text-xs">
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="min-w-[24px] min-h-[24px] flex items-center justify-center hover:text-black text-[#7A6E60] font-bold cursor-pointer"
+                      disabled={quantity <= 1}
+                      className={`min-w-[24px] min-h-[24px] flex items-center justify-center font-bold cursor-pointer transition-colors ${
+                        quantity <= 1 ? 'text-[#D5C9B8] cursor-not-allowed' : 'hover:text-black text-[#7A6E60]'
+                      }`}
                       aria-label="Decrease quantity"
                     >
                       -
                     </button>
                     <span className="px-2 sm:px-4 font-sans font-semibold">{quantity}</span>
                     <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="min-w-[24px] min-h-[24px] flex items-center justify-center hover:text-black text-[#7A6E60] font-bold cursor-pointer"
+                      onClick={() => setQuantity(maxAvailableStock !== undefined ? Math.min(quantity + 1, maxAvailableStock) : quantity + 1)}
+                      disabled={maxAvailableStock !== undefined ? quantity >= maxAvailableStock : false}
+                      className={`min-w-[24px] min-h-[24px] flex items-center justify-center font-bold cursor-pointer transition-colors ${
+                        maxAvailableStock !== undefined && quantity >= maxAvailableStock ? 'text-[#D5C9B8] cursor-not-allowed' : 'hover:text-black text-[#7A6E60]'
+                      }`}
                       aria-label="Increase quantity"
                     >
                       +
@@ -649,7 +658,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
               </div>
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-3.5 h-3.5 text-amber-700" />
-                <span>14-day direct size adjustment & exchange policy.</span>
+                <span>7-day direct size adjustment & exchange policy.</span>
               </div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-3.5 h-3.5 text-black" />

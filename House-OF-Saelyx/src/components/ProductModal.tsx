@@ -188,7 +188,7 @@ export const ProductModal: React.FC = () => {
 
                 <div className="flex items-center justify-center gap-2 text-[11px] text-[#7A6D5F] text-center">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Complimentary express delivery & 14-day exchange included.</span>
+                  <span>Complimentary express delivery & 7-day exchange included.</span>
                 </div>
               </div>
 

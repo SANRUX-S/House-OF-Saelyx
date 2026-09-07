@@ -3,17 +3,6 @@ import { ChevronRight, Instagram, Check } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { getAppCheckRequestHeaders } from '../lib/firebase';
 
-const paymentIcons = [
-  ['american_express', 'American Express'],
-  ['apple_pay', 'Apple Pay'],
-  ['diners_club', 'Diners Club'],
-  ['discover', 'Discover'],
-  ['google_pay', 'Google Pay'],
-  ['jcb', 'JCB'],
-  ['master', 'Mastercard'],
-  ['unionpay', 'Union Pay'],
-  ['visa', 'Visa'],
-] as const;
 
 export const Footer: React.FC = () => {
   const { navigateTo, setIsTrackerOpen, setActiveCategory } = useStore();
@@ -258,15 +247,23 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#E2E2E2] font-medium">
-          <div className="tracking-[0.14em] uppercase text-[11px] font-semibold">
-            © {new Date().getFullYear()} HOUSE OF SAELYXE
+          <div className="tracking-[0.14em] uppercase text-[11px] font-semibold text-white/90">
+            © {new Date().getFullYear()} SAELYXE
           </div>
 
-          {/* Payment Badges */}
-          <div className="flex items-center justify-center sm:justify-end flex-wrap gap-2" aria-label="Payment methods">
-            {paymentIcons.map(([file, label]) => (
-              <img key={file} src={`/payments/${file}.svg`} alt={label} width={38} height={24} className="h-6 w-[38px] object-contain" loading="lazy" />
-            ))}
+          {/* Payment Methods */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3" aria-label="Accepted payment methods">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-white/50 font-semibold select-none">
+              Accepted Methods
+            </span>
+            <div className="flex items-center justify-center sm:justify-end flex-wrap gap-2 text-xs text-white/80">
+              <span className="inline-flex items-center px-2.5 py-1 rounded bg-white/5 border border-white/10 text-[11px] font-medium tracking-wide">
+                PayPal
+              </span>
+              <span className="inline-flex items-center px-2.5 py-1 rounded bg-white/5 border border-white/10 text-[11px] font-medium tracking-wide">
+                Cash on Delivery
+              </span>
+            </div>
           </div>
         </div>
 

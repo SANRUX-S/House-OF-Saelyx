@@ -14,11 +14,11 @@ interface FaqSectionProps {
 
 const defaultFaqs: FaqItem[] = [
   {
-    question: "WILL 003 RESTOCK?",
+    question: "WILL DROP 001 RESTOCK?",
     content: (
-      <div className="space-y-4 text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
-        <p>003 is our third drop. Limited pieces. No restocks.</p>
-        <p>When it's gone, it's gone.</p>
+      <div className="space-y-3 text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
+        <p>Drop 001 silhouettes are produced in limited edition quantities with dedicated atelier fabric milling. While certain core silhouettes may be considered for future seasonal runs, restocks are never guaranteed once allocations are exhausted.</p>
+        <p>We encourage patrons to join the Back-in-Stock waitlist on individual garment pages for real-time dispatch updates.</p>
       </div>
     )
   },
@@ -26,7 +26,7 @@ const defaultFaqs: FaqItem[] = [
     question: "HOW LONG IS SHIPPING?",
     content: (
       <div className="text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
-        Orders are processed within 1-2 business days. Express shipping typically arrives in 2-4 business days depending on your location.
+        Orders are prepared and dispatched within 1–2 business days. Delivery timelines and courier carriers are assigned based on destination, with tracking information provided upon dispatch.
       </div>
     )
   },
@@ -34,7 +34,7 @@ const defaultFaqs: FaqItem[] = [
     question: "HOW DOES SIZING FIT?",
     content: (
       <div className="text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
-        Designed for a tailored boxy fit. Fits true to size. If you prefer a more oversized drape, we recommend sizing up.
+        Silhouettes are tailored with a structured, boxy drape and fit true to size. For a more relaxed, exaggerated street drape, we recommend selecting one size up. Precise measurements are available in our Sizing Guide.
       </div>
     )
   },
@@ -42,7 +42,7 @@ const defaultFaqs: FaqItem[] = [
     question: "CAN I RETURN OR EXCHANGE?",
     content: (
       <div className="text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
-        Yes, we offer hassle-free returns and exchanges within 7 days of delivery provided items are unworn with original tags attached.
+        Yes. In accordance with our policy, we accept return and exchange requests within 7 days of delivery for unworn, unwashed garments with original tags and packaging intact. Custom and final-sale pieces are exempt.
       </div>
     )
   },
@@ -50,7 +50,7 @@ const defaultFaqs: FaqItem[] = [
     question: "MORE QUESTIONS?",
     content: (
       <div className="text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
-        Reach out directly to our support team at support@saelyxe.com or contact us via live chat anytime.
+        Reach out directly to our concierge team at support@saelyxe.com or submit an inquiry through our Contact page.
       </div>
     )
   }
