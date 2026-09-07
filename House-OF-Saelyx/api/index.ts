@@ -903,6 +903,40 @@ async function sendOrderConfirmationEmail(order: any): Promise<EmailDeliveryResu
   });
 }
 
+async function ensureOrderConfirmationEmail(adminDb: any, order: any): Promise<any> {
+  if (!order || !order.id) return order;
+  // If payment or order is cancelled or failed, do not send confirmation email
+  if (order.status === 'cancelled' || order.paymentStatus === 'cancelled' || order.paymentStatus === 'failed') {
+    return order;
+  }
+  // For PayPal orders, payment must be verified before final payment confirmation email is sent
+  if (order.paymentMethod === 'paypal' && order.paymentStatus !== 'verified') {
+    return order;
+  }
+  // Idempotent: send exactly once
+  if (order.confirmationEmailStatus === 'sent') {
+    return order;
+  }
+
+  const orderRef = adminDb.collection('orders').doc(order.id);
+  const emailResult: EmailDeliveryResult = await sendOrderConfirmationEmail(order).catch(error => ({
+    sent: false,
+    error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_email_error'
+  }));
+  const emailTime = new Date().toISOString();
+  await orderRef.set({
+    confirmationEmailStatus: emailResult.sent ? 'sent' : 'failed',
+    confirmationEmailId: emailResult.id || null,
+    confirmationEmailError: emailResult.sent ? null : emailResult.error || 'unknown_error',
+    confirmationEmailSentAt: emailResult.sent ? emailTime : null,
+    confirmationEmailAttemptedAt: emailTime
+  }, { merge: true }).catch(err => console.error('Confirmation email delivery record error:', err));
+
+  order.confirmationEmailStatus = emailResult.sent ? 'sent' : 'failed';
+  if (emailResult.id) order.confirmationEmailId = emailResult.id;
+  return order;
+}
+
 async function sendOrderStatusEmail(order: any, previousStatus?: string): Promise<EmailDeliveryResult> {
   const email = safeString(order?.email || order?.customerEmail, 254).toLowerCase();
   const status = safeString(order?.status, 40);
@@ -2064,17 +2098,28 @@ app.post('/api/products/:productId/reviews', async (req, res) => {
       return res.status(400).json({ error: 'Review text must be at least 3 characters long.' });
     }
 
-    // Determine safe public author name: never leak full email, phone, or private data
-    let authorName = safeString(body.author, 50);
-    if (!authorName) {
-      if (typeof authToken.name === 'string' && authToken.name.trim()) {
-        authorName = safeString(authToken.name.trim(), 40);
-      } else if (typeof authToken.email === 'string' && authToken.email.includes('@')) {
-        const localPart = authToken.email.split('@')[0];
-        authorName = `${localPart.slice(0, 3)}***`;
-      } else {
-        authorName = 'SAELYXE Patron';
+    // Server-derived author name: derive strictly from Firestore users/{uid}.name (or firstName/lastName),
+    // fallback to Firebase token display name, fallback to "SAELYXE Patron".
+    // Do NOT trust body.author, and never leak email, phone, address, or order number.
+    let authorName = 'SAELYXE Patron';
+    try {
+      const userSnap = await adminDb.collection('users').doc(authToken.uid).get();
+      if (userSnap.exists) {
+        const userData = userSnap.data() || {};
+        const profileName = safeString(userData.name, 50);
+        const firstLast = [safeString(userData.firstName, 40), safeString(userData.lastName, 40)].filter(Boolean).join(' ').trim();
+        if (profileName) {
+          authorName = profileName;
+        } else if (firstLast) {
+          authorName = firstLast;
+        }
       }
+    } catch {
+      // Fallback
+    }
+
+    if (authorName === 'SAELYXE Patron' && typeof authToken.name === 'string' && authToken.name.trim()) {
+      authorName = safeString(authToken.name.trim(), 50);
     }
 
     // Prevent duplicate review spam for the same customer/product
@@ -2088,9 +2133,8 @@ app.post('/api/products/:productId/reviews', async (req, res) => {
       return res.status(409).json({ error: 'You have already submitted a review for this silhouette.' });
     }
 
-    // Server-side purchase verification:
-    // Check if the authenticated customer has a real order containing this exact product
-    // that reached a valid fulfillment state according to existing business rules.
+    // Server-side strict purchase verification:
+    // Check if the authenticated customer has a verified, non-cancelled order containing this exact product
     let verifiedPurchase = false;
     let matchedOrderId: string | null = null;
 
@@ -2099,16 +2143,28 @@ app.post('/api/products/:productId/reviews', async (req, res) => {
       .get();
 
     for (const orderDoc of ordersSnap.docs) {
-      const orderData = orderDoc.data();
+      const orderData = orderDoc.data() || {};
       const status = safeString(orderData.status, 30).toLowerCase();
-      if (ACTIVE_ORDER_STATUSES.has(status)) {
-        const items = Array.isArray(orderData.items) ? orderData.items : [];
-        const hasExactProduct = items.some((item: any) => safeString(item?.productId, 120) === productId);
-        if (hasExactProduct) {
-          verifiedPurchase = true;
-          matchedOrderId = orderDoc.id;
-          break;
-        }
+      const paymentMethod = safeString(orderData.paymentMethod, 30).toLowerCase();
+      const paymentStatus = safeString(orderData.paymentStatus, 30).toLowerCase();
+
+      if (status === 'cancelled') continue;
+
+      const items = Array.isArray(orderData.items) ? orderData.items : [];
+      const hasExactProduct = items.some((item: any) => safeString(item?.productId, 120) === productId);
+      if (!hasExactProduct) continue;
+
+      let isPaidAndVerified = false;
+      if (paymentMethod === 'paypal' && paymentStatus === 'verified') {
+        isPaidAndVerified = true;
+      } else if (paymentMethod === 'cod' && (paymentStatus === 'cod_collected' || status === 'delivered')) {
+        isPaidAndVerified = true;
+      }
+
+      if (isPaidAndVerified) {
+        verifiedPurchase = true;
+        matchedOrderId = orderDoc.id;
+        break;
       }
     }
 
@@ -2160,6 +2216,14 @@ app.delete('/api/products/:productId/reviews/:reviewId', async (req, res) => {
     const authToken = await readBearerToken(req);
     if (!authToken) {
       return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed.' });
+    }
+
+    if (!(await enforceRateLimit(adminDb, `review-delete:${authToken.uid}`, 10, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many review delete attempts. Please wait a few moments.' });
     }
 
     const reviewId = safeString(req.params.reviewId, 120);
@@ -2445,22 +2509,7 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     }
 
     const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
-    if (updated && updated.confirmationEmailStatus !== 'sent') {
-      const emailResult: EmailDeliveryResult = await sendOrderConfirmationEmail(updated).catch(error => ({
-        sent: false,
-        error: safeString(error instanceof Error ? error.message : error, 240) || 'paypal_confirmation_email_error'
-      }));
-      const emailTime = new Date().toISOString();
-      await ref.set({
-        confirmationEmailStatus: emailResult.sent ? 'sent' : 'failed',
-        confirmationEmailId: emailResult.id || null,
-        confirmationEmailError: emailResult.sent ? null : emailResult.error || 'unknown_error',
-        confirmationEmailSentAt: emailResult.sent ? emailTime : null,
-        confirmationEmailAttemptedAt: emailTime
-      }, { merge: true }).catch(err => console.error('PayPal confirmation email delivery record error:', err));
-      updated.confirmationEmailStatus = emailResult.sent ? 'sent' : 'failed';
-      if (emailResult.id) updated.confirmationEmailId = emailResult.id;
-    }
+    await ensureOrderConfirmationEmail(adminDb, updated);
     return res.json(updated);
   } catch (error: any) {
     const status = Number(error?.statusCode) || 500;
@@ -2509,6 +2558,7 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
       return res.status(409).json({ error: 'PayPal order linkage could not be verified.' });
     }
     if (order.paymentStatus === 'verified') {
+      await ensureOrderConfirmationEmail(adminDb, order);
       return res.json(order);
     }
 
@@ -2519,6 +2569,7 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     }
 
     const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
+    await ensureOrderConfirmationEmail(adminDb, updated);
     return res.json(updated);
   } catch (error: any) {
     return res.status(500).json({ error: safeString(error?.message, 240) || 'Unable to verify PayPal payment.' });
@@ -2568,6 +2619,7 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
       const verification = await verifyPayPalOrder(order, paypalOrderId);
       if (verification.verified) {
         const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
+        await ensureOrderConfirmationEmail(adminDb, updated);
         return res.status(409).json({
           error: 'PayPal payment is already completed, so checkout cancellation was blocked.',
           order: updated
@@ -2720,7 +2772,7 @@ app.post('/api/orders', async (req, res) => {
       quantity: Number(item?.quantity)
     }));
 
-    if (requested.some(item => !item.productId || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 20)) {
+    if (requested.some(item => !item.productId || !Number.isInteger(item.quantity) || item.quantity < 1)) {
       return res.status(400).json({ error: 'Order item quantity or product reference is invalid.' });
     }
 
@@ -2940,33 +2992,11 @@ app.post('/api/orders', async (req, res) => {
 
     // Send confirmation email for COD immediately, or for PayPal ONLY if already verified.
     // Unverified PayPal orders do NOT receive confirmation email until verified capture.
-    let confirmationEmailStatus = 'pending';
-    let confirmationEmailId: string | undefined;
-
     if (paymentMethod === 'cod' || responseOrder.paymentStatus === 'verified') {
-      const confirmationEmail: EmailDeliveryResult = await sendOrderConfirmationEmail(responseOrder).catch(error => ({
-        sent: false,
-        error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_email_error'
-      }));
-      const confirmationEmailRecordedAt = new Date().toISOString();
-      await orderRef.set({
-        confirmationEmailStatus: confirmationEmail.sent ? 'sent' : 'failed',
-        confirmationEmailId: confirmationEmail.id || null,
-        confirmationEmailError: confirmationEmail.sent ? null : confirmationEmail.error || 'unknown_error',
-        confirmationEmailSentAt: confirmationEmail.sent ? confirmationEmailRecordedAt : null,
-        confirmationEmailAttemptedAt: confirmationEmailRecordedAt
-      }, { merge: true }).catch(error => {
-        console.error('Order confirmation email delivery state could not be recorded:', error);
-      });
-      confirmationEmailStatus = confirmationEmail.sent ? 'sent' : 'failed';
-      confirmationEmailId = confirmationEmail.id || undefined;
+      await ensureOrderConfirmationEmail(adminDb, responseOrder);
     }
 
-    return res.status(201).json({
-      ...responseOrder,
-      confirmationEmailStatus,
-      confirmationEmailId
-    });
+    return res.status(201).json(responseOrder);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to create order.';
     return res.status(400).json({ error: message });

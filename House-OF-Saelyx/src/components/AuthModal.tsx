@@ -121,10 +121,8 @@ export const AuthModal: React.FC = () => {
 
     if (isForgot) {
       setFormError(null);
-      const success = await sendPasswordReset(email);
-      if (success) {
-        setResetSentEmail(email);
-      }
+      await sendPasswordReset(email);
+      setResetSentEmail(email);
       return;
     }
 

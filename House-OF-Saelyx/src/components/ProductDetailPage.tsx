@@ -34,7 +34,9 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     subscribeToRestock,
     user,
     setIsAuthOpen,
-    setAuthMode
+    setAuthMode,
+    settings,
+    setActiveModalProduct
   } = useStore();
 
   const product = products.find(p => p.slug === slug || p.id === slug);
@@ -131,7 +133,6 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
   const [reviewsList, setReviewsList] = useState<ProductReview[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const [averageRating, setAverageRating] = useState<number>(0);
-  const [newReviewAuthor, setNewReviewAuthor] = useState('');
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
@@ -221,7 +222,11 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
 
   const handleAddMatchingSet = () => {
     if (matchingSetProduct) {
-      addToCart(matchingSetProduct);
+      if ((matchingSetProduct.sizes?.length || 0) > 0) {
+        setActiveModalProduct(matchingSetProduct);
+      } else {
+        addToCart(matchingSetProduct);
+      }
     }
   };
 
@@ -246,9 +251,6 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
       return;
     }
     setReviewError(null);
-    if (!newReviewAuthor) {
-      setNewReviewAuthor(user.name || '');
-    }
     setIsReviewFormOpen(prev => !prev);
   };
 
@@ -288,8 +290,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
         },
         body: JSON.stringify({
           rating: newReviewRating,
-          comment: commentClean,
-          author: newReviewAuthor.trim() || user.name || 'SAELYXE Patron'
+          comment: commentClean
         })
       });
 
@@ -744,7 +745,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                     className="px-3.5 py-2 bg-[#1A1816] hover:bg-black text-white text-[11px] font-semibold uppercase tracking-wider rounded-full flex items-center gap-1 shadow-md transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>ADD</span>
+                    <span>{(matchingSetProduct.sizes?.length || 0) > 0 ? 'SELECT SIZE' : 'ADD'}</span>
                   </button>
                 </div>
               </div>
@@ -754,7 +755,11 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
             <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#E3D9CD] space-y-2 text-[11px] text-[#7A6D5F]">
               <div className="flex items-center gap-2">
                 <Truck className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Complimentary Express Courier hand-delivery on this commission.</span>
+                <span>
+                  {Number(settings?.freeShippingThresholdLKR) > 0
+                    ? `Complimentary delivery on orders over LKR ${Number(settings.freeShippingThresholdLKR).toLocaleString()} (calculated at checkout).`
+                    : 'Delivery calculated at checkout.'}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-3.5 h-3.5 text-amber-700" />
@@ -816,17 +821,11 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-[#635548] block mb-1">Display Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newReviewAuthor}
-                    onChange={e => setNewReviewAuthor(e.target.value)}
-                    placeholder="e.g. Austin K."
-                    maxLength={40}
-                    disabled={reviewSubmitting}
-                    className="w-full bg-white border border-[#D5C9B8] rounded-xl px-3 py-2 text-xs text-[#1A1816] focus:outline-none focus:border-black"
-                  />
+                  <label className="text-[10px] uppercase tracking-wider text-[#635548] block mb-1">Patron Account</label>
+                  <div className="w-full bg-[#FAF6F0] border border-[#E3D9CD] rounded-xl px-3 py-2 text-xs text-[#1A1816] flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                    <span className="font-medium">{user?.name || 'Verified Patron'}</span>
+                  </div>
                 </div>
 
                 <div>

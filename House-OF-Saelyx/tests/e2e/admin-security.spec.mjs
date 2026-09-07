@@ -116,3 +116,122 @@ test('unauthenticated account routes do not leak customer order details', async 
     await expect(page.getByText(/ashan\.perera@gmail\.com|sarah\.k@fashionstudio\.co\.uk|Ashan Perera|Sarah Kingsley/i)).toHaveCount(0);
   }
 });
+
+test('product page enforces explicit size selection before adding to bag', async ({ page }) => {
+  await page.goto('/product/s-signature-oversized-tee');
+  await expect(page.getByRole('heading', { name: /SÆ SIGNATURE OVERSIZED TEE/i })).toBeVisible();
+
+  // Add to bag button starts with SELECT SIZE and is disabled
+  const addToBagBtn = page.getByRole('button', { name: /SELECT SIZE/i });
+  await expect(addToBagBtn).toBeVisible();
+  await expect(addToBagBtn).toBeDisabled();
+
+  // Clicking size 'M' enables the button and changes text to ADD TO BAG
+  const sizeMBtn = page.getByRole('button', { name: 'M', exact: true });
+  await expect(sizeMBtn).toBeVisible();
+  await sizeMBtn.click();
+
+  const enabledAddBtn = page.getByRole('button', { name: /ADD TO BAG/i });
+  await expect(enabledAddBtn).toBeVisible();
+  await expect(enabledAddBtn).toBeEnabled();
+
+  // PDP Matching Set button shows SELECT SIZE and opens modal on click
+  const completeSetSection = page.getByText(/COMPLETE THE SET/i);
+  if (await completeSetSection.isVisible()) {
+    const matchingSetCard = completeSetSection.locator('xpath=ancestor::div[contains(@class, "rounded-2xl")]');
+    const setSelectSizeBtn = matchingSetCard.getByRole('button', { name: /SELECT SIZE/i });
+    if (await setSelectSizeBtn.isVisible()) {
+      await setSelectSizeBtn.click();
+      // Product modal opens for the matching set item
+      await expect(page.locator('button:has-text("SELECT A SIZE")')).toBeVisible();
+    }
+  }
+});
+
+test('checkout payment selection starts unselected and toggles cleanly without temporary test wording', async ({ page }) => {
+  await page.goto('/checkout');
+  await expect(page.locator('body')).toContainText(/Sri Lanka/i);
+
+  // Neither payment method starts selected
+  const codRadio = page.getByRole('radio', { name: /Cash on Delivery/i });
+  const paypalRadio = page.getByRole('radio', { name: /PayPal/i });
+
+  await expect(codRadio).toBeVisible();
+  await expect(paypalRadio).toBeVisible();
+  await expect(codRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(paypalRadio).toHaveAttribute('aria-checked', 'false');
+
+  // No Temporary Test text anywhere
+  await expect(page.getByText(/Temporary Test/i)).toHaveCount(0);
+
+  // Clicking Cash on Delivery selects COD
+  await codRadio.click();
+  await expect(codRadio).toHaveAttribute('aria-checked', 'true');
+  await expect(paypalRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText(/Pay in cash when your order is delivered\./i)).toBeVisible();
+
+  // Clicking PayPal selects PayPal and cleanly unmounts COD
+  await paypalRadio.click();
+  await expect(paypalRadio).toHaveAttribute('aria-checked', 'true');
+  await expect(codRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText(/Pay in cash when your order is delivered\./i)).toHaveCount(0);
+  await expect(page.locator('#paypal-button-container')).toBeVisible();
+
+  // Switching back to COD cleanly unmounts PayPal
+  await codRadio.click();
+  await expect(codRadio).toHaveAttribute('aria-checked', 'true');
+  await expect(paypalRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(page.locator('#paypal-button-container')).toHaveCount(0);
+  await expect(page.getByText(/Pay in cash when your order is delivered\./i)).toBeVisible();
+});
+
+test('storefront social proof shows 10+ Customers without fake testimonials', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText(/10\+ Customers/i)).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('Brody');
+});
+
+test('auth drawer enforces min 8-character password and neutral forgot-password status', async ({ page }) => {
+  await page.goto('/');
+  const userAccountBtn = page.getByLabel('User account');
+  await expect(userAccountBtn).toBeVisible();
+  await userAccountBtn.click();
+
+  // Switch to Create account
+  const switchModeBtn = page.locator('button:has-text("Create account")').last();
+  await expect(switchModeBtn).toBeVisible();
+  await switchModeBtn.click();
+
+  // Fill password shorter than 8 characters
+  const nameInput = page.getByPlaceholder('Your full name');
+  const emailInput = page.getByPlaceholder('you@example.com');
+  const passwordInput = page.getByPlaceholder('At least 8 characters');
+  const confirmPasswordInput = page.getByPlaceholder('Repeat your password');
+
+  await nameInput.fill('Test Patron');
+  await emailInput.fill('patron@example.com');
+  await passwordInput.fill('short');
+  await confirmPasswordInput.fill('short');
+
+  const createBtn = page.getByRole('button', { name: /Create account/i });
+  await createBtn.click();
+
+  // Verify min 8-character password validation
+  await expect(page.getByText(/at least 8 characters/i)).toBeVisible();
+
+  // Switch back to Sign in, then Forgot password
+  const signInSwitch = page.locator('button:has-text("Sign in")').last();
+  await signInSwitch.click();
+
+  const forgotPasswordBtn = page.getByRole('button', { name: 'Forgot password?' });
+  await expect(forgotPasswordBtn).toBeVisible();
+  await forgotPasswordBtn.click();
+
+  const forgotEmailInput = page.getByPlaceholder('you@example.com');
+  await forgotEmailInput.fill('patron@example.com');
+  const sendResetBtn = page.getByRole('button', { name: 'Send reset link' });
+  await sendResetBtn.click();
+
+  // Verify neutral status message
+  await expect(page.getByText(/If an account exists for/i)).toBeVisible();
+});

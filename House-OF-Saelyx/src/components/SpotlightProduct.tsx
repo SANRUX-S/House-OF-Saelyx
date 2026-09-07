@@ -33,9 +33,11 @@ export const SpotlightProduct: React.FC = () => {
 
   const handleAdd = () => {
     if (spotlightProduct) {
-      addToCart(spotlightProduct);
-      setIsAdded(true);
-      setTimeout(() => setIsAdded(false), 2000);
+      const added = addToCart(spotlightProduct);
+      if (added) {
+        setIsAdded(true);
+        setTimeout(() => setIsAdded(false), 2000);
+      }
     }
   };
 
