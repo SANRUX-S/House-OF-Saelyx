@@ -82,7 +82,6 @@ export const CheckoutPage: React.FC = () => {
   // Checkboxes
   const [rememberDetails, setRememberDetails] = useState(false);
   const [updateSavedDetails, setUpdateSavedDetails] = useState(false);
-  const [whatsappUpdates, setWhatsappUpdates] = useState(false);
 
   // Split First & Last Name
   const initialFirstName = savedDetailsObj?.firstName || user?.firstName || (savedDetailsObj?.customerName ? savedDetailsObj.customerName.split(' ')[0] : user?.name ? user.name.split(' ')[0] : '');
@@ -418,7 +417,6 @@ export const CheckoutPage: React.FC = () => {
         checkoutAttemptId: codCheckoutAttemptIdRef.current || (
           codCheckoutAttemptIdRef.current = createCodCheckoutAttemptId()
         ),
-        whatsappOptIn: whatsappUpdates,
         notes: notes.trim()
       });
 
@@ -873,19 +871,6 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 ) : null}
 
-                <div className="flex items-start gap-2.5 pt-2 select-none">
-                  <input
-                    id="whatsapp-updates-chk"
-                    type="checkbox"
-                    checked={whatsappUpdates}
-                    onChange={e => setWhatsappUpdates(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-[#D5CBBF] text-[#1A1816] focus:ring-0 cursor-pointer accent-[#1A1816]"
-                  />
-                  <label htmlFor="whatsapp-updates-chk" className="text-xs text-[#5A4E40] cursor-pointer leading-relaxed">
-                    Send my order confirmation and delivery updates to this phone number via WhatsApp.
-                  </label>
-                </div>
-
               </div>
 
             </div>
@@ -1080,8 +1065,7 @@ export const CheckoutPage: React.FC = () => {
                                     checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (
                                       paypalCheckoutAttemptIdRef.current = createPayPalCheckoutAttemptId()
                                     ),
-                                    whatsappOptIn: whatsappUpdates,
-                                    notes: notes.trim()
+                                                                notes: notes.trim()
                                   });
                                   paypalPendingOrderRef.current = localOrder;
                                   setPaypalPendingOrder(localOrder);
