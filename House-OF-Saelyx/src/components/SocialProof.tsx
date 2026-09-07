@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 
 interface SocialProofProps {
@@ -10,19 +10,83 @@ interface SocialProofProps {
 }
 
 export const SocialProof: React.FC<SocialProofProps> = ({
-  customerCount = "4,000+ Happy Customers!",
+  customerCount,
   quote = "Hands down the most comfiest Tracksuit I have ever ordered. If you want to buy it I would, it’s better than my Essentials tracksuit that i paid almost $500 for in total",
   authorName = "Brody",
   purchasedItem = "Black Hoodie",
   onItemClick,
 }) => {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const [animatedCount, setAnimatedCount] = useState(1);
+
+  useEffect(() => {
+    if (customerCount) return;
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const clearTimer = () => {
+      if (timerRef.current !== null) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+
+    const startCounter = () => {
+      clearTimer();
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setAnimatedCount(10);
+        return;
+      }
+
+      setAnimatedCount(1);
+      let value = 1;
+
+      timerRef.current = window.setInterval(() => {
+        value += 1;
+        setAnimatedCount(Math.min(value, 10));
+
+        if (value >= 10) clearTimer();
+      }, 70);
+    };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          startCounter();
+        } else {
+          clearTimer();
+          setAnimatedCount(1);
+        }
+      },
+      { threshold: 0.45 }
+    );
+
+    observer.observe(section);
+
+    return () => {
+      clearTimer();
+      observer.disconnect();
+    };
+  }, [customerCount]);
+
   return (
-    <section className="w-full bg-[#f6f6f6] text-[#000000] pt-16 pb-8 px-4 sm:px-6 font-sans">
+    <section
+      ref={sectionRef}
+      className="w-full bg-[#f6f6f6] text-[#000000] pt-16 pb-8 px-4 sm:px-6 font-sans"
+    >
       <div className="max-w-[880px] mx-auto space-y-12">
         {/* Section Title */}
         <div className="text-center">
-          <h2 className="text-2xl sm:text-[28px] font-medium tracking-tight text-[#000000]">
-            {customerCount}
+          <h2 className="text-2xl sm:text-[28px] font-medium tracking-tight text-[#000000] font-sans">
+            {customerCount ?? (
+              <>
+                <span className="tabular-nums font-sans">{animatedCount}+</span>{' '}
+                <span>Customers</span>
+              </>
+            )}
           </h2>
         </div>
 
@@ -50,7 +114,7 @@ export const SocialProof: React.FC<SocialProofProps> = ({
 
           {/* Purchased Item Link */}
           <div>
-            <span 
+            <span
               onClick={onItemClick}
               className="text-xs font-normal underline underline-offset-4 text-[#000000] cursor-pointer hover:opacity-75 transition-opacity"
             >
