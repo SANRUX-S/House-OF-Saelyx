@@ -13,7 +13,7 @@ export const VipPage: React.FC = () => {
         <div className="flex justify-center mb-6">
           <button
             onClick={() => navigateTo({ name: 'home' })}
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#7A6E60] hover:text-[#1A1816] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#665A4E] hover:text-[#1A1816] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" />
             <span>Return to Boutique</span>
@@ -39,7 +39,7 @@ export const VipPage: React.FC = () => {
         </div>
 
         {/* Editorial Text */}
-        <p className="text-xs sm:text-sm text-[#7A6E60] leading-relaxed max-w-lg mx-auto font-serif italic">
+        <p className="text-xs sm:text-sm text-[#665A4E] leading-relaxed max-w-lg mx-auto font-serif italic">
           "The House of Saelyxe Private Client Tier is reserved for distinguished patrons. Our bespoke salon and early runway access are currently in preparation."
         </p>
 

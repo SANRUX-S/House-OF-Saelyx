@@ -79,7 +79,7 @@ export const SpotlightProduct: React.FC = () => {
               <h3 className="text-[11px] sm:text-xs md:text-sm font-semibold tracking-[0.2em] uppercase text-white/95">
                 {settings?.spotlightSubhead || 'EXPERIENCE THE PRESENCE.'}
               </h3>
-              <p className="text-xs sm:text-sm md:text-base text-white/85 font-light leading-relaxed">
+              <p className="text-xs sm:text-sm md:text-base text-white/85 font-normal leading-relaxed">
                 {settings?.spotlightDescription || (
                   <>
                     A curating of our most refined heavyweight textures.<br className="hidden sm:inline" /> Crafted for understated luxury.

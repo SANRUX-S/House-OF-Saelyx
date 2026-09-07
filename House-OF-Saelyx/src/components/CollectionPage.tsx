@@ -50,7 +50,7 @@ export const CollectionPage: React.FC<{ category: string }> = ({ category }) => 
         <div className="space-y-4 border-b border-[#ECE3D8] pb-6">
           <button
             onClick={() => navigateTo({ name: 'home' })}
-            className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7A6E60] hover:text-black transition-colors"
+            className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#665A4E] hover:text-black transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Return to Boutique Overview</span>
@@ -139,7 +139,7 @@ export const CollectionPage: React.FC<{ category: string }> = ({ category }) => 
                   <div className="text-[10px] uppercase tracking-[0.2em] text-[#857768] font-semibold">
                     {product.fit || 'ATELIER TAILORING'}
                   </div>
-                  <h3 className="font-['Plus_Jakarta_Sans'] text-sm sm:text-base font-bold uppercase tracking-wide text-[#1A1816] group-hover:text-amber-950 transition-colors">
+                  <h3 className="font-sans text-sm sm:text-base font-bold uppercase tracking-wide text-[#1A1816] group-hover:text-amber-950 transition-colors">
                     {product.title}
                   </h3>
                   <p className="text-xs text-[#736657] line-clamp-1">{product.subtitle}</p>

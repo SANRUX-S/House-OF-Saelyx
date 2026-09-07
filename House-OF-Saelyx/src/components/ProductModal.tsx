@@ -92,7 +92,7 @@ export const ProductModal: React.FC = () => {
                   <div className="text-[11px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
                     {activeModalProduct.fit || 'SAELYXE DROP GARMENT'}
                   </div>
-                  <h2 className="font-['Plus_Jakarta_Sans'] text-xl sm:text-2xl font-bold uppercase tracking-tight text-[#1A1816] mt-1">
+                  <h2 className="font-sans text-xl sm:text-2xl font-bold uppercase tracking-tight text-[#1A1816] mt-1">
                     {activeModalProduct.title}
                   </h2>
                   {activeModalProduct.subtitle && (
@@ -107,7 +107,7 @@ export const ProductModal: React.FC = () => {
                 </div>
 
                 <div className="border-t border-b border-[#E5DDD2] py-4 space-y-3">
-                  <p className="text-xs sm:text-sm text-[#4A4036] font-light leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#4A4036] font-normal leading-relaxed">
                     {activeModalProduct.description}
                   </p>
                   <div className="text-xs text-[#635546] bg-[#EFE9E0] p-3 rounded-xl border border-[#DFD5C7]">
@@ -159,7 +159,7 @@ export const ProductModal: React.FC = () => {
                       <Bell className="w-4 h-4 text-amber-400" />
                       <span>EMAIL ME WHEN BACK IN STOCK</span>
                     </button>
-                    <p className="text-[10px] text-neutral-500 text-center font-mono">
+                    <p className="text-[10px] text-neutral-500 text-center font-sans">
                       ⚡ Automated email notification via SAELYXE Resend dispatch on replenishment
                     </p>
                   </div>

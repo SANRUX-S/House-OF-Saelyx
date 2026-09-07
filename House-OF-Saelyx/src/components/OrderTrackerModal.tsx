@@ -229,7 +229,7 @@ export const OrderTrackerModal: React.FC = () => {
                         <img src={item.image} alt="" className="w-8 h-10 object-cover rounded bg-neutral-800" />
                         <span className="truncate">{item.title} ({item.size})</span>
                       </div>
-                      <span className="font-mono text-neutral-300">x{item.quantity}</span>
+                      <span className="font-sans text-neutral-300">x{item.quantity}</span>
                     </div>
                   ))}
                 </div>

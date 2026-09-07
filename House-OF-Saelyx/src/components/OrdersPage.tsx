@@ -146,7 +146,7 @@ export const OrdersPage: React.FC = () => {
             <h2 className="font-serif text-2xl sm:text-3xl text-[#1A1816] font-normal">
               AUTHENTICATION REQUIRED
             </h2>
-            <p className="text-xs text-[#7A6E60] leading-relaxed max-w-md mx-auto">
+            <p className="text-xs text-[#665A4E] leading-relaxed max-w-md mx-auto">
               Please log in to view your orders and commission history.
             </p>
           </div>
@@ -169,13 +169,13 @@ export const OrdersPage: React.FC = () => {
         <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-4">
           <button
             onClick={() => navigateTo({ name: 'home' })}
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#7A6E60] hover:text-[#1A1816] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#665A4E] hover:text-[#1A1816] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" />
             <span>Return to Boutique</span>
           </button>
 
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#7A6E60]">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#665A4E]">
             <ShieldCheck className="w-4 h-4 text-emerald-800 stroke-[1.5]" />
             <span>Authenticated Client Archive</span>
           </div>
@@ -191,7 +191,7 @@ export const OrdersPage: React.FC = () => {
               MY ORDERS
             </h1>
           </div>
-          <p className="text-xs text-[#7A6E60]">
+          <p className="text-xs text-[#665A4E]">
             Showing {userOrders.length} {userOrders.length === 1 ? 'recorded order' : 'recorded orders'}
           </p>
         </div>
@@ -206,7 +206,7 @@ export const OrdersPage: React.FC = () => {
               <h3 className="font-serif text-2xl text-[#1A1816] font-normal">
                 You haven't placed any orders yet.
               </h3>
-              <p className="text-xs text-[#7A6E60] max-w-sm mx-auto leading-relaxed">
+              <p className="text-xs text-[#665A4E] max-w-sm mx-auto leading-relaxed">
                 Explore our limited-run collections and commission your first piece with complimentary white-glove hand delivery.
               </p>
             </div>
@@ -250,7 +250,7 @@ export const OrdersPage: React.FC = () => {
                         )}
                       </div>
 
-                      <p className="text-xs text-[#7A6E60]">
+                      <p className="text-xs text-[#665A4E]">
                         {formatDate(ord.createdAt)} · {formatPaymentMethodName(ord.paymentMethod)}
                       </p>
                     </div>
@@ -260,7 +260,7 @@ export const OrdersPage: React.FC = () => {
                         <span className="text-sm sm:text-base font-serif font-medium text-[#1A1816] block">
                           {formatPrice(ord.totalLKR)}
                         </span>
-                        <span className="text-[11px] text-[#7A6E60]">
+                        <span className="text-[11px] text-[#665A4E]">
                           {itemsCount} {itemsCount === 1 ? 'Item' : 'Items'}
                         </span>
                       </div>
@@ -280,7 +280,7 @@ export const OrdersPage: React.FC = () => {
                         </div>
                       ))}
                       {ord.items.length > 4 && (
-                        <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] font-medium pl-1">
+                        <span className="text-[10px] uppercase tracking-wider text-[#665A4E] font-medium pl-1">
                           +{ord.items.length - 4} more
                         </span>
                       )}
@@ -369,16 +369,16 @@ export const OrdersPage: React.FC = () => {
                               <h5 className="text-xs font-semibold text-[#1A1816] tracking-wide">
                                 {item.title}
                               </h5>
-                              <p className="text-[11px] text-[#7A6E60] mt-0.5">
+                              <p className="text-[11px] text-[#665A4E] mt-0.5">
                                 Size: <span className="font-medium text-[#1A1816]">{item.size}</span> · Qty: <span className="font-medium text-[#1A1816]">{item.quantity}</span>
                               </p>
-                              <p className="text-[11px] text-[#7A6E60]">
+                              <p className="text-[11px] text-[#665A4E]">
                                 Unit Price: {formatPrice(item.priceLKR)}
                               </p>
                             </div>
                           </div>
 
-                          <span className="text-xs font-semibold font-mono text-[#1A1816]">
+                          <span className="text-xs font-semibold font-sans text-[#1A1816]">
                             {formatPrice(item.priceLKR * item.quantity)}
                           </span>
                         </div>
@@ -403,11 +403,11 @@ export const OrdersPage: React.FC = () => {
                   <div className="space-y-2.5 pt-2 border-t border-[#ECE3D8] text-xs">
                     <div className="flex justify-between text-[#7A6E60]">
                       <span>Subtotal</span>
-                      <span className="font-mono">{formatPrice(selectedOrder.subtotalLKR)}</span>
+                      <span className="font-sans">{formatPrice(selectedOrder.subtotalLKR)}</span>
                     </div>
                     <div className="flex justify-between text-[#7A6E60]">
                       <span>Delivery</span>
-                      <span className="font-mono">
+                      <span className="font-sans">
                         {selectedOrder.shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(selectedOrder.shippingLKR)}
                       </span>
                     </div>

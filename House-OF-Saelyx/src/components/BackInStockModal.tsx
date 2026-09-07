@@ -135,7 +135,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
           <div className="bg-neutral-900/80 px-6 py-4 border-b border-neutral-800/80 flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
               <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-[11px] font-mono tracking-widest text-neutral-300 uppercase">
+              <span className="text-[11px] font-sans tracking-widest text-neutral-300 uppercase">
                 Atelier Priority Restock Waitlist
               </span>
             </div>
@@ -161,19 +161,19 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                     className="w-full h-full object-cover grayscale contrast-125"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-1 left-1 bg-red-950/80 border border-red-800/60 text-red-300 text-[9px] font-mono px-1 py-0.5 tracking-wider uppercase">
+                  <div className="absolute bottom-1 left-1 bg-red-950/80 border border-red-800/60 text-red-300 text-[9px] font-sans px-1 py-0.5 tracking-wider uppercase">
                     Sold Out
                   </div>
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-mono text-neutral-400 tracking-wider uppercase mb-0.5 sm:mb-1">
+                  <div className="text-[10px] font-sans text-neutral-400 tracking-wider uppercase mb-0.5 sm:mb-1">
                     {product.badge || 'Archival Edition'}
                   </div>
                   <h3 className="text-sm sm:text-lg font-serif font-light text-white tracking-wide truncate">
                     {product.title}
                   </h3>
-                  <p className="text-xs text-neutral-400 font-mono mt-0.5 sm:mt-1">
+                  <p className="text-xs text-neutral-400 font-sans mt-0.5 sm:mt-1">
                     {formatPrice(product.priceLKR)}
                   </p>
                   <p className="text-[11px] text-neutral-500 mt-0.5 sm:mt-1 line-clamp-1">
@@ -201,7 +201,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Size Selector */}
                 <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-widest text-neutral-400 mb-2">
+                  <label className="block text-[11px] font-sans uppercase tracking-widest text-neutral-400 mb-2">
                     Select Preferred Size:
                   </label>
                   <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
@@ -212,7 +212,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                           type="button"
                           id={`btn-select-restock-size-${s.toLowerCase()}`}
                           onClick={() => setSelectedSize(s)}
-                          className={`py-2 text-xs font-mono tracking-wider transition-all border cursor-pointer min-h-[38px] ${
+                          className={`py-2 text-xs font-sans tracking-wider transition-all border cursor-pointer min-h-[38px] ${
                             selectedSize === s
                               ? 'bg-neutral-100 text-black border-neutral-100 font-semibold'
                               : 'bg-neutral-900/50 text-neutral-300 border-neutral-800 hover:border-neutral-600'
@@ -225,7 +225,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setSelectedSize('Standard')}
-                        className="col-span-5 py-2 text-xs font-mono bg-neutral-100 text-black border border-neutral-100"
+                        className="col-span-5 py-2 text-xs font-sans bg-neutral-100 text-black border border-neutral-100"
                       >
                         Standard Size
                       </button>
@@ -234,7 +234,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       type="button"
                       id="btn-select-restock-size-any"
                       onClick={() => setSelectedSize('Any Size')}
-                      className={`py-2 text-xs font-mono tracking-wider transition-all border cursor-pointer min-h-[38px] ${
+                      className={`py-2 text-xs font-sans tracking-wider transition-all border cursor-pointer min-h-[38px] ${
                         selectedSize === 'Any Size'
                           ? 'bg-neutral-100 text-black border-neutral-100 font-semibold'
                           : 'bg-neutral-900/50 text-neutral-400 border-neutral-800 hover:border-neutral-600'
@@ -249,7 +249,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                 <div>
                   <label 
                     htmlFor="restock-email-input"
-                    className="block text-[11px] font-mono uppercase tracking-widest text-neutral-400 mb-1.5"
+                    className="block text-[11px] font-sans uppercase tracking-widest text-neutral-400 mb-1.5"
                   >
                     Patron Email Address <span className="text-amber-400">*</span>
                   </label>
@@ -262,7 +262,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       placeholder="patron@domain.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 bg-neutral-900/90 border border-neutral-800 text-neutral-100 text-base sm:text-xs font-mono focus:outline-none focus:border-amber-400/80 transition-colors placeholder:text-neutral-600"
+                      className="w-full pl-9 pr-3 py-2.5 bg-neutral-900/90 border border-neutral-800 text-neutral-100 text-base sm:text-xs font-sans focus:outline-none focus:border-amber-400/80 transition-colors placeholder:text-neutral-600"
                     />
                   </div>
                 </div>
@@ -271,7 +271,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                 <div>
                   <label 
                     htmlFor="restock-name-input"
-                    className="block text-[11px] font-mono uppercase tracking-widest text-neutral-400 mb-1.5"
+                    className="block text-[11px] font-sans uppercase tracking-widest text-neutral-400 mb-1.5"
                   >
                     Patron Name (Optional)
                   </label>
@@ -281,13 +281,13 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                     placeholder="e.g. Lord Harrington"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-neutral-900/90 border border-neutral-800 text-neutral-100 text-base sm:text-xs font-mono focus:outline-none focus:border-neutral-600 transition-colors placeholder:text-neutral-600"
+                    className="w-full px-3 py-2.5 bg-neutral-900/90 border border-neutral-800 text-neutral-100 text-base sm:text-xs font-sans focus:outline-none focus:border-neutral-600 transition-colors placeholder:text-neutral-600"
                   />
                 </div>
 
                 {/* Notification Channel */}
                 <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-widest text-neutral-400 mb-2">
+                  <label className="block text-[11px] font-sans uppercase tracking-widest text-neutral-400 mb-2">
                     Dispatch Channel Preference:
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -295,7 +295,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       type="button"
                       id="btn-channel-email"
                       onClick={() => setChannel('email')}
-                      className={`flex items-center justify-center space-x-2 py-2 px-3 text-xs font-mono border transition-all cursor-pointer min-h-[38px] ${
+                      className={`flex items-center justify-center space-x-2 py-2 px-3 text-xs font-sans border transition-all cursor-pointer min-h-[38px] ${
                         channel === 'email'
                           ? 'bg-neutral-800 text-white border-neutral-600'
                           : 'bg-neutral-900/40 text-neutral-400 border-neutral-800 hover:border-neutral-700'
@@ -308,7 +308,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       type="button"
                       id="btn-channel-both"
                       onClick={() => setChannel('both')}
-                      className={`flex items-center justify-center space-x-2 py-2 px-3 text-xs font-mono border transition-all cursor-pointer min-h-[38px] ${
+                      className={`flex items-center justify-center space-x-2 py-2 px-3 text-xs font-sans border transition-all cursor-pointer min-h-[38px] ${
                         channel === 'both'
                           ? 'bg-neutral-800 text-white border-neutral-600'
                           : 'bg-neutral-900/40 text-neutral-400 border-neutral-800 hover:border-neutral-700'
@@ -328,7 +328,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                     exit={{ opacity: 0, height: 0 }}
                     className="space-y-1.5 pt-1"
                   >
-                    <label className="block text-[11px] font-mono uppercase tracking-widest text-neutral-400">
+                    <label className="block text-[11px] font-sans uppercase tracking-widest text-neutral-400">
                       Web App Notifications Authorization
                     </label>
                     <div className="p-3 bg-neutral-900/95 border border-neutral-800 rounded-lg space-y-2">
@@ -345,7 +345,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                                 setNotificationPermission(result);
                               }
                             }}
-                            className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono text-[10px] uppercase tracking-wider transition-all cursor-pointer min-h-[32px] rounded"
+                            className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-sans text-[10px] uppercase tracking-wider transition-all cursor-pointer min-h-[32px] rounded"
                           >
                             Allow Web App Notifications
                           </button>
@@ -357,7 +357,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                         </p>
                       )}
                       {notificationPermission === 'granted' && (
-                        <div className="flex items-center space-x-2 text-emerald-400 font-mono text-[10px]">
+                        <div className="flex items-center space-x-2 text-emerald-400 font-sans text-[10px]">
                           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
                           <span>✓ Live App Notifications Authorized on this Device</span>
                         </div>
@@ -372,7 +372,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                     type="submit"
                     id="btn-submit-restock-notification"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 bg-neutral-100 hover:bg-white text-neutral-950 font-mono text-xs uppercase tracking-widest font-medium transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer min-h-[44px]"
+                    className="w-full py-3.5 bg-neutral-100 hover:bg-white text-neutral-950 font-sans text-xs uppercase tracking-widest font-medium transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer min-h-[44px]"
                   >
                     {isSubmitting ? (
                       <>
@@ -388,7 +388,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                   </button>
                 </div>
 
-                <div className="flex items-center justify-center space-x-2 text-[10px] text-neutral-500 font-mono pt-1">
+                <div className="flex items-center justify-center space-x-2 text-[10px] text-neutral-500 font-sans pt-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-neutral-400" />
                   <span>Zero spam guaranteed. One-time notification only.</span>
                 </div>
@@ -402,19 +402,19 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
               </div>
 
               <div>
-                <span className="text-[10px] font-mono tracking-widest text-amber-400 uppercase">
+                <span className="text-[10px] font-sans tracking-widest text-amber-400 uppercase">
                   Waitlist Confirmed
                 </span>
                 <h3 className="text-xl font-serif font-light text-white mt-1">
                   Priority Restock Alert Registered
                 </h3>
                 <p className="text-xs text-neutral-400 font-sans mt-2 max-w-sm mx-auto leading-relaxed">
-                  We have registered your alert for <span className="text-white font-medium">{product.title}</span> in size <span className="text-amber-200 font-mono">{selectedSize}</span>.
+                  We have registered your alert for <span className="text-white font-medium">{product.title}</span> in size <span className="text-amber-200 font-sans">{selectedSize}</span>.
                 </p>
               </div>
 
               {/* Receipt card */}
-              <div className="bg-neutral-900/70 border border-neutral-800 p-4 text-left font-mono text-xs space-y-2">
+              <div className="bg-neutral-900/70 border border-neutral-800 p-4 text-left font-sans text-xs space-y-2">
                 <div className="flex justify-between text-neutral-400 pb-1 border-b border-neutral-800">
                   <span>Dispatch Target:</span>
                   <span className="text-neutral-200">{email}</span>
@@ -435,7 +435,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                   type="button"
                   id="btn-toggle-email-preview"
                   onClick={() => setShowEmailPreview(!showEmailPreview)}
-                  className="text-[11px] font-mono text-neutral-400 hover:text-white underline underline-offset-4 flex items-center justify-center space-x-1.5 mx-auto"
+                  className="text-[11px] font-sans text-neutral-400 hover:text-white underline underline-offset-4 flex items-center justify-center space-x-1.5 mx-auto"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>{showEmailPreview ? 'Hide Dispatch Template' : 'Preview Automated Restock Email'}</span>
@@ -447,7 +447,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-4 p-4 bg-black border border-neutral-800 text-left font-sans text-xs space-y-3 rounded"
                   >
-                    <div className="border-b border-neutral-800 pb-2 flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                    <div className="border-b border-neutral-800 pb-2 flex items-center justify-between text-[11px] font-sans text-neutral-400">
                       <span>From: concierge@saelyxe.com</span>
                       <span className="text-amber-400">Automated Dispatch</span>
                     </div>
@@ -467,11 +467,11 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       />
                       <div>
                         <div className="font-serif text-white text-xs">{product.title}</div>
-                        <div className="font-mono text-[11px] text-amber-300">{formatPrice(product.priceLKR)}</div>
+                        <div className="font-sans text-[11px] text-amber-300">{formatPrice(product.priceLKR)}</div>
                       </div>
                     </div>
                     <div className="pt-1">
-                      <div className="w-full py-2 bg-white text-black text-center font-mono text-[11px] uppercase tracking-wider font-semibold">
+                      <div className="w-full py-2 bg-white text-black text-center font-sans text-[11px] uppercase tracking-wider font-semibold">
                         Purchase Before General Release →
                       </div>
                     </div>
@@ -484,7 +484,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                   type="button"
                   id="btn-close-restock-success"
                   onClick={onClose}
-                  className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-mono text-xs uppercase tracking-widest transition-colors cursor-pointer"
+                  className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-sans text-xs uppercase tracking-widest transition-colors cursor-pointer"
                 >
                   Return to Atelier Catalog
                 </button>

@@ -26,7 +26,7 @@ export const LegalReturnsPage: React.FC = () => {
         {/* Back Button */}
         <button
           onClick={() => navigateTo({ name: 'home' })}
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7A6E60] hover:text-[#1A1816] transition-colors group"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#665A4E] hover:text-[#1A1816] transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
           <span>Return to Boutique</span>
@@ -34,14 +34,14 @@ export const LegalReturnsPage: React.FC = () => {
 
         {/* Title Header */}
         <div className="space-y-4 border-b border-[#E3D9CD] pb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EFE9E0] border border-[#DCD0C0] text-[11px] font-semibold uppercase tracking-[0.25em] text-[#7A6E60]">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EFE9E0] border border-[#DCD0C0] text-[11px] font-semibold uppercase tracking-[0.25em] text-[#665A4E]">
             <RotateCcw className="w-3.5 h-3.5 text-[#857768]" />
             HOUSE OF SAELYXE • OFFICIAL POLICIES
           </div>
           <h1 className="font-serif text-3xl sm:text-5xl text-[#1A1816] font-normal tracking-tight leading-tight">
             Refund & Return Policy
           </h1>
-          <p className="text-sm text-[#7A6E60] font-light max-w-2xl">
+          <p className="text-sm text-[#665A4E] font-normal max-w-2xl">
             Thank you for shopping with SAELYXE. We value your trust and are committed to providing you with a premium shopping experience. If you experience any issue with your order, our support team is here to assist you.
           </p>
         </div>
@@ -53,7 +53,7 @@ export const LegalReturnsPage: React.FC = () => {
               <Clock className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">7-Day Eligibility</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Returns & exchanges accepted within 7 days of order receipt.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Returns & exchanges accepted within 7 days of order receipt.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -61,7 +61,7 @@ export const LegalReturnsPage: React.FC = () => {
               <CreditCard className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">PayPal Refunds</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Processed securely to your original payment method.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Processed securely to your original payment method.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -69,7 +69,7 @@ export const LegalReturnsPage: React.FC = () => {
               <RotateCcw className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Size & Product Exchange</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Bespoke exchange options subject to stock availability.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Bespoke exchange options subject to stock availability.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -77,12 +77,12 @@ export const LegalReturnsPage: React.FC = () => {
               <ShieldCheck className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Defect Guarantee</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Full support & resolution for damaged or wrong items.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Full support & resolution for damaged or wrong items.</p>
           </div>
         </div>
 
         {/* Detailed Policy Sections */}
-        <div className="space-y-10 text-sm text-[#3A332C] leading-relaxed font-light">
+        <div className="space-y-10 text-sm text-[#3A332C] leading-relaxed font-normal">
           
           {/* Returns */}
           <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-4">
@@ -113,7 +113,7 @@ export const LegalReturnsPage: React.FC = () => {
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-[#7A6E60] italic pt-2">
+            <p className="text-xs text-[#665A4E] italic pt-2">
               Items that do not meet these conditions may not be accepted for return.
             </p>
           </section>
@@ -137,7 +137,7 @@ export const LegalReturnsPage: React.FC = () => {
             <p>
               Any shipping or delivery charges paid for the original order may be non-refundable, except where the return is caused by an error on our part, such as sending the wrong item or an item that arrived damaged or defective.
             </p>
-            <p className="text-xs text-[#7A6E60]">
+            <p className="text-xs text-[#665A4E]">
               Refund processing times may vary depending on the payment processor, bank, or card issuer.
             </p>
           </section>
@@ -289,7 +289,7 @@ export const LegalReturnsPage: React.FC = () => {
             <p>
               Approved returns, exchanges, and refunds will be processed within a reasonable business period after the returned item has been received and inspected.
             </p>
-            <p className="text-xs text-[#7A6E60]">
+            <p className="text-xs text-[#665A4E]">
               The actual time for a refunded amount to appear in your account may vary depending on your bank, card issuer, PayPal, or other applicable payment provider.
             </p>
           </section>
@@ -310,7 +310,7 @@ export const LegalReturnsPage: React.FC = () => {
             <p>
               House of Saelyxe is not responsible for issues caused by incorrect or incomplete customer-provided information, subject to applicable consumer rights and law.
             </p>
-            <p className="text-xs text-[#7A6E60] border-t border-[#F0E8DD] pt-3">
+            <p className="text-xs text-[#665A4E] border-t border-[#F0E8DD] pt-3">
               Nothing in this Refund & Return Policy is intended to remove or limit any rights available to consumers under applicable Sri Lankan law.
             </p>
           </section>
@@ -323,7 +323,7 @@ export const LegalReturnsPage: React.FC = () => {
             <h3 className="font-serif text-2xl text-white font-normal">
               Need assistance with a return or exchange?
             </h3>
-            <p className="text-xs text-stone-300 font-light max-w-lg">
+            <p className="text-xs text-stone-300 font-normal max-w-lg">
               For return, exchange, refund, or order-related assistance, please contact saelyxe Customer Support through our official concierge channel. We are committed to handling customer concerns fairly.
             </p>
           </div>

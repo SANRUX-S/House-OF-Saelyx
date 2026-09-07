@@ -242,7 +242,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
         
         {/* Navigation Breadcrumb & Back */}
         <div className="flex items-center justify-between border-b border-[#ECE3D8] pb-3 sm:pb-4">
-          <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs uppercase tracking-widest text-[#7A6E60] overflow-hidden">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs uppercase tracking-widest text-[#665A4E] overflow-hidden">
             <button
               onClick={() => navigateTo({ name: 'home' })}
               className="hover:text-black transition-colors flex-shrink-0 cursor-pointer"
@@ -259,7 +259,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
 
           <button
             onClick={handleShare}
-            className="inline-flex items-center gap-1.5 text-xs text-[#7A6E60] hover:text-black transition-colors cursor-pointer flex-shrink-0 p-1"
+            className="inline-flex items-center gap-1.5 text-xs text-[#665A4E] hover:text-black transition-colors cursor-pointer flex-shrink-0 p-1"
           >
             <Share2 className="w-3.5 h-3.5" />
             <span>{copied ? 'Copied!' : 'Share'}</span>
@@ -318,7 +318,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                 </span>
               </div>
 
-              <h1 className="font-['Plus_Jakarta_Sans'] text-xl sm:text-3xl font-bold uppercase tracking-tight text-[#1A1816]">
+              <h1 className="font-sans text-xl sm:text-3xl font-bold uppercase tracking-tight text-[#1A1816]">
                 {product.title}
               </h1>
 
@@ -370,13 +370,13 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                 {/* Out of Stock Notice Pill */}
                 <div className="bg-[#1A1816] text-[#FAF8F5] p-4 rounded-2xl border border-neutral-800 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono tracking-widest uppercase text-amber-400 font-semibold flex items-center gap-1.5">
+                    <span className="text-[10px] font-sans tracking-widest uppercase text-amber-400 font-semibold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                       Archival Run Sold Out
                     </span>
-                    <span className="text-[10px] font-mono text-neutral-400">Atelier Waitlist</span>
+                    <span className="text-[10px] font-sans text-neutral-400">Atelier Waitlist</span>
                   </div>
-                  <p className="text-xs text-neutral-300 font-light leading-relaxed">
+                  <p className="text-xs text-neutral-300 font-normal leading-relaxed">
                     This silhouette is currently fully allocated. Register your email below to receive an automated notification by email when the next replenishment batch is released.
                   </p>
                 </div>
@@ -388,7 +388,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                         <Bell className="w-4 h-4 text-amber-800" />
                         <span>Email Me When Back in Stock</span>
                       </label>
-                      <span className="text-[11px] font-mono text-[#8C7E70]">Size: {currentSize}</span>
+                      <span className="text-[11px] font-sans text-[#8C7E70]">Size: {currentSize}</span>
                     </div>
 
                     {inlineError && (
@@ -440,7 +440,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                         <div className="p-3 bg-[#FAF8F5] border border-[#DDD3C7] rounded-xl space-y-2">
                           {inlineNotificationPermission === 'default' && (
                             <div className="space-y-1.5">
-                              <p className="text-[10px] text-[#7A6E60] font-sans leading-relaxed">
+                              <p className="text-[10px] text-[#665A4E] font-sans leading-relaxed">
                                 Please authorize notifications in your browser to receive live, instantaneous Atelier restocking alerts on this device.
                               </p>
                               <button
@@ -451,7 +451,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                                     setInlineNotificationPermission(result);
                                   }
                                 }}
-                                className="w-full py-1.5 bg-[#1A1816] hover:bg-black text-white font-mono text-[9px] uppercase tracking-wider transition-all cursor-pointer rounded-lg"
+                                className="w-full py-1.5 bg-[#1A1816] hover:bg-black text-white font-sans text-[9px] uppercase tracking-wider transition-all cursor-pointer rounded-lg"
                               >
                                 Allow Web App Notifications
                               </button>
@@ -463,7 +463,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                             </p>
                           )}
                           {inlineNotificationPermission === 'granted' && (
-                            <div className="flex items-center space-x-2 text-emerald-600 font-mono text-[10px]">
+                            <div className="flex items-center space-x-2 text-emerald-600 font-sans text-[10px]">
                               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
                               <span>✓ Live App Notifications Authorized</span>
                             </div>
@@ -502,7 +502,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                     <div>
                       <h4 className="font-semibold text-sm">Restock Priority Confirmed</h4>
                       <p className="text-xs text-emerald-200 mt-1">
-                        We'll alert <span className="underline font-mono">{inlineEmail}</span> the instant size <span className="font-mono">{currentSize}</span> is replenished.
+                        We'll alert <span className="underline font-sans">{inlineEmail}</span> the instant size <span className="font-sans">{currentSize}</span> is replenished.
                       </p>
                     </div>
                     <button
@@ -527,7 +527,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                     >
                       -
                     </button>
-                    <span className="px-2 sm:px-4 font-mono font-semibold">{quantity}</span>
+                    <span className="px-2 sm:px-4 font-sans font-semibold">{quantity}</span>
                     <button
                       onClick={() => setQuantity(quantity + 1)}
                       className="min-w-[24px] min-h-[24px] flex items-center justify-center hover:text-black text-[#7A6E60] font-bold cursor-pointer"
@@ -567,7 +567,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                     <Bell className="w-3 h-3 text-amber-700 flex-shrink-0" />
                     <span>Need a sold out size notification?</span>
                   </button>
-                  <span className="font-mono text-[10px] text-emerald-800 font-semibold flex-shrink-0">● In Stock ({product.stockCount || 'Limited'})</span>
+                  <span className="font-sans text-[10px] text-emerald-800 font-semibold flex-shrink-0">● In Stock ({product.stockCount || 'Limited'})</span>
                 </div>
               </div>
             )}
@@ -624,7 +624,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                     >
                       {matchingSetProduct.title}
                     </h4>
-                    <p className="text-[11px] text-[#7A6E60] truncate">{matchingSetProduct.subtitle}</p>
+                    <p className="text-[11px] text-[#665A4E] truncate">{matchingSetProduct.subtitle}</p>
                     <div className="text-xs font-serif font-bold text-[#1A1816] mt-1">
                       {formatPrice(matchingSetProduct.priceLKR)}
                     </div>
@@ -764,7 +764,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                       <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <span className="text-[11px] font-mono text-[#8C7E6F]">{rev.date}</span>
+                  <span className="text-[11px] font-sans text-[#8C7E6F]">{rev.date}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -777,7 +777,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                   )}
                 </div>
 
-                <p className="text-xs text-[#4A4035] leading-relaxed font-light">
+                <p className="text-xs text-[#4A4035] leading-relaxed font-normal">
                   "{rev.comment}"
                 </p>
               </div>
@@ -826,7 +826,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                     <h4 className="font-semibold text-xs uppercase tracking-wider text-[#1A1816] group-hover:text-amber-900 transition-colors">
                       {p.title}
                     </h4>
-                    <p className="text-[11px] text-[#7A6E60] truncate">{p.subtitle}</p>
+                    <p className="text-[11px] text-[#665A4E] truncate">{p.subtitle}</p>
                     <div className="text-xs font-serif font-bold text-[#1A1816] pt-1">
                       {formatPrice(p.priceLKR)}
                     </div>

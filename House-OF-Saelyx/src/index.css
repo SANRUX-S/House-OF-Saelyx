@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Shared storefront font families; sizes and layout remain component-owned. */
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-display: "Cinzel", serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+  }
+}
+
 /* ==========================================================================
    SAELYXE Luxury Global Custom Scrollbar Styling
    ========================================================================== */
@@ -41,4 +54,73 @@ html {
 
 ::-webkit-scrollbar-corner {
   background: #141210 !important;
+}
+
+/* Footer navigation feedback without changing the link layout. */
+.footer-link {
+  position: relative;
+  cursor: pointer;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.footer-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 1px;
+  background: #d8c1a4;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+
+.footer-link:hover,
+.footer-link:focus-visible {
+  color: #ead6bb;
+  transform: translateX(3px);
+}
+
+.footer-link:hover::after,
+.footer-link:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.footer-link:active {
+  transform: translateX(3px) scale(0.97);
+}
+
+.footer-social {
+  transition: transform 180ms ease;
+}
+
+.footer-social:hover {
+  transform: translateY(-3px);
+}
+
+.footer-social:active {
+  transform: scale(0.94);
+}
+
+.footer-link:focus-visible,
+.footer-social:focus-visible {
+  outline: 2px solid #d8c1a4;
+  outline-offset: 5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-link,
+  .footer-link::after,
+  .footer-social {
+    transition: none;
+  }
+
+  .footer-link:hover,
+  .footer-link:focus-visible,
+  .footer-link:active,
+  .footer-social:hover,
+  .footer-social:active {
+    transform: none;
+  }
 }

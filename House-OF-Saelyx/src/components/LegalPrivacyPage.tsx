@@ -28,7 +28,7 @@ export const LegalPrivacyPage: React.FC = () => {
         {/* Back Button */}
         <button
           onClick={() => navigateTo({ name: 'home' })}
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7A6E60] hover:text-[#1A1816] transition-colors group"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#665A4E] hover:text-[#1A1816] transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
           <span>Return to Boutique</span>
@@ -36,20 +36,20 @@ export const LegalPrivacyPage: React.FC = () => {
 
         {/* Title Header */}
         <div className="space-y-4 border-b border-[#E3D9CD] pb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EFE9E0] border border-[#DCD0C0] text-[11px] font-semibold uppercase tracking-[0.25em] text-[#7A6E60]">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EFE9E0] border border-[#DCD0C0] text-[11px] font-semibold uppercase tracking-[0.25em] text-[#665A4E]">
             <Lock className="w-3.5 h-3.5 text-[#857768]" />
             HOUSE OF SAELYXE • CONFIDENTIALITY & DATA PROTECTION
           </div>
           <h1 className="font-serif text-3xl sm:text-5xl text-[#1A1816] font-normal tracking-tight leading-tight">
             Privacy Policy
           </h1>
-          <p className="text-xs text-[#7A6E60] uppercase tracking-widest font-mono">
+          <p className="text-xs text-[#665A4E] uppercase tracking-widest font-sans">
             Last Updated: September 6, 2026
           </p>
-          <p className="text-sm text-[#7A6E60] font-light max-w-3xl leading-relaxed pt-1">
+          <p className="text-sm text-[#665A4E] font-normal max-w-3xl leading-relaxed pt-1">
             At <strong className="font-semibold text-[#1A1816]">SAELYXE</strong>, we respect your privacy and are committed to protecting the personal information you provide when using our website, creating an account, placing an order, or contacting our customer support team.
           </p>
-          <p className="text-xs text-[#7A6E60] italic">
+          <p className="text-xs text-[#665A4E] italic">
             By using the SAELYXE website, you acknowledge and agree to the practices described in this Privacy Policy.
           </p>
         </div>
@@ -61,7 +61,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <Lock className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Zero Card Storage</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Card details are processed securely by PayPal without full card storage on our servers.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Card details are processed securely by PayPal without full card storage on our servers.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -69,7 +69,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <ShieldCheck className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">No Data Selling</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">We never sell or rent your personal information to third parties.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">We never sell or rent your personal information to third parties.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -77,7 +77,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <UserCheck className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Account Rights</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Manage, update, or request deletion of your account at any time.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Manage, update, or request deletion of your account at any time.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -85,12 +85,12 @@ export const LegalPrivacyPage: React.FC = () => {
               <Cookie className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Cookie Control</h4>
-            <p className="text-[12px] text-[#7A6E60] font-light leading-snug">Manage your web tracking preferences directly in your browser.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Manage your web tracking preferences directly in your browser.</p>
           </div>
         </div>
 
         {/* Detailed Sections */}
-        <div className="space-y-10 text-sm text-[#3A332C] leading-relaxed font-light">
+        <div className="space-y-10 text-sm text-[#3A332C] leading-relaxed font-normal">
           
           {/* Information We Collect */}
           <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-4">
@@ -123,7 +123,7 @@ export const LegalPrivacyPage: React.FC = () => {
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-[#7A6E60] pt-2">
+            <p className="text-xs text-[#665A4E] pt-2">
               We may also automatically collect certain technical information when you use our website, including your IP address, browser type, device information, operating system, website activity, and similar technical data.
             </p>
           </section>
@@ -201,7 +201,7 @@ export const LegalPrivacyPage: React.FC = () => {
             <p>
               Customers are responsible for providing accurate and up-to-date information. We may use account information to identify customers, manage orders, provide support, and maintain account security.
             </p>
-            <p className="text-xs text-[#7A6E60]">
+            <p className="text-xs text-[#665A4E]">
               We may restrict, suspend, or terminate accounts where there is evidence of fraudulent, abusive, misleading, or unauthorised activity, subject to applicable law.
             </p>
             <p className="text-xs text-[#4A4036]">
@@ -256,7 +256,7 @@ export const LegalPrivacyPage: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-xs text-[#7A6E60] italic pt-1">
+            <p className="text-xs text-[#665A4E] italic pt-1">
               We require service providers handling customer information on our behalf to use reasonable safeguards appropriate to the nature of the information.
             </p>
           </section>
@@ -290,7 +290,7 @@ export const LegalPrivacyPage: React.FC = () => {
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-[#7A6E60] pt-1">
+            <p className="text-xs text-[#665A4E] pt-1">
               You may manage or disable cookies through your browser settings. However, disabling certain cookies may affect some website features or functionality.
             </p>
           </section>
@@ -305,7 +305,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <p className="text-xs text-[#5C5042] leading-relaxed">
                 SAELYXE takes reasonable technical and organisational measures to protect personal information against unauthorised access, loss, misuse, alteration, disclosure, or destruction.
               </p>
-              <p className="text-[11px] text-[#7A6E60] italic">
+              <p className="text-[11px] text-[#665A4E] italic">
                 However, no online transmission or electronic storage system can be guaranteed to be completely secure. Therefore, while we take reasonable precautions, we cannot guarantee absolute security of information transmitted over the internet.
               </p>
             </section>
@@ -318,7 +318,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <p className="text-xs text-[#5C5042] leading-relaxed">
                 We retain personal information only for as long as reasonably necessary for the purposes described in this Privacy Policy, including fulfilling orders, maintaining accounts, providing customer support, resolving disputes, preventing fraud, meeting legal or regulatory obligations, and maintaining appropriate business records.
               </p>
-              <p className="text-[11px] text-[#7A6E60] italic">
+              <p className="text-[11px] text-[#665A4E] italic">
                 When information is no longer reasonably required, it may be securely deleted, anonymised, or otherwise disposed of in accordance with applicable requirements.
               </p>
             </section>
@@ -339,7 +339,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <p className="text-xs text-[#4A4036]">
                 Subject to applicable law, you may have the right to request access to, correction of, or other appropriate handling of your personal information. You may also contact us regarding unwanted marketing communications or certain privacy-related concerns.
               </p>
-              <p className="text-xs text-[#7A6E60]">
+              <p className="text-xs text-[#665A4E]">
                 Some information may need to be retained where required for legal, security, accounting, fraud-prevention, or legitimate business purposes.
               </p>
             </div>
@@ -383,7 +383,7 @@ export const LegalPrivacyPage: React.FC = () => {
             <h3 className="font-serif text-2xl text-white font-normal">
               Have privacy questions or data requests?
             </h3>
-            <p className="text-xs text-stone-300 font-light max-w-lg">
+            <p className="text-xs text-stone-300 font-normal max-w-lg">
               For questions, concerns, privacy requests, or complaints regarding the handling of your personal information, please contact SAELYXE Customer Support through our official Support page.
             </p>
           </div>

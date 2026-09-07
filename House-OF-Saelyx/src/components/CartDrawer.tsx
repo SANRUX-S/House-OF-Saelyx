@@ -361,7 +361,7 @@ export const CartDrawer: React.FC = () => {
                           >
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className="text-xs font-mono font-medium min-w-[14px] text-center">
+                          <span className="text-xs font-sans font-medium min-w-[14px] text-center">
                             {item.quantity}
                           </span>
                           <button

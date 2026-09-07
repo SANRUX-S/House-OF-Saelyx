@@ -12,7 +12,7 @@ export const CareAuthenticityPage: React.FC = () => {
         {/* Back Button */}
         <button
           onClick={() => navigateTo({ name: 'home' })}
-          className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#7A6E60] hover:text-black transition-colors"
+          className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#665A4E] hover:text-black transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Return to Boutique</span>
@@ -26,7 +26,7 @@ export const CareAuthenticityPage: React.FC = () => {
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
             Certificate of Authenticity & Craft
           </h1>
-          <p className="text-xs text-[#7A6E60]">
+          <p className="text-xs text-[#665A4E]">
             Every garment carries an individual serialized certificate signed by our master cutter.
           </p>
         </div>
@@ -58,7 +58,7 @@ export const CareAuthenticityPage: React.FC = () => {
             </div>
             <div>
               <span className="text-[9px] uppercase tracking-wider text-neutral-400 block">Hardware Seal</span>
-              <span className="font-mono text-amber-200">ENGRAVED BRASS</span>
+              <span className="font-sans text-amber-200">ENGRAVED BRASS</span>
             </div>
             <div>
               <span className="text-[9px] uppercase tracking-wider text-neutral-400 block">Verification</span>
@@ -68,7 +68,7 @@ export const CareAuthenticityPage: React.FC = () => {
         </div>
 
         {/* Pillars */}
-        <div className="space-y-6 text-xs sm:text-sm text-[#4A4036] leading-relaxed font-light">
+        <div className="space-y-6 text-xs sm:text-sm text-[#4A4036] leading-relaxed font-normal">
           <section className="space-y-2">
             <h3 className="font-serif text-base font-semibold text-[#1A1816]">1. Uncompromised Yarn Weight & GSM</h3>
             <p>

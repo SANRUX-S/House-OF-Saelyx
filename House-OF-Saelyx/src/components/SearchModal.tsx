@@ -130,7 +130,7 @@ export const SearchModal: React.FC = () => {
                         {product.title}
                       </h4>
                       <p className="text-[10px] sm:text-[11px] text-neutral-400 truncate">{product.subtitle}</p>
-                      <div className="text-xs font-mono font-medium text-white/90 mt-0.5">
+                      <div className="text-xs font-sans font-medium text-white/90 mt-0.5">
                         {formatPrice ? formatPrice(product.priceLKR) : `LKR ${product.priceLKR?.toLocaleString()}`}
                       </div>
                     </div>

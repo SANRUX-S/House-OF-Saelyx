@@ -270,7 +270,7 @@ export const Navbar: React.FC = () => {
         </button>
 
         {/* Center: Category Navigation Pill */}
-        <div className="absolute inset-x-0 mx-auto w-max flex items-center bg-black/70 border border-white/20 rounded-full px-4 py-1.5 shadow-2xl pointer-events-auto">
+        <div className="absolute inset-x-0 mx-auto w-max flex items-center bg-white/15 border border-white/20 rounded-full px-4 py-1 shadow-2xl pointer-events-auto">
           <div className="flex items-center gap-1 sm:gap-2 text-[11px] lg:text-[11.5px] font-semibold tracking-[0.2em] uppercase text-white">
             {navCategories.map((cat) => {
               const isActive = activeCategory === cat.value && (currentRoute.name === 'collection');

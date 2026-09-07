@@ -97,7 +97,7 @@ export const ProfilePage: React.FC = () => {
             <h2 className="font-serif text-2xl sm:text-3xl text-[#1A1816] font-normal">
               AUTHENTICATION REQUIRED
             </h2>
-            <p className="text-xs text-[#7A6E60] leading-relaxed max-w-md mx-auto">
+            <p className="text-xs text-[#665A4E] leading-relaxed max-w-md mx-auto">
               Please sign in with your House of Saelyxe account or Google profile to access your private client records.
             </p>
           </div>
@@ -120,13 +120,13 @@ export const ProfilePage: React.FC = () => {
         <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-4">
           <button
             onClick={() => navigateTo({ name: 'home' })}
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#7A6E60] hover:text-[#1A1816] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#665A4E] hover:text-[#1A1816] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" />
             <span>Return to Boutique</span>
           </button>
 
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#7A6E60]">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#665A4E]">
             <ShieldCheck className="w-4 h-4 text-emerald-800 stroke-[1.5]" />
             <span>Encrypted Client Record</span>
           </div>
@@ -154,7 +154,7 @@ export const ProfilePage: React.FC = () => {
               <h1 className="font-serif text-2xl sm:text-3xl text-[#1A1816] font-normal tracking-tight">
                 {user.name}
               </h1>
-              <p className="text-xs text-[#7A6E60] mt-0.5">
+              <p className="text-xs text-[#665A4E] mt-0.5">
                 {user.email || 'Private Client'}
               </p>
             </div>
@@ -207,7 +207,7 @@ export const ProfilePage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">
                   Full Name
                 </label>
                 <input
@@ -224,7 +224,7 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">
                   Email Address
                 </label>
                 <input
@@ -237,7 +237,7 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">
                   Phone Number
                 </label>
                 <input
@@ -271,7 +271,7 @@ export const ProfilePage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="sm:col-span-2">
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">
                   Address Line
                 </label>
                 <input
@@ -289,7 +289,7 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">
                   City
                 </label>
                 <input
@@ -307,7 +307,7 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">
                   Postal Code
                 </label>
                 <input
@@ -325,7 +325,7 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">
                   Country
                 </label>
                 <input
@@ -356,7 +356,7 @@ export const ProfilePage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <div className="p-3.5 bg-[#FAF8F5] rounded-xl border border-[#EAE3D9]">
-                <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] block mb-1">
+                <span className="text-[10px] uppercase tracking-wider text-[#665A4E] block mb-1">
                   Auth Method
                 </span>
                 <span className="font-medium text-[#1A1816] uppercase">
@@ -365,7 +365,7 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div className="p-3.5 bg-[#FAF8F5] rounded-xl border border-[#EAE3D9]">
-                <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] block mb-1">
+                <span className="text-[10px] uppercase tracking-wider text-[#665A4E] block mb-1">
                   Patron Status
                 </span>
                 <span className="font-medium text-emerald-800">
@@ -374,7 +374,7 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div className="p-3.5 bg-[#FAF8F5] rounded-xl border border-[#EAE3D9]">
-                <span className="text-[10px] uppercase tracking-wider text-[#7A6E60] block mb-1">
+                <span className="text-[10px] uppercase tracking-wider text-[#665A4E] block mb-1">
                   Client ID
                 </span>
                 <span className="font-mono text-[11px] text-[#4A4036]">

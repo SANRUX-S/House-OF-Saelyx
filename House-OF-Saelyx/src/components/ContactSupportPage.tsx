@@ -50,7 +50,7 @@ export const ContactSupportPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-[\'Plus_Jakarta_Sans\'] pt-24 sm:pt-28 pb-28 px-5 sm:px-8 md:px-12 lg:px-16">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-sans pt-24 sm:pt-28 pb-28 px-5 sm:px-8 md:px-12 lg:px-16">
       <div className="max-w-3xl mx-auto space-y-10">
         
         {/* Navigation Breadcrumb */}

@@ -61,7 +61,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
               <h2 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
                 ORDER PLACED
               </h2>
-              <p className="text-xs text-[#7A6E60] leading-relaxed max-w-sm mx-auto">
+              <p className="text-xs text-[#665A4E] leading-relaxed max-w-sm mx-auto">
                 Thank you for shopping with SAELYXE. Your bespoke order has been successfully placed in our atelier ledger.
               </p>
             </div>
@@ -69,17 +69,17 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
             {/* Key Order Credentials Box */}
             <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-[#EAE3D9] space-y-3 text-left text-xs">
               <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2.5">
-                <span className="text-[#7A6E60] uppercase tracking-wider text-[10px] font-medium">Order Number</span>
+                <span className="text-[#665A4E] uppercase tracking-wider text-[10px] font-medium">Order Number</span>
                 <span className="font-mono text-xs sm:text-sm font-bold text-[#1A1816]">
                   #{order.orderNumber}
                 </span>
               </div>
 
               <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2.5">
-                <span className="text-[#7A6E60] uppercase tracking-wider text-[10px] font-medium">Payment</span>
+                <span className="text-[#665A4E] uppercase tracking-wider text-[10px] font-medium">Payment</span>
                 <span className="font-medium text-[#1A1816] text-right">
                   {formatPaymentMethod(order.paymentMethod)}
-                  <span className="block text-[9px] uppercase tracking-wider text-[#7A6E60] mt-0.5">
+                  <span className="block text-[9px] uppercase tracking-wider text-[#665A4E] mt-0.5">
                     {order.paymentMethod === 'cod'
                       ? 'Pay on delivery'
                       : order.paymentStatus === 'paid' || order.paymentStatus === 'verified'
@@ -90,7 +90,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-[#7A6E60] uppercase tracking-wider text-[10px] font-medium">Order Total</span>
+                <span className="text-[#665A4E] uppercase tracking-wider text-[10px] font-medium">Order Total</span>
                 <span className="font-serif text-base font-semibold text-[#1A1816]">
                   {formatPrice(order.totalLKR)}
                 </span>
@@ -114,21 +114,21 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
                         {item.title} <span className="text-[#7A6E60]">× {item.quantity}</span>
                       </span>
                     </div>
-                    <span className="font-mono text-xs text-[#4A4036] flex-shrink-0">
+                    <span className="font-sans text-xs text-[#4A4036] flex-shrink-0">
                       {formatPrice(item.priceLKR * item.quantity)}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-2 border-t border-[#ECE3D8] space-y-1.5 text-xs text-[#7A6E60]">
+              <div className="pt-2 border-t border-[#ECE3D8] space-y-1.5 text-xs text-[#665A4E]">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-mono">{formatPrice(order.subtotalLKR)}</span>
+                  <span className="font-sans">{formatPrice(order.subtotalLKR)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Delivery</span>
-                  <span className="font-mono text-emerald-800">
+                  <span className="font-sans text-emerald-800">
                     {order.shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(order.shippingLKR)}
                   </span>
                 </div>
@@ -159,7 +159,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
 
               <button
                 onClick={onClose}
-                className="sm:col-span-2 h-11 bg-transparent text-[#7A6E60] text-[10px] uppercase tracking-[0.18em] font-medium rounded-xl hover:bg-[#FAF8F5] hover:text-[#1A1816] transition-colors cursor-pointer"
+                className="sm:col-span-2 h-11 bg-transparent text-[#665A4E] text-[10px] uppercase tracking-[0.18em] font-medium rounded-xl hover:bg-[#FAF8F5] hover:text-[#1A1816] transition-colors cursor-pointer"
               >
                 RETURN TO BOUTIQUE
               </button>

@@ -129,7 +129,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
             <h4 className="text-sm font-semibold text-[#1A1816] truncate tracking-wide">
               {user.name || 'Patron'}
             </h4>
-            <p className="text-xs text-[#7A6E60] truncate mt-0.5 font-sans">
+            <p className="text-xs text-[#665A4E] truncate mt-0.5 font-sans">
               {user.email || 'patron@saelyxe.com'}
             </p>
           </div>
@@ -170,7 +170,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
                     <div className="text-[11px] font-semibold tracking-wider uppercase text-[#1A1816] truncate group-hover:text-black transition-colors">
                       {item.label}
                     </div>
-                    <div className="text-[10px] text-[#7A6E60] font-normal truncate mt-0.5">
+                    <div className="text-[10px] text-[#665A4E] font-normal truncate mt-0.5">
                       {item.desc}
                     </div>
                   </div>

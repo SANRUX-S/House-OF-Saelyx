@@ -237,7 +237,7 @@ export const CheckoutPage: React.FC = () => {
             <h1 className="font-serif text-2xl text-[#1A1816] font-normal">
               Your Bag is Currently Empty
             </h1>
-            <p className="text-xs text-[#7A6E60] leading-relaxed max-w-xs mx-auto">
+            <p className="text-xs text-[#665A4E] leading-relaxed max-w-xs mx-auto">
               Explore the latest Drop 001 collection and reserve bespoke garments before checking out.
             </p>
           </div>
@@ -273,7 +273,7 @@ export const CheckoutPage: React.FC = () => {
             <h1 className="font-serif text-2xl text-[#1A1816] font-normal">
               Authentication Required
             </h1>
-            <p className="text-xs text-[#7A6E60] leading-relaxed">
+            <p className="text-xs text-[#665A4E] leading-relaxed">
               A House of Saelyxe client profile is required to reserve limited atelier garment stock and arrange priority hand-delivery.
             </p>
           </div>
@@ -407,7 +407,7 @@ export const CheckoutPage: React.FC = () => {
             <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal">
               Thank you, {confirmedOrder.customerName}.
             </h1>
-            <p className="text-xs text-[#7A6E60]">
+            <p className="text-xs text-[#665A4E]">
               Your order reference is <strong className="font-mono text-[#1A1816]">{confirmedOrder.orderNumber}</strong>. Your order has been securely recorded. Payment and dispatch updates will appear in your order status.
             </p>
           </div>
@@ -455,13 +455,13 @@ export const CheckoutPage: React.FC = () => {
         <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-4">
           <button
             onClick={() => navigateTo({ name: 'home' })}
-            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#7A6E60] hover:text-[#1A1816] transition-colors"
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#665A4E] hover:text-[#1A1816] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" />
             <span>Continue Shopping</span>
           </button>
 
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#7A6E60]">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#665A4E]">
             <Lock className="w-3.5 h-3.5 text-emerald-800 stroke-[1.5]" />
             <span>256-Bit Encrypted Checkout</span>
           </div>
@@ -486,7 +486,7 @@ export const CheckoutPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsAuthOpen(true)}
-                      className="text-[11px] text-[#7A6E60] hover:text-black underline font-semibold"
+                      className="text-[11px] text-[#665A4E] hover:text-black underline font-semibold"
                     >
                       Sign In for VIP Express
                     </button>
@@ -496,7 +496,7 @@ export const CheckoutPage: React.FC = () => {
                 {/* REDESIGNED FORM INPUTS (AFTER THE PROTECTED HEADING) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-2">
+                    <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-2">
                       Full Name *
                     </label>
                     <input
@@ -511,7 +511,7 @@ export const CheckoutPage: React.FC = () => {
 
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60]">
+                      <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E]">
                         Contact Phone *
                       </label>
                       {phoneError && (
@@ -539,7 +539,7 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-2">
+                  <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-2">
                     Email Address * (For Tracking & Invoice)
                   </label>
                   <input
@@ -553,7 +553,7 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-2">
+                  <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-2">
                     Street Address & Residence *
                   </label>
                   <input
@@ -568,7 +568,7 @@ export const CheckoutPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-2">
+                    <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-2">
                       City *
                     </label>
                     <input
@@ -581,7 +581,7 @@ export const CheckoutPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-2">
+                    <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-2">
                       Postal Code
                     </label>
                     <input
@@ -593,7 +593,7 @@ export const CheckoutPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-2">
+                    <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-2">
                       Country
                     </label>
                     <input
@@ -607,7 +607,7 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] mb-2">
+                  <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-2">
                     Courier Delivery Instructions (Optional)
                   </label>
                   <input
@@ -688,7 +688,7 @@ export const CheckoutPage: React.FC = () => {
                               Global Buyer Protection
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#7A6E60] mt-0.5">
+                          <p className="text-[11px] text-[#665A4E] mt-0.5">
                             Global / USD / EUR / International Cards
                           </p>
                         </div>
@@ -826,7 +826,7 @@ export const CheckoutPage: React.FC = () => {
                               Temporary Test
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#7A6E60] mt-0.5">
+                          <p className="text-[11px] text-[#665A4E] mt-0.5">
                             No online payment now · Pay when the order is delivered
                           </p>
                         </div>
@@ -896,7 +896,7 @@ export const CheckoutPage: React.FC = () => {
                       <h4 className="font-serif text-sm text-[#1A1816] font-normal leading-snug tracking-wide">
                         {item.title}
                       </h4>
-                      <p className="text-[11px] text-[#7A6E60] uppercase tracking-wider font-sans mt-0.5">
+                      <p className="text-[11px] text-[#665A4E] uppercase tracking-wider font-sans mt-0.5">
                         Size {item.size} · Qty {item.quantity}
                       </p>
                     </div>
@@ -910,7 +910,7 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Promo / Atelier Voucher */}
             <div className="border-t border-[#EAE3D9] pt-5 space-y-2.5">
-              <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#7A6E60] flex items-center gap-1.5">
+              <label className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] flex items-center gap-1.5">
                 <Tag className="w-3.5 h-3.5 stroke-[1.5]" />
                 PROMO / ATELIER VOUCHER CODE
               </label>
@@ -971,18 +971,18 @@ export const CheckoutPage: React.FC = () => {
             <div className="border-t border-[#EAE3D9] pt-5 space-y-2.5 text-xs">
               <div className="flex justify-between text-[#7A6E60]">
                 <span>SUBTOTAL</span>
-                <span className="font-mono text-[#1A1816]">{formatPrice(subtotalLKR)}</span>
+                <span className="font-sans text-[#1A1816]">{formatPrice(subtotalLKR)}</span>
               </div>
               <div className="flex justify-between text-[#7A6E60]">
                 <span>DELIVERY</span>
-                <span className="font-mono text-emerald-900 font-medium">
+                <span className="font-sans text-emerald-900 font-medium">
                   {shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(shippingLKR)}
                 </span>
               </div>
               {discountLKR > 0 && (
                 <div className="flex justify-between text-emerald-800 font-medium">
                   <span>DISCOUNT ({appliedPromo?.code})</span>
-                  <span className="font-mono">-{formatPrice(discountLKR)}</span>
+                  <span className="font-sans">-{formatPrice(discountLKR)}</span>
                 </div>
               )}
               <div className="border-t border-[#EAE3D9] pt-3.5 flex justify-between items-baseline">
@@ -1008,7 +1008,7 @@ export const CheckoutPage: React.FC = () => {
                   <span className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#1A1816]">
                     Size & Exchange Support
                   </span>
-                  <p className="text-[11px] text-[#7A6E60] leading-relaxed">
+                  <p className="text-[11px] text-[#665A4E] leading-relaxed">
                     Eligibility and timelines follow the SAELYXE Returns & Exchanges policy.
                   </p>
                 </div>
@@ -1019,7 +1019,7 @@ export const CheckoutPage: React.FC = () => {
                   <span className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#1A1816]">
                     Courier & Tracking Updates
                   </span>
-                  <p className="text-[11px] text-[#7A6E60] leading-relaxed">
+                  <p className="text-[11px] text-[#665A4E] leading-relaxed">
                     Courier and tracking details appear after dispatch and are updated by SAELYXE operations.
                   </p>
                 </div>

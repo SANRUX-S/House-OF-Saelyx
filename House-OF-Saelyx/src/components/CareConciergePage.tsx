@@ -44,7 +44,7 @@ export const CareConciergePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-[\'Plus_Jakarta_Sans\'] pt-24 pb-20 px-5 sm:px-8">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] font-sans pt-24 pb-20 px-5 sm:px-8">
       <div className="max-w-4xl mx-auto space-y-10">
         <button
           onClick={() => navigateTo({ name: 'home' })}

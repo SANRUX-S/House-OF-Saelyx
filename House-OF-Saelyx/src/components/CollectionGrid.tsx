@@ -105,24 +105,25 @@ export const CollectionGrid: React.FC = () => {
       <div className="max-w-7xl mx-auto px-5 sm:px-8 md:px-12">
         
         {/* Section Header */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-6 pb-6 sm:pb-10 border-b border-[#E5DFD7]">
+        <div className="flex flex-col gap-4 sm:gap-6 pb-6 sm:pb-10 border-b border-[#E5DFD7]">
           <div>
             <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] text-[#8C7E70] font-semibold mb-1 sm:mb-2">
               Ready-to-Wear Drops
             </div>
-            <h2 className="font-['Plus_Jakarta_Sans'] text-xl sm:text-3xl md:text-5xl font-bold tracking-tight text-[#1A1816] uppercase">
+            <h2 className="font-sans text-xl sm:text-3xl md:text-5xl font-bold tracking-tight text-[#1A1816] uppercase">
               NEW RELEASES <span className="font-light text-[#A89C8F]">|</span> 001
             </h2>
           </div>
 
           {/* Filter and Sorting Controls */}
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 min-w-0">
-            <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden bg-[#ECE6DD] rounded-full p-1 border border-[#DFD7CC] max-w-full">
+            <div className="grid grid-cols-5 flex-1 min-w-0 items-stretch gap-0.5 sm:gap-1.5 bg-[#ECE6DD] rounded-full p-1 border border-[#DFD7CC]" role="group" aria-label="Filter releases">
               {filterTabs.map(tab => (
                 <button
                   key={tab.value}
                   onClick={() => setSelectedFilter(tab.value as any)}
-                  className={`px-3 sm:px-3.5 py-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase transition-all whitespace-nowrap flex-shrink-0 cursor-pointer ${
+                  aria-pressed={selectedFilter === tab.value}
+                  className={`min-w-0 px-1 sm:px-3.5 py-1.5 rounded-full text-[9px] sm:text-[11px] font-semibold tracking-normal sm:tracking-wider uppercase transition-colors whitespace-normal lg:whitespace-nowrap break-words cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B5F52] ${
                     selectedFilter === tab.value
                       ? 'bg-[#1A1816] text-white shadow-sm'
                       : 'text-[#6B5F52] hover:text-[#1A1816]'
@@ -224,7 +225,7 @@ export const CollectionGrid: React.FC = () => {
                         {product.badge}
                       </div>
                     ) : isOutOfStock ? (
-                      <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 bg-red-950/90 text-red-200 border border-red-800/80 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-mono tracking-widest uppercase shadow-sm">
+                      <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 bg-red-950/90 text-red-200 border border-red-800/80 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-sans tracking-widest uppercase shadow-sm">
                         Sold Out
                       </div>
                     ) : null}
@@ -273,7 +274,7 @@ export const CollectionGrid: React.FC = () => {
                   </div>
 
                   <div className="pt-2.5 sm:pt-4 space-y-0.5 sm:space-y-1">
-                    <h3 className="text-xs sm:text-sm font-semibold tracking-[0.08em] sm:tracking-[0.12em] text-[#1A1816] uppercase font-['Plus_Jakarta_Sans'] group-hover:text-neutral-700 transition-colors truncate">
+                    <h3 className="text-xs sm:text-sm font-semibold tracking-[0.08em] sm:tracking-[0.12em] text-[#1A1816] uppercase font-sans group-hover:text-neutral-700 transition-colors truncate">
                       {product.title}
                     </h3>
                     

@@ -54,24 +54,12 @@ export const HeroSection: React.FC = () => {
         }}
       >
         <img
-          src="https://res.cloudinary.com/qt3rdzmd/image/upload/v1788711281/saelyxe/hero/saelyxe-hero-q100-2026-09-06.jpg"
+          src="/saelyxe-hero.avif"
           alt="SAELYXE Editorial Lifestyle Collection"
           className="w-full h-full object-cover object-[55%_center] md:object-center filter brightness-[0.95]"
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/30 pointer-events-none" />
-      </div>
-
-      {/* 2. MIDDLE LAYER: Luxury "SAELYXE" Backdrop */}
-      <div
-        className="absolute inset-x-0 top-[18%] md:top-[12%] flex items-center justify-center pointer-events-none z-10"
-        style={{
-          transform: `translateY(${scrollY * -0.15}px)`,
-        }}
-      >
-        <h1 className="font-serif text-[28vw] md:text-[18vw] font-normal tracking-[0.05em] text-white/[0.07] uppercase whitespace-nowrap select-none leading-none">
-          SAELYXE
-        </h1>
       </div>
 
       {/* 3. FOREGROUND LAYER */}
@@ -103,7 +91,7 @@ export const HeroSection: React.FC = () => {
               PRESENCE
             </h2>
 
-            <p className="text-white/90 text-xs lg:text-sm font-light tracking-wide max-w-sm leading-relaxed drop-shadow-md">
+            <p className="text-white/90 text-xs lg:text-sm font-normal tracking-wide max-w-sm leading-relaxed drop-shadow-md">
               Designed for those who enter a room before they speak.
             </p>
 
@@ -163,7 +151,7 @@ export const HeroSection: React.FC = () => {
                       <h4 className="text-[11px] font-sans font-semibold tracking-[0.15em] uppercase truncate drop-shadow">
                         {currentFloatingProduct.title}
                       </h4>
-                      <p className="text-[10.5px] font-mono text-white/90 drop-shadow mt-0.5">
+                      <p className="text-[10.5px] font-sans text-white/90 drop-shadow mt-0.5">
                         {formatPrice ? formatPrice(currentFloatingProduct.priceLKR) : `LKR ${currentFloatingProduct.priceLKR?.toLocaleString()}`}
                       </p>
                     </div>
@@ -240,7 +228,7 @@ export const HeroSection: React.FC = () => {
               PRESENCE
             </h2>
 
-            <p className="text-white/90 text-xs font-light tracking-wide max-w-[240px] leading-relaxed drop-shadow-md">
+            <p className="text-white/90 text-xs font-normal tracking-wide max-w-[240px] leading-relaxed drop-shadow-md">
               Designed for those who enter a room before they speak.
             </p>
 
@@ -278,7 +266,7 @@ export const HeroSection: React.FC = () => {
                       <h4 className="text-[9px] font-sans font-semibold tracking-wider uppercase truncate drop-shadow leading-tight">
                         {product.title}
                       </h4>
-                      <p className="text-[8.5px] font-mono text-white/90 drop-shadow mt-0.5">
+                      <p className="text-[8.5px] font-sans text-white/90 drop-shadow mt-0.5">
                         {formatPrice ? formatPrice(product.priceLKR) : `LKR ${product.priceLKR?.toLocaleString()}`}
                       </p>
                     </div>
