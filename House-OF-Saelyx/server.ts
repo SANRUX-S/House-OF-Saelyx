@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import productionApi from './api/index.js';
+import productionApi from './api/index.ts';
 
 const LOCAL_CSP =
   "default-src 'self'; " +
