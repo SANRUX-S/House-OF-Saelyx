@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp, type DocumentReference } from 'firebase-admin/firestore';
 
 const app = express();
 app.disable('x-powered-by');
@@ -1026,7 +1026,7 @@ async function sendOrderConfirmationWhatsApp(order: any): Promise<WhatsAppDelive
 
 async function dispatchOrderConfirmationWhatsApp(
   adminDb: NonNullable<ReturnType<typeof getAdminDb>>,
-  orderRef: any,
+  orderRef: DocumentReference,
   fallbackOrder: any
 ): Promise<WhatsAppDeliveryResult> {
   const attemptId = crypto.randomBytes(12).toString('hex');
