@@ -62,6 +62,7 @@ type CreateOrderInput = Pick<
   promoCode?: string;
   paymentProviderReference?: string;
   checkoutAttemptId?: string;
+  whatsappOptIn?: boolean;
 };
 
 type AuthMode = 'signin' | 'signup';
