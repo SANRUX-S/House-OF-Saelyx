@@ -247,10 +247,10 @@ export const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#E2E2E2] font-medium">
           <div className="tracking-[0.14em] uppercase text-[11px] font-semibold text-white/90">
-            © {new Date().getFullYear()} SAELYXE
+            © 2025–2026 SAELYXE. ALL RIGHTS RESERVED.
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3">
+          <div className="flex flex-col items-center sm:items-end gap-2.5">
             {/* 9 Payment Icons Lineup */}
             <div className="footer-payment-icons flex flex-wrap items-center justify-center sm:justify-end gap-2" aria-label="Accepted payment methods">
               <figure>
