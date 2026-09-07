@@ -17,7 +17,16 @@ app.use((_req, res, next) => {
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   next();
 });
-app.use(express.json({ limit: '64kb' }));
+type RawBodyRequest = Request & { rawBody?: Buffer };
+
+app.use(express.json({
+  limit: '64kb',
+  verify: (req, _res, buffer) => {
+    if (req.originalUrl.startsWith('/api/whatsapp/webhook')) {
+      (req as RawBodyRequest).rawBody = Buffer.from(buffer);
+    }
+  }
+}));
 
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
 const ADMIN_EMAIL_ROLES = new Map<string, 'admin' | 'super_admin'>([
@@ -901,6 +910,173 @@ async function sendOrderConfirmationEmail(order: any): Promise<EmailDeliveryResu
     html,
     idempotencyKey: `saelyxe-order-created-${idempotency}`
   });
+}
+
+type WhatsAppDeliveryResult = {
+  sent: boolean;
+  id?: string;
+  error?: string;
+};
+
+function normalizeWhatsAppRecipient(value: unknown) {
+  let digits = safeString(value, 40).replace(/\D/g, '');
+  // Checkout currently validates Sri Lankan mobile numbers. Convert local
+  // 07XXXXXXXX format to the E.164 digits expected by the Cloud API.
+  if (/^0?7\d{8}$/.test(digits)) {
+    digits = digits.startsWith('0') ? `94${digits.slice(1)}` : `94${digits}`;
+  }
+  return /^\d{8,15}$/.test(digits) ? digits : '';
+}
+
+function getWhatsAppGraphVersion() {
+  const configured = safeString(process.env.WHATSAPP_GRAPH_API_VERSION, 20);
+  return /^v\d+\.\d+$/.test(configured) ? configured : 'v25.0';
+}
+
+function timingSafeStringEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function verifyWhatsAppWebhookSignature(req: Request) {
+  const appSecret = safeString(process.env.WHATSAPP_APP_SECRET, 500);
+  // During initial Meta callback verification the app secret may not have
+  // been configured yet. Once configured, every POST webhook is authenticated.
+  if (!appSecret) return true;
+
+  const signature = safeString(req.header('x-hub-signature-256'), 300);
+  const rawBody = (req as RawBodyRequest).rawBody;
+  if (!signature.startsWith('sha256=') || !rawBody) return false;
+
+  const expected = `sha256=${crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')}`;
+  return timingSafeStringEqual(signature, expected);
+}
+
+function formatWhatsAppOrderTotal(order: any) {
+  const currency = safeString(order?.currencyUsed, 10).toUpperCase() || 'LKR';
+  const amount = Number(order?.totalInCurrency);
+  if (Number.isFinite(amount) && amount > 0) return `${currency} ${amount.toFixed(2)}`;
+
+  const totalLKR = Number(order?.totalLKR);
+  return `LKR ${Number.isFinite(totalLKR) ? totalLKR.toFixed(2) : '0.00'}`;
+}
+
+async function sendOrderConfirmationWhatsApp(order: any): Promise<WhatsAppDeliveryResult> {
+  if (order?.whatsappOptIn !== true) return { sent: false, error: 'whatsapp_opt_in_not_granted' };
+
+  const accessToken = safeString(process.env.WHATSAPP_ACCESS_TOKEN, 4096);
+  const phoneNumberId = safeString(process.env.WHATSAPP_PHONE_NUMBER_ID, 160);
+  const templateName = safeString(process.env.WHATSAPP_ORDER_TEMPLATE_NAME, 160);
+  const languageCode = safeString(process.env.WHATSAPP_ORDER_TEMPLATE_LANGUAGE, 30) || 'en_US';
+  const recipient = normalizeWhatsAppRecipient(order?.phone);
+
+  if (!accessToken || !phoneNumberId || !templateName) {
+    return { sent: false, error: 'whatsapp_not_configured' };
+  }
+  if (!recipient) return { sent: false, error: 'invalid_whatsapp_recipient' };
+
+  const orderNumber = safeString(order?.orderNumber || order?.id, 120);
+  if (!orderNumber) return { sent: false, error: 'invalid_order_reference' };
+
+  const response = await fetch(
+    `https://graph.facebook.com/${getWhatsAppGraphVersion()}/${encodeURIComponent(phoneNumberId)}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: recipient,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: languageCode },
+          components: [{
+            type: 'body',
+            parameters: [
+              { type: 'text', text: orderNumber },
+              { type: 'text', text: formatWhatsAppOrderTotal(order) }
+            ]
+          }]
+        }
+      })
+    }
+  );
+
+  const payload: any = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      safeString(payload?.error?.message, 240) ||
+      safeString(payload?.message, 240) ||
+      `whatsapp_http_${response.status}`;
+    console.error('WhatsApp order confirmation failed:', orderNumber, response.status, message);
+    return { sent: false, error: message };
+  }
+
+  return {
+    sent: true,
+    id: safeString(payload?.messages?.[0]?.id, 240) || undefined
+  };
+}
+
+async function dispatchOrderConfirmationWhatsApp(
+  adminDb: NonNullable<ReturnType<typeof getAdminDb>>,
+  orderRef: any,
+  fallbackOrder: any
+): Promise<WhatsAppDeliveryResult> {
+  const attemptId = crypto.randomBytes(12).toString('hex');
+  const now = new Date();
+  const nowIso = now.toISOString();
+  let claimedOrder: any = null;
+
+  await adminDb.runTransaction(async transaction => {
+    const snap = await transaction.get(orderRef);
+    if (!snap.exists) return;
+    const current: any = { id: snap.id, ...snap.data() };
+
+    if (current.whatsappOptIn !== true) return;
+    if (current.confirmationWhatsAppStatus === 'sent') return;
+
+    const previousAttempt = Date.parse(safeString(current.confirmationWhatsAppAttemptedAt, 100));
+    const activeClaim =
+      current.confirmationWhatsAppStatus === 'sending' &&
+      Number.isFinite(previousAttempt) &&
+      now.getTime() - previousAttempt < 5 * 60_000;
+    if (activeClaim) return;
+
+    claimedOrder = { ...fallbackOrder, ...current };
+    transaction.set(orderRef, {
+      confirmationWhatsAppStatus: 'sending',
+      confirmationWhatsAppAttemptId: attemptId,
+      confirmationWhatsAppAttemptedAt: nowIso,
+      confirmationWhatsAppError: null
+    }, { merge: true });
+  });
+
+  if (!claimedOrder) {
+    return { sent: false, error: 'whatsapp_confirmation_not_claimed' };
+  }
+
+  const delivery = await sendOrderConfirmationWhatsApp(claimedOrder).catch(error => ({
+    sent: false,
+    error: safeString(error instanceof Error ? error.message : error, 240) || 'whatsapp_transport_error'
+  }));
+  const completedAt = new Date().toISOString();
+
+  await orderRef.set({
+    confirmationWhatsAppStatus: delivery.sent ? 'sent' : 'failed',
+    confirmationWhatsAppMessageId: delivery.id || null,
+    confirmationWhatsAppError: delivery.sent ? null : delivery.error || 'unknown_error',
+    confirmationWhatsAppSentAt: delivery.sent ? completedAt : null,
+    confirmationWhatsAppAttemptedAt: completedAt,
+    confirmationWhatsAppAttemptId: attemptId
+  }, { merge: true });
+
+  return delivery;
 }
 
 async function sendOrderStatusEmail(order: any, previousStatus?: string): Promise<EmailDeliveryResult> {
@@ -2461,6 +2637,15 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
       updated.confirmationEmailStatus = emailResult.sent ? 'sent' : 'failed';
       if (emailResult.id) updated.confirmationEmailId = emailResult.id;
     }
+
+    if (updated?.whatsappOptIn === true && updated?.confirmationWhatsAppStatus !== 'sent') {
+      await dispatchOrderConfirmationWhatsApp(adminDb, ref, updated).catch(error => {
+        console.error('PayPal confirmation WhatsApp delivery error:', error);
+      });
+      const refreshed = await ref.get();
+      if (refreshed.exists) Object.assign(updated, { id: refreshed.id, ...refreshed.data() });
+    }
+
     return res.json(updated);
   } catch (error: any) {
     const status = Number(error?.statusCode) || 500;
@@ -2518,7 +2703,31 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
       return res.status(409).json({ error: 'PayPal payment could not be verified yet.', verification });
     }
 
-    const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
+    let updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
+
+    if (updated.confirmationEmailStatus !== 'sent') {
+      const emailResult: EmailDeliveryResult = await sendOrderConfirmationEmail(updated).catch(error => ({
+        sent: false,
+        error: safeString(error instanceof Error ? error.message : error, 240) || 'paypal_confirmation_email_error'
+      }));
+      const emailTime = new Date().toISOString();
+      await ref.set({
+        confirmationEmailStatus: emailResult.sent ? 'sent' : 'failed',
+        confirmationEmailId: emailResult.id || null,
+        confirmationEmailError: emailResult.sent ? null : emailResult.error || 'unknown_error',
+        confirmationEmailSentAt: emailResult.sent ? emailTime : null,
+        confirmationEmailAttemptedAt: emailTime
+      }, { merge: true });
+    }
+
+    if (updated.whatsappOptIn === true && updated.confirmationWhatsAppStatus !== 'sent') {
+      await dispatchOrderConfirmationWhatsApp(adminDb, ref, updated).catch(error => {
+        console.error('PayPal verification WhatsApp delivery error:', error);
+      });
+    }
+
+    const refreshed = await ref.get();
+    if (refreshed.exists) updated = { id: refreshed.id, ...refreshed.data() };
     return res.json(updated);
   } catch (error: any) {
     return res.status(500).json({ error: safeString(error?.message, 240) || 'Unable to verify PayPal payment.' });
@@ -2704,6 +2913,7 @@ app.post('/api/orders', async (req, res) => {
     const postalCode = safeString(body.postalCode, 30);
     const country = safeString(body.country, 80);
     const notes = safeString(body.notes, 1000);
+    const whatsappOptIn = body.whatsappOptIn === true;
 
     if (!customerName || !isEmail(email) || phone.replace(/\D/g, '').length < 9 || !address || !city || !country) {
       return res.status(400).json({ error: 'Valid customer, delivery, email, and phone details are required.' });
@@ -2864,6 +3074,9 @@ app.post('/api/orders', async (req, res) => {
         courierName: '',
         deliveryEta: '',
         notes,
+        whatsappOptIn,
+        whatsappOptInAt: whatsappOptIn ? now : null,
+        whatsappOptInSource: whatsappOptIn ? 'checkout' : null,
         createdAt: now,
         statusHistory: [{
           status: 'placed',
@@ -2962,10 +3175,23 @@ app.post('/api/orders', async (req, res) => {
       confirmationEmailId = confirmationEmail.id || undefined;
     }
 
+    let confirmationWhatsAppStatus = 'not_requested';
+    let confirmationWhatsAppMessageId: string | undefined;
+    if ((paymentMethod === 'cod' || responseOrder.paymentStatus === 'verified') && responseOrder.whatsappOptIn === true) {
+      const whatsappDelivery = await dispatchOrderConfirmationWhatsApp(adminDb, orderRef, responseOrder).catch(error => ({
+        sent: false,
+        error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_whatsapp_error'
+      }));
+      confirmationWhatsAppStatus = whatsappDelivery.sent ? 'sent' : 'failed';
+      confirmationWhatsAppMessageId = whatsappDelivery.id;
+    }
+
     return res.status(201).json({
       ...responseOrder,
       confirmationEmailStatus,
-      confirmationEmailId
+      confirmationEmailId,
+      confirmationWhatsAppStatus,
+      confirmationWhatsAppMessageId
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to create order.';
@@ -3926,6 +4152,35 @@ app.post('/api/restock/dispatch', async (req, res) => {
       }
     }
   }
+});
+
+app.get('/api/whatsapp/webhook', (req, res) => {
+  const mode = safeString(req.query['hub.mode'], 50);
+  const providedToken = safeString(req.query['hub.verify_token'], 500);
+  const challenge = safeString(req.query['hub.challenge'], 1000);
+  const verifyToken = safeString(process.env.WHATSAPP_VERIFY_TOKEN, 500);
+
+  if (
+    mode === 'subscribe' &&
+    verifyToken &&
+    providedToken &&
+    timingSafeStringEqual(providedToken, verifyToken)
+  ) {
+    return res.status(200).type('text/plain').send(challenge);
+  }
+
+  return res.sendStatus(403);
+});
+
+app.post('/api/whatsapp/webhook', async (req, res) => {
+  if (!verifyWhatsAppWebhookSignature(req)) {
+    return res.status(401).json({ error: 'Invalid WhatsApp webhook signature.' });
+  }
+
+  // Acknowledge Meta immediately. Outbound order notifications do not depend
+  // on inbound message processing; delivery-status processing can be added
+  // later without changing the callback URL.
+  return res.sendStatus(200);
 });
 
 app.get(['/api/sitemap', '/sitemap.xml'], async (_req, res) => {
