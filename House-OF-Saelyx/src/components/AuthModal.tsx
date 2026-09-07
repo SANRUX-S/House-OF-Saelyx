@@ -30,20 +30,32 @@ export const AuthModal: React.FC = () => {
     loginWithFacebook,
     loginWithEmail,
     signupWithEmail,
+    sendPasswordReset,
     isAuthLoading,
     authError,
     setAuthError,
   } = useStore();
 
+  const [modalMode, setModalMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [shouldRender, setShouldRender] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [resetSentEmail, setResetSentEmail] = useState<string | null>(null);
+  const [signupSuccess, setSignupSuccess] = useState<boolean>(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const drawerRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const isSignUp = authMode === 'signup';
+
+  useEffect(() => {
+    setModalMode(authMode);
+    setSignupSuccess(false);
+    setResetSentEmail(null);
+  }, [authMode]);
+
+  const isSignUp = modalMode === 'signup';
+  const isForgot = modalMode === 'forgot';
 
   useEffect(() => {
     if (isAuthOpen) {
@@ -58,7 +70,11 @@ export const AuthModal: React.FC = () => {
     }
 
     setIsAnimating(false);
-    const exitTimer = window.setTimeout(() => setShouldRender(false), 420);
+    const exitTimer = window.setTimeout(() => {
+      setShouldRender(false);
+      setSignupSuccess(false);
+      setResetSentEmail(null);
+    }, 420);
     const modeTimer = window.setTimeout(() => setAuthMode('signin'), 420);
     previousFocusRef.current?.focus();
     return () => {
@@ -86,33 +102,39 @@ export const AuthModal: React.FC = () => {
   useEffect(() => {
     setFormError(null);
     setAuthError(null);
-  }, [authMode, isAuthOpen, setAuthError]);
+  }, [modalMode, isAuthOpen, setAuthError]);
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm(current => ({ ...current, [field]: value }));
     setFormError(null);
   };
 
-  const switchMode = () => {
-    setAuthMode(isSignUp ? 'signin' : 'signup');
-  };
-
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isAuthLoading) return;
 
-    const name = form.name.trim();
     const email = form.email.trim();
-    if (isSignUp && !name) {
-      setFormError('Please enter your full name.');
-      return;
-    }
     if (!EMAIL_PATTERN.test(email)) {
       setFormError('Please enter a valid email address.');
       return;
     }
-    if (form.password.length < 6) {
-      setFormError('Please enter a password with at least six characters.');
+
+    if (isForgot) {
+      setFormError(null);
+      const success = await sendPasswordReset(email);
+      if (success) {
+        setResetSentEmail(email);
+      }
+      return;
+    }
+
+    const name = form.name.trim();
+    if (isSignUp && !name) {
+      setFormError('Please enter your full name.');
+      return;
+    }
+    if (form.password.length < 8) {
+      setFormError('Please choose a password with at least 8 characters.');
       return;
     }
     if (isSignUp && form.password !== form.confirmPassword) {
@@ -122,7 +144,10 @@ export const AuthModal: React.FC = () => {
 
     setFormError(null);
     if (isSignUp) {
-      await signupWithEmail(name, email, form.password);
+      const success = await signupWithEmail(name, email, form.password);
+      if (success) {
+        setSignupSuccess(true);
+      }
     } else {
       await loginWithEmail(email, form.password);
     }
@@ -165,10 +190,22 @@ export const AuthModal: React.FC = () => {
           <div className="pr-4">
             <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#938574]">Private client access</p>
             <h2 id="auth-drawer-title" className="font-serif text-[24px] font-normal tracking-[0.035em] text-[#25211D]">
-              {isSignUp ? 'CREATE ACCOUNT' : 'WELCOME TO SAELYXE'}
+              {signupSuccess 
+                ? 'ACCOUNT CREATED'
+                : isForgot 
+                  ? 'RESET PASSWORD' 
+                  : isSignUp 
+                    ? 'CREATE ACCOUNT' 
+                    : 'WELCOME TO SAELYXE'}
             </h2>
             <p className="mt-1.5 text-xs leading-relaxed text-[#786F64]">
-              {isSignUp ? 'Create your client profile for express checkout & numbered drop access.' : 'Sign in to access your orders and private client records.'}
+              {signupSuccess
+                ? 'Welcome to the house. Please check your email for the verification link.'
+                : isForgot
+                  ? 'Enter your registered email address and we will send you a password reset link.'
+                  : isSignUp 
+                    ? 'Create your client profile for express checkout & numbered drop access.' 
+                    : 'Sign in to access your orders and private client records.'}
             </p>
           </div>
           <button
@@ -182,136 +219,218 @@ export const AuthModal: React.FC = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-7 sm:py-6.5">
-          <form onSubmit={handleEmailSubmit} className="space-y-5" noValidate>
-            {isSignUp && (
-              <label className="block">
-                <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#63594E]">Full name</span>
-                <input
-                  type="text"
-                  autoComplete="name"
-                  value={form.name}
-                  onChange={event => updateField('name', event.target.value)}
-                  className={inputClassName}
-                  placeholder="Your full name"
-                  disabled={isAuthLoading}
-                  required
-                />
-              </label>
-            )}
+          {signupSuccess ? (
+            <div className="space-y-6 text-center py-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#EFE9E0] text-[#25211D]">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-serif text-lg font-normal text-[#25211D]">Verification link dispatched</h3>
+                <p className="text-xs leading-relaxed text-[#786F64]">
+                  We sent a confirmation link to <span className="font-medium text-[#25211D]">{form.email}</span>. You may verify your email anytime while browsing your account.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAuthOpen(false)}
+                className="flex h-12 w-full items-center justify-center bg-[#28231E] px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FEFCF8] transition-colors hover:bg-[#4A4035]"
+              >
+                Continue Browsing
+              </button>
+            </div>
+          ) : isForgot && resetSentEmail ? (
+            <div className="space-y-6 text-center py-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#EFE9E0] text-[#25211D]">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-serif text-lg font-normal text-[#25211D]">Check your inbox</h3>
+                <p className="text-xs leading-relaxed text-[#786F64]">
+                  If an account exists for <span className="font-medium text-[#25211D]">{resetSentEmail}</span>, a password reset link has been dispatched. Please check your inbox and spam folder.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setResetSentEmail(null);
+                  setModalMode('signin');
+                }}
+                className="flex h-12 w-full items-center justify-center bg-[#28231E] px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FEFCF8] transition-colors hover:bg-[#4A4035]"
+              >
+                Return to Sign In
+              </button>
+            </div>
+          ) : (
+            <>
+              <form onSubmit={handleEmailSubmit} className="space-y-5" noValidate>
+                {isSignUp && (
+                  <label className="block">
+                    <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#63594E]">Full name</span>
+                    <input
+                      type="text"
+                      autoComplete="name"
+                      value={form.name}
+                      onChange={event => updateField('name', event.target.value)}
+                      className={inputClassName}
+                      placeholder="Your full name"
+                      disabled={isAuthLoading}
+                      required
+                    />
+                  </label>
+                )}
 
-            <label className="block">
-              <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#63594E]">Email address</span>
-              <input
-                type="email"
-                autoComplete="email"
-                value={form.email}
-                onChange={event => updateField('email', event.target.value)}
-                className={inputClassName}
-                placeholder="you@example.com"
-                disabled={isAuthLoading}
-                required
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#63594E]">Password</span>
-              <span className="relative block">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                  value={form.password}
-                  onChange={event => updateField('password', event.target.value)}
-                  className={`${inputClassName} pr-10`}
-                  placeholder={isSignUp ? 'At least 6 characters' : 'Enter your password'}
-                  disabled={isAuthLoading}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(visible => !visible)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-[#82786C] transition-colors hover:text-[#25211D]"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </span>
-            </label>
-
-            {isSignUp && (
-              <label className="block">
-                <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#63594E]">Confirm password</span>
-                <span className="relative block">
+                <label className="block">
+                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#63594E]">Email address</span>
                   <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    value={form.confirmPassword}
-                    onChange={event => updateField('confirmPassword', event.target.value)}
-                    className={`${inputClassName} pr-10`}
-                    placeholder="Repeat your password"
+                    type="email"
+                    autoComplete="email"
+                    value={form.email}
+                    onChange={event => updateField('email', event.target.value)}
+                    className={inputClassName}
+                    placeholder="you@example.com"
                     disabled={isAuthLoading}
                     required
                   />
+                </label>
+
+                {!isForgot && (
+                  <label className="block">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#63594E]">Password</span>
+                      {!isSignUp && (
+                        <button
+                          type="button"
+                          onClick={() => setModalMode('forgot')}
+                          className="text-[10px] uppercase tracking-[0.12em] text-[#8C8174] hover:text-[#25211D] transition-colors underline underline-offset-2"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <span className="relative block">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                        value={form.password}
+                        onChange={event => updateField('password', event.target.value)}
+                        className={`${inputClassName} pr-10`}
+                        placeholder={isSignUp ? 'At least 8 characters' : 'Enter your password'}
+                        disabled={isAuthLoading}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(visible => !visible)}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-[#82786C] transition-colors hover:text-[#25211D]"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </span>
+                  </label>
+                )}
+
+                {isSignUp && (
+                  <label className="block">
+                    <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#63594E]">Confirm password</span>
+                    <span className="relative block">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={form.confirmPassword}
+                        onChange={event => updateField('confirmPassword', event.target.value)}
+                        className={`${inputClassName} pr-10`}
+                        placeholder="Repeat your password"
+                        disabled={isAuthLoading}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(visible => !visible)}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-[#82786C] transition-colors hover:text-[#25211D]"
+                        aria-label={showConfirmPassword ? 'Hide confirmed password' : 'Show confirmed password'}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </span>
+                  </label>
+                )}
+
+                {visibleError && (
+                  <p role="alert" className="flex items-start gap-2 border-l border-[#A98264] bg-[#F4EDE5] px-3 py-2.5 text-xs leading-relaxed text-[#634835]">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{visibleError}</span>
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isAuthLoading}
+                  className="flex h-12 w-full items-center justify-center gap-2 bg-[#28231E] px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FEFCF8] transition-colors hover:bg-[#4A4035] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isAuthLoading && <LoadingIndicator />}
+                  {isAuthLoading 
+                    ? 'Please wait' 
+                    : isForgot 
+                      ? 'Send reset link' 
+                      : isSignUp 
+                        ? 'Create account' 
+                        : 'Sign in'}
+                </button>
+              </form>
+
+              {isForgot ? (
+                <div className="mt-6 text-center">
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(visible => !visible)}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-[#82786C] transition-colors hover:text-[#25211D]"
-                    aria-label={showConfirmPassword ? 'Hide confirmed password' : 'Show confirmed password'}
+                    onClick={() => setModalMode('signin')}
+                    className="text-xs uppercase tracking-[0.14em] text-[#3C342C] underline decoration-[#B7AA9A] underline-offset-4 transition-colors hover:text-[#8B755E]"
                   >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    Return to Sign In
                   </button>
-                </span>
-              </label>
-            )}
+                </div>
+              ) : (
+                <>
+                  <div className="my-5 flex items-center gap-3" aria-hidden="true">
+                    <span className="h-px flex-1 bg-[#DED6CB]" />
+                    <span className="text-[9px] font-medium uppercase tracking-[0.19em] text-[#8C8174]">Or continue with</span>
+                    <span className="h-px flex-1 bg-[#DED6CB]" />
+                  </div>
 
-            {visibleError && (
-              <p role="alert" className="flex items-start gap-2 border-l border-[#A98264] bg-[#F4EDE5] px-3 py-2.5 text-xs leading-relaxed text-[#634835]">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{visibleError}</span>
-              </p>
-            )}
+                  <div className="space-y-3">
+                    <button type="button" onClick={() => handleProviderSignIn('google')} disabled={isAuthLoading} className={socialButtonClassName}>
+                      {isAuthLoading ? <LoadingIndicator /> : <GoogleMark />}
+                      <span>Continue with Google</span>
+                    </button>
+                    <button type="button" onClick={() => handleProviderSignIn('facebook')} disabled={isAuthLoading} className={socialButtonClassName}>
+                      {isAuthLoading ? <LoadingIndicator /> : <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#1877F2] font-sans text-[13px] font-bold leading-none text-white">f</span>}
+                      <span>Continue with Facebook</span>
+                    </button>
+                  </div>
 
-            <button
-              type="submit"
-              disabled={isAuthLoading}
-              className="flex h-12 w-full items-center justify-center gap-2 bg-[#28231E] px-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FEFCF8] transition-colors hover:bg-[#4A4035] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isAuthLoading && <LoadingIndicator />}
-              {isAuthLoading ? 'Please wait' : isSignUp ? 'Create account' : 'Sign in'}
-            </button>
-          </form>
+                  <p className="mt-5 text-center text-xs leading-relaxed text-[#7B7166]">
+                    {isSignUp ? 'Already have an account?' : 'New to SAELYXE?'}{' '}
+                    <button
+                      type="button"
+                      onClick={() => setModalMode(isSignUp ? 'signin' : 'signup')}
+                      disabled={isAuthLoading}
+                      className="font-semibold uppercase tracking-[0.14em] text-[#3C342C] underline decoration-[#B7AA9A] underline-offset-4 transition-colors hover:text-[#8B755E] disabled:cursor-not-allowed"
+                    >
+                      {isSignUp ? 'Sign in' : 'Create account'}
+                    </button>
+                  </p>
 
-          <div className="my-5 flex items-center gap-3" aria-hidden="true">
-            <span className="h-px flex-1 bg-[#DED6CB]" />
-            <span className="text-[9px] font-medium uppercase tracking-[0.19em] text-[#8C8174]">Or continue with</span>
-            <span className="h-px flex-1 bg-[#DED6CB]" />
-          </div>
-
-          <div className="space-y-3">
-            <button type="button" onClick={() => handleProviderSignIn('google')} disabled={isAuthLoading} className={socialButtonClassName}>
-              {isAuthLoading ? <LoadingIndicator /> : <GoogleMark />}
-              <span>Continue with Google</span>
-            </button>
-            <button type="button" onClick={() => handleProviderSignIn('facebook')} disabled={isAuthLoading} className={socialButtonClassName}>
-              {isAuthLoading ? <LoadingIndicator /> : <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#1877F2] font-sans text-[13px] font-bold leading-none text-white">f</span>}
-              <span>Continue with Facebook</span>
-            </button>
-          </div>
-
-          <p className="mt-5 text-center text-xs leading-relaxed text-[#7B7166]">
-            {isSignUp ? 'Already have an account?' : 'New to SAELYXE?'}{' '}
-            <button
-              type="button"
-              onClick={switchMode}
-              disabled={isAuthLoading}
-              className="font-semibold uppercase tracking-[0.14em] text-[#3C342C] underline decoration-[#B7AA9A] underline-offset-4 transition-colors hover:text-[#8B755E] disabled:cursor-not-allowed"
-            >
-              {isSignUp ? 'Sign in' : 'Create account'}
-            </button>
-          </p>
-
-          <p className="mx-auto mt-5 max-w-xs text-center text-[10px] leading-relaxed text-[#9A9085]">
-            By continuing, you agree to SAELYXE&apos;s terms and privacy policy.
-          </p>
+                  <p className="mx-auto mt-5 max-w-xs text-center text-[10px] leading-relaxed text-[#9A9085]">
+                    By continuing, you agree to SAELYXE&apos;s terms and privacy policy.
+                  </p>
+                </>
+              )}
+            </>
+          )}
         </div>
       </aside>
     </div>

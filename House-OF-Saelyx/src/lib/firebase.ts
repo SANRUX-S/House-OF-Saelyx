@@ -6,6 +6,7 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword, 
   sendEmailVerification,
+  sendPasswordResetEmail,
   createUserWithEmailAndPassword, 
   signOut as fbSignOut, 
   updateProfile,

@@ -27,6 +27,8 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
+  sendEmailVerification,
+  sendPasswordResetEmail,
   signOut as fbSignOut, 
   updateProfile,
   onAuthStateChanged
@@ -55,6 +57,8 @@ type CreateOrderInput = Pick<
   Order,
   'customerName' | 'email' | 'phone' | 'address' | 'city' | 'postalCode' | 'country' | 'items' | 'currencyUsed' | 'paymentMethod' | 'notes'
 > & {
+  firstName?: string;
+  lastName?: string;
   promoCode?: string;
   paymentProviderReference?: string;
   checkoutAttemptId?: string;
@@ -120,6 +124,7 @@ interface StoreContextType {
   loginWithFacebook: () => Promise<boolean>;
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
+  sendPasswordReset: (email: string) => Promise<boolean>;
   loginAdmin: (username: string, pass: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
@@ -434,6 +439,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  // Ref to prevent onAuthStateChanged from creating a fallback profile doc during active email signup
+  const activeSignupUidRef = useRef<string | null>(null);
+
   // Listen to Firebase Auth state. Privileged roles come only from trusted
   // Firebase custom claims, the protected admins collection, or the configured
   // administrator allowlist — never from the customer-editable users document.
@@ -447,6 +455,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setStaffList([]);
         setStockNotifications([]);
         setHasMoreAdminOrders(true);
+        return;
+      }
+
+      // If an email signup is in-flight, allow signupWithEmail to write the definitive profile with the real customer name
+      if (activeSignupUidRef.current === fbUser.uid) {
         return;
       }
 
@@ -475,9 +488,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (userSnap.exists()) {
           const data = userSnap.data();
+          let resolvedName = data.name || fbUser.displayName || 'SAELYXE Patron';
+
+          // Task 31: Conservative repair for obvious generated fallback names
+          const emailPrefix = (fbUser.email || '').split('@')[0].trim().toLowerCase();
+          const currentStoredName = (data.name || '').trim().toLowerCase();
+          const cleanDisplayName = (fbUser.displayName || '').trim();
+          if (
+            cleanDisplayName &&
+            cleanDisplayName.toLowerCase() !== emailPrefix &&
+            currentStoredName === emailPrefix
+          ) {
+            resolvedName = cleanDisplayName;
+            setDoc(doc(db, 'users', fbUser.uid), { name: cleanDisplayName }, { merge: true }).catch(() => {});
+          }
+
           setUser({
             uid: fbUser.uid,
-            name: data.name || fbUser.displayName || 'SAELYXE Patron',
+            name: resolvedName,
+            firstName: data.firstName || undefined,
+            lastName: data.lastName || undefined,
             email: fbUser.email || data.email || '',
             phoneNumber: fbUser.phoneNumber || data.phoneNumber || '',
             role: trustedRole,
@@ -492,9 +522,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return;
         }
 
+        const cleanDisplayName = fbUser.displayName?.trim() || 'SAELYXE Patron';
+        const providerId = fbUser.providerData[0]?.providerId === 'facebook.com' ? 'facebook' : 'google';
         const profileRecord: AppUser = {
           uid: fbUser.uid,
-          name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
+          name: cleanDisplayName,
           email: fbUser.email || '',
           phoneNumber: fbUser.phoneNumber || '',
           role: 'patron',
@@ -502,7 +534,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           city: '',
           postalCode: '',
           country: 'Sri Lanka',
-          authProvider: 'google',
+          authProvider: providerId,
           joinedDate: new Date().toISOString(),
           ordersCount: 0
         };
@@ -514,7 +546,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Firebase user session hydration note:', e);
         setUser({
           uid: fbUser.uid,
-          name: fbUser.displayName || fbUser.email?.split('@')[0] || 'SAELYXE Patron',
+          name: fbUser.displayName || 'SAELYXE Patron',
           email: fbUser.email || '',
           phoneNumber: fbUser.phoneNumber || '',
           role: getConfiguredAdminRole(fbUser.email, fbUser.emailVerified) || 'patron',
@@ -1004,7 +1036,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   // Authentication flows create a session only after Firebase returns a verified credential.
-  const getCustomerAuthError = (error: unknown, flow: 'Google sign-in' | 'Facebook sign-in' | 'sign-in' | 'account creation') => {
+  const getCustomerAuthError = (error: unknown, flow: 'Google sign-in' | 'Facebook sign-in' | 'sign-in' | 'account creation' | 'password reset') => {
     const code = typeof error === 'object' && error && 'code' in error
       ? String((error as { code?: string }).code || '')
       : '';
@@ -1015,14 +1047,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (code === 'auth/network-request-failed') {
       return 'We could not connect just now. Please check your connection and try again.';
     }
-    if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+    if (code === 'auth/too-many-requests') {
+      return 'Too many attempts. Please wait a few moments or reset your password.';
+    }
+    if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
       return 'We could not verify those details. Please try again.';
+    }
+    if (code === 'auth/user-not-found') {
+      return flow === 'password reset' 
+        ? 'No account was found with that email address.' 
+        : 'We could not verify those details. Please try again.';
     }
     if (code === 'auth/email-already-in-use') {
       return 'An account already exists for this email. Please sign in instead.';
     }
     if (code === 'auth/weak-password') {
-      return 'Please choose a password with at least six characters.';
+      return 'Please choose a password with at least 8 characters.';
     }
     if (code === 'auth/invalid-email') {
       return 'Please enter a valid email address.';
@@ -1042,16 +1082,50 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
+      
+      // Preserve existing profile details if present
+      let existingData: Partial<AppUser> = {};
+      try {
+        const snap = await getDoc(doc(db, 'users', fbUser.uid));
+        if (snap.exists()) {
+          existingData = snap.data() as Partial<AppUser>;
+        }
+      } catch (e) {
+        console.warn('Profile read note during Google sign-in:', e);
+      }
+
+      const cleanDisplayName = (fbUser.displayName || existingData.name || 'SAELYXE Patron').trim();
+      const nameParts = cleanDisplayName.split(/\s+/);
+      const firstName = existingData.firstName || (nameParts[0] || '');
+      const lastName = existingData.lastName || (nameParts.slice(1).join(' ') || '');
+
       const appUser: AppUser = {
         uid: fbUser.uid,
-        name: fbUser.displayName || 'SAELYXE VIP Member',
-        email: fbUser.email || '',
-        phoneNumber: fbUser.phoneNumber || '',
-        role: 'patron',
-        avatarUrl: fbUser.photoURL || undefined,
+        name: cleanDisplayName,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        email: fbUser.email || existingData.email || '',
+        phoneNumber: fbUser.phoneNumber || existingData.phoneNumber || '',
+        role: existingData.role || 'patron',
+        avatarUrl: fbUser.photoURL || existingData.avatarUrl || undefined,
+        address: existingData.address || '',
+        city: existingData.city || '',
+        postalCode: existingData.postalCode || '',
+        country: existingData.country || 'Sri Lanka',
         authProvider: 'google',
-        joinedDate: new Date().toISOString()
+        joinedDate: existingData.joinedDate || new Date().toISOString(),
+        ordersCount: existingData.ordersCount || 0
       };
+
+      try {
+        await setDoc(doc(db, 'users', fbUser.uid), {
+          ...appUser,
+          lastLogin: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {
+        console.warn('Profile sync note during Google sign-in:', e);
+      }
+
       setUser(appUser);
       setIsAuthOpen(false);
       return true;
@@ -1070,15 +1144,50 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const result = await signInWithPopup(auth, facebookProvider);
       const fbUser = result.user;
+
+      // Preserve existing profile details if present
+      let existingData: Partial<AppUser> = {};
+      try {
+        const snap = await getDoc(doc(db, 'users', fbUser.uid));
+        if (snap.exists()) {
+          existingData = snap.data() as Partial<AppUser>;
+        }
+      } catch (e) {
+        console.warn('Profile read note during Facebook sign-in:', e);
+      }
+
+      const cleanDisplayName = (fbUser.displayName || existingData.name || 'SAELYXE Patron').trim();
+      const nameParts = cleanDisplayName.split(/\s+/);
+      const firstName = existingData.firstName || (nameParts[0] || '');
+      const lastName = existingData.lastName || (nameParts.slice(1).join(' ') || '');
+
       const appUser: AppUser = {
         uid: fbUser.uid,
-        name: fbUser.displayName || 'SAELYXE VIP Member',
-        email: fbUser.email || '',
-        role: 'patron',
-        avatarUrl: fbUser.photoURL || undefined,
+        name: cleanDisplayName,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        email: fbUser.email || existingData.email || '',
+        phoneNumber: fbUser.phoneNumber || existingData.phoneNumber || '',
+        role: existingData.role || 'patron',
+        avatarUrl: fbUser.photoURL || existingData.avatarUrl || undefined,
+        address: existingData.address || '',
+        city: existingData.city || '',
+        postalCode: existingData.postalCode || '',
+        country: existingData.country || 'Sri Lanka',
         authProvider: 'facebook',
-        joinedDate: new Date().toISOString()
+        joinedDate: existingData.joinedDate || new Date().toISOString(),
+        ordersCount: existingData.ordersCount || 0
       };
+
+      try {
+        await setDoc(doc(db, 'users', fbUser.uid), {
+          ...appUser,
+          lastLogin: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {
+        console.warn('Profile sync note during Facebook sign-in:', e);
+      }
+
       setUser(appUser);
       setIsAuthOpen(false);
       return true;
@@ -1095,16 +1204,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsAuthLoading(true);
     setAuthError(null);
     try {
-      const res = await signInWithEmailAndPassword(auth, email, pass);
+      const res = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), pass);
       const fbUser = res.user;
-      setUser({
+
+      let existingData: Partial<AppUser> = {};
+      try {
+        const snap = await getDoc(doc(db, 'users', fbUser.uid));
+        if (snap.exists()) {
+          existingData = snap.data() as Partial<AppUser>;
+        }
+      } catch (e) {
+        console.warn('Profile read note during email sign-in:', e);
+      }
+
+      const cleanDisplayName = (existingData.name || fbUser.displayName || email.split('@')[0]).trim();
+      const appUser: AppUser = {
         uid: fbUser.uid,
-        name: fbUser.displayName || email.split('@')[0],
-        email: fbUser.email || email,
-        role: 'patron',
+        name: cleanDisplayName,
+        firstName: existingData.firstName || undefined,
+        lastName: existingData.lastName || undefined,
+        email: fbUser.email || email.trim().toLowerCase(),
+        phoneNumber: fbUser.phoneNumber || existingData.phoneNumber || '',
+        role: existingData.role || 'patron',
+        address: existingData.address || '',
+        city: existingData.city || '',
+        postalCode: existingData.postalCode || '',
+        country: existingData.country || 'Sri Lanka',
         authProvider: 'password',
-        joinedDate: new Date().toISOString()
-      });
+        joinedDate: existingData.joinedDate || new Date().toISOString()
+      };
+
+      setUser(appUser);
       setIsAuthOpen(false);
       return true;
     } catch (err: unknown) {
@@ -1119,23 +1249,67 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isAuthLoading) return false;
     setIsAuthLoading(true);
     setAuthError(null);
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const nameParts = cleanName.split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, pass);
-      await updateProfile(res.user, { displayName: name });
+      const res = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+      activeSignupUidRef.current = res.user.uid;
+
+      // Update Auth displayName
+      await updateProfile(res.user, { displayName: cleanName });
+
+      // Send verification email safely
+      try {
+        await sendEmailVerification(res.user);
+      } catch (verifyErr) {
+        console.warn('Verification email dispatch note:', verifyErr);
+      }
+
       const newUser: AppUser = {
         uid: res.user.uid,
-        name,
-        email,
+        name: cleanName,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        email: cleanEmail,
         role: 'patron',
         authProvider: 'password',
         joinedDate: new Date().toISOString(),
-        ordersCount: 0
+        ordersCount: 0,
+        country: 'Sri Lanka'
       };
+
+      // Write complete user profile to Firestore
+      try {
+        await setDoc(doc(db, 'users', res.user.uid), newUser);
+      } catch (e) {
+        console.warn('Firestore user profile creation note:', e);
+      }
+
       setUser(newUser);
-      setIsAuthOpen(false);
+      activeSignupUidRef.current = null;
       return true;
     } catch (err: unknown) {
+      activeSignupUidRef.current = null;
       setAuthError(getCustomerAuthError(err, 'account creation'));
+      return false;
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const sendPasswordReset = async (email: string): Promise<boolean> => {
+    if (isAuthLoading) return false;
+    setIsAuthLoading(true);
+    setAuthError(null);
+    try {
+      await sendPasswordResetEmail(auth, email.trim().toLowerCase());
+      return true;
+    } catch (err: unknown) {
+      setAuthError(getCustomerAuthError(err, 'password reset'));
       return false;
     } finally {
       setIsAuthLoading(false);
@@ -1704,6 +1878,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithFacebook,
         loginWithEmail,
         signupWithEmail,
+        sendPasswordReset,
         loginAdmin,
         logout,
         updateUserProfile,

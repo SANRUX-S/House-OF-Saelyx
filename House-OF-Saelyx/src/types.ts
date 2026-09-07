@@ -68,10 +68,23 @@ export interface OrderStatusUpdate {
   location?: string;
 }
 
+export type PaymentMethod = 'paypal' | 'payzy' | 'applepay' | 'cod';
+export type PaymentStatus =
+  | 'cod_pending'
+  | 'cod_collected'
+  | 'pending_verification'
+  | 'verified'
+  | 'cancelled'
+  | 'refunded'
+  | 'refund_pending'
+  | 'failed';
+
 export interface Order {
   id: string;
   orderNumber: string;
   customerName: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   customerEmail?: string;
   phone: string;
@@ -95,8 +108,8 @@ export interface Order {
   createdAt: string;
   statusHistory: OrderStatusUpdate[];
   userId?: string;
-  paymentMethod?: string;
-  paymentStatus?: string;
+  paymentMethod?: PaymentMethod | string;
+  paymentStatus?: PaymentStatus | string;
   paymentProviderReference?: string;
   paymentCaptureId?: string;
   paymentCaptureAmount?: number;
@@ -168,6 +181,8 @@ export type UserRole = 'super_admin' | 'admin' | 'patron' | 'guest';
 export interface AppUser {
   uid: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phoneNumber?: string;
   role: UserRole;

@@ -2186,6 +2186,38 @@ app.delete('/api/products/:productId/reviews/:reviewId', async (req, res) => {
   }
 });
 
+app.post('/api/promo/validate', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (adminDb) {
+      const clientIp = getClientAddress(req);
+      if (!(await enforceRateLimit(adminDb, `promo-validate:${clientIp}`, 30, 10 * 60_000))) {
+        return res.status(429).json({ valid: false, error: 'Too many requests. Please wait a few moments.' });
+      }
+    }
+
+    const code = safeString(req.body?.code, 40);
+    const subtotalLKR = Number(req.body?.subtotalLKR);
+    if (!code || !Number.isFinite(subtotalLKR) || subtotalLKR <= 0) {
+      return res.status(400).json({ valid: false, message: 'Invalid promo code or subtotal.' });
+    }
+
+    const promo = calculateDiscount(code, subtotalLKR);
+    if (!promo.code || promo.discountLKR <= 0) {
+      return res.json({ valid: false, message: 'Invalid promo code.' });
+    }
+
+    return res.json({
+      valid: true,
+      code: promo.code,
+      discountLKR: promo.discountLKR,
+      message: 'Promo code applied.'
+    });
+  } catch {
+    return res.status(500).json({ valid: false, message: 'Unable to validate promo code.' });
+  }
+});
+
 app.get('/api/settings', async (_req, res) => {
   try {
     const adminDb = getAdminDb();
@@ -2413,6 +2445,22 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     }
 
     const updated = await markPayPalOrderVerified(adminDb, orderId, paypalOrderId, verification);
+    if (updated && updated.confirmationEmailStatus !== 'sent') {
+      const emailResult: EmailDeliveryResult = await sendOrderConfirmationEmail(updated).catch(error => ({
+        sent: false,
+        error: safeString(error instanceof Error ? error.message : error, 240) || 'paypal_confirmation_email_error'
+      }));
+      const emailTime = new Date().toISOString();
+      await ref.set({
+        confirmationEmailStatus: emailResult.sent ? 'sent' : 'failed',
+        confirmationEmailId: emailResult.id || null,
+        confirmationEmailError: emailResult.sent ? null : emailResult.error || 'unknown_error',
+        confirmationEmailSentAt: emailResult.sent ? emailTime : null,
+        confirmationEmailAttemptedAt: emailTime
+      }, { merge: true }).catch(err => console.error('PayPal confirmation email delivery record error:', err));
+      updated.confirmationEmailStatus = emailResult.sent ? 'sent' : 'failed';
+      if (emailResult.id) updated.confirmationEmailId = emailResult.id;
+    }
     return res.json(updated);
   } catch (error: any) {
     const status = Number(error?.statusCode) || 500;
@@ -2643,7 +2691,12 @@ app.post('/api/orders', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const body = req.body || {};
-    const customerName = safeString(body.customerName, 120);
+    const firstName = safeString(body.firstName, 60);
+    const lastName = safeString(body.lastName, 60);
+    let customerName = safeString(body.customerName, 120);
+    if ((firstName || lastName) && !customerName) {
+      customerName = `${firstName} ${lastName}`.trim();
+    }
     const email = safeString(body.email, 254).toLowerCase();
     const phone = safeString(body.phone, 30);
     const address = safeString(body.address, 300);
@@ -2737,8 +2790,10 @@ app.post('/api/orders', async (req, res) => {
         const product = productCache.get(item.productId)?.data;
         if (!product) throw new Error('One or more products are unavailable.');
 
-        if (Array.isArray(product.sizes) && product.sizes.length > 0 && item.size && !product.sizes.includes(item.size)) {
-          throw new Error(`Invalid size selected for ${product.title || 'product'}.`);
+        if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+          if (!item.size || !product.sizes.includes(item.size)) {
+            throw new Error(`Please select a valid size for ${product.title || 'product'}.`);
+          }
         }
 
         return {
@@ -2780,7 +2835,7 @@ app.post('/api/orders', async (req, res) => {
       const totalInCurrency = Number((totalLKR * currency.rateFromLKR).toFixed(2));
       const now = new Date().toISOString();
 
-      const order = {
+      const order: any = {
         id: orderNumber,
         orderNumber,
         userId: authToken.uid,
@@ -2818,6 +2873,9 @@ app.post('/api/orders', async (req, res) => {
         }],
         serverCreatedAt: FieldValue.serverTimestamp()
       };
+
+      if (firstName) order.firstName = firstName;
+      if (lastName) order.lastName = lastName;
 
       transaction.set(orderRef, order);
       const guardExpiresAtMs = Date.now() + idempotencyWindowMs;
@@ -2880,28 +2938,34 @@ app.post('/api/orders', async (req, res) => {
       console.warn('Security cleanup note:', error);
     });
 
-    // Await delivery before returning so Vercel cannot freeze the serverless
-    // invocation while the Resend request is still in flight. Email failure
-    // never rolls back a successfully committed order.
-    const confirmationEmail: EmailDeliveryResult = await sendOrderConfirmationEmail(responseOrder).catch(error => ({
-      sent: false,
-      error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_email_error'
-    }));
-    const confirmationEmailRecordedAt = new Date().toISOString();
-    await orderRef.set({
-      confirmationEmailStatus: confirmationEmail.sent ? 'sent' : 'failed',
-      confirmationEmailId: confirmationEmail.id || null,
-      confirmationEmailError: confirmationEmail.sent ? null : confirmationEmail.error || 'unknown_error',
-      confirmationEmailSentAt: confirmationEmail.sent ? confirmationEmailRecordedAt : null,
-      confirmationEmailAttemptedAt: confirmationEmailRecordedAt
-    }, { merge: true }).catch(error => {
-      console.error('Order confirmation email delivery state could not be recorded:', error);
-    });
+    // Send confirmation email for COD immediately, or for PayPal ONLY if already verified.
+    // Unverified PayPal orders do NOT receive confirmation email until verified capture.
+    let confirmationEmailStatus = 'pending';
+    let confirmationEmailId: string | undefined;
+
+    if (paymentMethod === 'cod' || responseOrder.paymentStatus === 'verified') {
+      const confirmationEmail: EmailDeliveryResult = await sendOrderConfirmationEmail(responseOrder).catch(error => ({
+        sent: false,
+        error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_email_error'
+      }));
+      const confirmationEmailRecordedAt = new Date().toISOString();
+      await orderRef.set({
+        confirmationEmailStatus: confirmationEmail.sent ? 'sent' : 'failed',
+        confirmationEmailId: confirmationEmail.id || null,
+        confirmationEmailError: confirmationEmail.sent ? null : confirmationEmail.error || 'unknown_error',
+        confirmationEmailSentAt: confirmationEmail.sent ? confirmationEmailRecordedAt : null,
+        confirmationEmailAttemptedAt: confirmationEmailRecordedAt
+      }, { merge: true }).catch(error => {
+        console.error('Order confirmation email delivery state could not be recorded:', error);
+      });
+      confirmationEmailStatus = confirmationEmail.sent ? 'sent' : 'failed';
+      confirmationEmailId = confirmationEmail.id || undefined;
+    }
 
     return res.status(201).json({
       ...responseOrder,
-      confirmationEmailStatus: confirmationEmail.sent ? 'sent' : 'failed',
-      confirmationEmailId: confirmationEmail.id || undefined
+      confirmationEmailStatus,
+      confirmationEmailId
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to create order.';
