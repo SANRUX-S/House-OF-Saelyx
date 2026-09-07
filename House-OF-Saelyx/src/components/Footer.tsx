@@ -252,7 +252,19 @@ export const Footer: React.FC = () => {
 
           <div className="flex flex-col items-center sm:items-end gap-2.5">
             {/* 9 Payment Icons Lineup */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2" aria-label="Payment methods">
+            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-1.5" aria-label="Accepted payment networks">
+              <img src="/payments/american_express.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+              <img src="/payments/apple_pay.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+              <img src="/payments/diners_club.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+              <img src="/payments/discover.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+              <img src="/payments/google_pay.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+              <img src="/payments/jcb.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+              <img src="/payments/master.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+              <img src="/payments/unionpay.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+              <img src="/payments/visa.svg" alt="" className="h-7 w-auto" aria-hidden="true" />
+            </div>
+            {/* Checkout methods */}
+            <div className="flex items-center justify-center lg:justify-end gap-2" aria-label="Checkout payment methods">
               <span className="rounded border border-white/20 px-3 py-1.5 text-xs text-white">PayPal</span>
               <span className="rounded border border-white/20 px-3 py-1.5 text-xs text-white">Cash on Delivery</span>
             </div>
