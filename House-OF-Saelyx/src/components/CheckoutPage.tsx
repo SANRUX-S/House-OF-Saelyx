@@ -1034,86 +1034,92 @@ export const CheckoutPage: React.FC = () => {
                         </div>
 
                         <div className="pt-1">
-                          <PayPalScriptProvider 
-                            options={{ 
-                              clientId: paypalClientId, 
-                              currency: paypalCurrency 
-                            }}
-                          >
-                            <PayPalButtons
-                              style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
-                              createOrder={async () => {
-                                if (paymentSwitchInFlightRef.current) throw new Error('Please wait for payment reconciliation.');
-                                if (!validateDeliveryDetails()) {
-                                  throw new Error('Please complete all required delivery fields.');
-                                }
+                          {paypalClientId ? (
+                            <PayPalScriptProvider 
+                              options={{ 
+                                clientId: paypalClientId, 
+                                currency: paypalCurrency 
+                              }}
+                            >
+                              <PayPalButtons
+                                style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
+                                createOrder={async () => {
+                                  if (paymentSwitchInFlightRef.current) throw new Error('Please wait for payment reconciliation.');
+                                  if (!validateDeliveryDetails()) {
+                                    throw new Error('Please complete all required delivery fields.');
+                                  }
 
-                                let localOrder = paypalPendingOrderRef.current || paypalPendingOrder;
-                                if (!localOrder || localOrder.status === 'cancelled') {
-                                  localOrder = await createOrder({
-                                    customerName,
-                                    firstName: firstName.trim(),
-                                    lastName: lastName.trim(),
-                                    email: email.trim().toLowerCase(),
-                                    phone: phone.trim(),
-                                    address: address.trim(),
-                                    city: city.trim(),
-                                    postalCode: postalCode.trim(),
-                                    country: country.trim() || 'Sri Lanka',
-                                    items: cart.map(item => ({
-                                      productId: item.productId,
-                                      title: item.title,
-                                      image: item.image,
-                                      priceLKR: item.priceLKR,
-                                      size: item.size,
-                                      quantity: item.quantity
-                                    })),
-                                    currencyUsed: selectedCurrency?.code || 'USD',
-                                    paymentMethod: 'paypal',
-                                    promoCode: appliedPromo?.code,
-                                    checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (
-                                      paypalCheckoutAttemptIdRef.current = createPayPalCheckoutAttemptId()
-                                    ),
-                                    notes: notes.trim()
-                                  });
-                                  paypalPendingOrderRef.current = localOrder;
-                                  setPaypalPendingOrder(localOrder);
-                                }
+                                  let localOrder = paypalPendingOrderRef.current || paypalPendingOrder;
+                                  if (!localOrder || localOrder.status === 'cancelled') {
+                                    localOrder = await createOrder({
+                                      customerName,
+                                      firstName: firstName.trim(),
+                                      lastName: lastName.trim(),
+                                      email: email.trim().toLowerCase(),
+                                      phone: phone.trim(),
+                                      address: address.trim(),
+                                      city: city.trim(),
+                                      postalCode: postalCode.trim(),
+                                      country: country.trim() || 'Sri Lanka',
+                                      items: cart.map(item => ({
+                                        productId: item.productId,
+                                        title: item.title,
+                                        image: item.image,
+                                        priceLKR: item.priceLKR,
+                                        size: item.size,
+                                        quantity: item.quantity
+                                      })),
+                                      currencyUsed: selectedCurrency?.code || 'USD',
+                                      paymentMethod: 'paypal',
+                                      promoCode: appliedPromo?.code,
+                                      checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (
+                                        paypalCheckoutAttemptIdRef.current = createPayPalCheckoutAttemptId()
+                                      ),
+                                      notes: notes.trim()
+                                    });
+                                    paypalPendingOrderRef.current = localOrder;
+                                    setPaypalPendingOrder(localOrder);
+                                  }
 
-                                const started = await createPayPalPayment(
-                                  localOrder.id || localOrder.orderNumber
-                                );
-                                if (!started.paypalOrderId || !started.order) {
-                                  throw new Error('PayPal payment could not be initialized.');
-                                }
-                                paypalPendingOrderRef.current = started.order;
-                                setPaypalPendingOrder(started.order);
-                                return started.paypalOrderId;
-                              }}
-                              onApprove={async (data) => {
-                                await handlePaypalApprovedOrder(data.orderID);
-                              }}
-                              onCancel={async () => {
-                                const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
-                                if (!pendingOrder) return;
-                                try {
-                                  await reconcilePendingCheckout(pendingOrder);
-                                } catch (err) {
-                                  setFieldErrors(prev => ({ ...prev, general: unresolvedPaymentMessage }));
-                                }
-                              }}
-                              onError={async (err) => {
-                                console.error('PayPal Button Error:', err);
-                                const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
-                                if (!pendingOrder) return;
-                                try {
-                                  await reconcilePendingCheckout(pendingOrder);
-                                } catch {
-                                  setFieldErrors(prev => ({ ...prev, general: unresolvedPaymentMessage }));
-                                }
-                              }}
-                            />
-                          </PayPalScriptProvider>
+                                  const started = await createPayPalPayment(
+                                    localOrder.id || localOrder.orderNumber
+                                  );
+                                  if (!started.paypalOrderId || !started.order) {
+                                    throw new Error('PayPal payment could not be initialized.');
+                                  }
+                                  paypalPendingOrderRef.current = started.order;
+                                  setPaypalPendingOrder(started.order);
+                                  return started.paypalOrderId;
+                                }}
+                                onApprove={async (data) => {
+                                  await handlePaypalApprovedOrder(data.orderID);
+                                }}
+                                onCancel={async () => {
+                                  const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
+                                  if (!pendingOrder) return;
+                                  try {
+                                    await reconcilePendingCheckout(pendingOrder);
+                                  } catch (err) {
+                                    setFieldErrors(prev => ({ ...prev, general: unresolvedPaymentMessage }));
+                                  }
+                                }}
+                                onError={async (err) => {
+                                  console.error('PayPal Button Error:', err);
+                                  const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
+                                  if (!pendingOrder) return;
+                                  try {
+                                    await reconcilePendingCheckout(pendingOrder);
+                                  } catch {
+                                    setFieldErrors(prev => ({ ...prev, general: unresolvedPaymentMessage }));
+                                  }
+                                }}
+                              />
+                            </PayPalScriptProvider>
+                          ) : (
+                            <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900 text-center">
+                              PayPal gateway is currently initializing. Please select Cash on Delivery or configure your PayPal credentials.
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

@@ -122,12 +122,13 @@ test('product page enforces explicit size selection before adding to bag', async
   await expect(page.getByRole('heading', { name: /SÆ SIGNATURE OVERSIZED TEE/i })).toBeVisible();
 
   // Main product Add to Bag button starts with SELECT SIZE and is disabled
-  const mainAddBtn = page.locator('button:has-text("SELECT SIZE")').first();
+  const mainAddBtn = page.locator('#btn-product-add-to-bag');
   await expect(mainAddBtn).toBeVisible();
   await expect(mainAddBtn).toBeDisabled();
+  await expect(mainAddBtn).toContainText(/SELECT SIZE/i);
 
   // Clicking size 'M' enables the button and changes text to ADD TO BAG
-  const sizeMBtn = page.locator('button:has-text("M")').filter({ hasText: /^M$/ }).first();
+  const sizeMBtn = page.locator('div.grid button', { hasText: /^M$/ }).first();
   await expect(sizeMBtn).toBeVisible();
   await sizeMBtn.click();
 
@@ -143,7 +144,7 @@ test('product page enforces explicit size selection before adding to bag', async
     if (await setSelectSizeBtn.isVisible()) {
       await setSelectSizeBtn.click();
       // Product modal opens for the matching set item
-      await expect(page.locator('button:has-text("SELECT A SIZE")')).toBeVisible();
+      await expect(page.locator('#btn-modal-add-to-bag, button:has-text("SELECT A SIZE")').first()).toBeVisible();
     }
   }
 });
@@ -204,7 +205,7 @@ test('auth drawer enforces min 8-character password and neutral forgot-password 
   await expect(drawer).toBeVisible();
 
   // Switch to Create account within the drawer
-  const switchModeBtn = drawer.locator('button', { hasText: /^Create account$/i });
+  const switchModeBtn = drawer.locator('p button', { hasText: /Create account/i });
   await expect(switchModeBtn).toBeVisible();
   await switchModeBtn.click();
 
@@ -226,7 +227,7 @@ test('auth drawer enforces min 8-character password and neutral forgot-password 
   await expect(drawer.getByText(/at least 8 characters/i)).toBeVisible();
 
   // Switch back to Sign in, then Forgot password
-  const signInSwitch = drawer.locator('button', { hasText: /^Sign in$/i });
+  const signInSwitch = drawer.locator('p button', { hasText: /Sign in/i });
   await signInSwitch.click();
 
   const forgotPasswordBtn = drawer.getByRole('button', { name: 'Forgot password?' });

@@ -36,7 +36,8 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     setIsAuthOpen,
     setAuthMode,
     settings,
-    setActiveModalProduct
+    setActiveModalProduct,
+    isLoadingProducts
   } = useStore();
 
   const product = products.find(p => p.slug === slug || p.id === slug);
@@ -198,12 +199,19 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
   }, [product?.id]);
 
   if (!product) {
+    if (isLoadingProducts) {
+      return (
+        <div className="min-h-screen bg-[#FAF8F5] pt-36 pb-20 text-center px-4 flex items-center justify-center">
+          <div className="mx-auto h-7 w-7 rounded-full border border-[#B9AC9E] border-t-[#1A1816] animate-spin" />
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-[#FAF8F5] pt-36 pb-20 text-center px-4">
         <h2 className="font-serif text-2xl text-[#1A1816]">Garment Not Found</h2>
         <button
           onClick={() => navigateTo({ name: 'home' })}
-          className="mt-4 px-6 py-2.5 bg-[#1A1816] text-white text-xs uppercase tracking-widest rounded-full"
+          className="mt-4 px-6 py-2.5 bg-[#1A1816] text-white text-xs uppercase tracking-widest rounded-full cursor-pointer"
         >
           Return to Boutique
         </button>
@@ -647,6 +655,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                   </div>
 
                   <button
+                    id="btn-product-add-to-bag"
                     onClick={handleAdd}
                     disabled={needsSize}
                     className={`flex-1 py-3.5 sm:py-4 rounded-full text-xs uppercase font-semibold tracking-[0.15em] sm:tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${

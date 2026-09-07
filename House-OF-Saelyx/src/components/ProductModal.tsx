@@ -170,6 +170,7 @@ export const ProductModal: React.FC = () => {
                   </div>
                 ) : (
                   <button
+                    id="btn-modal-add-to-bag"
                     onClick={handleAdd}
                     disabled={needsSize}
                     className={`w-full py-3.5 sm:py-4 min-h-[48px] rounded-full text-xs uppercase font-semibold tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
