@@ -47,6 +47,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  useEffect(() => { setSelectedSize(''); setQuantity(1); }, [product?.id]);
   const [added, setAdded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'care' | 'shipping'>('details');
@@ -209,17 +210,18 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     );
   }
 
-  const currentSize = selectedSize || product.sizes[0] || 'M';
+  const currentSize = selectedSize;
+  const needsSize = (product.sizes?.length || 0) > 0 && !currentSize;
 
   const handleAdd = () => {
-    addToCart(product, currentSize, quantity);
+    if (!addToCart(product, currentSize, quantity)) return;
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
   const handleAddMatchingSet = () => {
     if (matchingSetProduct) {
-      addToCart(matchingSetProduct, matchingSetProduct.sizes[0] || 'M', 1);
+      addToCart(matchingSetProduct);
     }
   };
 
@@ -645,6 +647,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
 
                   <button
                     onClick={handleAdd}
+                    disabled={needsSize}
                     className={`flex-1 py-3.5 sm:py-4 rounded-full text-xs uppercase font-semibold tracking-[0.15em] sm:tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
                       added
                         ? 'bg-emerald-600 text-white'
@@ -658,7 +661,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                       </>
                     ) : (
                       <>
-                        <span>ADD TO BAG — {formatPrice(product.priceLKR * quantity)}</span>
+                        <span>{needsSize ? 'SELECT SIZE' : `ADD TO BAG — ${formatPrice(product.priceLKR * quantity)}`}</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}

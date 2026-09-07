@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Check, ArrowRight, ShieldCheck, Sparkles, Ruler, Bell } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
@@ -9,13 +9,18 @@ export const ProductModal: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
+  useEffect(() => {
+    setSelectedSize(''); setSelectedImageIdx(0); setQuantity(1); setAdded(false);
+  }, [activeModalProduct]);
+
   if (!activeModalProduct) return null;
 
-  const currentSize = selectedSize || activeModalProduct.sizes[0] || 'M';
+  const currentSize = selectedSize;
+  const needsSize = (activeModalProduct.sizes?.length || 0) > 0 && !currentSize;
   const isOutOfStock = !activeModalProduct.inStock || (activeModalProduct.stockCount !== undefined && activeModalProduct.stockCount <= 0);
 
   const handleAdd = () => {
-    addToCart(activeModalProduct, currentSize, quantity);
+    if (!addToCart(activeModalProduct, currentSize, quantity)) return;
     setAdded(true);
     setTimeout(() => {
       setAdded(false);
@@ -166,6 +171,7 @@ export const ProductModal: React.FC = () => {
                 ) : (
                   <button
                     onClick={handleAdd}
+                    disabled={needsSize}
                     className={`w-full py-3.5 sm:py-4 min-h-[48px] rounded-full text-xs uppercase font-semibold tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
                       added
                         ? 'bg-emerald-600 text-white'

@@ -1,3 +1,4 @@
+import { getAppCheckRequestHeaders } from '../lib/firebase';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
@@ -60,24 +61,15 @@ export const CheckoutPage: React.FC = () => {
     setIsAuthOpen 
   } = useStore();
 
-  // Load previously saved delivery details from localStorage
+  // Legacy unowned details are never adopted by another account.
+  const savedDetailsKey = user?.uid ? 'saelyx_saved_delivery_details:' + user.uid : null;
   const [savedDetailsObj, setSavedDetailsObj] = useState<any>(() => {
     try {
-      const saved = localStorage.getItem('saelyx_saved_delivery_details');
+      const saved = savedDetailsKey ? localStorage.getItem(savedDetailsKey) : null;
       return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   });
-
-  const [hasSavedDetails, setHasSavedDetails] = useState(() => {
-    try {
-      const saved = localStorage.getItem('saelyx_saved_delivery_details');
-      return !!saved;
-    } catch {
-      return false;
-    }
-  });
+  const [hasSavedDetails, setHasSavedDetails] = useState(() => Boolean(savedDetailsObj));
 
   // Checkboxes
   const [rememberDetails, setRememberDetails] = useState(false);
@@ -221,19 +213,19 @@ export const CheckoutPage: React.FC = () => {
     try {
       const res = await fetch('/api/promo/validate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAppCheckRequestHeaders()) },
         body: JSON.stringify({ code, subtotalLKR })
       });
       const data = await res.json();
       if (res.ok && data.valid) {
         setAppliedPromo({
-          code: data.code,
+          code,
           discountFixedLKR: data.discountLKR,
           message: data.message
         });
         setPromoSuccess(data.message || 'Promo code applied successfully.');
       } else {
-        setPromoError(data.error || data.message || 'Invalid promo or atelier voucher code.');
+        setPromoError(data.error || data.message || 'Invalid promo or coupon or voucher code.');
       }
     } catch {
       setPromoError('Unable to validate promo code. Please check your connection.');
@@ -249,23 +241,45 @@ export const CheckoutPage: React.FC = () => {
     setPromoError('');
   };
 
-  // Safe Payment Method Switcher
-  const handlePaymentMethodChange = async (method: 'paypal' | 'cod') => {
-    if (paymentMethod === 'paypal' && method !== 'paypal') {
-      const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
-      if (pendingOrder) {
-        try {
-          await cancelPayPalOrder(pendingOrder.id || pendingOrder.orderNumber);
-        } catch (e) {
-          console.warn('Local PayPal order cancellation cleanup note:', e);
-        }
-        paypalPendingOrderRef.current = null;
-        paypalCheckoutAttemptIdRef.current = null;
-        setPaypalPendingOrder(null);
-      }
+  const paymentSwitchInFlightRef = useRef(false);
+  const [isSwitchingPayment, setIsSwitchingPayment] = useState(false);
+  const unresolvedPaymentMessage = 'We could not confirm the previous PayPal checkout was cancelled. Please retry or refresh before changing payment method.';
+
+  const reconcilePendingCheckout = async (pendingOrder: Order) => {
+    const reconciled = await cancelPayPalOrder(pendingOrder.id || pendingOrder.orderNumber);
+    if (reconciled.paymentStatus === 'verified') {
+      setConfirmedOrder(reconciled);
+      clearCart();
+    } else if (reconciled.status !== 'cancelled') {
+      throw new Error(unresolvedPaymentMessage);
     }
-    setPaymentMethod(method);
-    setFieldErrors(prev => ({ ...prev, paymentMethod: undefined, general: undefined }));
+    paypalPendingOrderRef.current = null;
+    paypalCheckoutAttemptIdRef.current = null;
+    setPaypalPendingOrder(null);
+    return reconciled;
+  };
+
+  // Never clear the linked order or select a second method on uncertainty.
+  const handlePaymentMethodChange = async (method: 'paypal' | 'cod') => {
+    if (paymentSwitchInFlightRef.current || isSubmitting) return;
+    paymentSwitchInFlightRef.current = true;
+    setIsSwitchingPayment(true);
+    try {
+      if (paymentMethod === 'paypal' && method !== 'paypal') {
+        const pending = paypalPendingOrderRef.current || paypalPendingOrder;
+        if (pending) {
+          const reconciled = await reconcilePendingCheckout(pending);
+          if (reconciled.paymentStatus === 'verified') return;
+        }
+      }
+      setPaymentMethod(method);
+      setFieldErrors(prev => ({ ...prev, paymentMethod: undefined, general: undefined }));
+    } catch {
+      setFieldErrors(prev => ({ ...prev, general: unresolvedPaymentMessage }));
+    } finally {
+      paymentSwitchInFlightRef.current = false;
+      setIsSwitchingPayment(false);
+    }
   };
 
   // Form Validation
@@ -327,7 +341,8 @@ export const CheckoutPage: React.FC = () => {
           country: country.trim() || 'Sri Lanka',
           notes: notes.trim()
         };
-        localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(detailsToSave));
+        if (!savedDetailsKey) return;
+        localStorage.setItem(savedDetailsKey, JSON.stringify(detailsToSave));
         setSavedDetailsObj(detailsToSave);
         setHasSavedDetails(true);
         setRememberDetails(false);
@@ -364,10 +379,8 @@ export const CheckoutPage: React.FC = () => {
     } catch (err) {
       console.error('PayPal server capture exception:', err);
       try {
-        await cancelPayPalOrder(pendingOrder.id || pendingOrder.orderNumber);
-        paypalPendingOrderRef.current = null;
-        paypalCheckoutAttemptIdRef.current = null;
-        setPaypalPendingOrder(null);
+        const reconciled = await reconcilePendingCheckout(pendingOrder);
+        if (reconciled.paymentStatus === 'verified') return;
         setFieldErrors(prev => ({
           ...prev,
           general: 'PayPal payment was not captured and the pending order was cancelled. You may try again.'
@@ -543,7 +556,7 @@ export const CheckoutPage: React.FC = () => {
             </div>
             <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
               <span className="text-[#7A6E60]">Estimated Delivery</span>
-              <span className="font-medium text-emerald-900">{confirmedOrder.deliveryEta || '2–4 business days'}</span>
+              <span className="font-medium text-emerald-900">{confirmedOrder.deliveryEta || '1–4 working days'}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[#7A6E60]">Destination</span>
@@ -898,18 +911,17 @@ export const CheckoutPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="space-y-3.5">
+              <div className="space-y-3.5" role="radiogroup" aria-label="Payment method">
                 
                 {/* 1. Cash on Delivery (Standard In-Person Payment) */}
                 <div
-                  onClick={() => handlePaymentMethodChange('cod')}
                   className={`rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden ${
                     paymentMethod === 'cod'
                       ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-[#1A1816]'
                       : 'border-[#EAE3D9] bg-[#FCFBF9]/60 hover:border-[#D5CBBF] hover:bg-white'
                   }`}
                 >
-                  <div className="p-4 sm:p-5 flex items-center justify-between gap-4">
+                  <button type="button" role="radio" aria-label="Cash on Delivery" aria-checked={paymentMethod === 'cod'} aria-expanded={paymentMethod === 'cod'} aria-controls="payment-cod-details" disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('cod')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#1A1816] disabled:cursor-wait">
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="w-10 h-10 rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] flex items-center justify-center flex-shrink-0 text-[#1A1816]">
                         <Truck className="w-5 h-5" />
@@ -919,12 +931,9 @@ export const CheckoutPage: React.FC = () => {
                           <span className="text-xs uppercase font-semibold tracking-wider text-[#1A1816]">
                             Cash on Delivery
                           </span>
-                          <span className="text-[9px] uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 rounded font-medium">
-                            Hand-Delivery Settlement
-                          </span>
                         </div>
                         <p className="text-[11px] text-[#665A4E] mt-0.5">
-                          Pay in cash when your garments arrive at your doorstep
+                          Pay in cash when your order is delivered.
                         </p>
                       </div>
                     </div>
@@ -934,10 +943,10 @@ export const CheckoutPage: React.FC = () => {
                     }`}>
                       {paymentMethod === 'cod' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}
                     </div>
-                  </div>
+                  </button>
 
                   {paymentMethod === 'cod' && (
-                    <div className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] bg-[#FCFBF9]/50 space-y-4">
+                    <div id="payment-cod-details" className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] bg-[#FCFBF9]/50 space-y-4">
                       <div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs text-[#5A4E40] space-y-1.5">
                         <div className="flex items-center justify-between text-[#1A1816] font-medium">
                           <span>Amount Due Upon Hand-Delivery:</span>
@@ -976,14 +985,13 @@ export const CheckoutPage: React.FC = () => {
                 {/* 2. PayPal (Global Online Checkout) */}
                 {paymentConfig.paypal.enabled && paypalClientId && (
                   <div
-                    onClick={() => handlePaymentMethodChange('paypal')}
                     className={`rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden ${
                       paymentMethod === 'paypal'
                         ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-[#1A1816]'
                         : 'border-[#EAE3D9] bg-[#FCFBF9]/60 hover:border-[#D5CBBF] hover:bg-white'
                     }`}
                   >
-                    <div className="p-4 sm:p-5 flex items-center justify-between gap-4">
+                    <button type="button" role="radio" aria-label="PayPal" aria-checked={paymentMethod === 'paypal'} aria-expanded={paymentMethod === 'paypal'} aria-controls="payment-paypal-details" disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('paypal')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#1A1816] disabled:cursor-wait">
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div className="w-10 h-10 rounded-lg bg-[#FAF8F5] border border-[#EAE3D9] flex items-center justify-center flex-shrink-0">
                           <svg className="w-5 h-5 object-contain" viewBox="0 0 24 24" fill="none">
@@ -1001,7 +1009,7 @@ export const CheckoutPage: React.FC = () => {
                             </span>
                           </div>
                           <p className="text-[11px] text-[#665A4E] mt-0.5">
-                            International digital checkout processed securely via PayPal
+                            Pay securely with PayPal.
                           </p>
                         </div>
                       </div>
@@ -1011,17 +1019,17 @@ export const CheckoutPage: React.FC = () => {
                       }`}>
                         {paymentMethod === 'paypal' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}
                       </div>
-                    </div>
+                    </button>
 
                     {paymentMethod === 'paypal' && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] bg-[#FCFBF9]/50 space-y-4">
+                      <div id="payment-paypal-details" className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] bg-[#FCFBF9]/50 space-y-4">
                         <div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs text-[#5A4E40] space-y-1.5">
                           <div className="flex items-center justify-between text-[#1A1816] font-medium">
                             <span>Total Charge via PayPal:</span>
                             <span className="font-serif text-sm">{paypalCurrency} {paypalDisplayAmount.toFixed(2)}</span>
                           </div>
                           <p className="text-[11px] text-[#7A6E60] leading-relaxed">
-                            Click the PayPal button below to authorize payment. Your order will be confirmed upon successful authorization.
+                            Click the PayPal button below to authorize payment. Your order will be confirmed after the server verifies payment.
                           </p>
                         </div>
 
@@ -1035,6 +1043,7 @@ export const CheckoutPage: React.FC = () => {
                             <PayPalButtons
                               style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
                               createOrder={async () => {
+                                if (paymentSwitchInFlightRef.current) throw new Error('Please wait for payment reconciliation.');
                                 if (!validateDeliveryDetails()) {
                                   throw new Error('Please complete all required delivery fields.');
                                 }
@@ -1088,14 +1097,9 @@ export const CheckoutPage: React.FC = () => {
                                 const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
                                 if (!pendingOrder) return;
                                 try {
-                                  await cancelPayPalOrder(
-                                    pendingOrder.id || pendingOrder.orderNumber
-                                  );
-                                  paypalPendingOrderRef.current = null;
-                                  paypalCheckoutAttemptIdRef.current = null;
-                                  setPaypalPendingOrder(null);
+                                  await reconcilePendingCheckout(pendingOrder);
                                 } catch (err) {
-                                  console.error('PayPal cancellation sync failed:', err);
+                                  setFieldErrors(prev => ({ ...prev, general: unresolvedPaymentMessage }));
                                 }
                               }}
                               onError={async (err) => {
@@ -1103,14 +1107,9 @@ export const CheckoutPage: React.FC = () => {
                                 const pendingOrder = paypalPendingOrderRef.current || paypalPendingOrder;
                                 if (!pendingOrder) return;
                                 try {
-                                  await cancelPayPalOrder(
-                                    pendingOrder.id || pendingOrder.orderNumber
-                                  );
-                                  paypalPendingOrderRef.current = null;
-                                  paypalCheckoutAttemptIdRef.current = null;
-                                  setPaypalPendingOrder(null);
+                                  await reconcilePendingCheckout(pendingOrder);
                                 } catch {
-                                  // Keep order pending if status uncertain
+                                  setFieldErrors(prev => ({ ...prev, general: unresolvedPaymentMessage }));
                                 }
                               }}
                             />
@@ -1165,7 +1164,7 @@ export const CheckoutPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Collapsible Coupon / Atelier Voucher Section */}
+            {/* Collapsible Coupon / Coupon or Voucher Section */}
             <div className="border-t border-[#EAE3D9] pt-4">
               {appliedPromo ? (
                 <div className="flex items-center justify-between p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs text-emerald-950">
@@ -1205,7 +1204,7 @@ export const CheckoutPage: React.FC = () => {
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          placeholder="e.g. SAELYXVIP"
+                          placeholder="Enter coupon code"
                           value={promoCode}
                           onChange={e => {
                             setPromoCode(e.target.value.toUpperCase());

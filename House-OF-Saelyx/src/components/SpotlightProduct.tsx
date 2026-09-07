@@ -14,7 +14,7 @@ export const SpotlightProduct: React.FC = () => {
     seconds: 56
   });
 
-  const [selectedSize] = useState('M');
+
   const [isAdded, setIsAdded] = useState(false);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export const SpotlightProduct: React.FC = () => {
 
   const handleAdd = () => {
     if (spotlightProduct) {
-      addToCart(spotlightProduct, selectedSize, 1);
+      addToCart(spotlightProduct);
       setIsAdded(true);
       setTimeout(() => setIsAdded(false), 2000);
     }
