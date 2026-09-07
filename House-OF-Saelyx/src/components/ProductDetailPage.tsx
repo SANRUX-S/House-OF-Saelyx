@@ -17,10 +17,12 @@ import {
   Mail,
   CheckCircle2,
   AlertCircle,
-  Smartphone
+  Smartphone,
+  Loader2
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Product, ProductReview } from '../types';
+import { auth, getAppCheckRequestHeaders } from '../lib/firebase';
 
 export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
   const { 
@@ -30,7 +32,9 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     navigateTo,
     openRestockModal,
     subscribeToRestock,
-    user
+    user,
+    setIsAuthOpen,
+    setAuthMode
   } = useStore();
 
   const product = products.find(p => p.slug === slug || p.id === slug);
@@ -121,13 +125,18 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     ? products.find(p => p.id === product.completeTheSetProductId || p.slug === product.completeTheSetProductId)
     : null;
 
-  // New review form modal/state
+  // Real Review State
   const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);
   const [reviewsList, setReviewsList] = useState<ProductReview[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+  const [averageRating, setAverageRating] = useState<number>(0);
   const [newReviewAuthor, setNewReviewAuthor] = useState('');
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewSuccessMessage, setReviewSuccessMessage] = useState('');
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Only reset viewport scroll, active image, and size when navigating to a new garment (slug change)
   useEffect(() => {
@@ -136,30 +145,54 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     setSelectedSize('');
   }, [slug]);
 
-  // Sync reviews separately when product first loads or reviews array changes
+  // Fetch real persistent reviews from the database for this product
   useEffect(() => {
-    if (product?.reviews) {
-      setReviewsList(product.reviews);
-    } else {
-      setReviewsList([
-        {
-          id: 'rev-default-1',
-          author: 'Austin',
-          rating: 5,
-          date: '08/14/2026',
-          verified: true,
-          comment: 'Great quality, worth it. The 400 GSM weight sits perfectly over chunky sneakers.'
-        },
-        {
-          id: 'rev-default-2',
-          author: 'Brandon',
-          rating: 5,
-          date: '06/10/2026',
-          verified: true,
-          comment: 'Great quality! The embroidery along the side panel is extremely crisp.'
-        }
-      ]);
+    if (!product?.id) {
+      setReviewsList([]);
+      setAverageRating(0);
+      setIsLoadingReviews(false);
+      return;
     }
+
+    let isMounted = true;
+    setIsLoadingReviews(true);
+    setReviewError(null);
+
+    fetch(`/api/products/${product.id}/reviews`)
+      .then(async res => {
+        if (!res.ok) throw new Error('Failed to load reviews');
+        return res.json();
+      })
+      .then(data => {
+        if (!isMounted) return;
+        if (Array.isArray(data?.reviews)) {
+          setReviewsList(data.reviews);
+          setAverageRating(Number(data.averageRating) || 0);
+        } else if (Array.isArray(data)) {
+          setReviewsList(data);
+          const avg = data.length > 0
+            ? Number((data.reduce((sum: number, r: any) => sum + (Number(r.rating) || 5), 0) / data.length).toFixed(1))
+            : 0;
+          setAverageRating(avg);
+        } else {
+          setReviewsList([]);
+          setAverageRating(0);
+        }
+      })
+      .catch(err => {
+        console.error('Reviews load error:', err);
+        if (isMounted) {
+          setReviewsList([]);
+          setAverageRating(0);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingReviews(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [product?.id]);
 
   if (!product) {
@@ -204,23 +237,87 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     }
   };
 
-  const handleAddReview = (e: React.FormEvent) => {
+  const handleOpenReviewForm = () => {
+    if (!user) {
+      setAuthMode('signin');
+      setIsAuthOpen(true);
+      return;
+    }
+    setReviewError(null);
+    if (!newReviewAuthor) {
+      setNewReviewAuthor(user.name || '');
+    }
+    setIsReviewFormOpen(prev => !prev);
+  };
+
+  const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newReviewAuthor.trim() || !newReviewComment.trim()) return;
-    const rev: ProductReview = {
-      id: `rev-${Date.now()}`,
-      author: newReviewAuthor.trim(),
-      rating: newReviewRating,
-      date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
-      verified: true,
-      comment: newReviewComment.trim()
-    };
-    setReviewsList([rev, ...reviewsList]);
-    setNewReviewAuthor('');
-    setNewReviewComment('');
-    setReviewSubmitted(true);
-    setIsReviewFormOpen(false);
-    setTimeout(() => setReviewSubmitted(false), 3000);
+    if (!user) {
+      setAuthMode('signin');
+      setIsAuthOpen(true);
+      return;
+    }
+
+    const commentClean = newReviewComment.trim();
+    if (commentClean.length < 3) {
+      setReviewError('Please provide at least 3 characters in your review feedback.');
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError(null);
+
+    try {
+      const idToken = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+      if (!idToken) {
+        setReviewError('Your session has expired. Please sign in again.');
+        setAuthMode('signin');
+        setIsAuthOpen(true);
+        return;
+      }
+
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const res = await fetch(`/api/products/${product.id}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+          ...appCheckHeaders
+        },
+        body: JSON.stringify({
+          rating: newReviewRating,
+          comment: commentClean,
+          author: newReviewAuthor.trim() || user.name || 'SAELYXE Patron'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit review.');
+      }
+
+      if (data.review) {
+        const updatedList = [data.review, ...reviewsList.filter(r => r.id !== data.review.id)];
+        setReviewsList(updatedList);
+        const newAvg = Number((updatedList.reduce((sum, r) => sum + r.rating, 0) / updatedList.length).toFixed(1));
+        setAverageRating(newAvg);
+      }
+
+      setNewReviewComment('');
+      setReviewSubmitted(true);
+      setReviewSuccessMessage(
+        data.review?.verified
+          ? 'Thank you! Your verified purchase review has been published.'
+          : 'Thank you! Your patron review has been recorded.'
+      );
+      setIsReviewFormOpen(false);
+      setTimeout(() => setReviewSubmitted(false), 5000);
+    } catch (err: any) {
+      console.error('Submit review error:', err);
+      setReviewError(err.message || 'Unable to submit review. Please try again.');
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   // Bullet point specifications (fallback to default tailored bullets if not in DB)
@@ -670,41 +767,61 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
 
         </div>
 
-        {/* CUSTOMER REVIEWS Section (Matching reference 1:1) */}
+        {/* CUSTOMER REVIEWS Section */}
         <div className="pt-16 border-t border-[#ECE3D8] space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <span className="text-[10px] uppercase tracking-[0.25em] text-[#857768] font-semibold">
-                VERIFIED COMMISSION REVIEWS
+                PATRON TESTIMONIALS
               </span>
-              <h3 className="font-serif text-2xl sm:text-3xl font-normal text-[#1A1816] mt-0.5">
-                Customer Reviews ({reviewsList.length})
+              <h3 className="font-serif text-2xl sm:text-3xl font-normal text-[#1A1816] mt-0.5 flex flex-wrap items-center gap-3">
+                <span>Customer Reviews ({reviewsList.length})</span>
+                {reviewsList.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-sans font-medium text-amber-900/80 bg-amber-50 border border-amber-200/60 px-2.5 py-0.5 rounded-full">
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <span>{averageRating} / 5</span>
+                  </span>
+                )}
               </h3>
             </div>
 
             <button
-              onClick={() => setIsReviewFormOpen(!isReviewFormOpen)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1A1816] text-white text-xs uppercase font-semibold tracking-wider hover:bg-black transition-colors self-start sm:self-auto"
+              onClick={handleOpenReviewForm}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1A1816] text-white text-xs uppercase font-semibold tracking-wider hover:bg-black transition-colors self-start sm:self-auto cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Write a Review</span>
+              <span>{user ? 'Write a Review' : 'Sign In to Review'}</span>
             </button>
           </div>
 
           {/* Write Review Form */}
           {isReviewFormOpen && (
             <form onSubmit={handleAddReview} className="bg-[#F2ECE3] p-6 rounded-2xl border border-[#E0D5C7] space-y-4 max-w-2xl">
-              <h4 className="text-xs uppercase tracking-widest font-bold text-[#1A1816]">Leave Verified Feedback</h4>
-              
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs uppercase tracking-widest font-bold text-[#1A1816]">Leave Customer Review</h4>
+                <span className="text-[11px] text-[#635548]">
+                  Signed in as <strong className="text-black">{user?.name || user?.email}</strong>
+                </span>
+              </div>
+
+              {reviewError && (
+                <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{reviewError}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-[#635548] block mb-1">Your Name</label>
+                  <label className="text-[10px] uppercase tracking-wider text-[#635548] block mb-1">Display Name</label>
                   <input
                     type="text"
                     required
                     value={newReviewAuthor}
                     onChange={e => setNewReviewAuthor(e.target.value)}
                     placeholder="e.g. Austin K."
+                    maxLength={40}
+                    disabled={reviewSubmitting}
                     className="w-full bg-white border border-[#D5C9B8] rounded-xl px-3 py-2 text-xs text-[#1A1816] focus:outline-none focus:border-black"
                   />
                 </div>
@@ -717,7 +834,9 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                         key={star}
                         type="button"
                         onClick={() => setNewReviewRating(star)}
-                        className="text-amber-500 hover:scale-110 transition-transform"
+                        disabled={reviewSubmitting}
+                        className="text-amber-500 hover:scale-110 transition-transform cursor-pointer"
+                        aria-label={`Rate ${star} star`}
                       >
                         <Star className={`w-5 h-5 ${star <= newReviewRating ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`} />
                       </button>
@@ -734,6 +853,8 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                   value={newReviewComment}
                   onChange={e => setNewReviewComment(e.target.value)}
                   placeholder="Share details regarding fabric weight, silhouette drape, and comfort..."
+                  maxLength={1500}
+                  disabled={reviewSubmitting}
                   className="w-full bg-white border border-[#D5C9B8] rounded-xl px-3 py-2 text-xs text-[#1A1816] focus:outline-none focus:border-black"
                 />
               </div>
@@ -741,14 +862,17 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
               <div className="flex items-center gap-3">
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-full bg-[#1A1816] text-white text-xs uppercase font-semibold tracking-wider hover:bg-black transition-colors"
+                  disabled={reviewSubmitting}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#1A1816] text-white text-xs uppercase font-semibold tracking-wider hover:bg-black transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  Submit Verified Review
+                  {reviewSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{reviewSubmitting ? 'Publishing...' : 'Submit Review'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsReviewFormOpen(false)}
-                  className="px-4 py-2 text-xs uppercase tracking-wider text-[#7A6D5F] hover:text-black"
+                  disabled={reviewSubmitting}
+                  className="px-4 py-2 text-xs uppercase tracking-wider text-[#7A6D5F] hover:text-black cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -758,40 +882,57 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
 
           {reviewSubmitted && (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600" />
-              <span>Thank you! Your verified customer review has been added.</span>
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{reviewSuccessMessage || 'Thank you! Your review has been recorded.'}</span>
             </div>
           )}
 
           {/* Reviews List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {reviewsList.map(rev => (
-              <div key={rev.id} className="bg-white p-5 rounded-2xl border border-[#E8DFC2]/60 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-amber-500">
-                    {[...Array(rev.rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <span className="text-[11px] font-sans text-[#8C7E6F]">{rev.date}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-xs text-[#1A1816]">{rev.author}</span>
-                  {rev.verified && (
-                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                      <Check className="w-2.5 h-2.5" />
-                      <span>Verified by shop</span>
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs text-[#4A4035] leading-relaxed font-normal">
-                  "{rev.comment}"
-                </p>
+          {isLoadingReviews ? (
+            <div className="text-center py-10 text-xs text-[#8C7E6F] flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-[#1A1816]" />
+              <span>Retrieving verified reviews...</span>
+            </div>
+          ) : reviewsList.length === 0 ? (
+            <div className="text-center py-12 px-4 bg-white/60 rounded-2xl border border-[#ECE3D8] space-y-3">
+              <div className="w-10 h-10 mx-auto rounded-full bg-[#F5EFE6] flex items-center justify-center text-[#8C7E6F]">
+                <Star className="w-5 h-5 text-[#B8A898]" />
               </div>
-            ))}
-          </div>
+              <h4 className="font-serif text-lg text-[#1A1816]">No reviews yet</h4>
+              <p className="text-xs text-[#7A6D5F] max-w-md mx-auto">
+                There are no customer reviews for this silhouette yet. Be the first patron to share your experience.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {reviewsList.map(rev => (
+                <div key={rev.id} className="bg-white p-5 rounded-2xl border border-[#E8DFC2]/60 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-amber-500">
+                      {[...Array(rev.rating)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                    <span className="text-[11px] font-sans text-[#8C7E6F]">{rev.date}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-[#1A1816]">{rev.author}</span>
+                    {rev.verified && (
+                      <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                        <Check className="w-2.5 h-2.5" />
+                        <span>Verified Purchase</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-[#4A4035] leading-relaxed font-normal">
+                    "{rev.comment}"
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Related Silhouettes Section */}

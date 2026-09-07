@@ -1337,6 +1337,7 @@ app.get('/api/admin/export', async (req, res) => {
       'products',
       'settings',
       'orders',
+      'reviews',
       'staff',
       'admins',
       'messages',
@@ -1978,6 +1979,210 @@ app.get('/api/products', async (req, res) => {
     return res.json(products);
   } catch {
     return res.status(500).json({ error: 'Product data is unavailable.' });
+  }
+});
+
+app.get('/api/products/:productId/reviews', async (req, res) => {
+  try {
+    const productId = safeString(req.params.productId, 120);
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required.' });
+    }
+
+    const adminDb = getAdminDb();
+    if (!adminDb) {
+      return res.json({ reviews: [], count: 0, averageRating: 0 });
+    }
+
+    const snapshot = await adminDb.collection('reviews')
+      .where('productId', '==', productId)
+      .get();
+
+    const reviews = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        productId: safeString(data.productId, 120),
+        author: safeString(data.author, 60) || 'Verified Patron',
+        rating: Math.max(1, Math.min(5, Math.round(Number(data.rating) || 5))),
+        comment: safeString(data.comment, 2000),
+        date: safeString(data.date, 30) || 'Recently',
+        verified: Boolean(data.verifiedPurchase),
+        createdAt: safeString(data.createdAt, 60) || new Date().toISOString()
+      };
+    });
+
+    // Sort newest first
+    reviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const count = reviews.length;
+    const averageRating = count > 0
+      ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / count).toFixed(1))
+      : 0;
+
+    return res.json({ reviews, count, averageRating });
+  } catch (err) {
+    console.error('Error fetching reviews:', err);
+    return res.status(500).json({ error: 'Failed to retrieve customer reviews.' });
+  }
+});
+
+app.post('/api/products/:productId/reviews', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) {
+      return res.status(503).json({ error: 'Review database service is unavailable.' });
+    }
+
+    const authToken = await readBearerToken(req);
+    if (!authToken) {
+      return res.status(401).json({ error: 'Please sign in to your patron account to submit a review.' });
+    }
+
+    if (!(await hasValidAppCheck(req))) {
+      return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
+    }
+
+    const productId = safeString(req.params.productId, 120);
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required.' });
+    }
+
+    // Rate limiting: max 5 reviews per 10 minutes per authenticated customer
+    if (!(await enforceRateLimit(adminDb, `reviews:${authToken.uid}`, 5, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many reviews submitted. Please wait a few minutes before submitting again.' });
+    }
+
+    const body = req.body || {};
+    const ratingNum = Math.round(Number(body.rating));
+    if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      return res.status(400).json({ error: 'Rating must be an integer between 1 and 5.' });
+    }
+
+    const comment = safeString(body.comment, 1500);
+    if (!comment || comment.length < 3) {
+      return res.status(400).json({ error: 'Review text must be at least 3 characters long.' });
+    }
+
+    // Determine safe public author name: never leak full email, phone, or private data
+    let authorName = safeString(body.author, 50);
+    if (!authorName) {
+      if (typeof authToken.name === 'string' && authToken.name.trim()) {
+        authorName = safeString(authToken.name.trim(), 40);
+      } else if (typeof authToken.email === 'string' && authToken.email.includes('@')) {
+        const localPart = authToken.email.split('@')[0];
+        authorName = `${localPart.slice(0, 3)}***`;
+      } else {
+        authorName = 'SAELYXE Patron';
+      }
+    }
+
+    // Prevent duplicate review spam for the same customer/product
+    const existingSnap = await adminDb.collection('reviews')
+      .where('productId', '==', productId)
+      .where('userId', '==', authToken.uid)
+      .limit(1)
+      .get();
+
+    if (!existingSnap.empty) {
+      return res.status(409).json({ error: 'You have already submitted a review for this silhouette.' });
+    }
+
+    // Server-side purchase verification:
+    // Check if the authenticated customer has a real order containing this exact product
+    // that reached a valid fulfillment state according to existing business rules.
+    let verifiedPurchase = false;
+    let matchedOrderId: string | null = null;
+
+    const ordersSnap = await adminDb.collection('orders')
+      .where('userId', '==', authToken.uid)
+      .get();
+
+    for (const orderDoc of ordersSnap.docs) {
+      const orderData = orderDoc.data();
+      const status = safeString(orderData.status, 30).toLowerCase();
+      if (ACTIVE_ORDER_STATUSES.has(status)) {
+        const items = Array.isArray(orderData.items) ? orderData.items : [];
+        const hasExactProduct = items.some((item: any) => safeString(item?.productId, 120) === productId);
+        if (hasExactProduct) {
+          verifiedPurchase = true;
+          matchedOrderId = orderDoc.id;
+          break;
+        }
+      }
+    }
+
+    const reviewId = `rev-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+    const reviewRecord = {
+      id: reviewId,
+      productId,
+      userId: authToken.uid,
+      author: authorName,
+      rating: ratingNum,
+      comment,
+      verifiedPurchase,
+      verifiedOrderId: matchedOrderId, // Stored internally for audit; never exposed in public responses
+      createdAt: now.toISOString(),
+      date: dateStr
+    };
+
+    await adminDb.collection('reviews').doc(reviewId).set(reviewRecord);
+
+    return res.status(201).json({
+      success: true,
+      review: {
+        id: reviewId,
+        productId,
+        author: authorName,
+        rating: ratingNum,
+        comment,
+        date: dateStr,
+        verified: verifiedPurchase,
+        createdAt: reviewRecord.createdAt
+      }
+    });
+  } catch (err) {
+    console.error('Error saving review:', err);
+    return res.status(500).json({ error: 'Unable to submit review. Please try again later.' });
+  }
+});
+
+app.delete('/api/products/:productId/reviews/:reviewId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) {
+      return res.status(503).json({ error: 'Review database service is unavailable.' });
+    }
+
+    const authToken = await readBearerToken(req);
+    if (!authToken) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    const reviewId = safeString(req.params.reviewId, 120);
+    const reviewRef = adminDb.collection('reviews').doc(reviewId);
+    const reviewSnap = await reviewRef.get();
+
+    if (!reviewSnap.exists) {
+      return res.status(404).json({ error: 'Review not found.' });
+    }
+
+    const reviewData = reviewSnap.data() || {};
+    const isAdmin = await isAdminToken(authToken);
+    const isOwner = reviewData.userId === authToken.uid;
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ error: 'You are not authorized to delete this review.' });
+    }
+
+    await reviewRef.delete();
+    return res.json({ success: true, message: 'Review successfully removed.' });
+  } catch (err) {
+    console.error('Error deleting review:', err);
+    return res.status(500).json({ error: 'Unable to delete review.' });
   }
 });
 

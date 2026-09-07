@@ -60,6 +60,12 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /reviews/{reviewId} {
+      allow read: if true;
+      // Customer reviews are securely validated, rate-limited, and purchase-verified by the server API.
+      allow create, update, delete: if false;
+    }
+
     match /settings/{settingId} {
       allow read: if true;
       // Settings mutations are Super-Admin validated by the trusted API.

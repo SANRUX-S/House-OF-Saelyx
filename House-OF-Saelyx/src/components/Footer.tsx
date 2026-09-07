@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check } from 'lucide-react';
+import { ChevronRight, Instagram, Check } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { getAppCheckRequestHeaders } from '../lib/firebase';
 
@@ -39,111 +39,220 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="w-full bg-[#121110] text-[#E7E7E7] pt-16 pb-10 select-none border-t border-[#2A2928] font-sans lg:min-h-[80vh] lg:flex lg:items-center">
-      <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 space-y-16 w-full">
+    <footer className="w-full bg-[#121110] text-white pt-16 pb-10 select-none border-t border-white/10 font-sans">
+      <div className="w-full px-6 sm:px-10 lg:px-12 space-y-16">
         
-        {/* Newsletter Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-[#2A2928]">
+        {/* Top Newsletter Row - Highlighting luxury editorial title inspired by SAELYXE Hero */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-white/10">
           <div>
+            <span className="block text-[10px] tracking-[0.3em] text-white uppercase font-semibold mb-2">
+              NEWSLETTER ACCESS
+            </span>
             <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-wide text-white leading-tight">
               BE FIRST FOR THE NEXT DROP
             </h3>
+            <p className="text-xs text-[#E6E6E6] mt-2 tracking-[0.14em] uppercase font-medium">
+              Exclusive early access & numbered edition alerts.
+            </p>
           </div>
-          <form onSubmit={handleSubscribe} className="w-full md:w-80 lg:w-96">
-            <div className="relative flex items-center border-b border-neutral-600 focus-within:border-white transition-colors pb-2" style={{ transition: 'border 0.75s' }}>
-              <input 
-                placeholder={subscribed ? "You're on the priority list!" : "Enter email"} 
-                className="w-full bg-transparent text-sm text-white placeholder:text-[#8F8F8F] focus:outline-none pr-8 font-normal" 
-                type="email" 
+
+          <form onSubmit={handleSubscribe} className="w-full md:w-80 lg:w-96 shrink-0">
+            <div className="relative flex items-center border-b border-neutral-600 focus-within:border-white transition-colors pb-2">
+              <input
+                type="email"
+                placeholder={subscribed ? "You're on the priority list!" : "Enter email"}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={subscribed || loading}
+                className="w-full bg-transparent text-sm text-white placeholder:text-[#A8A8A8] focus:outline-none pr-8 font-medium"
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={subscribed || loading}
-                className="p-1 text-[#B5B5B5] hover:text-white transition-all duration-300 disabled:opacity-50 cursor-pointer hover:translate-x-0.5" 
+                className="p-1 text-white hover:text-white transition-colors disabled:opacity-50 cursor-pointer"
                 aria-label="Subscribe"
               >
                 {subscribed ? (
                   <Check className="w-4 h-4 text-emerald-400" />
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right w-4 h-4" aria-hidden="true">
-                    <path d="m9 18 6-6-6-6"></path>
-                  </svg>
+                  <ChevronRight className="w-4 h-4" />
                 )}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Navigation Grid */}
+        {/* Links Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
           
-          {/* Legal */}
+          {/* LEGAL */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-lg tracking-[0.25em] text-white uppercase">LEGAL</h4>
-            <ul className="space-y-2.5 text-[1rem] text-[#B5B5B5] font-normal">
-              <li><button onClick={() => navigateTo({ name: 'legal-privacy' })} className="hover:text-white transition-colors text-left">Privacy Policy</button></li>
-              <li><button onClick={() => navigateTo({ name: 'legal-terms' })} className="hover:text-white transition-colors text-left">Terms and Conditions</button></li>
-              <li><button onClick={() => navigateTo({ name: 'legal-returns' })} className="hover:text-white transition-colors text-left">Returns &amp; Exchanges</button></li>
-              <li><button onClick={() => navigateTo({ name: 'care-authenticity' })} className="hover:text-white transition-colors text-left">Authenticity Certificate</button></li>
-            </ul>
-          </div>
-
-          {/* Shop */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg tracking-[0.25em] text-white uppercase">SHOP</h4>
-            <ul className="space-y-2.5 text-[1rem] text-[#B5B5B5] font-normal">
-              <li><button onClick={() => handleCategory('new')} className="hover:text-white transition-colors text-left">New Arrivals</button></li>
-              <li><button onClick={() => handleCategory('men')} className="hover:text-white transition-colors text-left">Men's Collection</button></li>
-              <li><button onClick={() => handleCategory('women')} className="hover:text-white transition-colors text-left">Women's Collection</button></li>
-              <li><button onClick={() => handleCategory('knits')} className="hover:text-white transition-colors text-left">Coordinates &amp; Knits</button></li>
-            </ul>
-          </div>
-
-          {/* Customer Care */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg tracking-[0.25em] text-white uppercase">CUSTOMER CARE</h4>
-            <ul className="space-y-2.5 text-[1rem] text-[#B5B5B5] font-normal">
+            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
+              LEGAL
+            </h4>
+            <ul className="space-y-2.5 text-[13px] text-[#F1F1F1] font-medium">
               <li>
-                <button onClick={() => setIsTrackerOpen(true)} className="text-white hover:opacity-80 inline-flex items-center gap-2 transition-opacity font-medium text-left leading-snug">
-                  <span>Track Delivery Status</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                <button 
+                  onClick={() => navigateTo({ name: 'legal-privacy' })} 
+                  className="footer-link text-[#F1F1F1] text-left"
+                >
+                  Privacy Policy
                 </button>
               </li>
-              <li><button onClick={() => navigateTo({ name: 'care-shipping' })} className="hover:text-white transition-colors text-left">Shipping &amp; Delivery</button></li>
-              <li><button onClick={() => navigateTo({ name: 'care-size-guide' })} className="hover:text-white transition-colors text-left">Sizing Guide</button></li>
-              <li><button onClick={() => navigateTo({ name: 'care-concierge' })} className="hover:text-white transition-colors text-left">Contact Us</button></li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'legal-terms' })} 
+                  className="footer-link text-[#F1F1F1] text-left"
+                >
+                  Terms and Conditions
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'legal-returns' })} 
+                  className="footer-link text-[#F1F1F1] text-left"
+                >
+                  Returns & Exchanges
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'care-authenticity' })} 
+                  className="footer-link text-[#F1F1F1] text-left"
+                >
+                  Authenticity Certificate
+                </button>
+              </li>
             </ul>
           </div>
 
-          {/* Social Media */}
-          <div className="space-y-4 flex flex-col items-center justify-center">
-            <h4 className="font-semibold text-center text-lg tracking-[0.25em] text-white uppercase">SOCIAL MEDIA</h4>
-            <div className="flex items-center gap-4 text-[#B5B5B5] pt-1">
-              <a href="https://www.instagram.com/houseofsaelyx/?hl=en" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" aria-label="Instagram">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-instagram w-8 h-7" aria-hidden="true">
-                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect>
-                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                  <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line>
+          {/* SHOP */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
+              SHOP
+            </h4>
+            <ul className="space-y-2.5 text-[13px] text-[#F1F1F1] font-medium">
+              <li>
+                <button onClick={() => handleCategory('new')} className="footer-link text-[#F1F1F1] text-left">
+                  Drop 001
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleCategory('men')} className="footer-link text-[#F1F1F1] text-left">
+                  Men's Silhouettes
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleCategory('women')} className="footer-link text-[#F1F1F1] text-left">
+                  Women's Silhouettes
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleCategory('knits')} className="footer-link text-[#F1F1F1] text-left">
+                  Coordinates & Knits
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          {/* CUSTOMER CARE */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
+              CUSTOMER CARE
+            </h4>
+            <ul className="space-y-2.5 text-[13px] text-[#F1F1F1] font-medium">
+              <li>
+                <button
+                  onClick={() => setIsTrackerOpen(true)}
+                  className="footer-link text-white inline-flex items-center gap-2 font-medium"
+                >
+                  <span>Track Delivery Status</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'care-shipping' })} 
+                  className="footer-link text-[#F1F1F1] text-left"
+                >
+                  Shipping & Delivery
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'care-size-guide' })} 
+                  className="footer-link text-[#F1F1F1] text-left"
+                >
+                  Sizing Guide
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigateTo({ name: 'care-concierge' })} 
+                  className="footer-link text-[#F1F1F1] text-left"
+                >
+                  Contact Us
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          {/* SOCIAL MEDIA */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-xs tracking-[0.25em] text-white uppercase">
+              SOCIAL MEDIA
+            </h4>
+            <div className="flex items-center gap-4 text-[#F1F1F1] pt-1">
+              <a 
+                href="https://www.instagram.com/saelyxe/?hl=en" 
+                target="_blank"
+                rel="noopener noreferrer" 
+                className="footer-social flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-tr from-[#FCAF45] via-[#DD2A7B] to-[#8134AF] text-white"
+                aria-label="Instagram"
+              >
+                <Instagram className="w-5 h-5 stroke-[2]" />
+              </a>
+              <a
+                href="https://www.tiktok.com/@saelyxe"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="footer-social flex h-9 w-9 items-center justify-center rounded-lg bg-black ring-1 ring-white/20"
+                aria-label="TikTok"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+                  <path fill="#25F4EE" transform="translate(-0.8 0.6)" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 1 1-2.89-2.89c.28 0 .55.04.81.12V9.4a6.33 6.33 0 1 0 5.53 6.27V8.69a8.25 8.25 0 0 0 4.83 1.56V6.8c-.36 0-.71-.04-1.06-.11Z" />
+                  <path fill="#FE2C55" transform="translate(0.8 -0.6)" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 1 1-2.89-2.89c.28 0 .55.04.81.12V9.4a6.33 6.33 0 1 0 5.53 6.27V8.69a8.25 8.25 0 0 0 4.83 1.56V6.8c-.36 0-.71-.04-1.06-.11Z" />
+                  <path fill="white" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 1 1-2.89-2.89c.28 0 .55.04.81.12V9.4a6.33 6.33 0 1 0 5.53 6.27V8.69a8.25 8.25 0 0 0 4.83 1.56V6.8c-.36 0-.71-.04-1.06-.11Z" />
+                </svg>
+              </a>
+              <a
+                href="https://www.facebook.com/profile.php?id=61593852620093&ref=PROFILE_EDIT_xav_ig_profile_page_web#"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="footer-social flex h-9 w-9 items-center justify-center rounded-lg bg-[#1877F2] text-white"
+                aria-label="Facebook"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden="true">
+                  <path d="M13.5 22v-9h3l.5-3.5h-3.5V7.25c0-1 .3-1.75 1.75-1.75H17V2.3c-.3-.05-1.35-.15-2.6-.15-2.6 0-4.4 1.6-4.4 4.55V9.5H7V13h3v9h3.5Z" />
                 </svg>
               </a>
             </div>
-            <p className="text-xs text-[#B5B5B5] font-normal leading-relaxed pt-2">Online Store · Sri Lanka</p>
+            <p className="text-xs text-[#F1F1F1] font-medium leading-relaxed pt-2">
+              Online Store · Sri Lanka
+            </p>
           </div>
 
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 lg:pt-[70px] border-t border-[#2A2928] flex flex-col lg:flex-row lg:items-end lg:justify-between gap-7">
-          <div className="tracking-[0.14em] uppercase text-[10px] sm:text-[11px] text-[#BEBEBE] font-normal text-center lg:text-left whitespace-nowrap">
-            ©️ 2025–2026 SAELYXE. ALL RIGHTS RESERVED.
+        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#E2E2E2] font-medium">
+          <div className="tracking-[0.14em] uppercase text-[11px] font-semibold text-white/90">
+            © {new Date().getFullYear()} SAELYXE
           </div>
-          <div className="flex flex-col items-center lg:items-end gap-3">
-            
-            {/* Replaced Payment Icons Container */}
-            <div className="footer-payment-icons flex flex-wrap items-center justify-center lg:justify-end gap-2">
+
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3">
+            {/* 9 Payment Icons Lineup */}
+            <div className="footer-payment-icons flex flex-wrap items-center justify-center sm:justify-end gap-2" aria-label="Accepted payment methods">
               <figure>
                 <svg className="payment-icons__icon" xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 38 24" width="38" height="24" fill="none" aria-labelledby="pi-american_express">
                   <title id="pi-american_express">American Express</title>
@@ -268,3 +377,4 @@ export const Footer: React.FC = () => {
     </footer>
   );
 };
+
