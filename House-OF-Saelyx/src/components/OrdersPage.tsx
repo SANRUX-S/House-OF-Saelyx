@@ -207,7 +207,7 @@ export const OrdersPage: React.FC = () => {
                 You haven't placed any orders yet.
               </h3>
               <p className="text-xs text-[#665A4E] max-w-sm mx-auto leading-relaxed">
-                Explore our limited-run collections and commission your first piece with complimentary white-glove hand delivery.
+                Explore our limited-run collections and commission your first piece with prompt courier delivery across Sri Lanka.
               </p>
             </div>
             <button

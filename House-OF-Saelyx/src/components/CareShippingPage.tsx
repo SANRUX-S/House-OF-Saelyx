@@ -43,11 +43,11 @@ export const CareShippingPage: React.FC = () => {
           <div className="bg-[#EFE9E0] p-6 rounded-2xl border border-[#DDD3C4] space-y-3">
             <div className="flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-[#1A1816]">
               <Globe className="w-4 h-4 text-amber-700" />
-              <span>Other Destinations</span>
+              <span>Delivery Scope</span>
             </div>
-            <div className="text-xl font-serif font-bold text-[#1A1816]">Availability Varies</div>
+            <div className="text-xl font-serif font-bold text-[#1A1816]">Sri Lanka Exclusively</div>
             <p className="text-xs text-[#3E3730] font-medium leading-relaxed">
-              Delivery availability, courier selection, timing, and destination-specific charges are confirmed against the order rather than promised as a fixed carrier or delivery window.
+              SAELYXE currently ships exclusively within Sri Lanka. Door-to-door delivery with verified courier tracking is assigned upon dispatch.
             </p>
           </div>
         </div>

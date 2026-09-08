@@ -50,7 +50,7 @@ export const CollectionGrid: React.FC = () => {
 
   const handleQuickAdd = (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
-    addToCart(product);
+    if (!addToCart(product)) return;
     setAddedIds(prev => ({ ...prev, [product.id]: true }));
     setTimeout(() => {
       setAddedIds(prev => ({ ...prev, [product.id]: false }));

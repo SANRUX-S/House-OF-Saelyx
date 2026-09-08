@@ -34,7 +34,10 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     subscribeToRestock,
     user,
     setIsAuthOpen,
-    setAuthMode
+    setAuthMode,
+    settings,
+    setActiveModalProduct,
+    isLoadingProducts
   } = useStore();
 
   const product = products.find(p => p.slug === slug || p.id === slug);
@@ -47,6 +50,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  useEffect(() => { setSelectedSize(''); setQuantity(1); }, [product?.id]);
   const [added, setAdded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'care' | 'shipping'>('details');
@@ -130,7 +134,6 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
   const [reviewsList, setReviewsList] = useState<ProductReview[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const [averageRating, setAverageRating] = useState<number>(0);
-  const [newReviewAuthor, setNewReviewAuthor] = useState('');
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
@@ -196,12 +199,19 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
   }, [product?.id]);
 
   if (!product) {
+    if (isLoadingProducts) {
+      return (
+        <div className="min-h-screen bg-[#FAF8F5] pt-36 pb-20 text-center px-4 flex items-center justify-center">
+          <div className="mx-auto h-7 w-7 rounded-full border border-[#B9AC9E] border-t-[#1A1816] animate-spin" />
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-[#FAF8F5] pt-36 pb-20 text-center px-4">
         <h2 className="font-serif text-2xl text-[#1A1816]">Garment Not Found</h2>
         <button
           onClick={() => navigateTo({ name: 'home' })}
-          className="mt-4 px-6 py-2.5 bg-[#1A1816] text-white text-xs uppercase tracking-widest rounded-full"
+          className="mt-4 px-6 py-2.5 bg-[#1A1816] text-white text-xs uppercase tracking-widest rounded-full cursor-pointer"
         >
           Return to Boutique
         </button>
@@ -209,17 +219,22 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
     );
   }
 
-  const currentSize = selectedSize || product.sizes[0] || 'M';
+  const currentSize = selectedSize;
+  const needsSize = (product.sizes?.length || 0) > 0 && !currentSize;
 
   const handleAdd = () => {
-    addToCart(product, currentSize, quantity);
+    if (!addToCart(product, currentSize, quantity)) return;
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
   const handleAddMatchingSet = () => {
     if (matchingSetProduct) {
-      addToCart(matchingSetProduct, matchingSetProduct.sizes[0] || 'M', 1);
+      if ((matchingSetProduct.sizes?.length || 0) > 0) {
+        setActiveModalProduct(matchingSetProduct);
+      } else {
+        addToCart(matchingSetProduct);
+      }
     }
   };
 
@@ -244,9 +259,6 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
       return;
     }
     setReviewError(null);
-    if (!newReviewAuthor) {
-      setNewReviewAuthor(user.name || '');
-    }
     setIsReviewFormOpen(prev => !prev);
   };
 
@@ -286,8 +298,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
         },
         body: JSON.stringify({
           rating: newReviewRating,
-          comment: commentClean,
-          author: newReviewAuthor.trim() || user.name || 'SAELYXE Patron'
+          comment: commentClean
         })
       });
 
@@ -644,7 +655,9 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                   </div>
 
                   <button
+                    id="btn-product-add-to-bag"
                     onClick={handleAdd}
+                    disabled={needsSize}
                     className={`flex-1 py-3.5 sm:py-4 rounded-full text-xs uppercase font-semibold tracking-[0.15em] sm:tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
                       added
                         ? 'bg-emerald-600 text-white'
@@ -658,7 +671,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                       </>
                     ) : (
                       <>
-                        <span>ADD TO BAG — {formatPrice(product.priceLKR * quantity)}</span>
+                        <span>{needsSize ? 'SELECT SIZE' : `ADD TO BAG — ${formatPrice(product.priceLKR * quantity)}`}</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -741,7 +754,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                     className="px-3.5 py-2 bg-[#1A1816] hover:bg-black text-white text-[11px] font-semibold uppercase tracking-wider rounded-full flex items-center gap-1 shadow-md transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>ADD</span>
+                    <span>{(matchingSetProduct.sizes?.length || 0) > 0 ? 'SELECT SIZE' : 'ADD'}</span>
                   </button>
                 </div>
               </div>
@@ -751,7 +764,11 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
             <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#E3D9CD] space-y-2 text-[11px] text-[#7A6D5F]">
               <div className="flex items-center gap-2">
                 <Truck className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Complimentary Express Courier hand-delivery on this commission.</span>
+                <span>
+                  {Number(settings?.freeShippingThresholdLKR) > 0
+                    ? `Complimentary delivery on orders over LKR ${Number(settings.freeShippingThresholdLKR).toLocaleString()} (calculated at checkout).`
+                    : 'Delivery calculated at checkout.'}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-3.5 h-3.5 text-amber-700" />
@@ -813,17 +830,11 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-[#635548] block mb-1">Display Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newReviewAuthor}
-                    onChange={e => setNewReviewAuthor(e.target.value)}
-                    placeholder="e.g. Austin K."
-                    maxLength={40}
-                    disabled={reviewSubmitting}
-                    className="w-full bg-white border border-[#D5C9B8] rounded-xl px-3 py-2 text-xs text-[#1A1816] focus:outline-none focus:border-black"
-                  />
+                  <label className="text-[10px] uppercase tracking-wider text-[#635548] block mb-1">Patron Account</label>
+                  <div className="w-full bg-[#FAF6F0] border border-[#E3D9CD] rounded-xl px-3 py-2 text-xs text-[#1A1816] flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                    <span className="font-medium">{user?.name || 'Verified Patron'}</span>
+                  </div>
                 </div>
 
                 <div>

@@ -43,7 +43,8 @@ import { SEOManager } from './components/SEOManager';
 
 const StoreContent: React.FC = () => {
   const { 
-    currentRoute, 
+    currentRoute,
+    user, 
     isRestockModalOpen, 
     closeRestockModal, 
     restockModalProduct, 
@@ -105,7 +106,7 @@ const StoreContent: React.FC = () => {
       case 'collection':
         return <CollectionPage category={currentRoute.category || 'all'} />;
       case 'checkout':
-        return <CheckoutPage />;
+        return <CheckoutPage key={user?.uid || 'guest'} />;
       case 'profile':
         return <ProfilePage />;
       case 'orders':

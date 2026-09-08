@@ -1,21 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Check, ArrowRight, ShieldCheck, Sparkles, Ruler, Bell } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export const ProductModal: React.FC = () => {
-  const { activeModalProduct, setActiveModalProduct, addToCart, formatPrice, openRestockModal } = useStore();
+  const { activeModalProduct, setActiveModalProduct, addToCart, formatPrice, openRestockModal, settings } = useStore();
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
+  useEffect(() => {
+    setSelectedSize(''); setSelectedImageIdx(0); setQuantity(1); setAdded(false);
+  }, [activeModalProduct]);
+
   if (!activeModalProduct) return null;
 
-  const currentSize = selectedSize || activeModalProduct.sizes[0] || 'M';
+  const currentSize = selectedSize;
+  const needsSize = (activeModalProduct.sizes?.length || 0) > 0 && !currentSize;
   const isOutOfStock = !activeModalProduct.inStock || (activeModalProduct.stockCount !== undefined && activeModalProduct.stockCount <= 0);
 
   const handleAdd = () => {
-    addToCart(activeModalProduct, currentSize, quantity);
+    if (!addToCart(activeModalProduct, currentSize, quantity)) return;
     setAdded(true);
     setTimeout(() => {
       setAdded(false);
@@ -165,8 +170,10 @@ export const ProductModal: React.FC = () => {
                   </div>
                 ) : (
                   <button
+                    id="btn-modal-add-to-bag"
                     onClick={handleAdd}
-                    className={`w-full py-3.5 sm:py-4 min-h-[48px] rounded-full text-xs uppercase font-semibold tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
+                    disabled={needsSize}
+                    className={`w-full py-3.5 sm:py-4 min-h-[48px] rounded-full text-xs uppercase font-semibold tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                       added
                         ? 'bg-emerald-600 text-white'
                         : 'bg-[#181614] hover:bg-black text-white active:scale-95'
@@ -176,6 +183,11 @@ export const ProductModal: React.FC = () => {
                       <>
                         <span>ADDED TO BAG</span>
                         <Check className="w-4 h-4" />
+                      </>
+                    ) : needsSize ? (
+                      <>
+                        <span>SELECT A SIZE</span>
+                        <ArrowRight className="w-4 h-4" />
                       </>
                     ) : (
                       <>
@@ -188,7 +200,11 @@ export const ProductModal: React.FC = () => {
 
                 <div className="flex items-center justify-center gap-2 text-[11px] text-[#7A6D5F] text-center">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Complimentary express delivery & 7-day exchange included.</span>
+                  <span>
+                    {Number(settings?.freeShippingThresholdLKR) > 0
+                      ? `Complimentary delivery on orders over LKR ${Number(settings.freeShippingThresholdLKR).toLocaleString()} · 7-day exchange included.`
+                      : 'Complimentary delivery available on qualifying orders · 7-day exchange included.'}
+                  </span>
                 </div>
               </div>
 

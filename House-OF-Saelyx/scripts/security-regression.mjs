@@ -42,6 +42,11 @@ const profilePage = read('src/components/ProfilePage.tsx');
 const orderConfirmation = read('src/components/OrderConfirmationModal.tsx');
 const ordersPage = read('src/components/OrdersPage.tsx');
 const orderReceipt = read('src/lib/orderReceipt.ts');
+const pkg = JSON.parse(read('package.json'));
+const pdp = read('src/components/ProductDetailPage.tsx');
+const productModal = read('src/components/ProductModal.tsx');
+const spotlight = read('src/components/SpotlightProduct.tsx');
+const seoManager = read('src/components/SEOManager.tsx');
 
 const trackingStart = api.indexOf("app.get('/api/orders/:id'");
 const trackingEnd = api.indexOf("app.post('/api/admin/orders/:id/refund'", trackingStart);
@@ -118,9 +123,10 @@ assert(api.includes("paymentStatus: 'refund_pending'"), 'pending refund state mu
 assert(api.includes("paymentStatus: 'refunded'"), 'completed refund state must be explicit');
 assert(api.includes('canAutoRestoreInventory'), 'refund flow must avoid blindly restocking dispatched items');
 assert(api.includes('Verified PayPal orders must be cancelled through the Super Admin refund workflow.'), 'normal status API must not fake a paid cancellation');
-assert(checkout.includes("'paypal' | 'cod'"), 'temporary COD checkout must be explicit in the payment selector state');
-assert(checkout.includes('Cash on Delivery'), 'checkout must expose Cash on Delivery for the temporary customer-flow test');
-assert(checkout.includes('Hand-Delivery Settlement') || checkout.includes('Temporary Test'), 'COD checkout must be visibly labelled');
+assert(checkout.includes("'paypal' | 'cod'"), 'COD checkout must be explicit in the payment selector state');
+assert(checkout.includes('Cash on Delivery'), 'checkout must expose Cash on Delivery');
+assert(checkout.includes('Pay in cash when your order is delivered.'), 'COD checkout must explain hand-delivery cash settlement');
+assert(!checkout.includes('Temporary Test'), 'COD checkout must not contain temporary test wording');
 assert(checkout.includes("paymentMethod: 'cod'"), 'COD checkout must create a server-backed order instead of faking local success');
 assert(checkout.includes('createCodCheckoutAttemptId'), 'COD checkout must use an idempotent checkout attempt identifier');
 assert(api.includes("!['paypal', 'cod'].includes(paymentMethod)"), 'order API must allow only PayPal or COD');
@@ -396,6 +402,63 @@ for (const [name, source] of [
   assert(!/\b(?:sk_live_|sk_test_|ghp_|github_pat_|AKIA)[A-Za-z0-9_\-]+/.test(source), name + ' must not contain obvious committed secret tokens');
 }
 
+
+assert(
+  !pkg.dependencies?.['@rollup/rollup-linux-x64-gnu'] &&
+  !pkg.devDependencies?.['@rollup/rollup-linux-x64-gnu'] &&
+  !pkg.optionalDependencies?.['@rollup/rollup-linux-x64-gnu'],
+  '@rollup/rollup-linux-x64-gnu must NOT be a direct dependency in package.json'
+);
+
+// Footer payment/network artwork is intentionally preserved as an approved
+// visual trust strip. Availability is enforced at checkout, not inferred from
+// footer artwork. Do not remove or fail CI on the existing footer icons.
+assert(!/payzy/i.test(checkout), 'CheckoutPage.tsx must not expose payzy');
+assert(!/applepay/i.test(checkout), 'CheckoutPage.tsx must not expose applepay');
+
+const reviewPostStart = api.indexOf("app.post('/api/products/:productId/reviews'");
+const reviewPostEnd = api.indexOf("app.delete('/api/products/:productId/reviews/:reviewId'", reviewPostStart);
+const reviewPostRoute = reviewPostStart >= 0 && reviewPostEnd > reviewPostStart
+  ? api.slice(reviewPostStart, reviewPostEnd)
+  : '';
+assert(reviewPostRoute.length > 0, 'review submission route must exist');
+assert(reviewPostRoute.includes("authorName = 'SAELYXE Patron'"), 'review submission must initialize safe default author');
+assert(!reviewPostRoute.includes('author: body.author') && !reviewPostRoute.includes('safeString(body.author'), 'review submission must reject client-provided author');
+assert(reviewPostRoute.includes("adminDb.collection('users').doc(authToken.uid).get()"), 'review submission must derive author from patron profile server-side');
+
+assert(
+  reviewPostRoute.includes("paymentMethod === 'paypal' && paymentStatus === 'verified'") &&
+  reviewPostRoute.includes("paymentMethod === 'cod' && (paymentStatus === 'cod_collected' || status === 'delivered')"),
+  'verified review check must require verified/collected payment status'
+);
+
+const orderPostStart = api.indexOf("app.post('/api/orders'");
+const orderPostEnd = api.indexOf("app.get('/api/orders/:id'", orderPostStart);
+const orderPostRoute = orderPostStart >= 0 && orderPostEnd > orderPostStart
+  ? api.slice(orderPostStart, orderPostEnd)
+  : '';
+assert(orderPostRoute.length > 0, 'order creation route must exist');
+assert(orderPostRoute.includes('!Number.isInteger(item.quantity) || item.quantity < 1'), 'order quantity validation must reject < 1 and non-integer values');
+assert(!orderPostRoute.includes('item.quantity > 20'), 'order quantity validation must not reject quantity > 20');
+
+const reviewDeleteStart = api.indexOf("app.delete('/api/products/:productId/reviews/:reviewId'");
+const reviewDeleteEnd = api.indexOf("app.post('/api/promo/validate'", reviewDeleteStart);
+const reviewDeleteRoute = reviewDeleteStart >= 0 && reviewDeleteEnd > reviewDeleteStart
+  ? api.slice(reviewDeleteStart, reviewDeleteEnd)
+  : '';
+assert(reviewDeleteRoute.length > 0, 'review deletion route must exist');
+assert(reviewDeleteRoute.includes('hasValidAppCheck(req)'), 'review deletion must enforce App Check');
+assert(reviewDeleteRoute.includes('review-delete:${authToken.uid}'), 'review deletion must enforce rate limiting per authenticated user');
+assert(reviewDeleteRoute.includes('!isAdmin && !isOwner'), 'review deletion must enforce owner or admin access');
+
+assert(rules.includes("'firstName'") && rules.includes("'lastName'") && rules.includes("'lastLoginAt'"), 'firestore.rules must include firstName, lastName, and lastLoginAt in valid user profile fields');
+
+assert(!pdp.includes('Austin K.'), 'ProductDetailPage must not contain fake Austin review placeholder');
+assert(productModal.includes('SELECT A SIZE'), 'ProductModal must prompt for size selection when required');
+assert(spotlight.includes('if (added)'), 'SpotlightProduct must not indicate success if size selection was required');
+assert(!seoManager.includes('Worldwide Delivery') && !seoManager.includes('Global express'), 'SEOManager must not claim worldwide delivery');
+assert(!ordersPage.includes('hand-delivery courier'), 'OrdersPage must not make unconditional hand-delivery claims');
+assert(careShipping.includes('Sri Lanka Exclusively'), 'CareShippingPage must state Sri Lanka delivery exclusively');
 
 if (!process.exitCode) {
   console.log('SAELYXE security regression checks passed.');

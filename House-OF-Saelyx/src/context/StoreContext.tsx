@@ -88,7 +88,7 @@ interface StoreContextType {
   cartCount: number;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
-  addToCart: (product: Product, size?: string, quantity?: number) => void;
+  addToCart: (product: Product, size?: string, quantity?: number) => boolean;
   removeFromCart: (productId: string, size: string) => void;
   updateQuantity: (productId: string, size: string, quantity: number) => void;
   clearCart: () => void;
@@ -134,7 +134,7 @@ interface StoreContextType {
   createOrder: (orderData: CreateOrderInput) => Promise<Order>;
   createPayPalPayment: (orderId: string) => Promise<{ paypalOrderId: string; order: Order }>;
   capturePayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
-  cancelPayPalOrder: (orderId: string) => Promise<void>;
+  cancelPayPalOrder: (orderId: string) => Promise<Order>;
   requestOrderCancellation: (orderId: string, reason: string) => Promise<{ success: boolean; error?: string }>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
   hasMoreAdminOrders: boolean;
@@ -440,7 +440,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // Ref to prevent onAuthStateChanged from creating a fallback profile doc during active email signup
-  const activeSignupUidRef = useRef<string | null>(null);
+  const activeSignupEmailRef = useRef<string | null>(null);
 
   // Listen to Firebase Auth state. Privileged roles come only from trusted
   // Firebase custom claims, the protected admins collection, or the configured
@@ -459,7 +459,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // If an email signup is in-flight, allow signupWithEmail to write the definitive profile with the real customer name
-      if (activeSignupUidRef.current === fbUser.uid) {
+      if (activeSignupEmailRef.current === fbUser.email?.trim().toLowerCase()) {
         return;
       }
 
@@ -523,7 +523,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         const cleanDisplayName = fbUser.displayName?.trim() || 'SAELYXE Patron';
-        const providerId = fbUser.providerData[0]?.providerId === 'facebook.com' ? 'facebook' : 'google';
+        const providerId = fbUser.providerData[0]?.providerId === 'password' ? 'password' : fbUser.providerData[0]?.providerId === 'facebook.com' ? 'facebook' : 'google';
         const profileRecord: AppUser = {
           uid: fbUser.uid,
           name: cleanDisplayName,
@@ -984,8 +984,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Cart Management
   const addToCart = (product: Product, size?: string, quantity: number = 1) => {
-    const chosenSize = size || product.sizes[0] || 'M';
+    const currentProduct = products.find(p => p.id === product.id) || product;
+    const sizes = currentProduct.sizes || [];
+    if (sizes.length > 0 && (!size || !sizes.includes(size))) {
+      setActiveModalProduct(currentProduct);
+      return false;
+    }
+    const chosenSize = size || '';
+    const stock = Math.max(0, Math.floor(Number(currentProduct.stockCount) || 0));
+    const inCart = cart.filter(item => item.productId === product.id).reduce((sum, item) => sum + item.quantity, 0);
+    if (!currentProduct.inStock || !Number.isSafeInteger(quantity) || quantity < 1 || inCart + quantity > stock) return false;
     setCart(prev => {
+      const total = prev.filter(item => item.productId === product.id).reduce((sum, item) => sum + item.quantity, 0);
+      if (total + quantity > stock) return prev;
       const existingIdx = prev.findIndex(item => item.productId === product.id && item.size === chosenSize);
       if (existingIdx > -1) {
         return prev.map((item, idx) =>
@@ -1009,6 +1020,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
     setIsCartOpen(true);
+    return true;
   };
 
   const removeFromCart = (productId: string, size: string) => {
@@ -1020,13 +1032,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       removeFromCart(productId, size);
       return;
     }
-    setCart(prev =>
-      prev.map(item =>
-        item.productId === productId && item.size === size
-          ? { ...item, quantity }
-          : item
-      )
-    );
+    if (!Number.isSafeInteger(quantity)) return;
+    setCart(prev => {
+      const line = prev.find(item => item.productId === productId && item.size === size);
+      if (!line) return prev;
+      const product = products.find(p => p.id === productId) || line.product;
+      const stock = product.inStock ? Math.max(0, Math.floor(Number(product.stockCount) || 0)) : 0;
+      const otherQuantity = prev.filter(item => item.productId === productId && item.size !== size).reduce((sum, item) => sum + item.quantity, 0);
+      const allowed = Math.min(quantity, Math.max(0, stock - otherQuantity));
+      return prev.map(item => item.productId === productId && item.size === size ? { ...item, quantity: allowed } : item).filter(item => item.quantity > 0);
+    });
   };
 
   const clearCart = () => {
@@ -1055,9 +1070,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     if (code === 'auth/user-not-found') {
       return flow === 'password reset' 
-        ? 'No account was found with that email address.' 
+        ? 'If an account exists for this email, password reset instructions have been sent.' 
         : 'We could not verify those details. Please try again.';
     }
+    if (code === 'auth/account-exists-with-different-credential' || code === 'auth/credential-already-in-use') {
+      return 'An account already exists for this email using another sign-in method. Please sign in using the method originally used for this account.';
+    }
+    if (code === 'auth/popup-blocked') return 'Please allow the sign-in popup and try again.';
+    if (code === 'auth/operation-not-allowed') return 'This sign-in method is currently unavailable. Please choose another method.';
     if (code === 'auth/email-already-in-use') {
       return 'An account already exists for this email. Please sign in instead.';
     }
@@ -1094,7 +1114,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Profile read note during Google sign-in:', e);
       }
 
-      const cleanDisplayName = (fbUser.displayName || existingData.name || 'SAELYXE Patron').trim();
+      const cleanDisplayName = (existingData.name && existingData.name !== 'SAELYXE Patron' ? existingData.name : fbUser.displayName || 'SAELYXE Patron').trim();
       const nameParts = cleanDisplayName.split(/\s+/);
       const firstName = existingData.firstName || (nameParts[0] || '');
       const lastName = existingData.lastName || (nameParts.slice(1).join(' ') || '');
@@ -1102,10 +1122,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const appUser: AppUser = {
         uid: fbUser.uid,
         name: cleanDisplayName,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
+        firstName,
+        lastName,
         email: fbUser.email || existingData.email || '',
-        phoneNumber: fbUser.phoneNumber || existingData.phoneNumber || '',
+        phoneNumber: existingData.phoneNumber || fbUser.phoneNumber || '',
         role: existingData.role || 'patron',
         avatarUrl: fbUser.photoURL || existingData.avatarUrl || undefined,
         address: existingData.address || '',
@@ -1119,8 +1139,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         await setDoc(doc(db, 'users', fbUser.uid), {
-          ...appUser,
-          lastLogin: new Date().toISOString()
+          ...JSON.parse(JSON.stringify(existingData.uid ? {
+            name: appUser.name, firstName: appUser.firstName, lastName: appUser.lastName,
+            avatarUrl: appUser.avatarUrl
+          } : appUser)),
+          lastLoginAt: new Date().toISOString()
         }, { merge: true });
       } catch (e) {
         console.warn('Profile sync note during Google sign-in:', e);
@@ -1156,7 +1179,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Profile read note during Facebook sign-in:', e);
       }
 
-      const cleanDisplayName = (fbUser.displayName || existingData.name || 'SAELYXE Patron').trim();
+      const cleanDisplayName = (existingData.name && existingData.name !== 'SAELYXE Patron' ? existingData.name : fbUser.displayName || 'SAELYXE Patron').trim();
       const nameParts = cleanDisplayName.split(/\s+/);
       const firstName = existingData.firstName || (nameParts[0] || '');
       const lastName = existingData.lastName || (nameParts.slice(1).join(' ') || '');
@@ -1164,10 +1187,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const appUser: AppUser = {
         uid: fbUser.uid,
         name: cleanDisplayName,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
+        firstName,
+        lastName,
         email: fbUser.email || existingData.email || '',
-        phoneNumber: fbUser.phoneNumber || existingData.phoneNumber || '',
+        phoneNumber: existingData.phoneNumber || fbUser.phoneNumber || '',
         role: existingData.role || 'patron',
         avatarUrl: fbUser.photoURL || existingData.avatarUrl || undefined,
         address: existingData.address || '',
@@ -1181,8 +1204,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         await setDoc(doc(db, 'users', fbUser.uid), {
-          ...appUser,
-          lastLogin: new Date().toISOString()
+          ...JSON.parse(JSON.stringify(existingData.uid ? {
+            name: appUser.name, firstName: appUser.firstName, lastName: appUser.lastName,
+            avatarUrl: appUser.avatarUrl
+          } : appUser)),
+          lastLoginAt: new Date().toISOString()
         }, { merge: true });
       } catch (e) {
         console.warn('Profile sync note during Facebook sign-in:', e);
@@ -1217,14 +1243,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Profile read note during email sign-in:', e);
       }
 
-      const cleanDisplayName = (existingData.name || fbUser.displayName || email.split('@')[0]).trim();
+      const cleanDisplayName = (existingData.name || fbUser.displayName || 'SAELYXE Patron').trim();
       const appUser: AppUser = {
         uid: fbUser.uid,
         name: cleanDisplayName,
         firstName: existingData.firstName || undefined,
         lastName: existingData.lastName || undefined,
         email: fbUser.email || email.trim().toLowerCase(),
-        phoneNumber: fbUser.phoneNumber || existingData.phoneNumber || '',
+        phoneNumber: existingData.phoneNumber || fbUser.phoneNumber || '',
         role: existingData.role || 'patron',
         address: existingData.address || '',
         city: existingData.city || '',
@@ -1256,8 +1282,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const lastName = nameParts.slice(1).join(' ') || '';
 
     try {
+      if (!cleanName || pass.length < 8) throw { code: 'auth/weak-password' };
+      activeSignupEmailRef.current = cleanEmail;
       const res = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
-      activeSignupUidRef.current = res.user.uid;
+
 
       // Update Auth displayName
       await updateProfile(res.user, { displayName: cleanName });
@@ -1272,8 +1300,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newUser: AppUser = {
         uid: res.user.uid,
         name: cleanName,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
+        firstName,
+        lastName,
         email: cleanEmail,
         role: 'patron',
         authProvider: 'password',
@@ -1290,10 +1318,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       setUser(newUser);
-      activeSignupUidRef.current = null;
+      activeSignupEmailRef.current = null;
       return true;
     } catch (err: unknown) {
-      activeSignupUidRef.current = null;
+      activeSignupEmailRef.current = null;
       setAuthError(getCustomerAuthError(err, 'account creation'));
       return false;
     } finally {
@@ -1309,6 +1337,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await sendPasswordResetEmail(auth, email.trim().toLowerCase());
       return true;
     } catch (err: unknown) {
+      if ((err as { code?: string })?.code === 'auth/user-not-found') return true;
       setAuthError(getCustomerAuthError(err, 'password reset'));
       return false;
     } finally {
@@ -1381,7 +1410,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       // Never accept identity or authorization fields through the profile editor.
       const profileUpdates: Partial<AppUser> = {};
-      for (const key of ['name', 'displayName', 'photoURL', 'avatarUrl', 'phoneNumber', 'address', 'city', 'postalCode', 'country', 'savedAddresses'] as const) {
+      for (const key of ['name', 'firstName', 'lastName', 'displayName', 'photoURL', 'avatarUrl', 'phoneNumber', 'address', 'city', 'postalCode', 'country', 'savedAddresses'] as const) {
         if (key in updates) {
           (profileUpdates as Record<string, unknown>)[key] = (updates as Record<string, unknown>)[key];
         }
@@ -1412,7 +1441,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           notes: ''
         };
         try {
-          localStorage.setItem('saelyx_saved_delivery_details', JSON.stringify(deliveryDetails));
+          localStorage.setItem(`saelyx_saved_delivery_details:${user.uid}`, JSON.stringify(deliveryDetails));
         } catch (e) { console.warn('Non-fatal store operation note:', e); }
       }
 
@@ -1492,14 +1521,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return updated;
   };
 
-  const cancelPayPalOrder = async (orderId: string): Promise<void> => {
+  const cancelPayPalOrder = async (orderId: string): Promise<Order> => {
     const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/cancel/${encodeURIComponent(orderId)}`, {
       method: 'POST'
     });
     const payload = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(payload?.error || 'Unable to cancel PayPal checkout order.');
+    if (!res.ok) {
+      if (payload?.order?.paymentStatus === 'verified') return payload.order as Order;
+      throw new Error(payload?.error || 'Unable to cancel PayPal checkout order.');
+    }
     const updated = payload as Order;
     setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
   };
 
   const requestOrderCancellation = async (orderId: string, reason: string): Promise<{ success: boolean; error?: string }> => {
