@@ -306,6 +306,7 @@ export const AuthModal: React.FC = () => {
                       {!isSignUp && (
                         <button
                           type="button"
+                          aria-label="Forgot password?"
                           onClick={() => setModalMode('forgot')}
                           className="text-[10px] uppercase tracking-[0.12em] text-[#8C8174] hover:text-[#25211D] transition-colors underline underline-offset-2"
                         >
