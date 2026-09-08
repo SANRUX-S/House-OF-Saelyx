@@ -208,7 +208,7 @@ test('storefront social proof shows 10+ Customers without fake testimonials', as
   await expect(page.locator('body')).not.toContainText('Brody');
 });
 
-test('auth drawer enforces min 8-character password and neutral forgot-password status', async ({ page }) => {
+test('auth drawer enforces minimum 8-character password on signup', async ({ page }) => {
   await page.goto('/');
   const userAccountBtn = page.locator('button[aria-label="User account"]:visible, #btn-nav-login-desktop:visible').first();
   await expect(userAccountBtn).toBeVisible();
@@ -217,12 +217,10 @@ test('auth drawer enforces min 8-character password and neutral forgot-password 
   const drawer = page.locator('aside[role="dialog"]');
   await expect(drawer).toBeVisible();
 
-  // Switch to Create account within the drawer
   const switchModeBtn = drawer.locator('p button', { hasText: /Create account/i });
   await expect(switchModeBtn).toBeVisible();
   await switchModeBtn.click();
 
-  // Fill password shorter than 8 characters
   const nameInput = drawer.getByPlaceholder('Your full name');
   const emailInput = drawer.getByPlaceholder('you@example.com');
   const passwordInput = drawer.getByPlaceholder('At least 8 characters');
@@ -233,30 +231,29 @@ test('auth drawer enforces min 8-character password and neutral forgot-password 
   await passwordInput.fill('short');
   await confirmPasswordInput.fill('short');
 
-  const createSubmitBtn = drawer.locator('button[type="submit"]');
-  await createSubmitBtn.click();
-
-  // Verify min 8-character password validation
+  await drawer.locator('button[type="submit"]').click();
   await expect(drawer.getByText(/at least 8 characters/i)).toBeVisible();
+});
 
-  // Close and reopen the drawer in a clean sign-in state before checking
-  // Forgot Password. This avoids coupling the reset test to the previous
-  // signup-validation state transition.
-  await drawer.getByRole('button', { name: 'Close authentication panel' }).click();
-  await expect(drawer).toBeHidden();
-
+test('forgot-password view is reachable from a fresh sign-in drawer and uses privacy-safe wording', async ({ page }) => {
+  await page.goto('/');
+  const userAccountBtn = page.locator('button[aria-label="User account"]:visible, #btn-nav-login-desktop:visible').first();
+  await expect(userAccountBtn).toBeVisible();
   await userAccountBtn.click();
+
+  const drawer = page.locator('aside[role="dialog"]');
   await expect(drawer).toBeVisible();
 
+  // A fresh page load starts the auth drawer in sign-in mode, so this test is
+  // independent from signup-state transitions in other tests.
   const forgotPasswordBtn = drawer.getByRole('button', { name: 'Forgot password?' });
   await expect(forgotPasswordBtn).toBeVisible();
   await forgotPasswordBtn.click();
 
-  // Verify the reset view itself is reachable and uses privacy-safe wording.
   await expect(drawer.getByText(/RESET PASSWORD/i)).toBeVisible();
   await expect(drawer.getByText(/Enter your registered email address/i)).toBeVisible();
 
   // Do not dispatch a real Firebase password-reset email from CI.
-  // The neutral post-submit wording is covered by static regression checks.
+  // Static regression coverage verifies the neutral post-submit wording.
 });
 
