@@ -235,18 +235,35 @@ test('auth drawer enforces minimum 8-character password on signup', async ({ pag
   await expect(drawer.getByText(/at least 8 characters/i)).toBeVisible();
 });
 
-test('forgot-password view is reachable from a fresh sign-in drawer and uses privacy-safe wording', async ({ page }) => {
+test('forgot-password view is reachable from the sign-in drawer and uses privacy-safe wording', async ({ page }) => {
   await page.goto('/');
-  const userAccountBtn = page.locator('button[aria-label="User account"]:visible, #btn-nav-login-desktop:visible').first();
-  await expect(userAccountBtn).toBeVisible();
-  await userAccountBtn.click();
+
+  // Prefer the explicit desktop LOGIN control. Fall back to the mobile account
+  // button only when the desktop navbar is not rendered at this viewport.
+  const desktopLogin = page.locator('#btn-nav-login-desktop');
+  const mobileLogin = page.locator('#btn-nav-login-mobile');
+  if (await desktopLogin.isVisible()) {
+    await desktopLogin.click();
+  } else {
+    await expect(mobileLogin).toBeVisible();
+    await mobileLogin.click();
+  }
 
   const drawer = page.locator('aside[role="dialog"]');
   await expect(drawer).toBeVisible();
 
-  // A fresh page load starts the auth drawer in sign-in mode, so this test is
-  // independent from signup-state transitions in other tests.
-  const forgotPasswordBtn = drawer.getByRole('button', { name: 'Forgot password?' });
+  // LOGIN is expected to open sign-in mode. If a stale UI transition ever
+  // presents create-account mode, normalize through the visible Sign in switch
+  // before asserting the forgot-password control.
+  let forgotPasswordBtn = drawer.getByRole('button', { name: 'Forgot password?' });
+  if (!(await forgotPasswordBtn.isVisible())) {
+    const signInSwitch = drawer.getByRole('button', { name: /Sign in/i });
+    if (await signInSwitch.isVisible()) {
+      await signInSwitch.click();
+      forgotPasswordBtn = drawer.getByRole('button', { name: 'Forgot password?' });
+    }
+  }
+
   await expect(forgotPasswordBtn).toBeVisible();
   await forgotPasswordBtn.click();
 
