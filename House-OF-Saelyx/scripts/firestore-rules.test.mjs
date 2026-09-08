@@ -99,13 +99,39 @@ try {
     uid: 'customer-new',
     email: 'new@example.com',
     role: 'patron',
-    name: 'Allowed Patron'
+    name: 'Allowed Patron',
+    firstName: 'Allowed',
+    lastName: 'Patron',
+    lastLoginAt: new Date().toISOString()
   }));
   await assertFails(setDoc(doc(escalationDb, 'users', 'customer-escalation'), {
     uid: 'customer-escalation',
     email: 'evil@example.com',
     role: 'admin',
     name: 'Escalation Attempt'
+  }));
+
+  // Owner update firstName, lastName, lastLoginAt succeeds
+  await assertSucceeds(updateDoc(doc(customerDb, 'users', 'customer-1'), {
+    firstName: 'UpdatedFirst',
+    lastName: 'UpdatedLast',
+    lastLoginAt: new Date().toISOString()
+  }));
+
+  // Privileged mutations (role, uid, email) denied to owner
+  await assertFails(updateDoc(doc(customerDb, 'users', 'customer-1'), { role: 'admin' }));
+  await assertFails(updateDoc(doc(customerDb, 'users', 'customer-1'), { uid: 'customer-hacked' }));
+  await assertFails(updateDoc(doc(customerDb, 'users', 'customer-1'), { email: 'hacked@example.com' }));
+
+  // Other user's write/update to customer-1 is strictly denied
+  await assertFails(setDoc(doc(otherDb, 'users', 'customer-1'), {
+    uid: 'customer-1',
+    email: 'customer@example.com',
+    role: 'patron',
+    firstName: 'Imposter'
+  }));
+  await assertFails(updateDoc(doc(otherDb, 'users', 'customer-1'), {
+    firstName: 'Imposter'
   }));
 
   await assertSucceeds(getDoc(doc(customerDb, 'orders', 'order-owner')));

@@ -116,3 +116,161 @@ test('unauthenticated account routes do not leak customer order details', async 
     await expect(page.getByText(/ashan\.perera@gmail\.com|sarah\.k@fashionstudio\.co\.uk|Ashan Perera|Sarah Kingsley/i)).toHaveCount(0);
   }
 });
+
+test('product page enforces explicit size selection before adding to bag', async ({ page }) => {
+  await page.goto('/product/s-signature-oversized-tee');
+  await expect(page.getByRole('heading', { name: /SÆ SIGNATURE OVERSIZED TEE/i })).toBeVisible();
+
+  // Main product Add to Bag button starts with SELECT SIZE and is disabled
+  const mainAddBtn = page.locator('#btn-product-add-to-bag');
+  await expect(mainAddBtn).toBeVisible();
+  await expect(mainAddBtn).toBeDisabled();
+  await expect(mainAddBtn).toContainText(/SELECT SIZE/i);
+
+  // Clicking size 'M' enables the button and changes text to ADD TO BAG
+  const sizeMBtn = page.locator('div.grid button', { hasText: /^M$/ }).first();
+  await expect(sizeMBtn).toBeVisible();
+  await sizeMBtn.click();
+
+  // Button becomes enabled and changes text
+  await expect(mainAddBtn).toBeEnabled();
+  await expect(mainAddBtn).toContainText(/ADD TO BAG/i);
+
+  // PDP Matching Set button shows SELECT SIZE and opens modal on click
+  const completeSetSection = page.getByText(/COMPLETE THE SET/i);
+  if (await completeSetSection.isVisible()) {
+    const matchingSetCard = completeSetSection.locator('xpath=ancestor::div[contains(@class, "rounded-2xl")]');
+    const setSelectSizeBtn = matchingSetCard.locator('button:has-text("SELECT SIZE")');
+    if (await setSelectSizeBtn.isVisible()) {
+      await setSelectSizeBtn.click();
+      // Product modal opens for the matching set item
+      await expect(page.locator('#btn-modal-add-to-bag, button:has-text("SELECT A SIZE")').first()).toBeVisible();
+    }
+  }
+});
+
+test('checkout payment selection starts unselected and toggles cleanly without temporary test wording', async ({ page }) => {
+  // CI intentionally has no real PayPal credentials. Mock only the public
+  // payment-config response so this remains a safe UI-state test and never
+  // starts a provider payment or real-money transaction.
+  await page.route('**/api/payments/config', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        paypal: { enabled: true, clientId: '', mode: 'sandbox' }
+      })
+    });
+  });
+
+  await page.goto('/checkout');
+  await expect(page.locator('body')).toContainText(/Sri Lanka/i);
+
+  // Neither payment method starts selected
+  const codRadio = page.getByRole('radio', { name: /Cash on Delivery/i });
+  const paypalRadio = page.getByRole('radio', { name: /PayPal/i });
+
+  await expect(codRadio).toBeVisible();
+  await expect(paypalRadio).toBeVisible();
+  await expect(codRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(paypalRadio).toHaveAttribute('aria-checked', 'false');
+
+  // No Temporary Test text anywhere
+  await expect(page.getByText(/Temporary Test/i)).toHaveCount(0);
+
+  // Clicking Cash on Delivery selects COD
+  await codRadio.click();
+  await expect(codRadio).toHaveAttribute('aria-checked', 'true');
+  await expect(paypalRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(page.locator('#payment-cod-details')).toBeVisible();
+  await expect(page.getByText(/Pay in cash when your order is delivered\./i)).toBeVisible();
+
+  // Clicking PayPal selects PayPal and cleanly unmounts COD
+  await paypalRadio.click();
+  await expect(paypalRadio).toHaveAttribute('aria-checked', 'true');
+  await expect(codRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(page.locator('#payment-cod-details')).toHaveCount(0);
+  await expect(page.locator('#payment-paypal-details')).toBeVisible();
+
+  // Switching back to COD cleanly unmounts PayPal
+  await codRadio.click();
+  await expect(codRadio).toHaveAttribute('aria-checked', 'true');
+  await expect(paypalRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(page.locator('#payment-paypal-details')).toHaveCount(0);
+  await expect(page.locator('#payment-cod-details')).toBeVisible();
+});
+
+test('storefront social proof shows 10+ Customers without fake testimonials', async ({ page }) => {
+  await page.goto('/');
+  const socialSection = page.getByText(/\+ Customers/i);
+  await socialSection.scrollIntoViewIfNeeded();
+  await expect(page.getByText(/10\+ Customers/i)).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('Brody');
+});
+
+test('auth drawer enforces minimum 8-character password on signup', async ({ page }) => {
+  await page.goto('/');
+  const userAccountBtn = page.locator('button[aria-label="User account"]:visible, #btn-nav-login-desktop:visible').first();
+  await expect(userAccountBtn).toBeVisible();
+  await userAccountBtn.click();
+
+  const drawer = page.locator('aside[role="dialog"]');
+  await expect(drawer).toBeVisible();
+
+  const switchModeBtn = drawer.locator('p button', { hasText: /Create account/i });
+  await expect(switchModeBtn).toBeVisible();
+  await switchModeBtn.click();
+
+  const nameInput = drawer.getByPlaceholder('Your full name');
+  const emailInput = drawer.getByPlaceholder('you@example.com');
+  const passwordInput = drawer.getByPlaceholder('At least 8 characters');
+  const confirmPasswordInput = drawer.getByPlaceholder('Repeat your password');
+
+  await nameInput.fill('Test Patron');
+  await emailInput.fill('patron@example.com');
+  await passwordInput.fill('short');
+  await confirmPasswordInput.fill('short');
+
+  await drawer.locator('button[type="submit"]').click();
+  await expect(drawer.getByText(/at least 8 characters/i)).toBeVisible();
+});
+
+test('forgot-password view is reachable from the sign-in drawer and uses privacy-safe wording', async ({ page }) => {
+  await page.goto('/');
+
+  // Prefer the explicit desktop LOGIN control. Fall back to the mobile account
+  // button only when the desktop navbar is not rendered at this viewport.
+  const desktopLogin = page.locator('#btn-nav-login-desktop');
+  const mobileLogin = page.locator('#btn-nav-login-mobile');
+  if (await desktopLogin.isVisible()) {
+    await desktopLogin.click();
+  } else {
+    await expect(mobileLogin).toBeVisible();
+    await mobileLogin.click();
+  }
+
+  const drawer = page.locator('aside[role="dialog"]');
+  await expect(drawer).toBeVisible();
+
+  // LOGIN is expected to open sign-in mode. If a stale UI transition ever
+  // presents create-account mode, normalize through the visible Sign in switch
+  // before asserting the forgot-password control.
+  let forgotPasswordBtn = drawer.getByRole('button', { name: 'Forgot password?' });
+  if (!(await forgotPasswordBtn.isVisible())) {
+    const signInSwitch = drawer.getByRole('button', { name: /Sign in/i });
+    if (await signInSwitch.isVisible()) {
+      await signInSwitch.click();
+      forgotPasswordBtn = drawer.getByRole('button', { name: 'Forgot password?' });
+    }
+  }
+
+  await expect(forgotPasswordBtn).toBeVisible();
+  await forgotPasswordBtn.click();
+
+  await expect(drawer.getByText(/RESET PASSWORD/i)).toBeVisible();
+  await expect(drawer.getByText(/Enter your registered email address/i)).toBeVisible();
+
+  // Do not dispatch a real Firebase password-reset email from CI.
+  // Static regression coverage verifies the neutral post-submit wording.
+});
+

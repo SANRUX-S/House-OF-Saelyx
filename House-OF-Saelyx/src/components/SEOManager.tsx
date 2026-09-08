@@ -82,11 +82,11 @@ export const SEOManager: React.FC = () => {
       canonicalPath = '/vip';
     } else if (routeName === 'checkout') {
       title = 'Secure Checkout | SAELYXE Atelier';
-      description = 'Complete your SAELYXE purchase with encrypted SSL checkout and worldwide insured express shipping.';
+      description = 'Complete your SAELYXE purchase with encrypted SSL checkout and insured express delivery across Sri Lanka.';
       canonicalPath = '/checkout';
     } else if (routeName === 'track-order' || routeName === 'track') {
       title = 'Track Order | SAELYXE Private Client Services';
-      description = 'Track your SAELYXE luxury drop shipment in real time with global courier integration.';
+      description = 'Track your SAELYXE luxury drop shipment with verified courier integration across Sri Lanka.';
       canonicalPath = '/track';
     } else if (routeName === 'legal-terms') {
       title = 'Terms of Service | SAELYXE';
@@ -101,8 +101,8 @@ export const SEOManager: React.FC = () => {
       description = 'Complimentary luxury return policy and client exchange instructions for SAELYXE garments.';
       canonicalPath = '/legal/returns';
     } else if (routeName === 'care-shipping') {
-      title = 'Worldwide Delivery & Shipping | SAELYXE';
-      description = 'Global express courier delivery, insured dispatch, and luxury custom packaging options.';
+      title = 'Delivery & Shipping in Sri Lanka | SAELYXE';
+      description = 'Express courier delivery across Sri Lanka, insured dispatch, and luxury custom packaging options.';
       canonicalPath = '/care/shipping';
     } else if (routeName === 'care-concierge') {
       title = 'Atelier Concierge | SAELYXE';
