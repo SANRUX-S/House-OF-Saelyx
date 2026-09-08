@@ -59,6 +59,10 @@ export const AuthModal: React.FC = () => {
 
   useEffect(() => {
     if (isAuthOpen) {
+      // Always normalize the local drawer mode to the caller-requested mode
+      // when the panel opens. This prevents a previously visited signup/forgot
+      // state from leaking into a later LOGIN action before close timers finish.
+      setModalMode(authMode);
       previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setShouldRender(true);
       const enterTimer = window.setTimeout(() => setIsAnimating(true), 20);
@@ -81,7 +85,7 @@ export const AuthModal: React.FC = () => {
       window.clearTimeout(exitTimer);
       window.clearTimeout(modeTimer);
     };
-  }, [isAuthOpen, setAuthMode]);
+  }, [isAuthOpen, authMode, setAuthMode]);
 
   useEffect(() => {
     if (!isAuthOpen) return;
