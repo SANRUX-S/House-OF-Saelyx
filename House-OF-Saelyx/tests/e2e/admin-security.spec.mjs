@@ -203,7 +203,8 @@ test('checkout payment selection starts unselected and toggles cleanly without t
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        paypal: { enabled: true, clientId: '', mode: 'sandbox' }
+        paypal: { enabled: true, clientId: '', mode: 'sandbox' },
+        payzy: { enabled: true, configured: true, mode: 'live', testAmountLKR: null }
       })
     });
   });
@@ -222,12 +223,18 @@ test('checkout payment selection starts unselected and toggles cleanly without t
 
   // Neither payment method starts selected
   const codRadio = page.getByRole('radio', { name: /Cash on Delivery/i });
+  const payzyRadio = page.getByRole('radio', { name: /^Payzy$/i });
   const paypalRadio = page.getByRole('radio', { name: /PayPal/i });
 
   await expect(codRadio).toBeVisible();
+  await expect(payzyRadio).toBeVisible();
   await expect(paypalRadio).toBeVisible();
   await expect(codRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(payzyRadio).toHaveAttribute('aria-checked', 'false');
   await expect(paypalRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByTestId('payzy-mark').first()).toBeVisible();
+  await expect(page.getByText(/Pay in 3 or 4/i)).toBeVisible();
+  await expect(page.getByText(/interest-free monthly instalments/i)).toBeVisible();
 
   // No Temporary Test text anywhere
   await expect(page.getByText(/Temporary Test/i)).toHaveCount(0);
@@ -238,6 +245,14 @@ test('checkout payment selection starts unselected and toggles cleanly without t
   await expect(paypalRadio).toHaveAttribute('aria-checked', 'false');
   await expect(page.locator('#payment-cod-details')).toBeVisible();
   await expect(page.getByText(/Pay in cash when your order is delivered\./i)).toBeVisible();
+
+  // Payzy uses the live branded checkout card without starting a real provider transaction.
+  await payzyRadio.click();
+  await expect(payzyRadio).toHaveAttribute('aria-checked', 'true');
+  await expect(codRadio).toHaveAttribute('aria-checked', 'false');
+  await expect(page.locator('#payment-payzy-details')).toBeVisible();
+  await expect(page.getByText(/Choose 3 or 4 monthly instalments/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Continue with Payzy/i })).toBeVisible();
 
   // Clicking PayPal selects PayPal and cleanly unmounts COD
   await paypalRadio.click();
