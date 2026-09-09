@@ -1214,7 +1214,7 @@ app.post('/api/admin/password-reset', async (req, res) => {
       if (!userRecord.emailVerified && !ROOT_ADMIN_EMAILS.has(email)) return genericSuccess();
 
       const resetLink = await authAdmin.generatePasswordResetLink(email, {
-        url: 'https://www.saelyxe.com/admin',
+        url: 'https://www.saelyxe.com/atelier-console',
         handleCodeInApp: false
       });
 
