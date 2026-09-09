@@ -174,13 +174,14 @@ assert(!indexHtml.includes('<script type="application/ld+json">'), 'static HTML 
 assert(seoManager.includes("document.createElement('script')") && seoManager.includes("'application/ld+json'"), 'structured data must be injected by the trusted application bundle');
 assert(vercel.includes('"deploymentEnabled"') && vercel.includes('"**": false') && vercel.includes('"main": true'), 'Vercel preview deployments must stay disabled while main remains deployable');
 
-assert(!firebaseClient.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'client must not depend on Firebase Storage');
-assert(!fs.existsSync('storage.rules'), 'Firebase Storage rules must not remain after Cloudinary migration');
+assert(!firebaseClient.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'client must not require a Firebase Storage bucket secret/config override');
+assert(!fs.existsSync('storage.rules'), 'admin media writes must stay server-authorized instead of depending on public client Storage rules');
 assert(!fs.existsSync('functions/index.js'), 'duplicate Firebase Functions runtime must be retired');
-assert(api.includes('CLOUDINARY_CLOUD_NAME') && api.includes('CLOUDINARY_API_SECRET'), 'media uploads must use server-signed Cloudinary configuration');
-assert(api.includes('media-signature:'), 'Cloudinary signing must be rate limited per admin');
-assert(api.includes("createHash('sha256')"), 'Cloudinary signatures must use SHA-256');
-assert(adminDrop.includes("uploadAdminImage(file, 'settings')"), 'drop background must use Cloudinary instead of Firestore base64');
+assert(api.includes("from 'firebase-admin/storage'") && api.includes('getStorage().bucket(bucketName)'), 'admin media uploads must use Firebase Admin Storage on the trusted server');
+assert(api.includes('firebaseStorageDownloadTokens'), 'Firebase media delivery must use per-object download tokens');
+assert(api.includes('media-upload:'), 'Firebase media uploads must be rate limited per admin');
+assert(!api.includes('CLOUDINARY_CLOUD_NAME') && !api.includes('CLOUDINARY_API_SECRET'), 'Cloudinary upload credentials must not be required by the application');
+assert(adminDrop.includes("uploadAdminImage(file, 'settings')"), 'drop background must use the protected media service instead of Firestore base64');
 assert(!adminDrop.includes('readAsDataURL'), 'drop settings must not store base64 images in Firestore');
 
 assert(!adminDashboard.includes('565K'), 'dashboard must not contain fabricated traffic metrics');
@@ -395,7 +396,7 @@ assert(!fs.existsSync('src/components/admin/AdminSectionSettings.tsx'), '#26 dup
 assert(!adminLayout.includes('section-settings') && !adminPanel.includes('section-settings'), '#27 forbidden duplicate settings navigation must remain removed');
 
 assert(api.includes("app.get('/api/admin/health'") && api.includes("res.json({ ok: true, service: 'saelyxe-api' });"), '#28 public health must stay minimal while admin diagnostics are protected');
-assert(adminMedia.includes('MAX_IMAGE_MEGAPIXELS') && api.includes("createHash('sha256')"), '#29 media uploads must enforce image limits and SHA-256 signatures');
+assert(adminMedia.includes('MAX_IMAGE_MEGAPIXELS') && api.includes('getStorage().bucket(bucketName)') && api.includes('firebaseStorageDownloadTokens'), '#29 media uploads must enforce image limits and use protected Firebase Storage delivery');
 assert(api.includes('startAfter(cursorSnap)') && store.includes('/api/admin/orders/page?limit=100&cursor=') && store.includes('oldest.id'), '#30 order history pagination must use stable document cursors');
 assert(store.includes('limit(250)') && store.includes('limit(200)'), '#31 realtime admin listeners must remain bounded');
 assert(!store.includes("setDoc(doc(db, 'products'") && !store.includes('for (const p of data)'), '#32 empty product collections must not auto-seed fallback products');
