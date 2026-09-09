@@ -85,11 +85,11 @@ assert(store.includes('/api/admin/messages/'), 'concierge mutations must use the
 assert(store.includes('/api/admin/settings'), 'settings mutations must use the trusted admin API');
 
 assert(
-  api.indexOf("ROOT_ADMIN_EMAILS.has(email)") >= 0 &&
-  api.indexOf("ROOT_ADMIN_EMAILS.has(email)") < api.indexOf("token.email_verified !== true"),
-  'API must allow only exact root bootstrap emails before the verified-email gate'
+  api.indexOf("token.email_verified !== true") >= 0 &&
+  api.indexOf("token.email_verified !== true") < api.indexOf("ROOT_ADMIN_EMAILS.has(email)"),
+  'API must require verified email ownership before root bootstrap authorization'
 );
-assert(api.includes("token.email_verified !== true"), 'secondary administrator authorization must still require verified email ownership');
+assert(api.includes("token.email_verified !== true"), 'all administrator authorization must require verified email ownership');
 assert(api.includes("status !== 'active'"), 'API administrator authorization must require active admin records');
 assert(api.includes("collection('admins').doc(token.uid)"), 'API must resolve protected admin records');
 assert(firebaseClient.includes("adminData?.status === 'active'"), 'admin credential flow must require active administrator records');
@@ -100,8 +100,9 @@ assert(
 );
 assert(firebaseClient.includes("'auth/too-many-requests'"), 'admin login must surface Firebase throttling clearly');
 assert(firebaseClient.includes("'auth/network-request-failed'"), 'admin login must surface Firebase network failures clearly');
-assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(email)'), 'client must scope verification bypass to exact root bootstrap emails');
-assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified secondary admin must retain an email verification path');
+assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(email)'), 'client must scope root bootstrap access to exact root emails');
+assert(firebaseClient.includes('!credential.user.emailVerified'), 'configured administrators must be blocked until Firebase email verification');
+assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified administrators must retain an email verification path');
 assert(firebaseClient.includes('browserLocalPersistence') && firebaseClient.includes('browserSessionPersistence'), 'Remember Me must control Firebase persistence');
 
 assert(api.includes("app.post('/api/admin/staff/invite'"), 'staff invitation API must exist');
@@ -438,8 +439,10 @@ const orderPostRoute = orderPostStart >= 0 && orderPostEnd > orderPostStart
   ? api.slice(orderPostStart, orderPostEnd)
   : '';
 assert(orderPostRoute.length > 0, 'order creation route must exist');
-assert(orderPostRoute.includes('!Number.isInteger(item.quantity) || item.quantity < 1'), 'order quantity validation must reject < 1 and non-integer values');
-assert(!orderPostRoute.includes('item.quantity > 20'), 'order quantity validation must not reject quantity > 20');
+assert(orderPostRoute.includes('!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 20'), 'order quantity validation must reject invalid or abusive quantities');
+assert(orderPostRoute.includes("hasOnlyKeys(item, ['productId', 'size', 'quantity'])"), 'order items must reject unsupported client-controlled fields');
+assert(orderPostRoute.includes('authenticatedEmail !== email'), 'order email must match the verified Firebase account');
+assert(orderPostRoute.includes('const unitPriceLKR = Number(product.priceLKR)'), 'order pricing must come from trusted server product records');
 
 const reviewDeleteStart = api.indexOf("app.delete('/api/products/:productId/reviews/:reviewId'");
 const reviewDeleteEnd = api.indexOf("app.post('/api/promo/validate'", reviewDeleteStart);
@@ -459,6 +462,20 @@ assert(spotlight.includes('if (added)'), 'SpotlightProduct must not indicate suc
 assert(!seoManager.includes('Worldwide Delivery') && !seoManager.includes('Global express'), 'SEOManager must not claim worldwide delivery');
 assert(!ordersPage.includes('hand-delivery courier'), 'OrdersPage must not make unconditional hand-delivery claims');
 assert(careShipping.includes('Sri Lanka Exclusively'), 'CareShippingPage must state Sri Lanka delivery exclusively');
+
+assert(rules.includes('allow update, delete: if false;'), 'orders must not be mutated directly by browser clients');
+const adminsRuleStart = rules.indexOf('match /admins/{adminId}');
+const adminsRuleEnd = rules.indexOf('match /audit_logs/', adminsRuleStart);
+const adminsRule = adminsRuleStart >= 0 && adminsRuleEnd > adminsRuleStart ? rules.slice(adminsRuleStart, adminsRuleEnd) : '';
+assert(adminsRule.includes('allow create, update, delete: if false'), 'admin privilege records must be server-only');
+assert(rules.includes("(!('ordersCount' in request.resource.data) || request.resource.data.ordersCount == 0)"), 'new users must not forge order counters');
+assert(api.includes("process.env.VERCEL_ENV === 'production'"), 'App Check must fail closed on Vercel production');
+for (const key of ['admin-staff-invite:', 'admin-staff-activate:', 'admin-staff-role:', 'admin-staff-revoke:']) {
+  assert(api.includes(key), 'staff privilege actions must be rate limited: ' + key);
+}
+assert(api.includes('Recent administrator authentication required. Sign out and sign in again before changing staff access.'), 'staff privilege changes must require recent authentication');
+assert(!store.includes('localStorage.setItem(`saelyx_saved_delivery_details:${user.uid}`'), 'profile updates must not implicitly persist delivery PII');
+assert(store.includes('localStorage.removeItem(`saelyx_saved_delivery_details:${departingUserId}`)'), 'logout must clear account-scoped saved delivery PII');
 
 if (!process.exitCode) {
   console.log('SAELYXE security regression checks passed.');
