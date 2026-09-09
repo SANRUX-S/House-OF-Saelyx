@@ -99,9 +99,11 @@ export const SpotlightProduct: React.FC = () => {
 
   const handleAdd = () => {
     if (spotlightProduct && isDropped) {
-      addToCart(spotlightProduct, selectedSize, 1);
-      setIsAdded(true);
-      setTimeout(() => setIsAdded(false), 2000);
+      const added = addToCart(spotlightProduct, selectedSize, 1);
+      if (added) {
+        setIsAdded(true);
+        setTimeout(() => setIsAdded(false), 2000);
+      }
     }
   };
 

@@ -15,8 +15,7 @@ service cloud.firestore {
     }
 
     function isBootstrapRootAdmin() {
-      return isAuthenticated() &&
-        request.auth.token.email is string &&
+      return hasVerifiedEmail() &&
         (
           request.auth.token.email == 'saelyx.co@gmail.com' ||
           request.auth.token.email == 'saelyx.co+super@gmail.com'
@@ -76,15 +75,8 @@ service cloud.firestore {
       // Orders are created by the trusted server/API using Firebase Admin SDK.
       allow create: if false;
       allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow update: if (
-        isAuthenticated() &&
-        resource.data.userId == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'shippingAddress', 'customerName', 'phone', 'address', 'city', 'postalCode', 'country'
-        ])
-      );
-      // Operational order status/refund mutations are server-only.
-      allow delete: if false;
+      // All order mutations are trusted-server only. Customers must use protected API routes.
+      allow update, delete: if false;
     }
 
     match /users/{userId} {
@@ -93,22 +85,23 @@ service cloud.firestore {
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.email == request.auth.token.email &&
         request.resource.data.role == 'patron' &&
+        (!('ordersCount' in request.resource.data) || request.resource.data.ordersCount == 0) &&
         request.resource.data.keys().hasOnly([
           'uid', 'name', 'firstName', 'lastName', 'displayName', 'email', 'phoneNumber', 'role', 'avatarUrl', 'photoURL',
           'address', 'city', 'postalCode', 'country', 'savedAddresses', 'authProvider',
           'joinedDate', 'ordersCount', 'createdAt', 'updatedAt', 'lastLoginAt'
         ]);
-      allow update: if isAdmin() || (
-        isOwner(userId) &&
+      // Users may update only their own non-identity profile fields.
+      // Privileged user-management mutations must go through the trusted API.
+      allow update: if isOwner(userId) &&
         request.resource.data.role == resource.data.role &&
         request.resource.data.uid == resource.data.uid &&
         request.resource.data.email == resource.data.email &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name', 'firstName', 'lastName', 'displayName', 'photoURL', 'avatarUrl', 'phoneNumber', 'address', 'city',
           'postalCode', 'country', 'savedAddresses', 'updatedAt', 'lastLoginAt'
-        ])
-      );
-      allow delete: if isSuperAdmin();
+        ]);
+      allow delete: if false;
     }
 
     match /subscribers/{subscriberId} {
@@ -141,7 +134,8 @@ service cloud.firestore {
 
     match /admins/{adminId} {
       allow read: if isOwner(adminId) || isAdmin();
-      allow create, update, delete: if isSuperAdmin();
+      // Administrator provisioning and privilege changes are server-only.
+      allow create, update, delete: if false;
     }
 
     match /audit_logs/{logId} {

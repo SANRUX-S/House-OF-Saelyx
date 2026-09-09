@@ -53,10 +53,16 @@ interface CartItem extends OrderItem {
   product: Product;
 }
 
-type CreateOrderInput = Pick<
-  Order,
-  'customerName' | 'email' | 'phone' | 'address' | 'city' | 'postalCode' | 'country' | 'items' | 'currencyUsed' | 'paymentMethod' | 'notes'
+type CreateOrderItemInput = Pick<Order['items'][number], 'productId' | 'size' | 'quantity'>;
+
+type CreateOrderInput = Omit<
+  Pick<
+    Order,
+    'customerName' | 'email' | 'phone' | 'address' | 'city' | 'postalCode' | 'country' | 'items' | 'currencyUsed' | 'paymentMethod' | 'notes'
+  >,
+  'items'
 > & {
+  items: CreateOrderItemInput[];
   firstName?: string;
   lastName?: string;
   promoCode?: string;
@@ -1381,6 +1387,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const logout = async (): Promise<void> => {
+    const departingUserId = user?.uid || '';
     try {
       if (auth) {
         await fbSignOut(auth);
@@ -1398,6 +1405,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         localStorage.removeItem('saelyx_user');
         localStorage.removeItem('saelyx_admin_user');
+        localStorage.removeItem('saelyx_saved_delivery_details');
+        if (departingUserId) {
+          localStorage.removeItem(`saelyx_saved_delivery_details:${departingUserId}`);
+        }
         sessionStorage.clear();
       } catch (e) { console.warn('Non-fatal store operation note:', e); }
       setIsAuthOpen(false);
@@ -1429,22 +1440,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Firestore user update note:', e);
       }
 
-      if (profileUpdates.name || profileUpdates.phoneNumber || profileUpdates.address || profileUpdates.city || profileUpdates.postalCode || profileUpdates.country) {
-        const deliveryDetails = {
-          customerName: updatedUser.name,
-          email: updatedUser.email,
-          phone: updatedUser.phoneNumber || '',
-          address: updatedUser.address || '',
-          city: updatedUser.city || '',
-          postalCode: updatedUser.postalCode || '',
-          country: updatedUser.country || 'Sri Lanka',
-          notes: ''
-        };
-        try {
-          localStorage.setItem(`saelyx_saved_delivery_details:${user.uid}`, JSON.stringify(deliveryDetails));
-        } catch (e) { console.warn('Non-fatal store operation note:', e); }
-      }
-
       await logAuditEvent('USER_PROFILE_UPDATED', `Profile updated for [${updatedUser.name || updatedUser.email}]`);
       return true;
     } catch (err) {
@@ -1455,15 +1450,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Orders Management
   const createOrder = async (orderData: CreateOrderInput): Promise<Order> => {
-    const orderPayload = {
-      ...orderData,
-      userId: user?.role === 'guest' ? undefined : user?.uid
-    };
-
+    // Identity is derived from the verified Firebase token on the server.
+    // Never send a client-controlled userId with an order.
     const res = await fetchAuthenticatedPublicApi('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderPayload)
+      body: JSON.stringify(orderData)
     });
 
     if (!res.ok) {

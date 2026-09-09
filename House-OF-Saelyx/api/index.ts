@@ -81,6 +81,16 @@ function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasOnlyKeys(value: unknown, allowedKeys: readonly string[]) {
+  if (!isPlainObject(value)) return false;
+  const allowed = new Set(allowedKeys);
+  return Object.keys(value).every(key => allowed.has(key));
+}
+
 function readStore() {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
   const storePaths = [
@@ -110,11 +120,10 @@ async function getAdminRole(token: DecodedIdToken | null): Promise<'admin' | 'su
   if (!token) return null;
   const email = typeof token.email === 'string' ? token.email.toLowerCase() : '';
 
-  // Root bootstrap accounts are authenticated by Firebase Auth plus the exact
-  // hard-coded root email allowlist. Secondary/invited admins still require a
-  // verified Firebase email.
-  if (ROOT_ADMIN_EMAILS.has(email)) return 'super_admin';
+  // Every administrator, including bootstrap roots, must prove verified
+  // Firebase email ownership before any privileged authorization decision.
   if (token.email_verified !== true) return null;
+  if (ROOT_ADMIN_EMAILS.has(email)) return 'super_admin';
 
   const configuredRole = ADMIN_EMAIL_ROLES.get(email);
   if (configuredRole) return configuredRole;
@@ -163,8 +172,12 @@ function hasRecentAuthentication(token: DecodedIdToken, maxAgeSeconds = 10 * 60)
   return Math.floor(Date.now() / 1000) - authTime <= maxAgeSeconds;
 }
 
+function isAppCheckEnforced() {
+  return process.env.FIREBASE_APP_CHECK_ENFORCE === 'true' || process.env.VERCEL_ENV === 'production';
+}
+
 async function hasValidAppCheck(req: Request) {
-  if (process.env.FIREBASE_APP_CHECK_ENFORCE !== 'true') return true;
+  if (!isAppCheckEnforced()) return true;
   const token = safeString(req.header('X-Firebase-AppCheck'), 4096);
   if (!token || !getAdminDb()) return false;
   try {
@@ -1150,6 +1163,12 @@ app.post('/api/admin/staff/invite', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required. Sign out and sign in again before changing staff access.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-staff-invite:${token.uid}`, 10, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many administrator privilege changes. Please wait and try again.' });
+    }
 
     const name = safeString(req.body?.name, 120);
     const username = safeString(req.body?.username, 60).toLowerCase();
@@ -1245,6 +1264,12 @@ app.post('/api/admin/staff/:uid/activate', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required. Sign out and sign in again before changing staff access.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-staff-activate:${token.uid}`, 20, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many administrator privilege changes. Please wait and try again.' });
+    }
 
     const uid = safeString(req.params.uid, 160);
     const adminRef = adminDb.collection('admins').doc(uid);
@@ -1282,6 +1307,12 @@ app.put('/api/admin/staff/:uid/role', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required. Sign out and sign in again before changing staff access.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-staff-role:${token.uid}`, 20, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many administrator privilege changes. Please wait and try again.' });
+    }
 
     const uid = safeString(req.params.uid, 160);
     const role = safeString(req.body?.role, 30) as 'admin' | 'super_admin';
@@ -1322,6 +1353,12 @@ app.post('/api/admin/staff/:uid/revoke', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required. Sign out and sign in again before changing staff access.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-staff-revoke:${token.uid}`, 20, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Too many administrator privilege changes. Please wait and try again.' });
+    }
 
     const uid = safeString(req.params.uid, 160);
     if (uid === token.uid) return res.status(409).json({ error: 'You cannot revoke your own active Super Admin session.' });
@@ -1743,7 +1780,7 @@ app.get('/api/admin/health', async (req, res) => {
         process.env.CLOUDINARY_API_KEY &&
         process.env.CLOUDINARY_API_SECRET
       ),
-      appCheckEnforced: process.env.FIREBASE_APP_CHECK_ENFORCE === 'true',
+      appCheckEnforced: isAppCheckEnforced(),
       abuseProtectionConfigured: true,
       payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
     });
@@ -2743,6 +2780,15 @@ app.post('/api/orders', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const body = req.body || {};
+    const allowedOrderKeys = [
+      'customerName', 'firstName', 'lastName', 'email', 'phone', 'address', 'city',
+      'postalCode', 'country', 'items', 'currencyUsed', 'paymentMethod', 'promoCode',
+      'checkoutAttemptId', 'notes'
+    ] as const;
+    if (!hasOnlyKeys(body, allowedOrderKeys)) {
+      return res.status(400).json({ error: 'Order request contains unsupported fields.' });
+    }
+
     const firstName = safeString(body.firstName, 60);
     const lastName = safeString(body.lastName, 60);
     let customerName = safeString(body.customerName, 120);
@@ -2766,19 +2812,27 @@ app.post('/api/orders', async (req, res) => {
       return res.status(400).json({ error: 'Order items are invalid.' });
     }
 
+    if (inputItems.some(item => !hasOnlyKeys(item, ['productId', 'size', 'quantity']))) {
+      return res.status(400).json({ error: 'Order items contain unsupported fields.' });
+    }
+
     const requested = inputItems.map((item: any) => ({
       productId: safeString(item?.productId, 100),
       size: safeString(item?.size, 30),
       quantity: Number(item?.quantity)
     }));
 
-    if (requested.some(item => !item.productId || !Number.isInteger(item.quantity) || item.quantity < 1)) {
+    if (requested.some(item => !item.productId || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 20)) {
       return res.status(400).json({ error: 'Order item quantity or product reference is invalid.' });
     }
 
     const authToken = await readBearerToken(req);
     if (!authToken) {
       return res.status(401).json({ error: 'Please sign in before placing an order.' });
+    }
+    const authenticatedEmail = typeof authToken.email === 'string' ? authToken.email.toLowerCase() : '';
+    if (!authenticatedEmail || authToken.email_verified !== true || authenticatedEmail !== email) {
+      return res.status(403).json({ error: 'Order email must match your verified account email.' });
     }
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
@@ -2848,11 +2902,16 @@ app.post('/api/orders', async (req, res) => {
           }
         }
 
+        const unitPriceLKR = Number(product.priceLKR);
+        if (!Number.isFinite(unitPriceLKR) || unitPriceLKR <= 0) {
+          throw new Error(`${product.title || 'A product'} has an invalid server price.`);
+        }
+
         return {
           productId: product.id,
           title: safeString(product.title, 200),
           image: Array.isArray(product.images) ? safeString(product.images[0], 1000) : '',
-          priceLKR: Number(product.priceLKR),
+          priceLKR: unitPriceLKR,
           size: item.size,
           quantity: item.quantity
         };

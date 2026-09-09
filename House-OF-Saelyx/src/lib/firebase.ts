@@ -99,8 +99,9 @@ const ROOT_ADMIN_EMAILS = new Set([
 export function getConfiguredAdminRole(email?: string | null, emailVerified = false): UserRole | undefined {
   if (!email) return undefined;
   const normalizedEmail = email.toLowerCase();
+  if (!emailVerified) return undefined;
   if (ROOT_ADMIN_EMAILS.has(normalizedEmail)) return 'super_admin';
-  return emailVerified ? ADMIN_ROLES[normalizedEmail] : undefined;
+  return ADMIN_ROLES[normalizedEmail];
 }
 
 export async function verifyAdminCredentials(username: string, pass: string, rememberMe = true): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
@@ -114,12 +115,10 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
     const email = credential.user.email?.toLowerCase() || '';
     const allowlistedRole = email ? ADMIN_ROLES[email] : undefined;
 
-    // Root bootstrap administrators are recoverable using Firebase Auth +
-    // the exact hard-coded root email allowlist. Invited/secondary admins still
-    // require verified email ownership.
+    // Every configured administrator, including root bootstrap accounts,
+    // must prove ownership of a verified Firebase email before authorization.
     if (allowlistedRole) {
-      const isRootAdmin = ROOT_ADMIN_EMAILS.has(email);
-      if (!isRootAdmin && !credential.user.emailVerified) {
+      if (!credential.user.emailVerified) {
         try {
           await sendEmailVerification(credential.user);
         } catch {

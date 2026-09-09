@@ -423,9 +423,6 @@ export const CheckoutPage: React.FC = () => {
         country: country.trim() || 'Sri Lanka',
         items: cart.map(item => ({
           productId: item.productId,
-          title: item.title,
-          image: item.image,
-          priceLKR: item.priceLKR,
           size: item.size,
           quantity: item.quantity
         })),
@@ -1015,9 +1012,6 @@ export const CheckoutPage: React.FC = () => {
                                       country: country.trim() || 'Sri Lanka',
                                       items: cart.map(item => ({
                                         productId: item.productId,
-                                        title: item.title,
-                                        image: item.image,
-                                        priceLKR: item.priceLKR,
                                         size: item.size,
                                         quantity: item.quantity
                                       })),
