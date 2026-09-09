@@ -152,6 +152,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /guest_order_access/{docId} {
+      // Guest checkout capability tokens are issued and validated only by the trusted API.
+      allow read, write: if false;
+    }
+
     match /restock_dispatch_locks/{docId} {
       allow read, write: if false;
     }
