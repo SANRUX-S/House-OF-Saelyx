@@ -615,17 +615,21 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label-custom">Hover Image URL</label>
-                  <input
-                    type="url"
+                  <label className="form-label-custom">Hover Image</label>
+                  <select
                     value={form.hoverImage || ''}
-                    onChange={e => setForm({ ...form, hoverImage: e.target.value.trim() })}
-                    placeholder="https://..."
+                    onChange={e => setForm({ ...form, hoverImage: e.target.value })}
                     className="form-input-custom"
-                  />
+                  >
+                    <option value="">Use second product image automatically</option>
+                    {getImageUrls().map((url, index) => (
+                      <option key={url} value={url}>Image {index + 1}{index === 0 ? ' (Primary)' : ''}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-stone-400">Optional. Choose an uploaded image for the hover view.</p>
                 </div>
                 <div>
-                  <label className="form-label-custom">Complete-the-set Product ID</label>
+                  <label className="form-label-custom">Complete-the-set Product</label>
                   <select
                     value={form.completeTheSetProductId || ''}
                     onChange={e => setForm({ ...form, completeTheSetProductId: e.target.value })}
@@ -636,69 +640,141 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                       <option key={product.id} value={product.id}>{product.title}</option>
                     ))}
                   </select>
+                  <p className="mt-1 text-[10px] text-stone-400">Optional cross-sell shown with this product.</p>
                 </div>
               </div>
 
               {/* Product Images */}
-              <div>
-                <label className="form-label-custom">
-                  Product Images
-                </label>
-                <div
-                  className="mb-2 rounded-xl border-2 border-dashed border-stone-200 p-4 text-center text-xs text-stone-500 transition-colors hover:border-stone-400"
+              <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 sm:p-5">
+                <div className="mb-3 flex items-start justify-between gap-4">
+                  <div>
+                    <label className="form-label-custom mb-1!">
+                      Product Images <span className="text-rose-600">*</span>
+                    </label>
+                    <p className="text-[10px] leading-relaxed text-stone-500">
+                      Upload from your PC. Images are automatically optimized and stored in SAELYXE Cloud Media.
+                    </p>
+                  </div>
+                  <div className="rounded-full bg-white border border-stone-200 px-2.5 py-1 text-[10px] font-bold text-stone-500 shrink-0">
+                    {getImageUrls().length}/16
+                  </div>
+                </div>
+
+                <label
+                  className={`group flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white px-5 py-6 text-center transition-all ${
+                    isUploadingImages
+                      ? 'pointer-events-none border-stone-300 opacity-70'
+                      : 'border-stone-300 hover:border-[#051C12] hover:bg-emerald-50/30'
+                  }`}
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => {
                     e.preventDefault();
                     if (!isUploadingImages) {
-                      void handleImageFiles(Array.from(e.dataTransfer.files as FileList) as File[]);
+                      void handleImageFiles(Array.from(e.dataTransfer.files || []));
                     }
                   }}
                 >
-                  <p className="font-semibold text-stone-700">
-                    {isUploadingImages ? 'Uploading to SAELYXE Cloud Media...' : 'Drop product images here'}
+                  <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-[#051C12] text-[#B4F105] shadow-sm">
+                    <UploadCloud className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-bold text-stone-800">
+                    {isUploadingImages ? 'Uploading & optimizing images…' : 'Click to choose images or drag them here'}
                   </p>
-                  <p className="mt-1 text-[10px] text-stone-400">
-                    JPG, PNG, WEBP, AVIF and other image formats · max 10 MB each
+                  <p className="mt-1 max-w-sm text-[10px] leading-relaxed text-stone-400">
+                    JPG, PNG, WebP or AVIF. Large images are resized automatically for reliable product delivery.
                   </p>
-                  <label className={`mt-3 inline-flex cursor-pointer items-center rounded-lg border border-stone-200 bg-white px-3 py-2 text-[11px] font-bold text-stone-700 shadow-xs ${isUploadingImages ? 'pointer-events-none opacity-50' : 'hover:bg-stone-50'}`}>
-                    Choose images from PC
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      disabled={isUploadingImages}
-                      onChange={e => {
-                        const files = Array.from(e.target.files || []);
-                        e.target.value = '';
-                        void handleImageFiles(files);
-                      }}
-                    />
-                  </label>
-                </div>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/avif"
+                    multiple
+                    className="hidden"
+                    disabled={isUploadingImages}
+                    onChange={e => {
+                      const files = Array.from(e.target.files || []);
+                      e.target.value = '';
+                      void handleImageFiles(files);
+                    }}
+                  />
+                </label>
 
-                {imagesText && (
-                  <div className="mb-2 grid grid-cols-3 gap-2">
-                    {imagesText
-                      .split('\n')
-                      .map(url => url.trim())
-                      .filter(url => url.startsWith('https://'))
-                      .slice(0, 6)
-                      .map((url, index) => (
-                        <div key={`${url}-${index}`} className="aspect-4/5 overflow-hidden rounded-lg bg-stone-100">
-                          <img src={url} alt={`Product upload preview ${index + 1}`} className="h-full w-full object-cover" />
-                        </div>
-                      ))}
+                {uploadStatus && (
+                  <div className={`mt-3 rounded-lg border px-3 py-2 text-[11px] font-medium ${
+                    isUploadingImages
+                      ? 'border-sky-200 bg-sky-50 text-sky-800'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  }`}>
+                    {uploadStatus}
                   </div>
                 )}
 
-                <textarea
-                  rows={3}
-                  value={imagesText}
-                  onChange={e => setImagesText(e.target.value)}
-                  placeholder="Cloudinary image URLs appear here automatically. HTTPS URLs can also be pasted manually."
-                  className="form-textarea-custom font-mono text-xs"
-                />
+                {getImageUrls().length > 0 ? (
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {getImageUrls().map((url, index) => (
+                      <div key={url} className="group/image overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xs">
+                        <div className="relative aspect-4/5 overflow-hidden bg-stone-100">
+                          <img src={url} alt={`Product image ${index + 1}`} className="h-full w-full object-cover" />
+                          <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
+                            {index === 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#051C12] px-2 py-1 text-[9px] font-bold text-white">
+                                <Star className="h-2.5 w-2.5 fill-[#B4F105] text-[#B4F105]" />
+                                PRIMARY
+                              </span>
+                            )}
+                            {form.hoverImage === url && (
+                              <span className="rounded-full bg-white/95 px-2 py-1 text-[9px] font-bold text-stone-700 shadow-sm">
+                                HOVER
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 border-t border-stone-100">
+                          <button
+                            type="button"
+                            onClick={() => makePrimaryImage(url)}
+                            disabled={index === 0}
+                            className="px-2 py-2 text-[9px] font-bold uppercase tracking-wider text-stone-600 hover:bg-stone-50 disabled:text-stone-300"
+                          >
+                            {index === 0 ? 'Primary' : 'Make Primary'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeImageUrl(url)}
+                            className="border-l border-stone-100 px-2 py-2 text-[9px] font-bold uppercase tracking-wider text-rose-600 hover:bg-rose-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] text-amber-800">
+                    <ImageIcon className="h-4 w-4 shrink-0" />
+                    Add at least one image before saving the product.
+                  </div>
+                )}
+
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-wider text-stone-500 hover:text-stone-800">
+                    Advanced · Paste image URLs
+                  </summary>
+                  <textarea
+                    rows={3}
+                    value={imagesText}
+                    onChange={e => {
+                      setImagesText(e.target.value);
+                      setForm(current => ({
+                        ...current,
+                        images: e.target.value
+                          .split('\n')
+                          .map(url => url.trim())
+                          .filter(url => url.startsWith('https://'))
+                      }));
+                    }}
+                    placeholder="One HTTPS image URL per line"
+                    className="form-textarea-custom mt-2 font-mono text-xs"
+                  />
+                </details>
               </div>
 
               {/* Description */}
