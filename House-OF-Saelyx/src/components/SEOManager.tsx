@@ -83,7 +83,7 @@ export const SEOManager: React.FC = () => {
     } else if (routeName === 'checkout') {
       title = 'Secure Checkout | SAELYXE Atelier';
       description = 'Complete your SAELYXE purchase with encrypted SSL checkout and insured express delivery across Sri Lanka.';
-      canonicalPath = '/checkout';
+      canonicalPath = '/secure-order-session';
     } else if (routeName === 'track-order' || routeName === 'track') {
       title = 'Track Order | SAELYXE Private Client Services';
       description = 'Track your SAELYXE luxury drop shipment with verified courier integration across Sri Lanka.';
@@ -117,9 +117,9 @@ export const SEOManager: React.FC = () => {
       description = 'Verification of custom weave fabrics, serial numbers, and genuine SAELYXE garment craft.';
       canonicalPath = '/care/authenticity';
     } else if (routeName === 'admin') {
-      title = 'Admin Atelier | SAELYXE Console';
-      description = 'Internal atelier administration and inventory management.';
-      canonicalPath = '/atelier-console';
+      title = 'SAELYXE Admin Console';
+      description = 'Private SAELYXE administration and inventory management console.';
+      canonicalPath = '/congsoleadmintechbypenetix';
     }
 
     // Update document title

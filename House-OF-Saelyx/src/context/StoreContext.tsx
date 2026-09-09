@@ -261,6 +261,41 @@ function cryptoSafeClientId() {
   throw new Error('Secure random identifier generation is unavailable.');
 }
 
+const CHECKOUT_ENTRY_KEY = 'saelyxe_checkout_entry_v2';
+const CHECKOUT_ENTRY_TTL_MS = 30 * 60_000;
+
+function issueCheckoutEntry() {
+  try {
+    sessionStorage.setItem(CHECKOUT_ENTRY_KEY, JSON.stringify({
+      nonce: cryptoSafeClientId(),
+      issuedAtMs: Date.now()
+    }));
+  } catch {
+    // If session storage is unavailable, checkout will fail closed on a direct page load.
+  }
+}
+
+function hasValidCheckoutEntry(search: URLSearchParams) {
+  // Payzy returns through the trusted server callback and must be able to reopen
+  // the checkout reconciler after the customer comes back from the provider.
+  if (search.has('payzy') && search.has('orderId')) return true;
+
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_ENTRY_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    const issuedAtMs = Number(parsed?.issuedAtMs);
+    const nonce = typeof parsed?.nonce === 'string' ? parsed.nonce : '';
+    if (!nonce || !Number.isFinite(issuedAtMs) || issuedAtMs <= Date.now() - CHECKOUT_ENTRY_TTL_MS || issuedAtMs > Date.now() + 60_000) {
+      sessionStorage.removeItem(CHECKOUT_ENTRY_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Helper to parse current window location into AppRoute
 function parseRouteFromUrl(): AppRoute {
   try {
@@ -276,7 +311,15 @@ function parseRouteFromUrl(): AppRoute {
       if (category) return { name: 'collection', category };
     }
     if (path === '/cart') return { name: 'cart' };
-    if (path === '/checkout') return { name: 'checkout' };
+    if (path === '/checkout' || path.startsWith('/checkout/')) {
+      window.history.replaceState({}, '', '/');
+      return { name: 'home' };
+    }
+    if (path === '/secure-order-session') {
+      if (hasValidCheckoutEntry(search)) return { name: 'checkout' };
+      window.history.replaceState({}, '', '/');
+      return { name: 'home' };
+    }
     if (path === '/profile') return { name: 'profile' };
     if (path.startsWith('/orders')) {
       const orderId = search.get('id') || path.replace('/orders', '').replace('/', '').trim();
@@ -293,6 +336,10 @@ function parseRouteFromUrl(): AppRoute {
       return { name: 'home' };
     }
     if (path === '/atelier-console' || path.startsWith('/atelier-console/')) {
+      window.history.replaceState({}, '', '/');
+      return { name: 'home' };
+    }
+    if (path === '/congsoleadmintechbypenetix' || path.startsWith('/congsoleadmintechbypenetix/')) {
       const tab = search.get('tab') as any;
       return { name: 'admin', tab: tab || 'overview' };
     }
@@ -315,14 +362,14 @@ function routeToUrl(route: AppRoute): string {
     case 'product': return `/product/${route.slug}`;
     case 'collection': return `/collections/${route.category}`;
     case 'cart': return '/cart';
-    case 'checkout': return '/checkout';
+    case 'checkout': return '/secure-order-session';
     case 'profile': return '/profile';
     case 'orders': return route.orderId ? `/orders?id=${encodeURIComponent(route.orderId)}` : '/orders';
     case 'track-order': return route.orderId ? `/track-order?id=${encodeURIComponent(route.orderId)}` : '/track-order';
     case 'track': return route.orderId ? `/track-order?id=${encodeURIComponent(route.orderId)}` : '/track-order';
     case 'vip': return '/vip';
     case 'contact-support': return '/contact-support';
-    case 'admin': return route.tab ? `/atelier-console?tab=${route.tab}` : '/atelier-console';
+    case 'admin': return route.tab ? `/congsoleadmintechbypenetix?tab=${route.tab}` : '/congsoleadmintechbypenetix';
     case 'legal-terms': return '/legal/terms';
     case 'legal-privacy': return '/legal/privacy';
     case 'legal-returns': return '/legal/returns';
@@ -409,6 +456,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Synchronize route changes with browser history & URL bar
   const navigateTo = useCallback((route: AppRoute) => {
+    if (route.name === 'checkout') {
+      issueCheckoutEntry();
+    }
     setCurrentRouteState(route);
     const url = routeToUrl(route);
     if (window.location.pathname + window.location.search !== url) {

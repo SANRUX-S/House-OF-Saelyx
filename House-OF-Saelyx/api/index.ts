@@ -1214,7 +1214,7 @@ app.post('/api/admin/password-reset', async (req, res) => {
       if (!userRecord.emailVerified && !ROOT_ADMIN_EMAILS.has(email)) return genericSuccess();
 
       const resetLink = await authAdmin.generatePasswordResetLink(email, {
-        url: 'https://www.saelyxe.com/atelier-console',
+        url: 'https://www.saelyxe.com/congsoleadmintechbypenetix',
         handleCodeInApp: false
       });
 
@@ -2543,7 +2543,7 @@ app.get('/api/payments/payzy/return', async (req, res) => {
   const responseCode = safeString(req.query.response_code, 20);
   const signature = safeString(req.query.signature, 500).replace(/\s/g, '+');
   const redirect = (state: 'success' | 'sandbox-success' | 'failed' | 'error') => {
-    const url = new URL('/checkout', fallbackSite);
+    const url = new URL('/secure-order-session', fallbackSite);
     url.searchParams.set('payzy', state);
     if (orderId) url.searchParams.set('orderId', orderId);
     return res.redirect(303, url.toString());

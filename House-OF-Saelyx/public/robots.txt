@@ -3,6 +3,8 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /atelier-console
+Disallow: /congsoleadmintechbypenetix
+Disallow: /secure-order-session
 Disallow: /checkout
 Disallow: /api/
 Disallow: /track-order
