@@ -297,28 +297,22 @@ export async function verifyAdminGoogleCredentials(rememberMe = true): Promise<{
 }
 
 export async function sendAdminPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
-  const normalizedEmail = email.trim().toLowerCase();
-  if (!normalizedEmail) return { success: false, error: 'Enter your administrator email first.' };
-
   try {
-    await sendPasswordResetEmail(auth, normalizedEmail);
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    const response = await fetch('/api/admin/password-reset', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...appCheckHeaders
+      },
+      body: JSON.stringify({ email: email.trim().toLowerCase() })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: payload?.error || 'Unable to request a password reset right now.' };
+    }
     return { success: true };
-  } catch (err: any) {
-    const code = String(err?.code || '');
-
-    // Keep account existence private on the public login screen.
-    if (code === 'auth/user-not-found') return { success: true };
-    if (code === 'auth/too-many-requests') {
-      return { success: false, error: 'Too many reset attempts. Please wait a few minutes and try again.' };
-    }
-    if (code === 'auth/invalid-email') {
-      return { success: false, error: 'Enter a valid administrator email address.' };
-    }
-    if (code === 'auth/network-request-failed') {
-      return { success: false, error: 'Could not reach Firebase Authentication. Check the connection and try again.' };
-    }
-
-    console.warn('Administrator password reset diagnostic:', code || err);
+  } catch {
     return { success: false, error: 'Unable to request a password reset right now.' };
   }
 }
