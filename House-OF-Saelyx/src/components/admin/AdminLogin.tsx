@@ -12,13 +12,11 @@ import {
 
 export interface AdminLoginProps {
   onLogin: (username: string, pass: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
-  onGoogleLogin: (rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   onReturnToStore: () => void;
 }
 
 export const AdminLogin: React.FC<AdminLoginProps> = ({
   onLogin,
-  onGoogleLogin,
   onReturnToStore
 }) => {
   const [username, setUsername] = useState('');
@@ -48,22 +46,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Authentication error.');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleGoogleAdminLogin = async () => {
-    setErrorMsg('');
-    setResetMsg('');
-    setIsLoggingIn(true);
-    try {
-      const result = await onGoogleLogin(rememberMe);
-      if (!result.success) {
-        setErrorMsg(result.error || 'Google administrator sign-in was not completed.');
-      }
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Google administrator sign-in was not completed.');
     } finally {
       setIsLoggingIn(false);
     }
@@ -203,37 +185,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           </button>
         </form>
 
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-stone-200" />
-          <span className="text-[10px] uppercase tracking-[0.18em] text-stone-400 font-semibold">or</span>
-          <div className="h-px flex-1 bg-stone-200" />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => void handleGoogleAdminLogin()}
-          disabled={isLoggingIn}
-          className="w-full h-11 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-800 text-xs font-semibold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="#4285F4" d="M21.6 12.23c0-.75-.07-1.47-.2-2.16H12v4.09h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.23c1.89-1.74 2.98-4.3 2.98-7.46Z"/>
-            <path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.31l-3.23-2.51c-.9.6-2.04.96-3.39.96-2.6 0-4.81-1.76-5.6-4.12H3.06v2.59A10 10 0 0 0 12 22Z"/>
-            <path fill="#FBBC05" d="M6.4 14.02A6 6 0 0 1 6.08 12c0-.7.12-1.38.32-2.02V7.39H3.06A10 10 0 0 0 2 12c0 1.61.38 3.14 1.06 4.61l3.34-2.59Z"/>
-            <path fill="#EA4335" d="M12 5.86c1.47 0 2.79.51 3.83 1.5l2.87-2.87C16.96 2.87 14.7 2 12 2a10 10 0 0 0-8.94 5.39L6.4 9.98C7.19 7.62 9.4 5.86 12 5.86Z"/>
-          </svg>
-          <span>CONTINUE WITH GOOGLE</span>
-        </button>
-
-        <p className="mt-2 text-center text-[10px] text-stone-400">
-          Use the verified Google account authorized for SAELYXE administration.
-        </p>
-
         <div className="mt-6 pt-5 border-t border-stone-100 text-center">
           <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-2.5">
             Secure admin access
           </div>
           <div className="text-[10px] text-stone-500">
-            Only verified SAELYXE administrator accounts can access this dashboard.
+            Only authorized SAELYXE administrator accounts can access this dashboard.
           </div>
         </div>
 
