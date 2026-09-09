@@ -119,7 +119,7 @@ export const SEOManager: React.FC = () => {
     } else if (routeName === 'admin') {
       title = 'Admin Atelier | SAELYXE Console';
       description = 'Internal atelier administration and inventory management.';
-      canonicalPath = '/admin';
+      canonicalPath = '/atelier-console';
     }
 
     // Update document title

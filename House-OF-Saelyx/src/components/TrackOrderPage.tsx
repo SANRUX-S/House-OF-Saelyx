@@ -15,6 +15,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { Order, OrderStatus } from '../types';
 import { auth, getAppCheckRequestHeaders } from '../lib/firebase';
+import { getGuestOrderAccessToken } from '../lib/guestOrderAccess';
 
 interface TrackOrderPageProps {
   initialOrderId?: string;
@@ -32,10 +33,13 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
 
   const fetchOrder = async (id: string) => {
     if (!id.trim()) return;
-    if (!auth.currentUser || !user) {
+    const normalizedId = id.trim();
+    const firebaseUser = auth.currentUser;
+    const guestAccessToken = getGuestOrderAccessToken(normalizedId);
+    if (!firebaseUser && !guestAccessToken) {
       setOrder(null);
       setHasSearched(true);
-      setError('Please sign in to the SAELYXE account that placed this order before tracking it.');
+      setError('This guest order can be tracked from the browser used at checkout. If you placed it while signed in, please sign in first.');
       return;
     }
 
@@ -44,15 +48,17 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
     setHasSearched(true);
 
     try {
-      const token = await auth.currentUser.getIdToken();
       const appCheckHeaders = await getAppCheckRequestHeaders();
-      const headers = new Headers({
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json'
-      });
+      const headers = new Headers({ Accept: 'application/json' });
+      if (firebaseUser) {
+        headers.set('Authorization', `Bearer ${await firebaseUser.getIdToken()}`);
+      }
+      if (guestAccessToken) {
+        headers.set('X-SAELYXE-Guest-Order-Token', guestAccessToken);
+      }
       Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
 
-      const res = await fetch(`/api/orders/${encodeURIComponent(id.trim())}`, {
+      const res = await fetch(`/api/orders/${encodeURIComponent(normalizedId)}`, {
         method: 'GET',
         headers,
         cache: 'no-store'
@@ -137,7 +143,7 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
 
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#3E3730]">
             <ShieldCheck className="w-4 h-4 text-emerald-800 stroke-[2]" />
-            <span>Authenticated Order Tracking</span>
+            <span>Secure Order Tracking</span>
           </div>
         </div>
 
@@ -151,40 +157,41 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
               TRACK YOUR ORDER
             </h1>
             <p className="text-xs text-[#3E3730] font-medium max-w-md mx-auto leading-relaxed">
-              Sign in with the account used at checkout, then enter your private order reference to follow its delivery journey.
+              Enter your private order reference. Signed-in orders use your account; guest orders can be tracked securely from the browser used at checkout.
             </p>
           </div>
 
-          {user ? (
-            <form onSubmit={handleTrackSubmit} className="flex flex-col sm:flex-row gap-3 pt-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter your SOX order reference"
-                  value={orderQuery}
-                  onChange={e => setOrderQuery(e.target.value)}
-                  className="w-full h-12 bg-[#FCFBF9] border border-[#D5CBBF] rounded-2xl px-4 text-sm font-mono text-[#1A1816] placeholder:text-[#9E9080] placeholder:font-sans focus:outline-none focus:border-[#1A1816] transition-colors"
-                />
-              </div>
+          <form onSubmit={handleTrackSubmit} className="flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                required
+                placeholder="Enter your SOX order reference"
+                value={orderQuery}
+                onChange={e => setOrderQuery(e.target.value)}
+                className="w-full h-12 bg-[#FCFBF9] border border-[#D5CBBF] rounded-2xl px-4 text-sm font-mono text-[#1A1816] placeholder:text-[#9E9080] placeholder:font-sans focus:outline-none focus:border-[#1A1816] transition-colors"
+              />
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="h-12 px-8 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 flex-shrink-0"
-              >
-                <Search className="w-3.5 h-3.5" />
-                <span>{loading ? 'LOCATING...' : 'TRACK ORDER'}</span>
-              </button>
-            </form>
-          ) : (
-            <div className="pt-2 text-center">
+            <button
+              type="submit"
+              disabled={loading}
+              className="h-12 px-8 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 flex-shrink-0"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>{loading ? 'LOCATING...' : 'TRACK ORDER'}</span>
+            </button>
+          </form>
+
+          {!user && (
+            <div className="pt-1 text-center text-[11px] text-[#665A4E]">
+              <span>Placed the order with an account? </span>
               <button
                 type="button"
                 onClick={() => setIsAuthOpen(true)}
-                className="h-12 px-8 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md"
+                className="font-semibold text-[#1A1816] underline underline-offset-2"
               >
-                SIGN IN TO TRACK
+                Sign in
               </button>
             </div>
           )}

@@ -20,6 +20,7 @@ const vercel = read('vercel.json');
 const checkout = read('src/components/CheckoutPage.tsx');
 const tracker = read('src/components/TrackOrderPage.tsx');
 const trackerModal = read('src/components/OrderTrackerModal.tsx');
+const guestOrderAccess = read('src/lib/guestOrderAccess.ts');
 const adminSecurity = read('src/components/admin/AdminSecurity.tsx');
 const adminStaff = read('src/components/admin/AdminStaff.tsx');
 const adminPanel = read('src/components/AdminPanel.tsx');
@@ -59,9 +60,9 @@ const trackingRoute = trackingStart >= 0 && trackingEnd > trackingStart
   : '';
 
 assert(trackingRoute.length > 0, 'order tracking route must exist');
-assert(trackingRoute.includes('const token = await readBearerToken(req);'), 'order tracking must require Firebase authentication');
+assert(trackingRoute.includes('authorizeCustomerOrderAccess(req, adminDb, order)'), 'order tracking must require signed-in ownership or a scoped guest order token');
 assert(trackingRoute.includes('hasValidAppCheck(req)'), 'order tracking must enforce App Check');
-assert(trackingRoute.includes('order.userId !== token.uid && !(await isAdminToken(token))'), 'order tracking must enforce owner/admin access');
+assert(trackingRoute.includes('tracking:${access.rateKey}'), 'order tracking must rate limit both account and guest access');
 assert(!trackingRoute.includes('customerName:'), 'tracking response must not expose customer name');
 assert(!trackingRoute.includes('phone:'), 'tracking response must not expose phone number');
 assert(!trackingRoute.includes('address:'), 'tracking response must not expose street address');
@@ -120,7 +121,7 @@ assert(adminStaff.includes('Activate') && adminStaff.includes('Revoke'), 'staff 
 
 assert(api.includes("app.post('/api/admin/orders/:id/refund'"), 'Super Admin PayPal refund endpoint must exist');
 assert(api.includes("app.post('/api/orders/:id/cancellation-request'"), 'customer cancellation request endpoint must exist');
-assert(api.includes("cancellationRequestedBy: token.uid"), 'customer cancellation request must be authenticated to the owning user');
+assert(api.includes("cancellationRequestedBy: access.kind === 'guest' ? 'guest' : access.uid"), 'customer cancellation requests must be bound to signed-in ownership or the scoped guest-order capability');
 assert(api.includes("Cancellation requests are closed after dispatch."), 'customer cancellation requests must close after dispatch');
 assert(api.includes('/v2/payments/captures/') && api.includes('/refund'), 'refund must use PayPal Payments v2 capture refund');
 assert(api.includes('paymentCaptureId'), 'PayPal capture ID must be persisted');
@@ -134,6 +135,8 @@ assert(checkout.includes('Pay in cash when your order is delivered.'), 'COD chec
 assert(!checkout.includes('Temporary Test'), 'COD checkout must not contain temporary test wording');
 assert(checkout.includes("paymentMethod: 'cod'"), 'COD checkout must create a server-backed order instead of faking local success');
 assert(checkout.includes('createCodCheckoutAttemptId'), 'COD checkout must use an idempotent checkout attempt identifier');
+assert(checkout.includes("cart.length === 0 && !confirmedOrder && !isPayzyReturn"), 'direct empty /checkout access must return the customer to the storefront');
+assert(store.includes("path === '/atelier-console' || path.startsWith('/atelier-console/')") && store.includes("path === '/admin'"), 'admin UI must use the atelier-console route while legacy /admin is retired');
 assert(api.includes("!['paypal', 'payzy', 'cod'].includes(paymentMethod)"), 'order API must allow only PayPal, Payzy, or COD');
 assert(api.includes("paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'"), 'COD orders must remain explicitly unpaid');
 assert(api.includes("paymentVerificationSource: paymentMethod === 'cod' ? 'cash_on_delivery' : null"), 'COD must never masquerade as provider-verified payment');
@@ -325,8 +328,9 @@ for (const fake of [
 }
 
 assert(!trackerModal.includes("useState('SLX-94821')"), 'legacy tracker must not ship with a demo order reference');
-assert(tracker.includes('Authorization: `Bearer ${token}`'), 'tracking page must authenticate API requests');
-assert(trackerModal.includes('Authorization: `Bearer ${token}`'), 'tracking modal must authenticate API requests');
+assert(tracker.includes('X-SAELYXE-Guest-Order-Token'), 'tracking page must support scoped guest-order capability tokens');
+assert(tracker.includes('firebaseUser.getIdToken()'), 'tracking page must still authenticate signed-in customer requests');
+assert(trackerModal.includes('X-SAELYXE-Guest-Order-Token') && trackerModal.includes('firebaseUser.getIdToken()'), 'tracking modal must support scoped guest access while preserving signed-in authentication');
 
 
 /* Admin production audit #1–#36 regression gates */
@@ -484,7 +488,12 @@ const orderPostRoute = orderPostStart >= 0 && orderPostEnd > orderPostStart
 assert(orderPostRoute.length > 0, 'order creation route must exist');
 assert(orderPostRoute.includes('!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 20'), 'order quantity validation must reject invalid or abusive quantities');
 assert(orderPostRoute.includes("hasOnlyKeys(item, ['productId', 'size', 'quantity'])"), 'order items must reject unsupported client-controlled fields');
-assert(orderPostRoute.includes('authenticatedEmail !== email'), 'order email must match the verified Firebase account');
+assert(orderPostRoute.includes('authenticatedEmail !== email'), 'signed-in order email must match the verified Firebase account');
+assert(orderPostRoute.includes('const isGuestCheckout = !authToken'), 'order API must explicitly separate guest and authenticated checkout paths');
+assert(orderPostRoute.includes('guest-orders-short:') && orderPostRoute.includes('guest-orders-daily:'), 'guest checkout must have layered server-side rate limits');
+assert(orderPostRoute.includes('issueGuestOrderAccess'), 'guest checkout must issue a scoped server-backed order capability token');
+assert(api.includes("adminDb.collection('guest_order_access')") && api.includes('tokenHash'), 'guest order access tokens must be stored server-side only as hashes');
+assert(guestOrderAccess.includes('X-SAELYXE-Guest-Order-Token'), 'client guest access helper must use the dedicated scoped header');
 assert(orderPostRoute.includes('const unitPriceLKR = Number(product.priceLKR)'), 'order pricing must come from trusted server product records');
 
 const payzyCreateStart = api.indexOf("app.post('/api/payments/payzy/create/:orderId'");
@@ -494,10 +503,10 @@ const payzyNextRoute = api.indexOf("app.get('/api/payments/paypal/status'", payz
 const payzyCreateRoute = payzyCreateStart >= 0 && payzyStatusStart > payzyCreateStart ? api.slice(payzyCreateStart, payzyStatusStart) : '';
 const payzyStatusRoute = payzyStatusStart >= 0 && payzyReturnStart > payzyStatusStart ? api.slice(payzyStatusStart, payzyReturnStart) : '';
 const payzyReturnRoute = payzyReturnStart >= 0 && payzyNextRoute > payzyReturnStart ? api.slice(payzyReturnStart, payzyNextRoute) : '';
-assert(payzyCreateRoute.includes('readBearerToken(req)') && payzyCreateRoute.includes('hasValidAppCheck(req)'), 'Payzy create route must require Firebase authentication and App Check');
+assert(payzyCreateRoute.includes('authorizeCustomerOrderAccess(req, adminDb, order)') && payzyCreateRoute.includes('hasValidAppCheck(req)'), 'Payzy create route must require App Check plus signed-in or scoped guest order access');
 assert(payzyCreateRoute.includes('payzy-create:'), 'Payzy checkout creation must be rate limited');
 assert(payzyCreateRoute.includes("order.paymentMethod !== 'payzy'"), 'Payzy checkout creation must be bound to a Payzy order');
-assert(payzyStatusRoute.includes('readBearerToken(req)') && payzyStatusRoute.includes('order.userId !== token.uid'), 'Payzy status route must enforce authenticated order ownership');
+assert(payzyStatusRoute.includes('authorizeCustomerOrderAccess(req, adminDb, order)'), 'Payzy status route must enforce signed-in or scoped guest order ownership');
 assert(payzyReturnRoute.includes('verifyPayzyReturnSignature'), 'Payzy provider return must be HMAC verified server-side');
 assert(payzyReturnRoute.includes("responseCode !== '00'"), 'Payzy provider failures must not be treated as successful payments');
 assert(payzyReturnRoute.includes('markPayzySandboxVerified') && payzyReturnRoute.includes('markPayzyLiveVerified'), 'Payzy sandbox and live settlement states must be separated');

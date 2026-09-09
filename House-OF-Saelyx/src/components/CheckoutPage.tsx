@@ -72,7 +72,8 @@ export const CheckoutPage: React.FC = () => {
     clearCart, 
     navigateTo, 
     user,
-    setIsAuthOpen 
+    setIsAuthOpen,
+    setIsCartOpen 
   } = useStore();
 
   // Legacy unowned details are never adopted by another account.
@@ -186,6 +187,17 @@ export const CheckoutPage: React.FC = () => {
   const codCheckoutAttemptIdRef = useRef<string | null>(null);
   const payzyCheckoutAttemptIdRef = useRef<string | null>(null);
   const payzyReturnHandledRef = useRef(false);
+
+  // A typed /checkout URL is not useful by itself. Keep guest checkout available
+  // when the customer actually has items, but send an empty bag back to shopping.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isPayzyReturn = params.has('payzy') && params.has('orderId');
+    if (cart.length === 0 && !confirmedOrder && !isPayzyReturn) {
+      navigateTo({ name: 'home' });
+      setIsCartOpen(true);
+    }
+  }, [cart.length, confirmedOrder, navigateTo, setIsCartOpen]);
 
   // Derived Customer Full Name
   const customerName = `${firstName.trim()} ${lastName.trim()}`.trim();
@@ -534,7 +546,7 @@ export const CheckoutPage: React.FC = () => {
 
   // Reconcile the Payzy provider return using the protected server-side order state.
   useEffect(() => {
-    if (!user || payzyReturnHandledRef.current) return;
+    if (payzyReturnHandledRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const payzyState = params.get('payzy');
     const orderId = params.get('orderId');
@@ -573,7 +585,7 @@ export const CheckoutPage: React.FC = () => {
         window.history.replaceState({}, '', '/checkout');
       }
     })();
-  }, [user, getPayzyPaymentStatus]);
+  }, [getPayzyPaymentStatus]);
 
   // Confirmed Order Screen
   if (confirmedOrder) {

@@ -23,6 +23,7 @@ import {
   isFirebaseConfigured,
   getAppCheckRequestHeaders,
 } from '../lib/firebase';
+import { guestOrderAccessHeaders, saveGuestOrderAccess } from '../lib/guestOrderAccess';
 import { 
   signInWithPopup, 
   signInWithEmailAndPassword, 
@@ -287,7 +288,11 @@ function parseRouteFromUrl(): AppRoute {
     }
     if (path === '/vip') return { name: 'vip' };
     if (path === '/contact-support' || path === '/care/contact' || path === '/care/concierge') return { name: 'contact-support' };
-    if (path.startsWith('/admin')) {
+    if (path === '/admin' || path.startsWith('/admin/')) {
+      window.history.replaceState({}, '', '/');
+      return { name: 'home' };
+    }
+    if (path === '/atelier-console' || path.startsWith('/atelier-console/')) {
       const tab = search.get('tab') as any;
       return { name: 'admin', tab: tab || 'overview' };
     }
@@ -317,7 +322,7 @@ function routeToUrl(route: AppRoute): string {
     case 'track': return route.orderId ? `/track-order?id=${encodeURIComponent(route.orderId)}` : '/track-order';
     case 'vip': return '/vip';
     case 'contact-support': return '/contact-support';
-    case 'admin': return route.tab ? `/admin?tab=${route.tab}` : '/admin';
+    case 'admin': return route.tab ? `/atelier-console?tab=${route.tab}` : '/atelier-console';
     case 'legal-terms': return '/legal/terms';
     case 'legal-privacy': return '/legal/privacy';
     case 'legal-returns': return '/legal/returns';
@@ -817,7 +822,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     `/api/payments/paypal/capture/${encodeURIComponent(order.id || order.orderNumber)}`,
                     {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: { 'Content-Type': 'application/json', ...guestOrderAccessHeaders(order.id) },
                       body: JSON.stringify({ paypalOrderId })
                     }
                   );
@@ -1471,7 +1476,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw new Error(message);
     }
 
-    const placedOrder = await res.json() as Order;
+    const responsePayload = await res.json() as Order & {
+      guestAccessToken?: string;
+      guestAccessExpiresAt?: string;
+    };
+
+    if (responsePayload.guestAccessToken) {
+      saveGuestOrderAccess(
+        responsePayload.id || responsePayload.orderNumber,
+        responsePayload.guestAccessToken,
+        responsePayload.guestAccessExpiresAt || ''
+      );
+    }
+
+    const placedOrder: Order = { ...responsePayload };
+    delete (placedOrder as any).guestAccessToken;
+    delete (placedOrder as any).guestAccessExpiresAt;
 
     // Server is the source of truth. Do not create a second client-side order document.
     setOrders(prev => [
@@ -1488,7 +1508,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const createPayPalPayment = async (orderId: string): Promise<{ paypalOrderId: string; order: Order }> => {
     const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/create/${encodeURIComponent(orderId)}`, {
-      method: 'POST'
+      method: 'POST',
+      headers: guestOrderAccessHeaders(orderId)
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(payload?.error || 'Unable to start PayPal payment.');
@@ -1505,7 +1526,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const capturePayPalPayment = async (orderId: string, paypalOrderId: string): Promise<Order> => {
     const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/capture/${encodeURIComponent(orderId)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...guestOrderAccessHeaders(orderId) },
       body: JSON.stringify({ paypalOrderId })
     });
     const payload = await res.json().catch(() => ({}));
@@ -1517,7 +1538,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const cancelPayPalOrder = async (orderId: string): Promise<Order> => {
     const res = await fetchAuthenticatedPublicApi(`/api/payments/paypal/cancel/${encodeURIComponent(orderId)}`, {
-      method: 'POST'
+      method: 'POST',
+      headers: guestOrderAccessHeaders(orderId)
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -1531,7 +1553,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const createPayzyPayment = async (orderId: string): Promise<{ checkoutUrl: string; mode: 'sandbox' | 'live'; testAmountLKR?: number | null; order: Order }> => {
     const res = await fetchAuthenticatedPublicApi(`/api/payments/payzy/create/${encodeURIComponent(orderId)}`, {
-      method: 'POST'
+      method: 'POST',
+      headers: guestOrderAccessHeaders(orderId)
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(payload?.error || 'Unable to start Payzy payment.');
@@ -1549,7 +1572,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const getPayzyPaymentStatus = async (orderId: string): Promise<Order> => {
-    const res = await fetchAuthenticatedPublicApi(`/api/payments/payzy/status/${encodeURIComponent(orderId)}`);
+    const res = await fetchAuthenticatedPublicApi(`/api/payments/payzy/status/${encodeURIComponent(orderId)}`, {
+      headers: guestOrderAccessHeaders(orderId)
+    });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(payload?.error || 'Unable to verify Payzy payment status.');
     const updated = payload as Order;
@@ -1566,7 +1591,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const response = await fetchAuthenticatedPublicApi(`/api/orders/${encodeURIComponent(orderId)}/cancellation-request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...guestOrderAccessHeaders(orderId) },
         body: JSON.stringify({ reason })
       });
       const payload = await response.json().catch(() => ({}));

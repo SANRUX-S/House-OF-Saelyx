@@ -2,6 +2,7 @@
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /atelier-console
 Disallow: /checkout
 Disallow: /api/
 Disallow: /track-order
