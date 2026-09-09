@@ -123,7 +123,7 @@ export const AdminConcierge: React.FC<AdminConciergeProps> = ({
 
                     <td className="max-w-xs">
                       <div className="text-xs font-bold text-stone-900 truncate">
-                        {(msg as any).subject || msg.topic || 'Bespoke Atelier Inquiry'}
+                        {(msg as any).subject || msg.topic || 'Customer Support Inquiry'}
                       </div>
                       <div className="text-xs text-stone-500 line-clamp-2">
                         {msg.message}
@@ -207,7 +207,7 @@ export const AdminConcierge: React.FC<AdminConciergeProps> = ({
               </div>
 
               <div>
-                <label className="form-label-custom">Atelier Resolution Notes</label>
+                <label className="form-label-custom">Resolution Notes</label>
                 <textarea
                   rows={3}
                   value={replyNotes}
