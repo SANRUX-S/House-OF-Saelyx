@@ -1056,7 +1056,114 @@ export const CheckoutPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* 2. PayPal (Global Online Checkout) */}
+                {/* 2. Payzy (Sri Lanka Buy Now, Pay Later) */}
+                {paymentConfig.payzy.enabled && (
+                  <div
+                    className={`rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden ${
+                      paymentMethod === 'payzy'
+                        ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-[#1A1816]'
+                        : 'border-[#EAE3D9] bg-[#FCFBF9]/60 hover:border-[#D5CBBF] hover:bg-white'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-label="Payzy"
+                      aria-checked={paymentMethod === 'payzy'}
+                      aria-expanded={paymentMethod === 'payzy'}
+                      aria-controls="payment-payzy-details"
+                      disabled={isSubmitting || isSwitchingPayment}
+                      onClick={() => handlePaymentMethodChange('payzy')}
+                      className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#1A1816] disabled:cursor-wait"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-[#111111] border border-[#111111] flex items-center justify-center flex-shrink-0">
+                          <span className="text-white font-black text-[11px] tracking-[-0.04em] lowercase">payzy</span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs uppercase font-semibold tracking-wider text-[#1A1816]">
+                              Payzy
+                            </span>
+                            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded font-medium ${
+                              paymentConfig.payzy.mode === 'sandbox'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                            }`}>
+                              {paymentConfig.payzy.mode === 'sandbox'
+                                ? `Sandbox Test · LKR ${paymentConfig.payzy.testAmountLKR || 10}`
+                                : 'Buy Now, Pay Later'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#665A4E] mt-0.5">
+                            {paymentConfig.payzy.mode === 'sandbox'
+                              ? 'Secure Payzy test checkout for integration verification.'
+                              : 'Pay securely with Payzy instalments in Sri Lanka.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all shrink-0 ${
+                        paymentMethod === 'payzy' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'
+                      }`}>
+                        {paymentMethod === 'payzy' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}
+                      </div>
+                    </button>
+
+                    {paymentMethod === 'payzy' && (
+                      <div id="payment-payzy-details" className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] bg-[#FCFBF9]/50 space-y-4">
+                        <div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs text-[#5A4E40] space-y-2">
+                          <div className="flex items-center justify-between text-[#1A1816] font-medium">
+                            <span>{paymentConfig.payzy.mode === 'sandbox' ? 'Sandbox Test Charge:' : 'Order Total via Payzy:'}</span>
+                            <span className="font-serif text-sm">
+                              LKR {paymentConfig.payzy.mode === 'sandbox'
+                                ? Number(paymentConfig.payzy.testAmountLKR || 10).toLocaleString('en-US')
+                                : totalLKR.toLocaleString('en-US')}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#7A6E60] leading-relaxed">
+                            {paymentConfig.payzy.mode === 'sandbox'
+                              ? 'This LKR 10 sandbox transaction is only for Payzy integration testing. A successful sandbox callback will be verified by the SAELYXE server, then the test order will be closed automatically and will not reduce stock or enter fulfilment.'
+                              : 'You will be redirected to Payzy to complete your payment. The order is treated as paid only after SAELYXE verifies Payzy\'s signed response on the server.'}
+                          </p>
+                          <p className="text-[10px] text-[#8A7762] leading-relaxed">
+                            Available for Sri Lankan delivery addresses. Your Payzy signing key is never exposed to the browser.
+                          </p>
+                        </div>
+
+                        {!paymentConfig.payzy.configured ? (
+                          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] text-amber-900">
+                            Payzy is added to checkout, but the server-side Payzy key still needs to be added to Vercel before the sandbox button can be used.
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handlePayzyOrder();
+                            }}
+                            disabled={isSubmitting}
+                            className="w-full h-12 rounded-xl bg-[#111111] text-white text-[11px] uppercase tracking-[0.2em] font-semibold hover:bg-black transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                  <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+                                  <path className="opacity-80" d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                </svg>
+                                <span>Opening Payzy...</span>
+                              </>
+                            ) : (
+                              <span>CONTINUE WITH PAYZY</span>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. PayPal (Global Online Checkout) */}
                 {paymentConfig.paypal.enabled && (
                   <div
                     className={`rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden ${
