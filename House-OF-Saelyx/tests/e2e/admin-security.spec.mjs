@@ -11,7 +11,7 @@ test('public storefront loads with enforced CSP', async ({ page }) => {
 });
 
 test('admin route stays behind Firebase administrator login', async ({ page }) => {
-  await page.goto('/admin');
+  await page.goto('/atelier-console');
   await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
   await expect(page.getByPlaceholder('admin@your-domain.com')).toBeVisible();
   await expect(page.locator('input[type="password"]')).toBeVisible();
@@ -22,7 +22,7 @@ test('admin route stays behind Firebase administrator login', async ({ page }) =
 
 test('admin login remains usable on a narrow mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto('/admin');
+  await page.goto('/atelier-console');
   await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
   const noHorizontalOverflow = await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 2
@@ -30,11 +30,18 @@ test('admin login remains usable on a narrow mobile viewport', async ({ page }) 
   expect(noHorizontalOverflow).toBe(true);
 });
 
-test('order tracking requires the authenticated purchasing account', async ({ page }) => {
+test('order tracking supports account or scoped guest access without leaking private data', async ({ page }) => {
   await page.goto('/track-order?id=SLX-PRIVATE-TEST');
   await expect(page.getByText(/TRACK YOUR ORDER/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /SIGN IN TO TRACK/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /TRACK ORDER/i })).toBeVisible();
+  await expect(page.getByText(/browser used at checkout/i)).toBeVisible();
   await expect(page.getByText(/Customer Name|Street Address|Payment Method/i)).toHaveCount(0);
+});
+
+test('legacy /admin entry route is retired to the storefront', async ({ page }) => {
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toHaveCount(0);
 });
 
 test('public health endpoint is intentionally minimal', async ({ request }) => {
@@ -98,7 +105,7 @@ for (const viewport of responsiveViewports) {
 for (const viewport of responsiveViewports) {
   test(`admin login remains responsive on ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    const response = await page.goto('/admin');
+    const response = await page.goto('/atelier-console');
     expect(response).not.toBeNull();
     expect(response?.status()).toBeLessThan(400);
     await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
@@ -150,6 +157,28 @@ test('product page enforces explicit size selection before adding to bag', async
 });
 
 test('checkout payment selection starts unselected and toggles cleanly without temporary test wording', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('saelyx_cart', JSON.stringify([{
+      productId: 'ci-checkout-product',
+      title: 'CI Checkout Garment',
+      image: '',
+      priceLKR: 12000,
+      size: 'M',
+      quantity: 1,
+      product: {
+        id: 'ci-checkout-product',
+        slug: 'ci-checkout-product',
+        title: 'CI Checkout Garment',
+        category: 'men',
+        priceLKR: 12000,
+        images: [],
+        sizes: ['M'],
+        stockCount: 5,
+        inStock: true
+      }
+    }]));
+  });
+
   // CI intentionally has no real PayPal credentials. Mock only the public
   // payment-config response so this remains a safe UI-state test and never
   // starts a provider payment or real-money transaction.
