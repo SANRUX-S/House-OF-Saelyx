@@ -16,6 +16,7 @@ import {
   browserSessionPersistence
 } from 'firebase/auth';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import {
   initializeAppCheck,
   ReCaptchaEnterpriseProvider,
@@ -30,6 +31,7 @@ const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'gen-lang-client-0800900976.firebaseapp.com',
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'gen-lang-client-0800900976.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '915679491947',
   oAuthClientId: import.meta.env.VITE_FIREBASE_OAUTH_CLIENT_ID || '',
 };
@@ -52,6 +54,9 @@ export const auth = getAuth(app);
 
 // Initialize Firestore with custom database ID
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
+
+// Admin product/settings media uses Firebase Storage directly with Firebase Auth + App Check.
+export const storage = getStorage(app);
 
 const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APP_CHECK_SITE_KEY || '';
 let appCheckInstance: AppCheck | null = null;
