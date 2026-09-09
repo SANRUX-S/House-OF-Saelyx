@@ -15,6 +15,11 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  // API responses may contain authenticated account, order, payment, or admin data.
+  // Never allow browsers, shared proxies, or edge caches to retain API payloads.
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   next();
 });
 app.use(express.json({ limit: '64kb' }));
@@ -1750,6 +1755,9 @@ app.post('/api/admin/maintenance/purge-legacy-demo-fixtures', async (req, res) =
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed.' });
     }
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required before legacy cleanup.' });
+    }
     if (safeString(req.body?.confirmation, 80) !== 'RESET_OPERATIONS') {
       return res.status(400).json({ error: 'Exact legacy cleanup confirmation is required.' });
     }
@@ -1970,6 +1978,9 @@ app.post('/api/admin/maintenance/purge-legacy-test-products', async (req, res) =
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required before legacy product cleanup.' });
+    }
     if (!(await enforceRateLimit(adminDb, `legacy-test-products:${token.uid}`, 3, 60 * 60_000))) {
       return res.status(429).json({ error: 'Legacy product cleanup is rate limited.' });
     }
@@ -2350,7 +2361,21 @@ app.get('/api/payments/config', (_req, res) => {
   });
 });
 
-app.get('/api/payments/paypal/status', async (_req, res) => {
+app.get('/api/payments/paypal/status', async (req, res) => {
+  const adminDb = getAdminDb();
+  if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+
+  const token = await readBearerToken(req);
+  if (!token || !(await isSuperAdminToken(token))) {
+    return res.status(403).json({ error: 'Super Admin access required.' });
+  }
+  if (!(await hasValidAppCheck(req))) {
+    return res.status(401).json({ error: 'App integrity check failed.' });
+  }
+  if (!(await enforceRateLimit(adminDb, `paypal-health:${token.uid}`, 12, 10 * 60_000))) {
+    return res.status(429).json({ error: 'Payment diagnostics are rate limited. Please wait and retry.' });
+  }
+
   const clientId = process.env.PAYPAL_CLIENT_ID || '';
   const configured = Boolean(clientId && process.env.PAYPAL_CLIENT_SECRET);
   const mode = process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
@@ -3069,6 +3094,9 @@ app.put('/api/admin/messages/:id', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `admin-message-write:${token.uid}`, 120, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Concierge changes are rate limited. Please wait and retry.' });
+    }
 
     const id = safeString(req.params.id, 160);
     const status = safeString(req.body?.status, 20);
@@ -3108,6 +3136,9 @@ app.put('/api/admin/products/:id', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `admin-product-write:${token.uid}`, 120, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Product changes are rate limited. Please wait and retry.' });
+    }
 
     const id = safeString(req.params.id, 100);
     const title = safeString(req.body?.title, 200);
@@ -3183,6 +3214,12 @@ app.delete('/api/admin/products/:id', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required before retiring a product.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-product-delete:${token.uid}`, 20, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Product retirement is rate limited. Please wait and retry.' });
+    }
     const id = safeString(req.params.id, 100);
     const ref = adminDb.collection('products').doc(id);
     const snap = await ref.get();
@@ -3202,6 +3239,12 @@ app.put('/api/admin/settings', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required before changing store settings.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-settings-write:${token.uid}`, 30, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Store setting changes are rate limited. Please wait and retry.' });
+    }
 
     const update: Record<string, unknown> = {};
     const stringFields: Array<[string, number]> = [
@@ -3256,6 +3299,9 @@ app.post('/api/admin/audit', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `admin-audit-write:${token.uid}`, 120, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Audit events are rate limited. Please wait and retry.' });
+    }
     const action = safeString(req.body?.action, 80);
     const details = safeString(req.body?.details, 1000);
     const allowed = new Set(['ADMIN_LOGIN', 'ORDER_CSV_EXPORT', 'DATABASE_EXPORT']);
@@ -3446,6 +3492,9 @@ app.post('/api/admin/orders/:id/refund', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required for refunds.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required before processing a refund.' });
+    }
 
     const orderId = safeString(req.params.id, 120);
     if (!(await enforceRateLimit(adminDb, `paypal-refund:${token.uid}:${orderId}`, 5, 30 * 60_000))) {
@@ -3591,8 +3640,14 @@ app.put('/api/orders/:id/status', async (req, res) => {
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
     const token = await readBearerToken(req);
-    if (!(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!hasRecentAuthentication(token)) {
+      return res.status(428).json({ error: 'Recent administrator authentication required before changing order status.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `admin-order-status:${token.uid}`, 120, 60 * 60_000))) {
+      return res.status(429).json({ error: 'Order status changes are rate limited. Please wait and retry.' });
+    }
 
     const id = safeString(req.params.id, 120);
     const status = safeString(req.body?.status, 40);

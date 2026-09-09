@@ -15,7 +15,6 @@
     "final:readiness": "node scripts/final-launch-readiness.mjs"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
     "@paypal/react-paypal-js": "^10.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
