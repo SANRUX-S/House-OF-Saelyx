@@ -2403,21 +2403,32 @@ app.post('/api/payments/payzy/create/:orderId', async (req, res) => {
     const signedData = buildPayzySignedData(order, config);
     const started = await requestPayzyCheckout(signedData, config);
     const now = new Date().toISOString();
-    await ref.update({
-      paymentProviderReference: `payzy:${safeString(order.orderNumber || order.id, 120)}`,
-      paymentStatus: 'pending_verification',
-      paymentVerificationSource: 'payzy_server_created',
-      paymentVerificationError: FieldValue.delete(),
-      paymentUpdatedAt: now,
-      payzyMode: config.mode,
-      payzyExpectedAmountLKR: Number(signedData.x_amount),
-      payzyCheckoutInitiatedAt: now,
-      payzySignedData: signedData,
-      payzyRequestSignature: started.requestSignature,
-      payzyRequestSignatureVariant: started.signatureVariant,
-      payzyCheckoutUrl: started.checkoutUrl,
-      payzySandboxVerified: false
-    });
+    const guardRef = adminDb.collection('payzy_order_links').doc(orderId);
+    await Promise.all([
+      ref.update({
+        paymentProviderReference: `payzy:${safeString(order.orderNumber || order.id, 120)}`,
+        paymentStatus: 'pending_verification',
+        paymentVerificationSource: 'payzy_server_created',
+        paymentVerificationError: FieldValue.delete(),
+        paymentUpdatedAt: now,
+        payzyMode: config.mode,
+        payzyExpectedAmountLKR: Number(signedData.x_amount),
+        payzyCheckoutInitiatedAt: now,
+        payzyRequestSignatureVariant: started.signatureVariant,
+        payzySandboxVerified: false
+      }),
+      guardRef.set({
+        orderId,
+        orderNumber: safeString(order.orderNumber || order.id, 120),
+        userId: order.userId,
+        mode: config.mode,
+        signedData,
+        requestSignature: started.requestSignature,
+        checkoutUrl: started.checkoutUrl,
+        createdAt: now,
+        serverCreatedAt: FieldValue.serverTimestamp()
+      }, { merge: true })
+    ]);
     const updated = await ref.get();
     return res.json({ checkoutUrl: started.checkoutUrl, mode: config.mode, testAmountLKR: config.mode === 'sandbox' ? config.sandboxTestAmountLKR : null, order: stripInternalPayzyOrderFields({ id: updated.id, ...updated.data() }) });
   } catch (error: any) {
@@ -2464,11 +2475,12 @@ app.get('/api/payments/payzy/return', async (req, res) => {
     const clientIp = getClientAddress(req);
     if (!(await enforceRateLimit(adminDb, `payzy-return:${clientIp}:${orderId}`, 30, 10 * 60_000))) return redirect('error');
     const ref = adminDb.collection('orders').doc(orderId);
-    const snap = await ref.get();
-    if (!snap.exists) return redirect('error');
+    const guardRef = adminDb.collection('payzy_order_links').doc(orderId);
+    const [snap, guardSnap] = await Promise.all([ref.get(), guardRef.get()]);
+    if (!snap.exists || !guardSnap.exists) return redirect('error');
     const order: any = { id: snap.id, ...snap.data() };
     if (order.paymentMethod !== 'payzy') return redirect('error');
-    const signedData = order.payzySignedData as PayzySignedData | undefined;
+    const signedData = guardSnap.data()?.signedData as PayzySignedData | undefined;
     if (!signedData || !hasOnlyKeys(signedData, PAYZY_REQUEST_SIGNED_FIELDS)) {
       await ref.set({ paymentVerificationSource: 'payzy_signed_callback', paymentVerificationError: 'missing_signed_request_snapshot', paymentUpdatedAt: new Date().toISOString() }, { merge: true });
       return redirect('error');
