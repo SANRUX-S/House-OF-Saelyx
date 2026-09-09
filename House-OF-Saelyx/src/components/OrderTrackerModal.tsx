@@ -3,9 +3,10 @@ import { X, Search, CheckCircle2, Clock, Truck, Package, MapPin, ShieldCheck, Ar
 import { useStore } from '../context/StoreContext';
 import { Order, OrderStatus } from '../types';
 import { auth, getAppCheckRequestHeaders } from '../lib/firebase';
+import { getGuestOrderAccessToken } from '../lib/guestOrderAccess';
 
 export const OrderTrackerModal: React.FC = () => {
-  const { isTrackerOpen, setIsTrackerOpen, user, setIsAuthOpen } = useStore();
+  const { isTrackerOpen, setIsTrackerOpen } = useStore();
   const [query, setQuery] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
@@ -15,26 +16,29 @@ export const OrderTrackerModal: React.FC = () => {
     e.preventDefault();
     if (!query.trim()) return;
 
-    if (!auth.currentUser || !user) {
+    const normalizedId = query.trim();
+    const firebaseUser = auth.currentUser;
+    const guestAccessToken = getGuestOrderAccessToken(normalizedId);
+    if (!firebaseUser && !guestAccessToken) {
       setOrder(null);
-      setError('');
-      setIsTrackerOpen(false);
-      setIsAuthOpen(true);
+      setError('Guest orders can be tracked from the browser used at checkout. Account orders require sign-in.');
       return;
     }
 
     setLoading(true);
     setError('');
     try {
-      const token = await auth.currentUser.getIdToken();
       const appCheckHeaders = await getAppCheckRequestHeaders();
-      const headers = new Headers({
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json'
-      });
+      const headers = new Headers({ Accept: 'application/json' });
+      if (firebaseUser) {
+        headers.set('Authorization', `Bearer ${await firebaseUser.getIdToken()}`);
+      }
+      if (guestAccessToken) {
+        headers.set('X-SAELYXE-Guest-Order-Token', guestAccessToken);
+      }
       Object.entries(appCheckHeaders).forEach(([key, value]) => headers.set(key, value));
 
-      const res = await fetch(`/api/orders/${encodeURIComponent(query.trim())}`, {
+      const res = await fetch(`/api/orders/${encodeURIComponent(normalizedId)}`, {
         method: 'GET',
         headers,
         cache: 'no-store'
@@ -44,7 +48,7 @@ export const OrderTrackerModal: React.FC = () => {
         setOrder(data);
       } else {
         setOrder(null);
-        setError('No order belonging to this account was found with that reference.');
+        setError('No accessible order was found with that reference.');
       }
     } catch (err) {
       setError('Unable to fetch order status. Please check your connection.');
