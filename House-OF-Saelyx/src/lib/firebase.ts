@@ -97,8 +97,12 @@ const ROOT_ADMIN_EMAILS = new Set([
 export function getConfiguredAdminRole(email?: string | null, emailVerified = false): UserRole | undefined {
   if (!email) return undefined;
   const normalizedEmail = email.toLowerCase();
-  if (!emailVerified) return undefined;
+
+  // The single bootstrap root uses Firebase email/password authentication plus
+  // the exact allowlisted address. Invited/configured staff still require a
+  // verified Firebase email before receiving any administrator role.
   if (ROOT_ADMIN_EMAILS.has(normalizedEmail)) return 'super_admin';
+  if (!emailVerified) return undefined;
   return ADMIN_ROLES[normalizedEmail];
 }
 
@@ -113,10 +117,13 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
     const email = credential.user.email?.toLowerCase() || '';
     const allowlistedRole = email ? ADMIN_ROLES[email] : undefined;
 
-    // Every configured administrator, including root bootstrap accounts,
-    // must prove ownership of a verified Firebase email before authorization.
     if (allowlistedRole) {
-      if (!credential.user.emailVerified) {
+      const isBootstrapRoot = ROOT_ADMIN_EMAILS.has(email);
+
+      // The bootstrap root can authenticate directly with the exact Firebase
+      // email/password pair. Other configured administrators must still verify
+      // their email before privileged access is granted.
+      if (!isBootstrapRoot && !credential.user.emailVerified) {
         try {
           await sendEmailVerification(credential.user);
         } catch {
@@ -136,6 +143,7 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
           name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Administrator',
           email: credential.user.email || '',
           role: allowlistedRole,
+          authProvider: 'password',
           joinedDate: new Date().toISOString().slice(0, 10)
         }
       };
