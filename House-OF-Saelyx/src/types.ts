@@ -123,6 +123,13 @@ export interface Order {
   paymentCaptureStartedAt?: string;
   paymentCaptureCompletedAt?: string;
   paymentCaptureState?: 'pending' | 'capturing' | 'needs_recovery' | 'completed';
+  payzyMode?: 'sandbox' | 'live';
+  payzySandboxVerified?: boolean;
+  payzyResponseCode?: string;
+  payzyExpectedAmountLKR?: number;
+  payzyCheckoutInitiatedAt?: string;
+  payzyReturnedAt?: string;
+  payzyRequestSignatureVariant?: string;
   requiresManualReview?: boolean;
   inventoryException?: string;
   inventoryCommitted?: boolean;

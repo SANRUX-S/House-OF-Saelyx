@@ -16,6 +16,7 @@ const formatLkr = (value: unknown) => {
 const formatPaymentMethod = (order: Order) => {
   if (order.paymentMethod === 'cod') return 'Cash on Delivery';
   if (order.paymentMethod === 'paypal') return 'PayPal';
+  if (order.paymentMethod === 'payzy') return 'Payzy';
   return order.paymentMethod || 'Payment method pending';
 };
 
@@ -26,6 +27,7 @@ const formatPaymentStatus = (order: Order) => {
     if (status === 'cancelled') return 'Cancelled';
     return 'Pay on delivery';
   }
+  if (order.paymentMethod === 'payzy' && order.payzySandboxVerified) return 'Sandbox test verified - not a live settlement';
   if (status === 'verified') return 'Payment verified';
   if (status === 'refunded') return 'Refund completed';
   if (status === 'refund_pending') return 'Refund processing';

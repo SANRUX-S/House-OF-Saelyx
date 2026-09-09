@@ -12,6 +12,7 @@ function assert(condition, message) {
 }
 
 const api = read('api/index.ts');
+const payzy = read('api/payzy.ts');
 const store = read('src/context/StoreContext.tsx');
 const rules = read('firestore.rules');
 const firebaseClient = read('src/lib/firebase.ts');
@@ -127,16 +128,16 @@ assert(api.includes("paymentStatus: 'refund_pending'"), 'pending refund state mu
 assert(api.includes("paymentStatus: 'refunded'"), 'completed refund state must be explicit');
 assert(api.includes('canAutoRestoreInventory'), 'refund flow must avoid blindly restocking dispatched items');
 assert(api.includes('Verified PayPal orders must be cancelled through the Super Admin refund workflow.'), 'normal status API must not fake a paid cancellation');
-assert(checkout.includes("'paypal' | 'cod'"), 'COD checkout must be explicit in the payment selector state');
+assert(checkout.includes("'paypal' | 'payzy' | 'cod'"), 'checkout payment selector must explicitly support PayPal, Payzy, and COD');
 assert(checkout.includes('Cash on Delivery'), 'checkout must expose Cash on Delivery');
 assert(checkout.includes('Pay in cash when your order is delivered.'), 'COD checkout must explain hand-delivery cash settlement');
 assert(!checkout.includes('Temporary Test'), 'COD checkout must not contain temporary test wording');
 assert(checkout.includes("paymentMethod: 'cod'"), 'COD checkout must create a server-backed order instead of faking local success');
 assert(checkout.includes('createCodCheckoutAttemptId'), 'COD checkout must use an idempotent checkout attempt identifier');
-assert(api.includes("!['paypal', 'cod'].includes(paymentMethod)"), 'order API must allow only PayPal or COD');
+assert(api.includes("!['paypal', 'payzy', 'cod'].includes(paymentMethod)"), 'order API must allow only PayPal, Payzy, or COD');
 assert(api.includes("paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'"), 'COD orders must remain explicitly unpaid');
 assert(api.includes("paymentVerificationSource: paymentMethod === 'cod' ? 'cash_on_delivery' : null"), 'COD must never masquerade as provider-verified payment');
-assert(api.includes("current.paymentMethod === 'paypal' && current.paymentStatus !== 'verified'"), 'provider verification requirement must remain PayPal-specific so COD can be admin-approved');
+assert(api.includes("['paypal', 'payzy'].includes(current.paymentMethod) && current.paymentStatus !== 'verified'"), 'online payment providers must be verified before fulfilment while COD remains separately collectible');
 assert(api.includes("order.paymentMethod !== 'paypal' || !['verified', 'refund_pending'].includes(order.paymentStatus)"), 'refund endpoint must stay restricted to verified PayPal payments');
 
 assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enforced');
@@ -430,6 +431,7 @@ for (const [label, routeStart, routeEnd, rateKey, recent] of [
 
 for (const [name, source] of [
   ['API', api],
+  ['Payzy server module', payzy],
   ['Firebase client', firebaseClient],
   ['StoreContext', store],
   ['Checkout', checkout],
@@ -449,8 +451,13 @@ assert(
 
 // Footer payment/network artwork is intentionally preserved as an approved
 // visual trust strip. Availability is enforced at checkout, not inferred from
-// footer artwork. Do not remove or fail CI on the existing footer icons.
-assert(!/payzy/i.test(checkout), 'CheckoutPage.tsx must not expose payzy');
+// footer artwork. Payzy is now an approved checkout provider; Apple Pay is not.
+assert(/payzy/i.test(checkout), 'CheckoutPage.tsx must expose the approved Payzy payment option');
+assert(checkout.includes('CONTINUE WITH PAYZY'), 'Payzy checkout must expose an explicit redirect action');
+assert(checkout.includes('createPayzyCheckoutAttemptId'), 'Payzy checkout must use an idempotent cryptographic attempt identifier');
+assert(checkout.includes('LKR 10 sandbox transaction'), 'Payzy sandbox checkout must disclose that the test amount is not a live settlement');
+assert(!/PAYZY_SECRET_KEY/.test(checkout), 'Payzy signing secret must never be referenced by CheckoutPage');
+assert(!/PAYZY_SECRET_KEY/.test(store), 'Payzy signing secret must never be referenced by StoreContext');
 assert(!/applepay/i.test(checkout), 'CheckoutPage.tsx must not expose applepay');
 
 const reviewPostStart = api.indexOf("app.post('/api/products/:productId/reviews'");
@@ -464,9 +471,9 @@ assert(!reviewPostRoute.includes('author: body.author') && !reviewPostRoute.incl
 assert(reviewPostRoute.includes("adminDb.collection('users').doc(authToken.uid).get()"), 'review submission must derive author from patron profile server-side');
 
 assert(
-  reviewPostRoute.includes("paymentMethod === 'paypal' && paymentStatus === 'verified'") &&
+  reviewPostRoute.includes("(paymentMethod === 'paypal' || paymentMethod === 'payzy') && paymentStatus === 'verified'") &&
   reviewPostRoute.includes("paymentMethod === 'cod' && (paymentStatus === 'cod_collected' || status === 'delivered')"),
-  'verified review check must require verified/collected payment status'
+  'verified review check must require verified PayPal/Payzy or collected COD status'
 );
 
 const orderPostStart = api.indexOf("app.post('/api/orders'");
@@ -479,6 +486,27 @@ assert(orderPostRoute.includes('!Number.isInteger(item.quantity) || item.quantit
 assert(orderPostRoute.includes("hasOnlyKeys(item, ['productId', 'size', 'quantity'])"), 'order items must reject unsupported client-controlled fields');
 assert(orderPostRoute.includes('authenticatedEmail !== email'), 'order email must match the verified Firebase account');
 assert(orderPostRoute.includes('const unitPriceLKR = Number(product.priceLKR)'), 'order pricing must come from trusted server product records');
+
+const payzyCreateStart = api.indexOf("app.post('/api/payments/payzy/create/:orderId'");
+const payzyStatusStart = api.indexOf("app.get('/api/payments/payzy/status/:orderId'", payzyCreateStart);
+const payzyReturnStart = api.indexOf("app.get('/api/payments/payzy/return'", payzyStatusStart);
+const payzyNextRoute = api.indexOf("app.get('/api/payments/paypal/status'", payzyReturnStart);
+const payzyCreateRoute = payzyCreateStart >= 0 && payzyStatusStart > payzyCreateStart ? api.slice(payzyCreateStart, payzyStatusStart) : '';
+const payzyStatusRoute = payzyStatusStart >= 0 && payzyReturnStart > payzyStatusStart ? api.slice(payzyStatusStart, payzyReturnStart) : '';
+const payzyReturnRoute = payzyReturnStart >= 0 && payzyNextRoute > payzyReturnStart ? api.slice(payzyReturnStart, payzyNextRoute) : '';
+assert(payzyCreateRoute.includes('readBearerToken(req)') && payzyCreateRoute.includes('hasValidAppCheck(req)'), 'Payzy create route must require Firebase authentication and App Check');
+assert(payzyCreateRoute.includes('payzy-create:'), 'Payzy checkout creation must be rate limited');
+assert(payzyCreateRoute.includes("order.paymentMethod !== 'payzy'"), 'Payzy checkout creation must be bound to a Payzy order');
+assert(payzyStatusRoute.includes('readBearerToken(req)') && payzyStatusRoute.includes('order.userId !== token.uid'), 'Payzy status route must enforce authenticated order ownership');
+assert(payzyReturnRoute.includes('verifyPayzyReturnSignature'), 'Payzy provider return must be HMAC verified server-side');
+assert(payzyReturnRoute.includes("responseCode !== '00'"), 'Payzy provider failures must not be treated as successful payments');
+assert(payzyReturnRoute.includes('markPayzySandboxVerified') && payzyReturnRoute.includes('markPayzyLiveVerified'), 'Payzy sandbox and live settlement states must be separated');
+assert(payzy.includes("createHmac('sha256'"), 'Payzy signing must use server-side HMAC SHA-256');
+assert(payzy.includes('timingSafeEqual'), 'Payzy callback signatures must use timing-safe comparison');
+assert(payzy.includes("status: 'cancelled'") && payzy.includes("paymentVerificationSource: 'payzy_sandbox_signature_verified'"), 'Payzy sandbox success must auto-close the test order');
+assert(payzy.includes('inventoryCommitted: false'), 'Payzy sandbox success must not commit inventory');
+assert(!payzy.includes('test@payzy.lk') && !payzy.includes('Test@!123'), 'Payzy customer sandbox login credentials must never be committed to the application');
+
 
 const reviewDeleteStart = api.indexOf("app.delete('/api/products/:productId/reviews/:reviewId'");
 const reviewDeleteEnd = api.indexOf("app.post('/api/promo/validate'", reviewDeleteStart);

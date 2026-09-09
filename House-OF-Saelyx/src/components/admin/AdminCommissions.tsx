@@ -432,16 +432,26 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
                   <option value="delivered">Delivered (Handover Complete)</option>
                   <option
                     value="cancelled"
-                    disabled={!isSuperAdmin && selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || '')}
+                    disabled={
+                      (selectedOrder.paymentMethod === 'payzy' && selectedOrder.paymentStatus === 'verified') ||
+                      (!isSuperAdmin && selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || ''))
+                    }
                   >
-                    {selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || '')
-                      ? 'Cancel & Refund PayPal Payment (Super Admin)'
-                      : 'Cancelled'}
+                    {selectedOrder.paymentMethod === 'payzy' && selectedOrder.paymentStatus === 'verified'
+                      ? 'Refund in Payzy Merchant Portal First'
+                      : selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || '')
+                        ? 'Cancel & Refund PayPal Payment (Super Admin)'
+                        : 'Cancelled'}
                   </option>
                 </select>
                 <p className="mt-2 text-[10px] leading-relaxed text-stone-500">
                   You can select any active order stage directly. Courier and tracking details are required for Dispatched, Out for Delivery, and Delivered. Cancelled orders remain terminal for payment and audit safety.
                 </p>
+                {selectedOrder.paymentMethod === 'payzy' && selectedOrder.paymentStatus === 'verified' && (
+                  <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                    Verified Payzy orders must be refunded in the Payzy merchant portal before SAELYXE can cancel the order record.
+                  </div>
+                )}
               </div>
 
               <div>

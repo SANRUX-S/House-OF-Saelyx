@@ -141,6 +141,8 @@ interface StoreContextType {
   createPayPalPayment: (orderId: string) => Promise<{ paypalOrderId: string; order: Order }>;
   capturePayPalPayment: (orderId: string, paypalOrderId: string) => Promise<Order>;
   cancelPayPalOrder: (orderId: string) => Promise<Order>;
+  createPayzyPayment: (orderId: string) => Promise<{ checkoutUrl: string; mode: 'sandbox' | 'live'; testAmountLKR?: number | null; order: Order }>;
+  getPayzyPaymentStatus: (orderId: string) => Promise<Order>;
   requestOrderCancellation: (orderId: string, reason: string) => Promise<{ success: boolean; error?: string }>;
   updateOrderStatus: (orderId: string, status: Order['status'], details: Partial<Order>) => Promise<boolean>;
   hasMoreAdminOrders: boolean;
@@ -1527,6 +1529,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return updated;
   };
 
+  const createPayzyPayment = async (orderId: string): Promise<{ checkoutUrl: string; mode: 'sandbox' | 'live'; testAmountLKR?: number | null; order: Order }> => {
+    const res = await fetchAuthenticatedPublicApi(`/api/payments/payzy/create/${encodeURIComponent(orderId)}`, {
+      method: 'POST'
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload?.error || 'Unable to start Payzy payment.');
+    const updated = payload?.order as Order;
+    if (updated?.id) {
+      setOrders(prev => prev.map(order => order.id === updated.id ? updated : order));
+    }
+    const mode: 'sandbox' | 'live' = payload?.mode === 'live' ? 'live' : 'sandbox';
+    return {
+      checkoutUrl: String(payload?.checkoutUrl || ''),
+      mode,
+      testAmountLKR: Number.isFinite(Number(payload?.testAmountLKR)) ? Number(payload.testAmountLKR) : null,
+      order: updated
+    };
+  };
+
+  const getPayzyPaymentStatus = async (orderId: string): Promise<Order> => {
+    const res = await fetchAuthenticatedPublicApi(`/api/payments/payzy/status/${encodeURIComponent(orderId)}`);
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload?.error || 'Unable to verify Payzy payment status.');
+    const updated = payload as Order;
+    setOrders(prev => {
+      const exists = prev.some(order => order.id === updated.id);
+      return exists
+        ? prev.map(order => order.id === updated.id ? updated : order)
+        : [updated, ...prev];
+    });
+    return updated;
+  };
+
   const requestOrderCancellation = async (orderId: string, reason: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const response = await fetchAuthenticatedPublicApi(`/api/orders/${encodeURIComponent(orderId)}/cancellation-request`, {
@@ -1912,6 +1947,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             createPayPalPayment,
         capturePayPalPayment,
         cancelPayPalOrder,
+        createPayzyPayment,
+        getPayzyPaymentStatus,
         requestOrderCancellation,
         updateOrderStatus,
         hasMoreAdminOrders,

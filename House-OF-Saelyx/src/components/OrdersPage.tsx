@@ -86,19 +86,23 @@ export const OrdersPage: React.FC = () => {
     }
   };
 
-  const getPaymentBadge = (status?: string, method?: string) => {
+  const getPaymentBadge = (status?: string, method?: string, sandboxVerified?: boolean) => {
+    if (method === 'payzy' && sandboxVerified) {
+      return { label: 'Payzy Sandbox Verified', bg: 'bg-amber-50 text-amber-800 border-amber-200' };
+    }
     if (status === 'verified' || status === 'paid') {
       return { label: 'Paid', bg: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
     }
     if (method === 'cod') {
       return { label: 'Pending Delivery', bg: 'bg-amber-50 text-amber-800 border-amber-200' };
     }
-    return { label: 'Pending', bg: 'bg-stone-100 text-stone-700 border-stone-200' };
+    return { label: status === 'failed' ? 'Payment Failed' : 'Pending', bg: status === 'failed' ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-stone-100 text-stone-700 border-stone-200' };
   };
 
   const formatPaymentMethodName = (method?: string) => {
     switch (method) {
       case 'paypal': return 'PayPal';
+      case 'payzy': return 'Payzy';
       case 'cod': return 'Cash on Delivery';
       default: return 'Atelier Commission';
     }
@@ -222,7 +226,7 @@ export const OrdersPage: React.FC = () => {
           <div className="space-y-4">
             {userOrders.map((ord) => {
               const statusBadge = getStatusBadge(ord.status);
-              const payBadge = getPaymentBadge(ord.paymentStatus, ord.paymentMethod);
+              const payBadge = getPaymentBadge(ord.paymentStatus, ord.paymentMethod, ord.payzySandboxVerified);
               const itemsCount = ord.items?.reduce((tot, i) => tot + i.quantity, 0) || 0;
 
               return (

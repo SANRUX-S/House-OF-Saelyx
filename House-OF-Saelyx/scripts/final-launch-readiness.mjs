@@ -14,6 +14,7 @@ function check(condition, number, label, mode = 'code-ready') {
 }
 
 const api = read('api/index.ts');
+const payzy = read('api/payzy.ts');
 const checkout = read('src/components/CheckoutPage.tsx');
 const store = read('src/context/StoreContext.tsx');
 const adminOrders = read('src/components/admin/AdminCommissions.tsx');
@@ -30,6 +31,15 @@ check(api.includes("app.get('/api/admin/health'") && adminSecurity.includes('/ap
 check(api.includes('purge-legacy-demo-fixtures') && api.includes('purge-legacy-test-products') && store.includes('saelyxe_prelaunch_cleanup_v2'), 2, 'Physical legacy cleanup is prepared and auto-triggered for Super Admin');
 check(checkout.includes("paymentMethod: 'cod'") && checkout.includes('PLACE CASH ON DELIVERY ORDER'), 3, 'Normal customer COD checkout path is implemented');
 check(api.includes("app.post('/api/payments/paypal/capture/:orderId'") && api.includes('verifyPayPalOrder'), 4, 'Real PayPal payment path is implemented', 'requires-real-money');
+check(
+  api.includes("app.post('/api/payments/payzy/create/:orderId'") &&
+  api.includes("app.get('/api/payments/payzy/return'") &&
+  checkout.includes('CONTINUE WITH PAYZY') &&
+  payzy.includes("createHmac('sha256'"),
+  4.5,
+  'Secure Payzy Custom Web sandbox/live path is implemented',
+  'requires-provider-sandbox'
+);
 check(api.includes("app.post('/api/orders'") && adminOrders.includes('Order Timeline'), 5, 'Customer order persists to the Admin order workspace');
 check(api.includes('INVENTORY_COMMIT_STATUSES.has(status)') && api.includes('stockCount: nextStock'), 6, 'Inventory decrements transactionally when an order enters an active fulfillment stage');
 check(api.includes('confirmed:') && api.includes("INVENTORY_COMMIT_STATUSES = new Set(['confirmed'"), 7, 'Confirmed lifecycle stage is implemented within direct active-stage fulfillment');
