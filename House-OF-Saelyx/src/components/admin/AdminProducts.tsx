@@ -10,16 +10,19 @@ import {
   Layers, 
   Tag, 
   Eye,
-  AlertCircle
+  AlertCircle,
+  UploadCloud,
+  Star,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Product } from '../../types';
-import { getAdminMediaUploadConfig, uploadAdminImageWithConfig } from '../../lib/adminMedia';
+import { uploadAdminImage } from '../../lib/adminMedia';
 
 export interface AdminProductsProps {
   products: Product[];
   formatPrice: (priceLKR: number) => string;
   isSuperAdmin: boolean;
-  onSaveProduct: (product: Partial<Product>) => Promise<boolean>;
+  onSaveProduct: (product: Partial<Product>) => Promise<{ success: boolean; error?: string; product?: Product }>;
   onDeleteProduct: (id: string) => void;
   isProductModalOpen: boolean;
   setIsProductModalOpen: (open: boolean) => void;
@@ -81,28 +84,62 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [formError, setFormError] = useState('');
+  const [uploadStatus, setUploadStatus] = useState('');
+
+  const getImageUrls = (value = imagesText) => value
+    .split('\n')
+    .map(url => url.trim())
+    .filter(url => url.startsWith('https://'));
+
+  const setImageUrls = (urls: string[]) => {
+    const unique = Array.from(new Set(urls.filter(url => url.startsWith('https://')))).slice(0, 16);
+    setImagesText(unique.join('\n'));
+    setForm(current => ({ ...current, images: unique }));
+  };
 
   const appendImageUrl = (url: string) => {
-    setImagesText(current => `${current}${current ? '\n' : ''}${url}`);
+    setImageUrls([...getImageUrls(), url]);
+  };
+
+  const removeImageUrl = (url: string) => {
+    const next = getImageUrls().filter(item => item !== url);
+    setImageUrls(next);
+    setForm(current => ({
+      ...current,
+      hoverImage: current.hoverImage === url ? '' : current.hoverImage
+    }));
+  };
+
+  const makePrimaryImage = (url: string) => {
+    const next = [url, ...getImageUrls().filter(item => item !== url)];
+    setImageUrls(next);
   };
 
   const handleImageFiles = async (files: File[]) => {
     const images = files.filter(file => file.type.startsWith('image/'));
     if (!images.length) {
-      setFormError('Please select image files only.');
+      setFormError('Choose a JPG, PNG, WebP, or AVIF image.');
+      return;
+    }
+    if (getImageUrls().length + images.length > 16) {
+      setFormError('A product can have up to 16 images. Remove an image before adding more.');
       return;
     }
 
     setIsUploadingImages(true);
     setFormError('');
+    setUploadStatus('');
     try {
-      const config = await getAdminMediaUploadConfig('products');
-      for (const file of images) {
-        const url = await uploadAdminImageWithConfig(file, config);
+      for (let index = 0; index < images.length; index += 1) {
+        const file = images[index];
+        setUploadStatus(`Uploading ${index + 1} of ${images.length}: ${file.name}`);
+        const url = await uploadAdminImage(file, 'products');
         appendImageUrl(url);
       }
+      setUploadStatus(images.length === 1 ? 'Image uploaded successfully.' : `${images.length} images uploaded successfully.`);
     } catch (err: any) {
-      setFormError(err?.message || 'Image upload failed.');
+      setUploadStatus('');
+      setFormError(err?.message || 'Image upload failed. Please try another image.');
     } finally {
       setIsUploadingImages(false);
     }
@@ -111,6 +148,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   // Open Add/Edit Modal
   const handleOpenModal = (prod?: Product) => {
     setFormError('');
+    setUploadStatus('');
     if (prod) {
       setEditingProduct(prod);
       setForm({
@@ -203,11 +241,11 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
         slug
       };
 
-      const success = await onSaveProduct(payload);
-      if (success) {
+      const result = await onSaveProduct(payload);
+      if (result.success) {
         setIsProductModalOpen(false);
       } else {
-        setFormError('Failed to persist creation. Please check connection.');
+        setFormError(result.error || 'Product could not be saved. Please review the required fields and try again.');
       }
     } catch (err: any) {
       setFormError(err.message || 'An unexpected error occurred.');
