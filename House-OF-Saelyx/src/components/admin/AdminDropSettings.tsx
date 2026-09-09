@@ -217,7 +217,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
                 void handleBackgroundImage(file);
               }}
             >
-              <p className="font-semibold text-stone-700">{isUploadingBackground ? 'Uploading to Cloudinary...' : 'Drag and drop the 1920 x 1080 image here.'}</p>
+              <p className="font-semibold text-stone-700">{isUploadingBackground ? 'Uploading image...' : 'Drag and drop the 1920 x 1080 image here.'}</p>
               <label className={`mt-3 inline-flex cursor-pointer rounded-lg border border-stone-200 bg-white px-3 py-2 text-[11px] font-bold text-stone-700 ${isUploadingBackground ? 'pointer-events-none opacity-50' : 'hover:bg-stone-50'}`}>
                 Choose image
                 <input
