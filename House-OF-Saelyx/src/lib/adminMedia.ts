@@ -14,7 +14,7 @@ export interface AdminMediaUploadConfig {
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
 const MAX_SOURCE_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_SOURCE_DIMENSION = 12000;
-const MAX_SOURCE_MEGAPIXELS = 60;
+const MAX_IMAGE_MEGAPIXELS = 60;
 const MAX_UPLOAD_BYTES = 2_400_000;
 const MAX_OUTPUT_DIMENSION = 3200;
 const MAX_OUTPUT_MEGAPIXELS = 12;
@@ -58,7 +58,7 @@ async function decodeAdminImage(file: File): Promise<ImageBitmap> {
       bitmap.height < 1 ||
       bitmap.width > MAX_SOURCE_DIMENSION ||
       bitmap.height > MAX_SOURCE_DIMENSION ||
-      pixels > MAX_SOURCE_MEGAPIXELS * 1_000_000
+      pixels > MAX_IMAGE_MEGAPIXELS * 1_000_000
     ) {
       bitmap.close();
       throw new Error('The selected image dimensions are too large.');
