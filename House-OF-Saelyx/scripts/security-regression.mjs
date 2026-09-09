@@ -100,7 +100,7 @@ assert(
 );
 assert(firebaseClient.includes("'auth/too-many-requests'"), 'admin login must surface Firebase throttling clearly');
 assert(firebaseClient.includes("'auth/network-request-failed'"), 'admin login must surface Firebase network failures clearly');
-assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(email)'), 'client must scope root bootstrap access to exact root emails');
+assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(normalizedEmail)'), 'client must scope root bootstrap access to exact normalized root emails');
 assert(firebaseClient.includes('!credential.user.emailVerified'), 'configured administrators must be blocked until Firebase email verification');
 assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified administrators must retain an email verification path');
 assert(firebaseClient.includes('browserLocalPersistence') && firebaseClient.includes('browserSessionPersistence'), 'Remember Me must control Firebase persistence');
