@@ -76,7 +76,7 @@ export const LegalTermsPage: React.FC = () => {
             <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
               <CreditCard className="w-4 h-4" />
             </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">PayPal Payments</h4>
+            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Online Payments</h4>
             <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Authorised online payments with no full card storage on SAELYXE servers.</p>
           </div>
 
@@ -227,25 +227,25 @@ export const LegalTermsPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Section 13, 14, 15, 16 & 17 - Payment Methods & PayPal */}
+          {/* Section 13, 14, 15, 16 & 17 - Payment Methods */}
           <section className="bg-[#FAF6F0] border border-[#DFD5C6] p-6 sm:p-8 rounded-2xl space-y-6">
             <div className="space-y-3">
               <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-sans flex items-center justify-center">13</span>
-                Payment Methods & No COD Policy
+                Payment Methods & COD Availability
               </h3>
               <p className="text-xs sm:text-sm text-[#4A3E30]">
-                SAELYXE accepts authorised online payment methods displayed on the website, including <strong className="font-semibold text-[#1A1816]">PayPal</strong>. SAELYXE does <strong className="font-semibold text-[#1A1816]">NOT accept Cash on Delivery (COD)</strong> unless expressly displayed on the website.
+                SAELYXE accepts the payment methods expressly displayed at checkout, which may include <strong className="font-semibold text-[#1A1816]">PayPal, Payzy, and Cash on Delivery (COD)</strong>. Availability may vary by order, delivery location, provider status, or testing/live environment.
               </p>
             </div>
 
             <div className="space-y-3 border-t border-[#E3D8C8] pt-6">
               <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-sans flex items-center justify-center">14</span>
-                PayPal Payments & Zero Card Storage
+                Online Payments & Zero Card Storage
               </h3>
               <p className="text-xs sm:text-sm text-[#4A3E30]">
-                Payments are processed through PayPal's infrastructure. An order is considered successfully paid only upon confirmation from the payment processor. SAELYXE does not intentionally store full credit/debit card numbers or security codes on its servers.
+                Online payments are processed through the selected provider's infrastructure, including PayPal or Payzy where applicable. An online order is considered successfully paid only after SAELYXE receives and verifies the applicable provider confirmation. SAELYXE does not intentionally store full credit/debit card numbers or security codes on its servers.
               </p>
             </div>
 
@@ -384,7 +384,7 @@ export const LegalTermsPage: React.FC = () => {
               <div className="space-y-2">
                 <h4 className="font-serif text-sm font-semibold text-[#1A1816]">28. Third-Party Services</h4>
                 <p className="text-xs text-[#5C5042]">
-                  Services rely on trusted partners (PayPal, couriers, cloud hosting) operating under their respective privacy terms.
+                  Services rely on trusted partners (including PayPal, Payzy, couriers, cloud hosting, and communications providers) operating under their respective privacy terms.
                 </p>
               </div>
 
