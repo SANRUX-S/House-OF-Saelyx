@@ -7,7 +7,6 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import {
   PAYZY_REQUEST_SIGNED_FIELDS,
   type PayzySignedData,
@@ -1988,6 +1987,103 @@ function detectSupportedImageMime(buffer: Buffer): 'image/jpeg' | 'image/png' | 
   return null;
 }
 
+function getCloudinaryUploadConfig() {
+  let cloudName = '';
+  let apiKey = '';
+  let apiSecret = '';
+
+  const cloudinaryUrl = process.env.CLOUDINARY_URL?.trim();
+  if (cloudinaryUrl?.startsWith('cloudinary://')) {
+    try {
+      const parsed = new URL(cloudinaryUrl);
+      cloudName = decodeURIComponent(parsed.hostname || '').trim();
+      apiKey = decodeURIComponent(parsed.username || '').trim();
+      apiSecret = decodeURIComponent(parsed.password || '').trim();
+    } catch {
+      // Fall back to the individual server-only variables below.
+    }
+  }
+
+  cloudName ||= process.env.CLOUDINARY_CLOUD_NAME?.trim() || 'qt3rdzmd';
+  apiKey ||= process.env.CLOUDINARY_API_KEY?.trim() || '';
+  apiSecret ||= process.env.CLOUDINARY_API_SECRET?.trim() || '';
+
+  return {
+    cloudName,
+    apiKey,
+    apiSecret,
+    configured: Boolean(cloudName && apiKey && apiSecret)
+  };
+}
+
+async function uploadImageToCloudinary(buffer: Buffer, mimeType: string, folder: string) {
+  const config = getCloudinaryUploadConfig();
+  if (!config.configured) {
+    return { ok: false as const, status: 503, error: 'SAELYXE Media Storage is not configured.' };
+  }
+
+  // Use Cloudinary's documented signed Upload API. Only folder + timestamp are signed;
+  // file/cloud_name/resource_type/api_key are intentionally excluded from the signature.
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signatureBase = `folder=${folder}&timestamp=${timestamp}`;
+  const signature = crypto
+    .createHash('sha256')
+    .update(`${signatureBase}${config.apiSecret}`)
+    .digest('hex');
+
+  const signedBody = new FormData();
+  signedBody.append('file', new Blob([buffer], { type: mimeType }), 'saelyxe-upload');
+  signedBody.append('api_key', config.apiKey);
+  signedBody.append('timestamp', String(timestamp));
+  signedBody.append('folder', folder);
+  signedBody.append('signature', signature);
+
+  const endpoint = `https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/image/upload`;
+  let response = await fetch(endpoint, { method: 'POST', body: signedBody });
+  let payload: any = await response.json().catch(() => ({}));
+
+  // Keep a standards-supported Basic Auth fallback for Cloudinary environments that
+  // prefer backend Basic authentication instead of manual request signatures.
+  if (!response.ok && [400, 401, 403].includes(response.status)) {
+    const fallbackBody = new FormData();
+    fallbackBody.append('file', new Blob([buffer], { type: mimeType }), 'saelyxe-upload');
+    fallbackBody.append('folder', folder);
+    const authorization = Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString('base64');
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${authorization}` },
+      body: fallbackBody
+    });
+    payload = await response.json().catch(() => ({}));
+  }
+
+  if (!response.ok) {
+    const providerMessage = safeString(payload?.error?.message, 200);
+    console.error('Cloudinary SAELYXE media upload failed:', response.status, providerMessage || 'unknown');
+    return {
+      ok: false as const,
+      status: 502,
+      error: providerMessage
+        ? `SAELYXE Media Storage rejected the image: ${providerMessage}`
+        : 'SAELYXE Media Storage rejected the image.'
+    };
+  }
+
+  const secureUrl = safeString(payload?.secure_url, 1400);
+  if (!secureUrl.startsWith('https://res.cloudinary.com/')) {
+    return { ok: false as const, status: 502, error: 'SAELYXE Media Storage did not return a secure image URL.' };
+  }
+
+  return {
+    ok: true as const,
+    secureUrl: secureUrl.replace('/image/upload/', '/image/upload/f_auto,q_auto/'),
+    width: Number(payload?.width) || null,
+    height: Number(payload?.height) || null,
+    bytes: Number(payload?.bytes) || buffer.length,
+    format: safeString(payload?.format, 20)
+  };
+}
+
 app.post('/api/media/upload', async (req, res) => {
   try {
     const adminDb = getAdminDb();
@@ -2030,52 +2126,20 @@ app.post('/api/media/upload', async (req, res) => {
       return res.status(415).json({ error: 'Image file type could not be verified.' });
     }
 
-    const requestedName = safeString(req.body?.fileName, 160)
-      .replace(/[^a-zA-Z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '') || `saelyxe-${Date.now()}`;
-    const ext = detectedMime === 'image/jpeg' ? 'jpg' : detectedMime.split('/')[1];
-    const baseName = requestedName.replace(/\.[^.]+$/, '').slice(0, 100) || `saelyxe-${Date.now()}`;
     const folder = kind === 'settings' ? 'saelyxe/settings' : 'saelyxe/products';
-    const objectId = crypto.randomUUID();
-    const objectPath = `${folder}/${Date.now()}-${objectId}-${baseName}.${ext}`;
-
-    const bucketName =
-      process.env.FIREBASE_STORAGE_BUCKET ||
-      process.env.VITE_FIREBASE_STORAGE_BUCKET ||
-      'gen-lang-client-0800900976.firebasestorage.app';
-    const downloadToken = crypto.randomUUID();
-
-    const bucket = getStorage().bucket(bucketName);
-    const file = bucket.file(objectPath);
-    await file.save(buffer, {
-      resumable: false,
-      metadata: {
-        contentType: detectedMime,
-        cacheControl: 'public,max-age=31536000,immutable',
-        metadata: {
-          firebaseStorageDownloadTokens: downloadToken,
-          saelyxeUploadedBy: token.uid,
-          saelyxeMediaKind: kind
-        }
-      }
-    });
-
-    const secureUrl =
-      `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucketName)}/o/${encodeURIComponent(objectPath)}?alt=media&token=${encodeURIComponent(downloadToken)}`;
+    const uploaded = await uploadImageToCloudinary(buffer, detectedMime, folder);
+    if (!uploaded.ok) return res.status(uploaded.status).json({ error: uploaded.error });
 
     return res.status(201).json({
-      secureUrl,
-      bytes: buffer.length,
-      format: ext,
-      storage: 'firebase'
+      secureUrl: uploaded.secureUrl,
+      width: uploaded.width,
+      height: uploaded.height,
+      bytes: uploaded.bytes,
+      format: uploaded.format,
+      storage: 'cloudinary'
     });
   } catch (error: any) {
-    const code = safeString(error?.code, 120);
-    const message = safeString(error?.message, 240);
-    console.error('Firebase Storage admin media upload error:', code || message || 'unknown');
-    if (code.includes('storage') || code.includes('permission') || message.toLowerCase().includes('permission')) {
-      return res.status(503).json({ error: 'Firebase media storage permission is not ready for this server account.' });
-    }
+    console.error('SAELYXE admin media upload error:', safeString(error?.message, 220) || 'unknown');
     return res.status(500).json({ error: 'Unable to upload image right now.' });
   }
 });
