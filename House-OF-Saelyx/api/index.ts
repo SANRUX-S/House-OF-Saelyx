@@ -2372,7 +2372,7 @@ app.get('/api/payments/config', (_req, res) => {
       mode: process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox'
     },
     payzy: {
-      enabled: process.env.PAYZY_UI_ENABLED !== 'false',
+      enabled: payzy.configured && process.env.PAYZY_UI_ENABLED !== 'false',
       configured: payzy.configured,
       mode: payzy.mode,
       testAmountLKR: payzy.mode === 'sandbox' ? payzy.sandboxTestAmountLKR : null
