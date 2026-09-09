@@ -1929,7 +1929,7 @@ app.get('/api/admin/bootstrap', async (req, res) => {
       adminDb.collection('audit_logs').orderBy('timestamp', 'desc').limit(200).get()
     ]);
 
-    const mapDocs = (snapshot: FirebaseFirestore.QuerySnapshot) =>
+    const mapDocs = (snapshot: any) =>
       snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
 
     res.setHeader('Cache-Control', 'private, no-store, max-age=0');
