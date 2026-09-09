@@ -47,6 +47,9 @@ const pdp = read('src/components/ProductDetailPage.tsx');
 const productModal = read('src/components/ProductModal.tsx');
 const spotlight = read('src/components/SpotlightProduct.tsx');
 const seoManager = read('src/components/SEOManager.tsx');
+const indexHtml = read('index.html');
+const privacyPage = read('src/components/LegalPrivacyPage.tsx');
+const packageLock = read('package-lock.json');
 
 const trackingStart = api.indexOf("app.get('/api/orders/:id'");
 const trackingEnd = api.indexOf("app.post('/api/admin/orders/:id/refund'", trackingStart);
@@ -140,6 +143,12 @@ assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enf
 assert(!vercel.includes('Content-Security-Policy-Report-Only'), 'report-only CSP must not remain');
 assert(vercel.includes('https://www.google.com/recaptcha/'), 'CSP must allow reCAPTCHA Enterprise used by App Check');
 assert(vercel.includes('https://*.paypal.com'), 'CSP must allow PayPal SDK resources');
+assert(!vercel.includes("script-src 'self' 'unsafe-inline'"), 'script-src must not allow unsafe-inline execution');
+assert(vercel.includes("script-src-attr 'none'"), 'inline script attributes must be blocked');
+assert(!vercel.includes("connect-src 'self' https: wss:"), 'connect-src must use an explicit origin allowlist');
+assert(!vercel.includes("img-src 'self' data: blob: https:"), 'img-src must use an explicit origin allowlist');
+assert(!indexHtml.includes('<script type="application/ld+json">'), 'static HTML must not require inline JSON-LD under strict CSP');
+assert(seoManager.includes("document.createElement('script')") && seoManager.includes("'application/ld+json'"), 'structured data must be injected by the trusted application bundle');
 assert(vercel.includes('"deploymentEnabled"') && vercel.includes('"**": false') && vercel.includes('"main": true'), 'Vercel preview deployments must stay disabled while main remains deployable');
 
 assert(!firebaseClient.includes('VITE_FIREBASE_STORAGE_BUCKET'), 'client must not depend on Firebase Storage');
@@ -391,6 +400,33 @@ assert(!store.includes('Math.random()'), 'StoreContext identifiers must use cryp
 assert(!checkout.includes('Math.random()'), 'PayPal checkout attempt identifiers must use cryptographic randomness');
 assert(checkout.includes('createPayPalCheckoutAttemptId'), 'checkout must use the cryptographic attempt ID helper');
 assert(ciWorkflow.includes('npm audit --omit=dev --audit-level=high'), 'CI must block high/critical production dependency vulnerabilities');
+assert(!pkg.dependencies?.['@google/genai'], 'unused @google/genai dependency must not remain in package.json');
+assert(!packageLock.includes('"node_modules/@google/genai"'), 'unused @google/genai package must be pruned from package-lock');
+assert(privacyPage.includes('Firebase / Google Cloud') && privacyPage.includes('Vercel') && privacyPage.includes('Cloudinary') && privacyPage.includes('Resend'), 'Privacy Policy must identify production technology service providers');
+assert(api.includes("res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate')"), 'all API responses must disable browser/shared caching');
+assert(api.includes("res.setHeader('Pragma', 'no-cache')") && api.includes("res.setHeader('Expires', '0')"), 'API responses must include legacy no-cache protections');
+
+const paypalStatusStart = api.indexOf("app.get('/api/payments/paypal/status'");
+const paypalStatusEnd = api.indexOf("app.post('/api/payments/paypal/create/:orderId'", paypalStatusStart);
+const paypalStatusRoute = paypalStatusStart >= 0 && paypalStatusEnd > paypalStatusStart ? api.slice(paypalStatusStart, paypalStatusEnd) : '';
+assert(paypalStatusRoute.includes('isSuperAdminToken(token)'), 'PayPal provider health diagnostics must be Super Admin only');
+assert(paypalStatusRoute.includes('hasValidAppCheck(req)'), 'PayPal provider health diagnostics must enforce App Check');
+assert(paypalStatusRoute.includes('paypal-health:'), 'PayPal provider health diagnostics must be rate limited');
+
+for (const [label, routeStart, routeEnd, rateKey, recent] of [
+  ['product write', "app.put('/api/admin/products/:id'", "app.delete('/api/admin/products/:id'", 'admin-product-write:', false],
+  ['product delete', "app.delete('/api/admin/products/:id'", "app.put('/api/admin/settings'", 'admin-product-delete:', true],
+  ['settings', "app.put('/api/admin/settings'", "app.post('/api/admin/audit'", 'admin-settings-write:', true],
+  ['order status', "app.put('/api/orders/:id/status'", "app.post('/api/restock/dispatch'", 'admin-order-status:', true],
+  ['refund', "app.post('/api/admin/orders/:id/refund'", "app.put('/api/orders/:id/status'", 'paypal-refund:', true]
+]) {
+  const start = api.indexOf(routeStart);
+  const end = api.indexOf(routeEnd, start);
+  const route = start >= 0 && end > start ? api.slice(start, end) : '';
+  assert(route.includes(rateKey), label + ' must be rate limited');
+  if (recent) assert(route.includes('hasRecentAuthentication(token)'), label + ' must require recent administrator authentication');
+}
+
 
 for (const [name, source] of [
   ['API', api],
