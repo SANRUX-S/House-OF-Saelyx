@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { sendAdminPasswordReset } from '../../lib/firebase';
 import { 
-  Lock, 
   Eye, 
   EyeOff, 
   ArrowRight, 
-  ShieldCheck, 
   ExternalLink,
   AlertCircle
 } from 'lucide-react';
@@ -72,11 +70,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     }
   };
 
-  const handleQuickFill = (user: string, pass: string) => {
-    setUsername(user);
-    setPassword(pass);
-    setErrorMsg('');
-  };
+
 
   return (
     <div className="login-screen-container">
@@ -123,7 +117,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               autoComplete="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="admin@your-domain.com"
+              placeholder="saelyxe.co@gmail.com"
               className="form-input-custom"
             />
           </div>

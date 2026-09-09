@@ -81,10 +81,15 @@ assert(rules.includes('data.email == request.auth.token.email'), 'Firestore admi
 assert(rules.includes('allow create, update, delete: if false;'), 'sensitive collections must include server-only mutation rules');
 assert(!rules.includes("request.auth.token.role == 'admin'"), 'Firestore must not trust stale role claims as the sole admin source');
 assert(rules.includes('function isBootstrapRootAdmin()'), 'Firestore root bypass must be scoped to a dedicated helper');
-assert(rules.includes("request.auth.token.email == 'saelyx.co@gmail.com'"), 'Firestore root bypass must use the primary root email');
+assert(rules.includes("request.auth.token.email == 'saelyxe.co@gmail.com'"), 'Firestore root bypass must use the primary root email');
 assert(!rules.includes("request.auth.token.email == 'saelyx.co+super@gmail.com'"), 'legacy +super email must not retain Firestore root bypass');
+assert(!rules.includes("saelyx.co+admin@gmail.com"), 'legacy +admin email must not retain Firestore admin privileges');
 assert(!firebaseClient.includes("'saelyx.co+super@gmail.com': 'super_admin'"), 'legacy +super email must not remain in the client administrator allowlist');
+assert(!firebaseClient.includes("saelyx.co+admin@gmail.com"), 'legacy +admin email must not remain in the client administrator allowlist');
+assert(!firebaseClient.includes("verifyAdminGoogleCredentials"), 'admin Google login helper must be removed from client library');
 assert(!api.includes("['saelyx.co+super@gmail.com', 'super_admin']"), 'legacy +super email must not remain in the API administrator allowlist');
+assert(!api.includes("saelyx.co+admin@gmail.com"), 'legacy +admin email must not remain in the API administrator allowlist');
+assert(api.includes("'saelyxe.co@gmail.com'"), 'API administrator allowlist must contain primary root email');
 
 assert(!store.includes('configuredAdminRole || data.role'), 'client session must not trust users/{uid}.role');
 assert(store.includes("adminData?.status === 'active'"), 'client admin session must require an active admin record');

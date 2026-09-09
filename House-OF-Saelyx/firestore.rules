@@ -17,7 +17,7 @@ service cloud.firestore {
     function isBootstrapRootAdmin() {
       return isAuthenticated() &&
         request.auth.token.email is string &&
-        request.auth.token.email == 'saelyx.co@gmail.com';
+        request.auth.token.email == 'saelyxe.co@gmail.com';
     }
 
     function hasActiveAdminRecord() {
@@ -30,11 +30,10 @@ service cloud.firestore {
     function isAdmin() {
       return isBootstrapRootAdmin() || (
         hasVerifiedEmail() && (
-          request.auth.token.email == 'saelyx.co+admin@gmail.com' ||
-          (hasActiveAdminRecord() && (
+          hasActiveAdminRecord() && (
             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin' ||
             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin'
-          ))
+          )
         )
       );
     }

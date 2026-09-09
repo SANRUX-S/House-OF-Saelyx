@@ -13,9 +13,11 @@ test('public storefront loads with enforced CSP', async ({ page }) => {
 test('admin route stays behind Firebase administrator login', async ({ page }) => {
   await page.goto('/congsoleadmintechbypenetix');
   await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
-  await expect(page.getByPlaceholder('admin@your-domain.com')).toBeVisible();
+  await expect(page.getByPlaceholder('saelyxe.co@gmail.com')).toBeVisible();
   await expect(page.locator('input[type="password"]')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Sign In$/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Google/i })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Forgot password\?/i })).toBeVisible();
   await expect(page.getByText(/Verified Revenue/i)).toHaveCount(0);
   await expect(page.getByText(/INVITE ADMINISTRATOR/i)).toHaveCount(0);
 });
