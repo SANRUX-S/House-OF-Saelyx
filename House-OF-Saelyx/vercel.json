@@ -47,6 +47,26 @@
       "source": "/admin/:path*",
       "destination": "/",
       "permanent": false
+    },
+    {
+      "source": "/atelier-console",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/atelier-console/:path*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/checkout",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/checkout/:path*",
+      "destination": "/",
+      "permanent": false
     }
   ],
   "rewrites": [
