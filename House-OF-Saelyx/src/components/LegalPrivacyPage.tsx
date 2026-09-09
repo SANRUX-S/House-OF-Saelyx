@@ -61,7 +61,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <Lock className="w-4 h-4" />
             </div>
             <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Zero Card Storage</h4>
-            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Card details are processed securely by PayPal without full card storage on our servers.</p>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Card and payment details are processed securely by the applicable provider, including PayPal or Payzy where selected, without full card storage on our servers.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -139,7 +139,7 @@ export const LegalPrivacyPage: React.FC = () => {
               </h2>
             </div>
             <p>
-              SAELYXE uses <strong className="font-semibold text-[#1A1816]">PayPal</strong> to process online payments.
+              SAELYXE uses authorised payment providers, including <strong className="font-semibold text-[#1A1816]">PayPal and Payzy</strong> where displayed at checkout, to process online payments.
             </p>
             <p>
               Payment card details are processed through the applicable payment provider. SAELYXE does not intentionally store customers' full credit or debit card numbers or security codes on its own systems.
@@ -167,7 +167,7 @@ export const LegalPrivacyPage: React.FC = () => {
                 "Create and manage your SAELYXE account",
                 "Process, confirm, and fulfil orders",
                 "Arrange delivery of purchased products",
-                "Process payments through PayPal",
+                "Process payments through authorised providers such as PayPal and Payzy",
                 "Process refunds, returns, exchanges, and cancellations",
                 "Contact you regarding your orders or account",
                 "Provide customer support and respond to enquiries",
@@ -230,7 +230,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#EBE3D7] space-y-1.5">
                 <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Payment Service Providers</h4>
                 <p className="text-xs text-[#665A4E]">
-                  Payment information may be shared with PayPal to complete and verify transactions.
+                  Payment information may be shared with the selected provider, including PayPal or Payzy, to initiate, complete, verify, and where applicable refund transactions.
                 </p>
               </div>
 
