@@ -22,6 +22,9 @@ import {
   getConfiguredAdminRole,
   isFirebaseConfigured,
   getAppCheckRequestHeaders,
+  getAdminAccessToken,
+  restoreAdminFallbackSession,
+  clearAdminFallbackSession,
 } from '../lib/firebase';
 import { guestOrderAccessHeaders, saveGuestOrderAccess } from '../lib/guestOrderAccess';
 import { 
@@ -511,6 +514,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (!fbUser) {
+        const fallbackAdmin = await restoreAdminFallbackSession();
+        if (fallbackAdmin && (fallbackAdmin.role === 'admin' || fallbackAdmin.role === 'super_admin')) {
+          setUser(fallbackAdmin);
+          return;
+        }
+
         setUser(null);
         setOrders([]);
         setMessages([]);
@@ -706,8 +715,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const fetchAdminApi = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
-    const currentUser = auth.currentUser;
-    const token = currentUser ? await currentUser.getIdToken() : null;
+    const token = await getAdminAccessToken();
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
     const appCheckHeaders = await getAppCheckRequestHeaders();
@@ -1515,6 +1523,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logout = async (): Promise<void> => {
     const departingUserId = user?.uid || '';
+    clearAdminFallbackSession();
     try {
       if (auth) {
         await fbSignOut(auth);

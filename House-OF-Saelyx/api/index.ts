@@ -1176,6 +1176,150 @@ async function sendStaffInvitationEmail(params: {
   if (!response.ok) throw new Error('Administrator invitation email could not be delivered.');
 }
 
+function isTrustedAdminLoginOrigin(req: Request) {
+  const origin = safeString(req.header('Origin'), 300);
+  if (!origin) return true;
+  return origin === 'https://saelyxe.com' || origin === 'https://www.saelyxe.com';
+}
+
+app.post('/api/admin/auth/login', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+    if (!isTrustedAdminLoginOrigin(req)) return res.status(403).json({ error: 'Administrator sign-in request was rejected.' });
+    if (!hasOnlyKeys(req.body, ['email', 'password'])) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const email = safeString(req.body?.email, 254).toLowerCase();
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (!isEmail(email) || password.length < 6 || password.length > 256) {
+      return res.status(400).json({ error: 'Email or password is incorrect.' });
+    }
+
+    const address = getClientAddress(req);
+    const emailKey = crypto.createHash('sha256').update(email).digest('hex').slice(0, 24);
+    const [ipAllowed, accountAllowed] = await Promise.all([
+      enforceRateLimit(adminDb, `admin-login-ip:${address}`, 20, 15 * 60_000),
+      enforceRateLimit(adminDb, `admin-login-account:${address}:${emailKey}`, 8, 15 * 60_000)
+    ]);
+    if (!ipAllowed || !accountAllowed) {
+      return res.status(429).json({ error: 'Too many sign-in attempts. Wait a few minutes and try again.' });
+    }
+
+    const firebaseWebApiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || '';
+    if (!firebaseWebApiKey) {
+      console.error('Server-side admin login fallback unavailable: Firebase Web API key is not configured.');
+      return res.status(503).json({ error: 'Administrator authentication is temporarily unavailable.' });
+    }
+
+    let providerResponse: Response;
+    try {
+      providerResponse = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(firebaseWebApiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            returnSecureToken: true
+          })
+        }
+      );
+    } catch (error: any) {
+      console.error('Firebase server-side admin login transport note:', safeString(error?.message, 160));
+      return res.status(502).json({ error: 'Administrator authentication service could not be reached.' });
+    }
+
+    const providerPayload: any = await providerResponse.json().catch(() => ({}));
+    if (!providerResponse.ok) {
+      const providerCode = safeString(providerPayload?.error?.message, 120);
+      if (providerCode.includes('TOO_MANY_ATTEMPTS')) {
+        return res.status(429).json({ error: 'Too many sign-in attempts. Wait a few minutes and try again.' });
+      }
+      if (
+        providerCode.includes('INVALID_LOGIN_CREDENTIALS') ||
+        providerCode.includes('INVALID_PASSWORD') ||
+        providerCode.includes('EMAIL_NOT_FOUND') ||
+        providerCode.includes('INVALID_EMAIL')
+      ) {
+        return res.status(401).json({ error: 'Email or password is incorrect.' });
+      }
+      if (providerCode.includes('USER_DISABLED')) {
+        return res.status(403).json({ error: 'This Firebase administrator account is disabled.' });
+      }
+      console.error('Firebase server-side admin login provider note:', providerCode || providerResponse.status);
+      return res.status(503).json({ error: 'Administrator authentication is temporarily unavailable.' });
+    }
+
+    const idToken = safeString(providerPayload?.idToken, 5000);
+    if (!idToken || !getAdminDb()) {
+      return res.status(503).json({ error: 'Administrator authentication is temporarily unavailable.' });
+    }
+
+    let decoded: DecodedIdToken;
+    try {
+      decoded = await getAuth().verifyIdToken(idToken);
+    } catch {
+      return res.status(401).json({ error: 'Email or password is incorrect.' });
+    }
+
+    const role = await getAdminRole(decoded);
+    if (!role) {
+      return res.status(403).json({ error: 'This Firebase account does not have active SAELYXE administrator access.' });
+    }
+
+    const tokenEmail = typeof decoded.email === 'string' ? decoded.email.toLowerCase() : '';
+    if (!tokenEmail || tokenEmail !== email) {
+      return res.status(403).json({ error: 'Administrator identity verification failed.' });
+    }
+
+    const user = {
+      uid: decoded.uid,
+      name: safeString(providerPayload?.displayName, 120) || email.split('@')[0] || 'Administrator',
+      email,
+      role,
+      authProvider: 'password',
+      joinedDate: new Date().toISOString().slice(0, 10)
+    };
+
+    await writeAdminAudit(adminDb, decoded, 'ADMIN_LOGIN_SERVER_FALLBACK', `Administrator ${email} signed in through the same-origin Firebase fallback.`);
+
+    return res.status(200).json({
+      success: true,
+      user,
+      idToken,
+      expiresIn: Math.max(60, Math.min(Number(providerPayload?.expiresIn) || 3600, 3600))
+    });
+  } catch (error: any) {
+    console.error('Server-side administrator login error:', safeString(error?.message, 240));
+    return res.status(500).json({ error: 'Administrator sign-in could not be completed.' });
+  }
+});
+
+app.get('/api/admin/auth/session', async (req, res) => {
+  try {
+    const token = await readBearerToken(req);
+    const role = await getAdminRole(token);
+    if (!token || !role) return res.status(401).json({ error: 'Administrator session expired.' });
+
+    const email = typeof token.email === 'string' ? token.email.toLowerCase() : '';
+    return res.status(200).json({
+      user: {
+        uid: token.uid,
+        name: typeof token.name === 'string' && token.name.trim() ? token.name.trim() : email.split('@')[0] || 'Administrator',
+        email,
+        role,
+        authProvider: 'password',
+        joinedDate: new Date().toISOString().slice(0, 10)
+      }
+    });
+  } catch {
+    return res.status(401).json({ error: 'Administrator session expired.' });
+  }
+});
+
 app.post('/api/admin/password-reset', async (req, res) => {
   try {
     const adminDb = getAdminDb();

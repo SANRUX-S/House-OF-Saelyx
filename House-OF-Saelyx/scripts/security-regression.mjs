@@ -114,6 +114,15 @@ assert(
 );
 assert(firebaseClient.includes("'auth/too-many-requests'"), 'admin login must surface Firebase throttling clearly');
 assert(firebaseClient.includes("'auth/network-request-failed'"), 'admin login must surface Firebase network failures clearly');
+assert(firebaseClient.includes("verifyAdminCredentialsViaServer(username, pass, rememberMe)"), 'admin login must retry through the same-origin backend when direct Firebase Auth networking is blocked');
+assert(firebaseClient.includes('/api/admin/auth/session'), 'admin fallback authentication must support safe session restoration');
+assert(store.includes('getAdminAccessToken()'), 'admin API calls must accept the validated fallback Firebase ID token');
+assert(api.includes("app.post('/api/admin/auth/login'"), 'same-origin administrator login fallback endpoint must exist');
+assert(api.includes('accounts:signInWithPassword'), 'server fallback must still validate the real Firebase email/password');
+assert(api.includes('admin-login-ip:') && api.includes('admin-login-account:'), 'server fallback login must be rate limited by IP and account');
+assert(api.includes("await getAuth().verifyIdToken(idToken)"), 'server fallback must verify the Firebase ID token before assigning admin access');
+assert(api.includes("await getAdminRole(decoded)"), 'server fallback must authorize the verified Firebase identity against trusted admin roles');
+assert(!api.includes('refreshToken: providerPayload'), 'server fallback must not expose Firebase refresh tokens to the browser');
 assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(normalizedEmail)'), 'client must scope root bootstrap access to exact normalized root emails');
 assert(firebaseClient.includes('!isBootstrapRoot && !credential.user.emailVerified'), 'non-root configured administrators must remain blocked until Firebase email verification');
 assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified administrators must retain an email verification path');

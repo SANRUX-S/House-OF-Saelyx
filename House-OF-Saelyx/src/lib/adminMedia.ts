@@ -1,4 +1,4 @@
-import { auth, getAppCheckRequestHeaders } from './firebase';
+import { getAdminAccessToken, getAppCheckRequestHeaders } from './firebase';
 
 export type AdminMediaKind = 'products' | 'settings';
 
@@ -111,11 +111,10 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promise<string> {
-  const currentUser = auth.currentUser;
-  if (!currentUser) throw new Error('Admin session expired. Please sign in again.');
+  const idToken = await getAdminAccessToken();
+  if (!idToken) throw new Error('Admin session expired. Please sign in again.');
 
   const prepared = await prepareAdminImage(file);
-  const idToken = await currentUser.getIdToken();
   const appCheckHeaders = await getAppCheckRequestHeaders();
   const dataBase64 = arrayBufferToBase64(await prepared.arrayBuffer());
 
