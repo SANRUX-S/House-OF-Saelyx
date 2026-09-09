@@ -244,7 +244,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#EBE3D7] space-y-1.5">
                 <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Technology & Service Providers</h4>
                 <p className="text-xs text-[#665A4E]">
-                  We may use third-party providers that support website hosting, security, analytics, communications, customer support, or other business functions.
+                  We use Firebase / Google Cloud for authentication and application data services, Vercel for website hosting and server execution, Cloudinary for product-media storage and delivery, and Resend for transactional email delivery. These providers process only the information reasonably required to provide their services to SAELYXE.
                 </p>
               </div>
 
@@ -259,6 +259,11 @@ export const LegalPrivacyPage: React.FC = () => {
             <p className="text-xs text-[#665A4E] italic pt-1">
               We require service providers handling customer information on our behalf to use reasonable safeguards appropriate to the nature of the information.
             </p>
+
+            <p className="text-xs text-[#665A4E] italic pt-1">
+              Service-provider availability, infrastructure locations, and subprocessors may change over time. Where a provider processes information outside Sri Lanka, we use the provider subject to its applicable contractual, security, and data-protection safeguards.
+            </p>
+
           </section>
 
           {/* Cookies and Similar Technologies */}
