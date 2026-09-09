@@ -2465,18 +2465,17 @@ app.post('/api/payments/payzy/create/:orderId', async (req, res) => {
   try {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
     const orderId = safeString(req.params.orderId, 120);
-    if (!(await enforceRateLimit(adminDb, `payzy-create:${token.uid}:${orderId}`, 6, 10 * 60_000))) return res.status(429).json({ error: 'Too many Payzy payment attempts. Please wait and retry.' });
     const config = getPayzyConfig();
     if (!config.configured) return res.status(503).json({ error: 'Payzy server credentials are not configured yet.' });
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
-    if (order.userId !== token.uid && !(await isAdminToken(token))) return res.status(403).json({ error: 'Order access denied.' });
+    const access = await authorizeCustomerOrderAccess(req, adminDb, order);
+    if (!access) return res.status(404).json({ error: 'Order not found.' });
+    if (!(await enforceRateLimit(adminDb, `payzy-create:${access.rateKey}:${orderId}`, 6, 10 * 60_000))) return res.status(429).json({ error: 'Too many Payzy payment attempts. Please wait and retry.' });
     if (order.paymentMethod !== 'payzy') return res.status(400).json({ error: 'This order is not a Payzy order.' });
     if (order.paymentStatus === 'verified') return res.status(409).json({ error: 'Payment is already verified.' });
     if (order.status === 'cancelled' && order.payzySandboxVerified !== true) return res.status(409).json({ error: 'Cancelled orders cannot start a new Payzy payment.' });
@@ -2522,15 +2521,14 @@ app.get('/api/payments/payzy/status/:orderId', async (req, res) => {
   try {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
     const orderId = safeString(req.params.orderId, 120);
-    if (!(await enforceRateLimit(adminDb, `payzy-status:${token.uid}:${orderId}`, 30, 10 * 60_000))) return res.status(429).json({ error: 'Too many Payzy status checks. Please wait and retry.' });
     const snap = await adminDb.collection('orders').doc(orderId).get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
-    if (order.userId !== token.uid && !(await isAdminToken(token))) return res.status(404).json({ error: 'Order not found.' });
+    const access = await authorizeCustomerOrderAccess(req, adminDb, order);
+    if (!access) return res.status(404).json({ error: 'Order not found.' });
+    if (!(await enforceRateLimit(adminDb, `payzy-status:${access.rateKey}:${orderId}`, 30, 10 * 60_000))) return res.status(429).json({ error: 'Too many Payzy status checks. Please wait and retry.' });
     if (order.paymentMethod !== 'payzy') return res.status(400).json({ error: 'This order is not a Payzy order.' });
     return res.json(stripInternalPayzyOrderFields(order));
   } catch {
@@ -2636,23 +2634,19 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
 
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed.' });
     }
 
     const orderId = safeString(req.params.orderId, 120);
-    if (!(await enforceRateLimit(adminDb, `paypal-create:${token.uid}:${orderId}`, 6, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many PayPal payment attempts. Please wait and try again.' });
-    }
     const ref = adminDb.collection('orders').doc(orderId);
     const initialSnap = await ref.get();
     if (!initialSnap.exists) return res.status(404).json({ error: 'Order not found.' });
     const initialOrder: any = { id: initialSnap.id, ...initialSnap.data() };
-
-    if (initialOrder.userId !== token.uid && !(await isAdminToken(token))) {
-      return res.status(403).json({ error: 'Order access denied.' });
+    const access = await authorizeCustomerOrderAccess(req, adminDb, initialOrder);
+    if (!access) return res.status(404).json({ error: 'Order not found.' });
+    if (!(await enforceRateLimit(adminDb, `paypal-create:${access.rateKey}:${orderId}`, 6, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal payment attempts. Please wait and try again.' });
     }
     if (initialOrder.paymentMethod !== 'paypal') {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
@@ -2682,7 +2676,7 @@ app.post('/api/payments/paypal/create/:orderId', async (req, res) => {
       if (!orderSnap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
 
       const current: any = { id: orderSnap.id, ...orderSnap.data() };
-      if (current.userId !== token.uid && !(await isAdminToken(token))) {
+      if (!customerOrderAccessStillMatches(current, access)) {
         throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
       }
       if (current.paymentMethod !== 'paypal') {
@@ -2740,24 +2734,20 @@ app.post('/api/payments/paypal/capture/:orderId', async (req, res) => {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
 
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed.' });
     }
 
     const orderId = safeString(req.params.orderId, 120);
-    if (!(await enforceRateLimit(adminDb, `paypal-capture:${token.uid}:${orderId}`, 12, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many PayPal capture attempts. Please wait and try again.' });
-    }
     const requestedPayPalOrderId = safeString(req.body?.paypalOrderId, 160);
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
-
-    if (order.userId !== token.uid && !(await isAdminToken(token))) {
-      return res.status(403).json({ error: 'Order access denied.' });
+    const access = await authorizeCustomerOrderAccess(req, adminDb, order);
+    if (!access) return res.status(404).json({ error: 'Order not found.' });
+    if (!(await enforceRateLimit(adminDb, `paypal-capture:${access.rateKey}:${orderId}`, 12, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal capture attempts. Please wait and try again.' });
     }
     if (order.paymentMethod !== 'paypal') {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
@@ -2811,24 +2801,20 @@ app.post('/api/payments/paypal/verify/:orderId', async (req, res) => {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
 
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed.' });
     }
 
     const orderId = safeString(req.params.orderId, 120);
-    if (!(await enforceRateLimit(adminDb, `paypal-verify:${token.uid}:${orderId}`, 12, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many PayPal verification attempts. Please wait and try again.' });
-    }
     const requestedPayPalOrderId = safeString(req.body?.paypalOrderId, 160);
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
-
-    if (order.userId !== token.uid && !(await isAdminToken(token))) {
-      return res.status(403).json({ error: 'Order access denied.' });
+    const access = await authorizeCustomerOrderAccess(req, adminDb, order);
+    if (!access) return res.status(404).json({ error: 'Order not found.' });
+    if (!(await enforceRateLimit(adminDb, `paypal-verify:${access.rateKey}:${orderId}`, 12, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal verification attempts. Please wait and try again.' });
     }
     if (order.paymentMethod !== 'paypal') {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
@@ -2870,23 +2856,19 @@ app.post('/api/payments/paypal/cancel/:orderId', async (req, res) => {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
 
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed.' });
     }
 
     const orderId = safeString(req.params.orderId, 120);
-    if (!(await enforceRateLimit(adminDb, `paypal-cancel:${token.uid}:${orderId}`, 6, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many PayPal cancellation attempts. Please wait and try again.' });
-    }
     const ref = adminDb.collection('orders').doc(orderId);
     const snap = await ref.get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
     const order: any = { id: snap.id, ...snap.data() };
-
-    if (order.userId !== token.uid && !(await isAdminToken(token))) {
-      return res.status(403).json({ error: 'Order access denied.' });
+    const access = await authorizeCustomerOrderAccess(req, adminDb, order);
+    if (!access) return res.status(404).json({ error: 'Order not found.' });
+    if (!(await enforceRateLimit(adminDb, `paypal-cancel:${access.rateKey}:${orderId}`, 6, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many PayPal cancellation attempts. Please wait and try again.' });
     }
     if (order.paymentMethod !== 'paypal') {
       return res.status(400).json({ error: 'This order is not a PayPal order.' });
@@ -3617,8 +3599,6 @@ app.get('/api/orders/:id', async (req, res) => {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
     }
@@ -3626,18 +3606,18 @@ app.get('/api/orders/:id', async (req, res) => {
     const id = safeString(req.params.id, 120);
     if (!id) return res.status(400).json({ error: 'Order reference is required.' });
 
-    if (!(await enforceRateLimit(adminDb, `tracking:${token.uid}:${id}`, 30, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many tracking requests. Please try again later.' });
-    }
-
     const snap = await adminDb.collection('orders').doc(id).get();
     if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
 
     const order: any = { id: snap.id, ...snap.data() };
-    if (order.userId !== token.uid && !(await isAdminToken(token))) {
+    const access = await authorizeCustomerOrderAccess(req, adminDb, order);
+    if (!access) {
       // Use the same response as a missing order so the endpoint does not confirm
       // whether another customer's order reference exists.
       return res.status(404).json({ error: 'Order not found.' });
+    }
+    if (!(await enforceRateLimit(adminDb, `tracking:${access.rateKey}:${id}`, 30, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many tracking requests. Please try again later.' });
     }
 
     const items = Array.isArray(order.items)
@@ -3680,24 +3660,28 @@ app.post('/api/orders/:id/cancellation-request', async (req, res) => {
     const adminDb = getAdminDb();
     if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
 
-    const token = await readBearerToken(req);
-    if (!token) return res.status(401).json({ error: 'Authentication required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
 
     const orderId = safeString(req.params.id, 120);
     const reason = safeString(req.body?.reason, 500);
     if (!orderId || !reason) return res.status(400).json({ error: 'Cancellation reason is required.' });
-    if (!(await enforceRateLimit(adminDb, `cancel-request:${token.uid}:${orderId}`, 5, 60 * 60_000))) {
+
+    const ref = adminDb.collection('orders').doc(orderId);
+    const accessSnap = await ref.get();
+    if (!accessSnap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const accessOrder: any = { id: accessSnap.id, ...accessSnap.data() };
+    const access = await authorizeCustomerOrderAccess(req, adminDb, accessOrder);
+    if (!access) return res.status(404).json({ error: 'Order not found.' });
+    if (!(await enforceRateLimit(adminDb, `cancel-request:${access.rateKey}:${orderId}`, 5, 60 * 60_000))) {
       return res.status(429).json({ error: 'Too many cancellation requests. Please wait and try again.' });
     }
 
-    const ref = adminDb.collection('orders').doc(orderId);
     const now = new Date().toISOString();
     await adminDb.runTransaction(async transaction => {
       const snap = await transaction.get(ref);
       if (!snap.exists) throw Object.assign(new Error('Order not found.'), { statusCode: 404 });
       const order: any = { id: snap.id, ...snap.data() };
-      if (safeString(order.userId, 160) !== token.uid) {
+      if (!customerOrderAccessStillMatches(order, access)) {
         throw Object.assign(new Error('Order access denied.'), { statusCode: 403 });
       }
       if (order.status === 'cancelled') {
@@ -3710,7 +3694,7 @@ app.post('/api/orders/:id/cancellation-request', async (req, res) => {
 
       transaction.update(ref, {
         cancellationRequestedAt: now,
-        cancellationRequestedBy: token.uid,
+        cancellationRequestedBy: access.kind === 'guest' ? 'guest' : access.uid,
         cancellationReason: reason,
         cancellationRequestStatus: 'pending',
         updatedAt: now
@@ -3721,9 +3705,9 @@ app.post('/api/orders/:id/cancellation-request', async (req, res) => {
     const updatedOrder: any = { id: updated.id, ...updated.data() };
     await adminDb.collection('audit_logs').add({
       timestamp: now,
-      actor: typeof token.email === 'string' ? token.email : token.uid,
-      actorUid: token.uid,
-      role: 'patron',
+      actor: access.kind === 'guest' ? 'guest-checkout' : access.uid,
+      actorUid: access.kind === 'guest' ? 'guest' : access.uid,
+      role: access.kind === 'guest' ? 'guest' : 'patron',
       action: 'ORDER_CANCELLATION_REQUESTED',
       details: safeString(`Customer requested cancellation for ${updatedOrder.orderNumber || orderId}: ${reason}`, 1000)
     });
