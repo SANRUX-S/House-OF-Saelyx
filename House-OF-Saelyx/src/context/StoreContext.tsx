@@ -19,6 +19,7 @@ import {
   googleProvider, 
   facebookProvider, 
   verifyAdminCredentials,
+  verifyAdminGoogleCredentials,
   getConfiguredAdminRole,
   isFirebaseConfigured,
   getAppCheckRequestHeaders,
@@ -133,6 +134,7 @@ interface StoreContextType {
   signupWithEmail: (name: string, email: string, pass: string) => Promise<boolean>;
   sendPasswordReset: (email: string) => Promise<boolean>;
   loginAdmin: (username: string, pass: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
+  loginAdminWithGoogle: (rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<AppUser>) => Promise<boolean>;
 
@@ -1443,6 +1445,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+
+  const loginAdminWithGoogle = async (rememberMe = true): Promise<{ success: boolean; error?: string }> => {
+    setIsAuthLoading(true);
+    setAuthError(null);
+    try {
+      const verification = await verifyAdminGoogleCredentials(rememberMe);
+      if (verification.valid && verification.user) {
+        setUser(verification.user);
+        try {
+          await fetchAdminApi('/api/admin/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'ADMIN_LOGIN_GOOGLE',
+              details: `Administrator ${verification.user.email} signed in with Google as ${verification.user.role}.`
+            })
+          });
+        } catch {
+          // Login must not fail only because audit transport is temporarily unavailable.
+        }
+        setIsAuthOpen(false);
+        return { success: true };
+      }
+      setAuthError(verification.error || 'Authentication denied.');
+      return { success: false, error: verification.error };
+    } catch (e: any) {
+      setAuthError(e.message || 'Google administrator verification error.');
+      return { success: false, error: e.message };
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
   const logout = async (): Promise<void> => {
     const departingUserId = user?.uid || '';
     try {
@@ -2015,6 +2050,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         signupWithEmail,
         sendPasswordReset,
         loginAdmin,
+        loginAdminWithGoogle,
         logout,
         updateUserProfile,
         orders,
