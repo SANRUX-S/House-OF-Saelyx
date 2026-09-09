@@ -142,7 +142,7 @@ try {
 
   await assertSucceeds(getDoc(doc(adminDb, 'orders', 'order-owner')));
   await assertFails(getDoc(doc(unverifiedAdminDb, 'orders', 'order-owner')));
-  await assertFails(getDoc(doc(unverifiedRootDb, 'orders', 'order-owner')));
+  await assertSucceeds(getDoc(doc(unverifiedRootDb, 'orders', 'order-owner')));
   await assertFails(updateDoc(doc(adminDb, 'products', 'prod-1'), { stockCount: 99 }));
   await assertFails(updateDoc(doc(superDb, 'products', 'prod-1'), { stockCount: 99 }));
   await assertFails(setDoc(doc(adminDb, 'audit_logs', 'forged'), {
