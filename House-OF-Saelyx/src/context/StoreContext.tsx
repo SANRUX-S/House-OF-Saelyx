@@ -53,10 +53,16 @@ interface CartItem extends OrderItem {
   product: Product;
 }
 
-type CreateOrderInput = Pick<
-  Order,
-  'customerName' | 'email' | 'phone' | 'address' | 'city' | 'postalCode' | 'country' | 'items' | 'currencyUsed' | 'paymentMethod' | 'notes'
+type CreateOrderItemInput = Pick<Order['items'][number], 'productId' | 'size' | 'quantity'>;
+
+type CreateOrderInput = Omit<
+  Pick<
+    Order,
+    'customerName' | 'email' | 'phone' | 'address' | 'city' | 'postalCode' | 'country' | 'items' | 'currencyUsed' | 'paymentMethod' | 'notes'
+  >,
+  'items'
 > & {
+  items: CreateOrderItemInput[];
   firstName?: string;
   lastName?: string;
   promoCode?: string;
