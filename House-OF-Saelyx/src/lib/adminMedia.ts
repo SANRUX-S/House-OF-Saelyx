@@ -139,8 +139,8 @@ export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promis
   }
 
   const secureUrl = String(payload?.secureUrl || '');
-  if (!secureUrl.startsWith('https://res.cloudinary.com/')) {
-    throw new Error('SAELYXE Media Storage did not return a valid image URL.');
+  if (!secureUrl.startsWith('https://firebasestorage.googleapis.com/')) {
+    throw new Error('SAELYXE Media Storage did not return a valid Firebase image URL.');
   }
   return secureUrl;
 }

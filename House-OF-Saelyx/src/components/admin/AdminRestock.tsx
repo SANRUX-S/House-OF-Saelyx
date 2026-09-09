@@ -74,7 +74,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({
         <div className="card-stat !min-h-32">
           <span className="stat-label">Awaiting Restock Batch</span>
           <div className="stat-value text-amber-600">{pendingRequests}</div>
-          <span className="text-xs text-stone-500">Queued for next atelier batch cut</span>
+          <span className="text-xs text-stone-500">Queued for next restock batch</span>
         </div>
 
         <div className="card-stat !min-h-32">
