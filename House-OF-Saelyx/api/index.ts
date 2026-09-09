@@ -1200,17 +1200,54 @@ app.post('/api/admin/password-reset', async (req, res) => {
     }
     if (!eligible) return genericSuccess();
 
-    const apiKey = process.env.RESEND_API_KEY;
+    const resendApiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
-    if (!apiKey || !from) {
-      console.error('Admin password reset requested while Resend is not configured.');
-      return genericSuccess();
-    }
+    const firebaseWebApiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || '';
+
+    const sendFirebaseNativeReset = async () => {
+      if (!firebaseWebApiKey) {
+        console.error('Admin password reset fallback unavailable: Firebase Web API key is not configured.');
+        return false;
+      }
+
+      try {
+        const response = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${encodeURIComponent(firebaseWebApiKey)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestType: 'PASSWORD_RESET',
+              email,
+              continueUrl: 'https://www.saelyxe.com/congsoleadmintechbypenetix'
+            })
+          }
+        );
+
+        if (!response.ok) {
+          const payload: any = await response.json().catch(() => ({}));
+          const providerCode = safeString(payload?.error?.message || response.status, 120);
+          // Keep the public response generic; this log is only for server diagnostics.
+          console.error('Firebase native admin password reset note:', providerCode);
+          return false;
+        }
+
+        return true;
+      } catch (error: any) {
+        console.error('Firebase native admin password reset transport note:', safeString(error?.message, 160));
+        return false;
+      }
+    };
 
     try {
       const authAdmin = getAuth();
       const userRecord = await authAdmin.getUserByEmail(email);
       if (!userRecord.emailVerified && !ROOT_ADMIN_EMAILS.has(email)) return genericSuccess();
+
+      if (!resendApiKey || !from) {
+        await sendFirebaseNativeReset();
+        return genericSuccess();
+      }
 
       const resetLink = await authAdmin.generatePasswordResetLink(email, {
         url: 'https://www.saelyxe.com/congsoleadmintechbypenetix',
@@ -1220,7 +1257,7 @@ app.post('/api/admin/password-reset', async (req, res) => {
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${resendApiKey}`,
           'Content-Type': 'application/json',
           'Idempotency-Key': `saelyxe-admin-reset-${crypto.createHash('sha256').update(email).digest('hex').slice(0, 32)}-${Math.floor(Date.now() / 600000)}`
         },
@@ -1241,10 +1278,14 @@ app.post('/api/admin/password-reset', async (req, res) => {
 
       if (!response.ok) {
         console.error('Admin password reset email failed:', response.status);
+        await sendFirebaseNativeReset();
       }
     } catch (error: any) {
-      // User-not-found and transport failures intentionally share the generic response.
+      // The deployed service account can be intentionally scoped away from
+      // Firebase Authentication administration. In that case, fall back to
+      // Firebase's public password-reset delivery endpoint using the web API key.
       console.error('Admin password reset delivery note:', safeString(error?.code || error?.message, 160));
+      await sendFirebaseNativeReset();
     }
 
     return genericSuccess();
