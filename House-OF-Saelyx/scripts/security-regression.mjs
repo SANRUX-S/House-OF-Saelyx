@@ -113,6 +113,12 @@ assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(normalizedEmail)'), 'clien
 assert(firebaseClient.includes('!credential.user.emailVerified'), 'configured administrators must be blocked until Firebase email verification');
 assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified administrators must retain an email verification path');
 assert(firebaseClient.includes('browserLocalPersistence') && firebaseClient.includes('browserSessionPersistence'), 'Remember Me must control Firebase persistence');
+assert(firebaseClient.includes('verifyAdminGoogleCredentials'), 'administrator login must expose a verified Google sign-in path');
+assert(firebaseClient.includes("credential.user.emailVerified !== true"), 'Google administrator login must require a verified Google/Firebase email');
+assert(firebaseClient.includes('const allowlistedRole = ADMIN_ROLES[email]'), 'Google administrator login must resolve roles only from the trusted admin allowlist or active admin record');
+assert(adminLogin.includes('CONTINUE WITH GOOGLE'), 'admin login UI must expose Google sign-in for verified root access');
+assert(store.includes('loginAdminWithGoogle'), 'StoreContext must wire the verified Google administrator sign-in flow');
+assert(firebaseClient.includes('await sendPasswordResetEmail(auth, normalizedEmail)'), 'admin password reset must use the Firebase client reset path when server Admin Auth permissions are unavailable');
 
 assert(api.includes("app.post('/api/admin/staff/invite'"), 'staff invitation API must exist');
 assert(api.includes('generateEmailVerificationLink'), 'staff invitation must include Firebase email verification');
