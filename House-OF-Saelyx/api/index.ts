@@ -33,6 +33,7 @@ app.use((_req, res, next) => {
   res.setHeader('Expires', '0');
   next();
 });
+app.use('/api/media/upload', express.json({ limit: '4mb' }));
 app.use(express.json({ limit: '64kb' }));
 
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
@@ -2007,6 +2008,126 @@ app.post('/api/media/cloudinary-signature', async (req, res) => {
     });
   } catch {
     return res.status(500).json({ error: 'Unable to authorize media upload.' });
+  }
+});
+
+function detectSupportedImageMime(buffer: Buffer): 'image/jpeg' | 'image/png' | 'image/webp' | 'image/avif' | null {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47 &&
+    buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a
+  ) return 'image/png';
+  if (
+    buffer.length >= 12 &&
+    buffer.toString('ascii', 0, 4) === 'RIFF' &&
+    buffer.toString('ascii', 8, 12) === 'WEBP'
+  ) return 'image/webp';
+  if (
+    buffer.length >= 12 &&
+    buffer.toString('ascii', 4, 8) === 'ftyp' &&
+    ['avif', 'avis'].includes(buffer.toString('ascii', 8, 12))
+  ) return 'image/avif';
+  return null;
+}
+
+app.post('/api/media/upload', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Media service is not configured.' });
+
+    const token = await readBearerToken(req);
+    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `media-upload:${token.uid}`, 40, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many image uploads. Please wait a few minutes and try again.' });
+    }
+
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    if (!cloudName || !apiKey || !apiSecret) {
+      return res.status(503).json({ error: 'Media storage is not configured.' });
+    }
+
+    if (!hasOnlyKeys(req.body, ['kind', 'fileName', 'mimeType', 'dataBase64'])) {
+      return res.status(400).json({ error: 'Invalid image upload request.' });
+    }
+
+    const kind = safeString(req.body?.kind, 30);
+    if (!['products', 'settings'].includes(kind)) {
+      return res.status(400).json({ error: 'Invalid media destination.' });
+    }
+
+    const claimedMime = safeString(req.body?.mimeType, 40).toLowerCase();
+    const allowedMimes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+    if (!allowedMimes.has(claimedMime)) {
+      return res.status(415).json({ error: 'Only JPEG, PNG, WebP, or AVIF images are supported.' });
+    }
+
+    const dataBase64 = typeof req.body?.dataBase64 === 'string' ? req.body.dataBase64 : '';
+    if (!dataBase64 || dataBase64.length > 3_500_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64)) {
+      return res.status(413).json({ error: 'Prepared image is too large or invalid. Please choose a smaller image.' });
+    }
+
+    const buffer = Buffer.from(dataBase64, 'base64');
+    if (!buffer.length || buffer.length > 2_600_000) {
+      return res.status(413).json({ error: 'Prepared image exceeds the secure upload limit.' });
+    }
+
+    const detectedMime = detectSupportedImageMime(buffer);
+    if (!detectedMime || detectedMime !== claimedMime) {
+      return res.status(415).json({ error: 'Image file type could not be verified.' });
+    }
+
+    const requestedName = safeString(req.body?.fileName, 160)
+      .replace(/[^a-zA-Z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || `saelyxe-${Date.now()}`;
+    const ext = detectedMime === 'image/jpeg' ? 'jpg' : detectedMime.split('/')[1];
+    const baseName = requestedName.replace(/\.[^.]+$/, '').slice(0, 120) || `saelyxe-${Date.now()}`;
+    const folder = kind === 'settings' ? 'saelyxe/settings' : 'saelyxe/products';
+
+    const formData = new FormData();
+    formData.append('file', new Blob([buffer], { type: detectedMime }), `${baseName}.${ext}`);
+    formData.append('folder', folder);
+    formData.append('use_filename', 'true');
+    formData.append('unique_filename', 'true');
+    formData.append('overwrite', 'false');
+
+    const authorization = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+    const cloudinaryResponse = await fetch(
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Basic ${authorization}` },
+        body: formData
+      }
+    );
+    const uploaded: any = await cloudinaryResponse.json().catch(() => ({}));
+
+    if (!cloudinaryResponse.ok) {
+      const providerMessage = safeString(uploaded?.error?.message, 240);
+      console.error('Cloudinary server upload failed:', cloudinaryResponse.status, providerMessage);
+      return res.status(502).json({
+        error: providerMessage ? `Image storage rejected the upload: ${providerMessage}` : 'Image storage rejected the upload.'
+      });
+    }
+
+    const secureUrl = safeString(uploaded?.secure_url, 1400);
+    if (!secureUrl.startsWith('https://res.cloudinary.com/')) {
+      return res.status(502).json({ error: 'Image storage did not return a secure delivery URL.' });
+    }
+
+    return res.status(201).json({
+      secureUrl: secureUrl.replace('/image/upload/', '/image/upload/f_auto,q_auto/'),
+      width: Number(uploaded?.width) || null,
+      height: Number(uploaded?.height) || null,
+      bytes: Number(uploaded?.bytes) || buffer.length,
+      format: safeString(uploaded?.format, 20)
+    });
+  } catch (error) {
+    console.error('Administrator media upload error:', error instanceof Error ? error.message : error);
+    return res.status(500).json({ error: 'Unable to upload image right now.' });
   }
 });
 
