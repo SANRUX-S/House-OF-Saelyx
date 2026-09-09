@@ -330,7 +330,7 @@ for (const fake of [
 assert(!trackerModal.includes("useState('SLX-94821')"), 'legacy tracker must not ship with a demo order reference');
 assert(tracker.includes('X-SAELYXE-Guest-Order-Token'), 'tracking page must support scoped guest-order capability tokens');
 assert(tracker.includes('firebaseUser.getIdToken()'), 'tracking page must still authenticate signed-in customer requests');
-assert(trackerModal.includes('Authorization: `Bearer ${token}`'), 'tracking modal must authenticate account-only requests');
+assert(trackerModal.includes('X-SAELYXE-Guest-Order-Token') && trackerModal.includes('firebaseUser.getIdToken()'), 'tracking modal must support scoped guest access while preserving signed-in authentication');
 
 
 /* Admin production audit #1–#36 regression gates */
