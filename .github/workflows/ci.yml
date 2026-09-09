@@ -59,7 +59,13 @@ jobs:
         run: npm run rules:test
 
       - name: Install Chromium for browser QA
-        run: npx playwright install --with-deps chromium
+        shell: bash
+        run: |
+          set -e
+          if ! npx playwright install --with-deps chromium; then
+            echo "Playwright dependency install hit a transient package-repository error; retrying browser-only install."
+            npx playwright install chromium
+          fi
 
       - name: Browser end-to-end security smoke
         run: npm run e2e
