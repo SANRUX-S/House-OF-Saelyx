@@ -136,7 +136,7 @@ assert(!checkout.includes('Temporary Test'), 'COD checkout must not contain temp
 assert(checkout.includes("paymentMethod: 'cod'"), 'COD checkout must create a server-backed order instead of faking local success');
 assert(checkout.includes('createCodCheckoutAttemptId'), 'COD checkout must use an idempotent checkout attempt identifier');
 assert(checkout.includes("cart.length === 0 && !confirmedOrder && !isPayzyReturn"), 'direct empty /checkout access must return the customer to the storefront');
-assert(store.includes("path.startsWith('/atelier-console')") && store.includes("path === '/admin'"), 'admin UI must use the atelier-console route while legacy /admin is retired');
+assert(store.includes("path === '/atelier-console' || path.startsWith('/atelier-console/')") && store.includes("path === '/admin'"), 'admin UI must use the atelier-console route while legacy /admin is retired');
 assert(api.includes("!['paypal', 'payzy', 'cod'].includes(paymentMethod)"), 'order API must allow only PayPal, Payzy, or COD');
 assert(api.includes("paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'"), 'COD orders must remain explicitly unpaid');
 assert(api.includes("paymentVerificationSource: paymentMethod === 'cod' ? 'cash_on_delivery' : null"), 'COD must never masquerade as provider-verified payment');
