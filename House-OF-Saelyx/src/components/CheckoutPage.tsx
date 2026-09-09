@@ -44,6 +44,18 @@ function createCodCheckoutAttemptId() {
   throw new Error('Secure checkout identifier generation is unavailable.');
 }
 
+function createPayzyCheckoutAttemptId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `payzy-${crypto.randomUUID()}`;
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const values = new Uint32Array(4);
+    crypto.getRandomValues(values);
+    return `payzy-${Array.from(values, value => value.toString(36)).join('-')}`;
+  }
+  throw new Error('Secure checkout identifier generation is unavailable.');
+}
+
 export const CheckoutPage: React.FC = () => {
   const { 
     cart, 
@@ -55,6 +67,8 @@ export const CheckoutPage: React.FC = () => {
     createPayPalPayment,
     capturePayPalPayment,
     cancelPayPalOrder,
+    createPayzyPayment,
+    getPayzyPaymentStatus,
     clearCart, 
     navigateTo, 
     user,
@@ -120,9 +134,10 @@ export const CheckoutPage: React.FC = () => {
   }, [user]);
 
   // Payment Method State: defaults to null (explicit selection required)
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'cod' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | null>(null);
   const [paymentConfig, setPaymentConfig] = useState({
-    paypal: { enabled: true, clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || '', mode: 'sandbox' }
+    paypal: { enabled: true, clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || '', mode: 'sandbox' },
+    payzy: { enabled: true, configured: false, mode: 'sandbox' as 'sandbox' | 'live', testAmountLKR: 10 as number | null }
   });
   const [paymentConfigLoaded, setPaymentConfigLoaded] = useState(false);
 
@@ -137,6 +152,12 @@ export const CheckoutPage: React.FC = () => {
             enabled: config.paypal?.enabled !== false,
             clientId: String(config.paypal?.clientId || (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || ''),
             mode: config.paypal?.mode === 'live' ? 'live' : 'sandbox'
+          },
+          payzy: {
+            enabled: config.payzy?.enabled !== false,
+            configured: config.payzy?.configured === true,
+            mode: config.payzy?.mode === 'live' ? 'live' : 'sandbox',
+            testAmountLKR: Number.isFinite(Number(config.payzy?.testAmountLKR)) ? Number(config.payzy.testAmountLKR) : null
           }
         });
       })
@@ -163,6 +184,8 @@ export const CheckoutPage: React.FC = () => {
   const paypalPendingOrderRef = useRef<Order | null>(null);
   const paypalCheckoutAttemptIdRef = useRef<string | null>(null);
   const codCheckoutAttemptIdRef = useRef<string | null>(null);
+  const payzyCheckoutAttemptIdRef = useRef<string | null>(null);
+  const payzyReturnHandledRef = useRef(false);
 
   // Derived Customer Full Name
   const customerName = `${firstName.trim()} ${lastName.trim()}`.trim();
@@ -260,7 +283,7 @@ export const CheckoutPage: React.FC = () => {
   };
 
   // Never clear the linked order or select a second method on uncertainty.
-  const handlePaymentMethodChange = async (method: 'paypal' | 'cod') => {
+  const handlePaymentMethodChange = async (method: 'paypal' | 'payzy' | 'cod') => {
     if (paymentSwitchInFlightRef.current || isSubmitting) return;
     paymentSwitchInFlightRef.current = true;
     setIsSwitchingPayment(true);
@@ -396,6 +419,65 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  // Payzy Custom Web Checkout Handler
+  const handlePayzyOrder = async () => {
+    if (cart.length === 0) {
+      setFieldErrors(prev => ({ ...prev, general: 'Your shopping bag is empty. Please select garments before placing an order.' }));
+      return;
+    }
+    if (!validateDeliveryDetails()) return;
+    if (country.trim().toLowerCase() !== 'sri lanka') {
+      setFieldErrors(prev => ({ ...prev, general: 'Payzy is currently available only for Sri Lankan delivery addresses.' }));
+      return;
+    }
+    if (!paymentConfig.payzy.configured) {
+      setFieldErrors(prev => ({ ...prev, general: 'Payzy server credential setup is still pending. Please use another payment method for now.' }));
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFieldErrors(prev => ({ ...prev, general: undefined }));
+    try {
+      const order = await createOrder({
+        customerName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        postalCode: postalCode.trim(),
+        country: country.trim() || 'Sri Lanka',
+        items: cart.map(item => ({
+          productId: item.productId,
+          size: item.size,
+          quantity: item.quantity
+        })),
+        currencyUsed: 'LKR',
+        paymentMethod: 'payzy',
+        promoCode: appliedPromo?.code,
+        checkoutAttemptId: payzyCheckoutAttemptIdRef.current || (
+          payzyCheckoutAttemptIdRef.current = createPayzyCheckoutAttemptId()
+        ),
+        notes: notes.trim()
+      });
+
+      const started = await createPayzyPayment(order.id || order.orderNumber);
+      if (!started.checkoutUrl || !/^https:\/\//i.test(started.checkoutUrl)) {
+        throw new Error('Payzy checkout URL could not be initialized.');
+      }
+      persistDeliveryDetailsIfNeeded();
+      window.location.assign(started.checkoutUrl);
+    } catch (err) {
+      console.error('Payzy checkout exception:', err);
+      setFieldErrors(prev => ({
+        ...prev,
+        general: err instanceof Error ? err.message : 'Payzy checkout could not be started.'
+      }));
+      setIsSubmitting(false);
+    }
+  };
+
   // COD Order Handler
   const handleCodOrder = async () => {
     if (cart.length === 0) {
@@ -450,6 +532,49 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  // Reconcile the Payzy provider return using the protected server-side order state.
+  useEffect(() => {
+    if (!user || payzyReturnHandledRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const payzyState = params.get('payzy');
+    const orderId = params.get('orderId');
+    if (!payzyState || !orderId) return;
+
+    payzyReturnHandledRef.current = true;
+    void (async () => {
+      try {
+        const order = await getPayzyPaymentStatus(orderId);
+        if (payzyState === 'success' && order.paymentStatus === 'verified') {
+          persistDeliveryDetailsIfNeeded();
+          setConfirmedOrder(order);
+          payzyCheckoutAttemptIdRef.current = null;
+          clearCart();
+          return;
+        }
+        if (payzyState === 'sandbox-success' && order.payzySandboxVerified === true) {
+          payzyCheckoutAttemptIdRef.current = null;
+          setFieldErrors(prev => ({
+            ...prev,
+            general: `Payzy sandbox test passed for order ${order.orderNumber}. The LKR ${paymentConfig.payzy.testAmountLKR || 10} test was signature-verified. This is not a live paid order and it will not be fulfilled.`
+          }));
+          return;
+        }
+        if (payzyState === 'failed') {
+          setFieldErrors(prev => ({ ...prev, general: 'Payzy reported that the payment was not completed. You can safely try again.' }));
+          return;
+        }
+        setFieldErrors(prev => ({ ...prev, general: `Payzy payment status could not be confirmed for order ${order.orderNumber}. Please check My Orders before retrying.` }));
+      } catch (error) {
+        setFieldErrors(prev => ({
+          ...prev,
+          general: error instanceof Error ? error.message : 'Unable to reconcile the Payzy payment return.'
+        }));
+      } finally {
+        window.history.replaceState({}, '', '/checkout');
+      }
+    })();
+  }, [user, getPayzyPaymentStatus]);
+
   // Confirmed Order Screen
   if (confirmedOrder) {
     return (
@@ -481,7 +606,7 @@ export const CheckoutPage: React.FC = () => {
           <div className="bg-[#FAF8F5] p-5 rounded-xl border border-[#EAE3D9] text-left space-y-3 text-xs">
             <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
               <span className="text-[#7A6E60]">Payment Method</span>
-              <span className="font-medium text-[#1A1816] uppercase">{confirmedOrder.paymentMethod === 'paypal' ? 'PayPal' : 'Cash on Delivery'}</span>
+              <span className="font-medium text-[#1A1816] uppercase">{confirmedOrder.paymentMethod === 'paypal' ? 'PayPal' : confirmedOrder.paymentMethod === 'payzy' ? 'Payzy' : 'Cash on Delivery'}</span>
             </div>
             <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
               <span className="text-[#7A6E60]">Logistics Courier</span>
