@@ -208,7 +208,16 @@ test('checkout payment selection starts unselected and toggles cleanly without t
     });
   });
 
-  await page.goto('/checkout');
+  // Establish the checkout-entry session on the real site origin, then load
+  // the protected checkout route. A fresh/direct URL without this entry is denied.
+  await page.goto('/');
+  await page.evaluate(() => {
+    sessionStorage.setItem('saelyxe_checkout_entry_v2', JSON.stringify({
+      nonce: 'ci-secure-checkout-entry',
+      issuedAtMs: Date.now()
+    }));
+  });
+  await page.goto('/secure-order-session');
   await expect(page.locator('body')).toContainText(/Sri Lanka/i);
 
   // Neither payment method starts selected
