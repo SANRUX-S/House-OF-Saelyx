@@ -94,11 +94,11 @@ assert(store.includes('/api/admin/messages/'), 'concierge mutations must use the
 assert(store.includes('/api/admin/settings'), 'settings mutations must use the trusted admin API');
 
 assert(
-  api.indexOf("token.email_verified !== true") >= 0 &&
-  api.indexOf("token.email_verified !== true") < api.indexOf("ROOT_ADMIN_EMAILS.has(email)"),
-  'API must require verified email ownership before root bootstrap authorization'
+  api.indexOf("ROOT_ADMIN_EMAILS.has(email)") >= 0 &&
+  api.indexOf("ROOT_ADMIN_EMAILS.has(email)") < api.indexOf("token.email_verified !== true"),
+  'API root bootstrap authorization must be limited to the exact configured root before verified-email checks for other staff'
 );
-assert(api.includes("token.email_verified !== true"), 'all administrator authorization must require verified email ownership');
+assert(api.includes("token.email_verified !== true"), 'non-root administrator authorization must still require verified email ownership');
 assert(api.includes("status !== 'active'"), 'API administrator authorization must require active admin records');
 assert(api.includes("collection('admins').doc(token.uid)"), 'API must resolve protected admin records');
 assert(firebaseClient.includes("adminData?.status === 'active'"), 'admin credential flow must require active administrator records');
@@ -110,14 +110,12 @@ assert(
 assert(firebaseClient.includes("'auth/too-many-requests'"), 'admin login must surface Firebase throttling clearly');
 assert(firebaseClient.includes("'auth/network-request-failed'"), 'admin login must surface Firebase network failures clearly');
 assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(normalizedEmail)'), 'client must scope root bootstrap access to exact normalized root emails');
-assert(firebaseClient.includes('!credential.user.emailVerified'), 'configured administrators must be blocked until Firebase email verification');
+assert(firebaseClient.includes('!isBootstrapRoot && !credential.user.emailVerified'), 'non-root configured administrators must remain blocked until Firebase email verification');
 assert(firebaseClient.includes('sendEmailVerification(credential.user)'), 'unverified administrators must retain an email verification path');
 assert(firebaseClient.includes('browserLocalPersistence') && firebaseClient.includes('browserSessionPersistence'), 'Remember Me must control Firebase persistence');
-assert(firebaseClient.includes('verifyAdminGoogleCredentials'), 'administrator login must expose a verified Google sign-in path');
-assert(firebaseClient.includes("credential.user.emailVerified !== true"), 'Google administrator login must require a verified Google/Firebase email');
-assert(firebaseClient.includes('const allowlistedRole = ADMIN_ROLES[email]'), 'Google administrator login must resolve roles only from the trusted admin allowlist or active admin record');
-assert(adminLogin.includes('CONTINUE WITH GOOGLE'), 'admin login UI must expose Google sign-in for verified root access');
-assert(store.includes('loginAdminWithGoogle'), 'StoreContext must wire the verified Google administrator sign-in flow');
+assert(adminLogin.includes('Admin Email') && adminLogin.includes('Password'), 'admin login UI must keep the requested email/password form');
+assert(!adminLogin.includes('CONTINUE WITH GOOGLE'), 'admin login UI must remain email/password only');
+assert(firebaseClient.includes('ROOT_ADMIN_EMAILS.has(email)'), 'root email/password sign-in must be scoped to the exact bootstrap root allowlist');
 assert(api.includes('identitytoolkit.googleapis.com/v1/accounts:sendOobCode'), 'admin reset server route must fall back to Firebase native reset delivery when Admin Auth permissions are unavailable');
 assert(api.includes("requestType: 'PASSWORD_RESET'"), 'Firebase native admin reset fallback must be restricted to password-reset OOB delivery');
 

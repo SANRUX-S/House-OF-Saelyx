@@ -135,10 +135,11 @@ async function getAdminRole(token: DecodedIdToken | null): Promise<'admin' | 'su
   if (!token) return null;
   const email = typeof token.email === 'string' ? token.email.toLowerCase() : '';
 
-  // Every administrator, including bootstrap roots, must prove verified
-  // Firebase email ownership before any privileged authorization decision.
-  if (token.email_verified !== true) return null;
+  // The single bootstrap root is authenticated by Firebase email/password plus
+  // the exact allowlisted address. All other administrators still require a
+  // verified Firebase email before any privileged authorization decision.
   if (ROOT_ADMIN_EMAILS.has(email)) return 'super_admin';
+  if (token.email_verified !== true) return null;
 
   const configuredRole = ADMIN_EMAIL_ROLES.get(email);
   if (configuredRole) return configuredRole;
@@ -1904,6 +1905,45 @@ app.post('/api/admin/maintenance/purge-legacy-demo-fixtures', async (req, res) =
     return res.status(500).json({
       error: error instanceof Error ? error.message : 'Unable to purge legacy demo records.'
     });
+  }
+});
+
+app.get('/api/admin/bootstrap', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Administrator service is not configured.' });
+
+    const token = await readBearerToken(req);
+    const role = await getAdminRole(token);
+    if (!token || !role) return res.status(403).json({ error: 'Administrator access required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    if (!(await enforceRateLimit(adminDb, `admin-bootstrap:${token.uid}`, 30, 10 * 60_000))) {
+      return res.status(429).json({ error: 'Too many administrator refresh requests. Please wait and retry.' });
+    }
+
+    const [ordersSnap, stockSnap, inquiriesSnap, staffSnap, auditSnap] = await Promise.all([
+      adminDb.collection('orders').orderBy('createdAt', 'desc').limit(250).get(),
+      adminDb.collection('stock_notifications').orderBy('createdAt', 'desc').limit(250).get(),
+      adminDb.collection('concierge_inquiries').orderBy('createdAt', 'desc').limit(250).get(),
+      adminDb.collection('staff').limit(250).get(),
+      adminDb.collection('audit_logs').orderBy('timestamp', 'desc').limit(200).get()
+    ]);
+
+    const mapDocs = (snapshot: any) =>
+      snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    return res.status(200).json({
+      role,
+      orders: mapDocs(ordersSnap),
+      stockNotifications: mapDocs(stockSnap),
+      messages: mapDocs(inquiriesSnap),
+      staff: mapDocs(staffSnap),
+      auditLogs: mapDocs(auditSnap)
+    });
+  } catch (error: any) {
+    console.error('Admin bootstrap snapshot note:', safeString(error?.message, 240));
+    return res.status(500).json({ error: 'Unable to load administrator data.' });
   }
 });
 

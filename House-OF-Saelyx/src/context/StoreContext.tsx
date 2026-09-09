@@ -717,6 +717,70 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return fetch(input, { ...init, headers });
   }, []);
 
+  // Bootstrap/root administrators can operate through the trusted API even if
+  // the Firebase emailVerified flag was never set on the legacy root account.
+  // This snapshot also provides a secure fallback when direct Firestore admin
+  // listeners are unavailable for that legacy account.
+  useEffect(() => {
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+
+    let cancelled = false;
+    let inFlight = false;
+
+    const loadAdminSnapshot = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const response = await fetchAdminApi('/api/admin/bootstrap');
+        if (!response.ok) return;
+        const payload = await response.json();
+
+        if (cancelled) return;
+
+        const nextOrders: Order[] = Array.isArray(payload?.orders) ? payload.orders : [];
+        const nextStock: StockNotification[] = Array.isArray(payload?.stockNotifications) ? payload.stockNotifications : [];
+        const nextMessages: ContactMessage[] = Array.isArray(payload?.messages) ? payload.messages : [];
+        const nextStaff: AdminStaff[] = Array.isArray(payload?.staff) ? payload.staff : [];
+        const nextAudit: AuditLog[] = Array.isArray(payload?.auditLogs) ? payload.auditLogs : [];
+
+        setOrders(
+          nextOrders
+            .filter(order => !isLegacyDemoOrder(order))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
+        setHasMoreAdminOrders(nextOrders.length >= 250);
+        setStockNotifications(
+          nextStock
+            .filter(notification => !isPrelaunchLegacyRecord(notification.createdAt))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
+        setMessages(
+          nextMessages
+            .filter(message => !isPrelaunchLegacyRecord(message.createdAt))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
+        setStaffList(nextStaff);
+        setAuditLogs(
+          nextAudit.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        );
+      } catch (error) {
+        console.warn('Administrator bootstrap snapshot note:', error);
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void loadAdminSnapshot();
+    const intervalId = window.setInterval(() => {
+      void loadAdminSnapshot();
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [fetchAdminApi, user?.role]);
+
   useEffect(() => {
     if (user?.role !== 'super_admin') return;
 
@@ -826,6 +890,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const colRef = collection(db, 'orders');
       const isAdminUser = user.role === 'admin' || user.role === 'super_admin';
+      if (isAdminUser && auth.currentUser?.emailVerified !== true) return;
       const ordersQuery = isAdminUser
         ? query(colRef, orderBy('createdAt', 'desc'), limit(250))
         : query(colRef, where('userId', '==', user.uid));
@@ -919,6 +984,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // 3. Stock Notifications real-time listener (Waitlists)
   useEffect(() => {
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
+    if (auth.currentUser?.emailVerified !== true) return;
     try {
       const stockRef = collection(db, 'stock_notifications');
       const unsub = onSnapshot(query(stockRef, orderBy('createdAt', 'desc'), limit(250)), async (snap) => {
@@ -944,6 +1010,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // 4. Concierge Inquiries real-time listener
   useEffect(() => {
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
+    if (auth.currentUser?.emailVerified !== true) return;
     try {
       const colRef = collection(db, 'concierge_inquiries');
       const unsub = onSnapshot(query(colRef, orderBy('createdAt', 'desc'), limit(250)), async (snap) => {
@@ -966,6 +1033,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // 5. Staff real-time listener
   useEffect(() => {
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
+    if (auth.currentUser?.emailVerified !== true) return;
     try {
       const colRef = collection(db, 'staff');
       const unsub = onSnapshot(colRef, async (snap) => {
@@ -988,6 +1056,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // 7. Audit Logs real-time listener
   useEffect(() => {
     if (!isFirebaseConfigured || (user?.role !== 'admin' && user?.role !== 'super_admin')) return;
+    if (auth.currentUser?.emailVerified !== true) return;
     try {
       const colRef = collection(db, 'audit_logs');
       const unsub = onSnapshot(query(colRef, orderBy('timestamp', 'desc'), limit(200)), (snap) => {

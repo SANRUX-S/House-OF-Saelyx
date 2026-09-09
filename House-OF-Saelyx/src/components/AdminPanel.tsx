@@ -30,7 +30,6 @@ export const AdminPanel: React.FC = () => {
     formatPrice, 
     user, 
     loginAdmin, 
-    loginAdminWithGoogle,
     logout, 
     navigateTo, 
     refetchData, 
@@ -237,7 +236,6 @@ export const AdminPanel: React.FC = () => {
     return (
       <AdminLogin
         onLogin={loginAdmin}
-        onGoogleLogin={loginAdminWithGoogle}
         onReturnToStore={() => navigateTo({ name: 'home' })}
       />
     );
