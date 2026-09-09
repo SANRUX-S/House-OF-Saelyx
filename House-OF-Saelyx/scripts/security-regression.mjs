@@ -406,7 +406,7 @@ assert(!fs.existsSync('src/components/admin/AdminSectionSettings.tsx'), '#26 dup
 assert(!adminLayout.includes('section-settings') && !adminPanel.includes('section-settings'), '#27 forbidden duplicate settings navigation must remain removed');
 
 assert(api.includes("app.get('/api/admin/health'") && api.includes("res.json({ ok: true, service: 'saelyxe-api' });"), '#28 public health must stay minimal while admin diagnostics are protected');
-assert(adminMedia.includes('MAX_IMAGE_MEGAPIXELS') && api.includes("signedBody.append('signature', signature)") && api.includes('https://api.cloudinary.com/v1_1/'), '#29 media uploads must enforce image limits and use protected Cloudinary delivery');
+assert(adminMedia.includes('MAX_IMAGE_MEGAPIXELS') && api.includes('getStorage().bucket(bucketName)') && api.includes('firebaseStorageDownloadTokens'), '#29 media uploads must enforce image limits and use protected Firebase Storage delivery');
 assert(api.includes('startAfter(cursorSnap)') && store.includes('/api/admin/orders/page?limit=100&cursor=') && store.includes('oldest.id'), '#30 order history pagination must use stable document cursors');
 assert(store.includes('limit(250)') && store.includes('limit(200)'), '#31 realtime admin listeners must remain bounded');
 assert(!store.includes("setDoc(doc(db, 'products'") && !store.includes('for (const p of data)'), '#32 empty product collections must not auto-seed fallback products');
