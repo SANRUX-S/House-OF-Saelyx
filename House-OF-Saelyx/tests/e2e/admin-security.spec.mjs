@@ -11,7 +11,7 @@ test('public storefront loads with enforced CSP', async ({ page }) => {
 });
 
 test('admin route stays behind Firebase administrator login', async ({ page }) => {
-  await page.goto('/atelier-console');
+  await page.goto('/congsoleadmintechbypenetix');
   await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
   await expect(page.getByPlaceholder('admin@your-domain.com')).toBeVisible();
   await expect(page.locator('input[type="password"]')).toBeVisible();
@@ -22,7 +22,7 @@ test('admin route stays behind Firebase administrator login', async ({ page }) =
 
 test('admin login remains usable on a narrow mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto('/atelier-console');
+  await page.goto('/congsoleadmintechbypenetix');
   await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
   const noHorizontalOverflow = await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 2
@@ -38,10 +38,26 @@ test('order tracking supports account or scoped guest access without leaking pri
   await expect(page.getByText(/Customer Name|Street Address|Payment Method/i)).toHaveCount(0);
 });
 
-test('legacy /admin entry route is retired to the storefront', async ({ page }) => {
-  await page.goto('/admin');
+test('legacy admin entry routes are retired to the storefront', async ({ page }) => {
+  for (const route of ['/admin', '/atelier-console']) {
+    await page.goto(route);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toHaveCount(0);
+  }
+});
+
+test('direct checkout URLs cannot open the checkout page', async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('saelyxe_checkout_entry_v2', JSON.stringify({
+      nonce: 'ci-secure-checkout-entry',
+      issuedAtMs: Date.now()
+    }));
+  });
+  await page.goto('/secure-order-session');
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toHaveCount(0);
+
+  await page.goto('/secure-order-session');
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test('public health endpoint is intentionally minimal', async ({ request }) => {
@@ -105,7 +121,7 @@ for (const viewport of responsiveViewports) {
 for (const viewport of responsiveViewports) {
   test(`admin login remains responsive on ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    const response = await page.goto('/atelier-console');
+    const response = await page.goto('/congsoleadmintechbypenetix');
     expect(response).not.toBeNull();
     expect(response?.status()).toBeLessThan(400);
     await expect(page.getByRole('heading', { name: 'SAELYXE ADMIN' })).toBeVisible();
