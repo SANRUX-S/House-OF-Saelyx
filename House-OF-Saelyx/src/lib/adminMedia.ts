@@ -1,5 +1,4 @@
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { auth, storage } from './firebase';
+import { auth, getAppCheckRequestHeaders } from './firebase';
 
 export type AdminMediaKind = 'products' | 'settings';
 
@@ -100,13 +99,15 @@ async function prepareAdminImage(file: File): Promise<File> {
   }
 }
 
-function createMediaId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length));
+    binary += String.fromCharCode(...chunk);
   }
-  const values = new Uint32Array(4);
-  crypto.getRandomValues(values);
-  return Array.from(values, value => value.toString(36)).join('-');
+  return btoa(binary);
 }
 
 export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promise<string> {
@@ -114,41 +115,33 @@ export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promis
   if (!currentUser) throw new Error('Admin session expired. Please sign in again.');
 
   const prepared = await prepareAdminImage(file);
-  const cleanName = (prepared.name || 'saelyxe-image')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 120) || 'saelyxe-image.webp';
-  const destination = `saelyxe/${kind}/${currentUser.uid}/${Date.now()}-${createMediaId()}-${cleanName}`;
+  const idToken = await currentUser.getIdToken();
+  const appCheckHeaders = await getAppCheckRequestHeaders();
+  const dataBase64 = arrayBufferToBase64(await prepared.arrayBuffer());
 
-  try {
-    const storageRef = ref(storage, destination);
-    const snapshot = await uploadBytes(storageRef, prepared, {
-      contentType: prepared.type,
-      cacheControl: 'public,max-age=31536000,immutable',
-      customMetadata: {
-        uploadedBy: currentUser.uid,
-        mediaKind: kind
-      }
-    });
-    return await getDownloadURL(snapshot.ref);
-  } catch (error: any) {
-    const code = String(error?.code || '');
-    if (code === 'storage/unauthorized') {
-      throw new Error('Media upload permission is not enabled yet. Deploy the current Firebase Storage rules and try again.');
-    }
-    if (code === 'storage/bucket-not-found') {
-      throw new Error('Firebase Storage bucket is not available for this project.');
-    }
-    if (code === 'storage/quota-exceeded') {
-      throw new Error('Firebase Storage quota has been reached.');
-    }
-    if (code === 'storage/retry-limit-exceeded') {
-      throw new Error('Image upload timed out. Please try again.');
-    }
-    if (code === 'storage/canceled') {
-      throw new Error('Image upload was cancelled.');
-    }
-    console.warn('Admin Firebase Storage upload diagnostic:', code || error);
-    throw new Error('Unable to upload image right now.');
+  const response = await fetch('/api/media/upload', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+      ...appCheckHeaders
+    },
+    body: JSON.stringify({
+      kind,
+      fileName: prepared.name,
+      mimeType: prepared.type,
+      dataBase64
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Unable to upload image right now.');
   }
+
+  const secureUrl = String(payload?.secureUrl || '');
+  if (!secureUrl.startsWith('https://res.cloudinary.com/')) {
+    throw new Error('SAELYXE Media Storage did not return a valid image URL.');
+  }
+  return secureUrl;
 }

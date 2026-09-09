@@ -194,7 +194,7 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({
     {
       id: 'media-storage',
       name: 'Media Storage',
-      description: 'Protected Firebase Storage media configuration for admin uploads.',
+      description: 'Protected Cloudinary media configuration for admin uploads.',
       configured: health?.mediaStorageConfigured === true
     },
     {
