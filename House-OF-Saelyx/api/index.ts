@@ -1952,12 +1952,13 @@ app.get('/api/admin/health', async (req, res) => {
     const token = await readBearerToken(req);
     if (!token || !(await isSuperAdminToken(token))) return res.status(403).json({ error: 'Super Admin access required.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    const mediaConfig = getCloudinaryUploadConfig();
     return res.json({
       ok: true,
       firebaseAdminConfigured: Boolean(getAdminDb()),
       transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
-      mediaStorageConfigured: true,
-      mediaStorageProvider: 'firebase_storage',
+      mediaStorageConfigured: mediaConfig.configured,
+      mediaStorageProvider: 'cloudinary',
       appCheckEnforced: isAppCheckEnforced(),
       abuseProtectionConfigured: true,
       payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
