@@ -180,7 +180,6 @@ assert(!fs.existsSync('functions/index.js'), 'duplicate Firebase Functions runti
 assert(api.includes('CLOUDINARY_URL') && api.includes('CLOUDINARY_CLOUD_NAME') && api.includes('CLOUDINARY_API_SECRET'), 'admin media uploads must use server-only Cloudinary configuration');
 assert(api.includes('media-upload:'), 'Cloudinary media uploads must be rate limited per admin');
 assert(api.includes("createHash('sha256')") && api.includes("signedBody.append('signature', signature)"), 'Cloudinary signed uploads must use a server-generated SHA-256 signature');
-assert(adminMedia.includes("fetch('/api/media/upload'") && !adminMedia.includes("from 'firebase/storage'"), 'admin media must upload through the protected server route');
 assert(adminDrop.includes("uploadAdminImage(file, 'settings')"), 'drop background must use the protected media service instead of Firestore base64');
 assert(!adminDrop.includes('readAsDataURL'), 'drop settings must not store base64 images in Firestore');
 
@@ -290,6 +289,7 @@ const adminMedia = read('src/lib/adminMedia.ts');
 assert(adminMedia.includes('createImageBitmap(file)'), 'admin media must decode images before upload');
 assert(adminMedia.includes('MAX_IMAGE_MEGAPIXELS'), 'admin media must enforce megapixel limits');
 assert(adminMedia.includes('ALLOWED_IMAGE_TYPES'), 'admin media must restrict accepted image formats');
+assert(adminMedia.includes("fetch('/api/media/upload'") && !adminMedia.includes("from 'firebase/storage'"), 'admin media must upload through the protected server route');
 
 assert(fs.existsSync('scripts/firestore-rules.test.mjs'), 'Firestore emulator authorization tests must exist');
 assert(fs.existsSync('tests/e2e/admin-security.spec.mjs'), 'browser end-to-end security tests must exist');
