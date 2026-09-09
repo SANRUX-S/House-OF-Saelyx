@@ -117,8 +117,8 @@ export const SEOManager: React.FC = () => {
       description = 'Verification of custom weave fabrics, serial numbers, and genuine SAELYXE garment craft.';
       canonicalPath = '/care/authenticity';
     } else if (routeName === 'admin') {
-      title = 'Admin Atelier | SAELYXE Console';
-      description = 'Internal atelier administration and inventory management.';
+      title = 'SAELYXE Admin Console';
+      description = 'Private SAELYXE administration and inventory management console.';
       canonicalPath = '/congsoleadmintechbypenetix';
     }
 
