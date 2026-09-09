@@ -121,7 +121,7 @@ assert(adminStaff.includes('Activate') && adminStaff.includes('Revoke'), 'staff 
 
 assert(api.includes("app.post('/api/admin/orders/:id/refund'"), 'Super Admin PayPal refund endpoint must exist');
 assert(api.includes("app.post('/api/orders/:id/cancellation-request'"), 'customer cancellation request endpoint must exist');
-assert(api.includes("cancellationRequestedBy: token.uid"), 'customer cancellation request must be authenticated to the owning user');
+assert(api.includes("cancellationRequestedBy: access.kind === 'guest' ? 'guest' : access.uid"), 'customer cancellation requests must be bound to signed-in ownership or the scoped guest-order capability');
 assert(api.includes("Cancellation requests are closed after dispatch."), 'customer cancellation requests must close after dispatch');
 assert(api.includes('/v2/payments/captures/') && api.includes('/refund'), 'refund must use PayPal Payments v2 capture refund');
 assert(api.includes('paymentCaptureId'), 'PayPal capture ID must be persisted');
@@ -503,10 +503,10 @@ const payzyNextRoute = api.indexOf("app.get('/api/payments/paypal/status'", payz
 const payzyCreateRoute = payzyCreateStart >= 0 && payzyStatusStart > payzyCreateStart ? api.slice(payzyCreateStart, payzyStatusStart) : '';
 const payzyStatusRoute = payzyStatusStart >= 0 && payzyReturnStart > payzyStatusStart ? api.slice(payzyStatusStart, payzyReturnStart) : '';
 const payzyReturnRoute = payzyReturnStart >= 0 && payzyNextRoute > payzyReturnStart ? api.slice(payzyReturnStart, payzyNextRoute) : '';
-assert(payzyCreateRoute.includes('readBearerToken(req)') && payzyCreateRoute.includes('hasValidAppCheck(req)'), 'Payzy create route must require Firebase authentication and App Check');
+assert(payzyCreateRoute.includes('authorizeCustomerOrderAccess(req, adminDb, order)') && payzyCreateRoute.includes('hasValidAppCheck(req)'), 'Payzy create route must require App Check plus signed-in or scoped guest order access');
 assert(payzyCreateRoute.includes('payzy-create:'), 'Payzy checkout creation must be rate limited');
 assert(payzyCreateRoute.includes("order.paymentMethod !== 'payzy'"), 'Payzy checkout creation must be bound to a Payzy order');
-assert(payzyStatusRoute.includes('readBearerToken(req)') && payzyStatusRoute.includes('order.userId !== token.uid'), 'Payzy status route must enforce authenticated order ownership');
+assert(payzyStatusRoute.includes('authorizeCustomerOrderAccess(req, adminDb, order)'), 'Payzy status route must enforce signed-in or scoped guest order ownership');
 assert(payzyReturnRoute.includes('verifyPayzyReturnSignature'), 'Payzy provider return must be HMAC verified server-side');
 assert(payzyReturnRoute.includes("responseCode !== '00'"), 'Payzy provider failures must not be treated as successful payments');
 assert(payzyReturnRoute.includes('markPayzySandboxVerified') && payzyReturnRoute.includes('markPayzyLiveVerified'), 'Payzy sandbox and live settlement states must be separated');
