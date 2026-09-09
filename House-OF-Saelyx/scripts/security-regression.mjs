@@ -118,7 +118,8 @@ assert(firebaseClient.includes("credential.user.emailVerified !== true"), 'Googl
 assert(firebaseClient.includes('const allowlistedRole = ADMIN_ROLES[email]'), 'Google administrator login must resolve roles only from the trusted admin allowlist or active admin record');
 assert(adminLogin.includes('CONTINUE WITH GOOGLE'), 'admin login UI must expose Google sign-in for verified root access');
 assert(store.includes('loginAdminWithGoogle'), 'StoreContext must wire the verified Google administrator sign-in flow');
-assert(firebaseClient.includes('await sendPasswordResetEmail(auth, normalizedEmail)'), 'admin password reset must use the Firebase client reset path when server Admin Auth permissions are unavailable');
+assert(api.includes('identitytoolkit.googleapis.com/v1/accounts:sendOobCode'), 'admin reset server route must fall back to Firebase native reset delivery when Admin Auth permissions are unavailable');
+assert(api.includes("requestType: 'PASSWORD_RESET'"), 'Firebase native admin reset fallback must be restricted to password-reset OOB delivery');
 
 assert(api.includes("app.post('/api/admin/staff/invite'"), 'staff invitation API must exist');
 assert(api.includes('generateEmailVerificationLink'), 'staff invitation must include Firebase email verification');
