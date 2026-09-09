@@ -38,11 +38,10 @@ app.use(express.json({ limit: '64kb' }));
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
 const ADMIN_EMAIL_ROLES = new Map<string, 'admin' | 'super_admin'>([
   ['saelyx.co@gmail.com', 'super_admin'],
-  ['saelyx.co+super@gmail.com', 'super_admin'],
   ['saelyx.co+admin@gmail.com', 'admin']
 ]);
 const ADMIN_EMAILS = new Set(ADMIN_EMAIL_ROLES.keys());
-const ROOT_ADMIN_EMAILS = new Set(['saelyx.co@gmail.com', 'saelyx.co+super@gmail.com']);
+const ROOT_ADMIN_EMAILS = new Set(['saelyx.co@gmail.com']);
 
 const LEGACY_TEST_PRODUCT_IDS = new Set([
   'prod-mtogg0qy',
