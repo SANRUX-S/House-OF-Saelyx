@@ -252,7 +252,7 @@ async function enforceRateLimit(
 
 async function cleanupExpiredSecurityDocs(adminDb: NonNullable<ReturnType<typeof getAdminDb>>) {
   const now = Date.now();
-  for (const collectionName of ['security_rate_limits', 'order_idempotency']) {
+  for (const collectionName of ['security_rate_limits', 'order_idempotency', 'guest_order_access']) {
     const snapshot = await adminDb.collection(collectionName)
       .where('expiresAtMs', '<', now)
       .limit(50)
@@ -262,6 +262,87 @@ async function cleanupExpiredSecurityDocs(adminDb: NonNullable<ReturnType<typeof
     snapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
     await batch.commit();
   }
+}
+
+const GUEST_ORDER_ACCESS_HEADER = 'x-saelyxe-guest-order-token';
+const GUEST_ORDER_ACCESS_TTL_MS = 45 * 24 * 60 * 60_000;
+
+function hashGuestOrderAccessToken(value: string) {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+async function issueGuestOrderAccess(
+  adminDb: NonNullable<ReturnType<typeof getAdminDb>>,
+  orderId: string,
+  email: string
+) {
+  const accessToken = crypto.randomBytes(32).toString('base64url');
+  const tokenHash = hashGuestOrderAccessToken(accessToken);
+  const nowMs = Date.now();
+  const expiresAtMs = nowMs + GUEST_ORDER_ACCESS_TTL_MS;
+  await adminDb.collection('guest_order_access').doc(orderId).set({
+    orderId,
+    tokenHash,
+    emailHash: crypto.createHash('sha256').update(email.toLowerCase()).digest('hex'),
+    createdAtMs: nowMs,
+    expiresAtMs,
+    expiresAt: Timestamp.fromMillis(expiresAtMs),
+    serverCreatedAt: FieldValue.serverTimestamp()
+  });
+  return {
+    guestAccessToken: accessToken,
+    guestAccessExpiresAt: new Date(expiresAtMs).toISOString()
+  };
+}
+
+type CustomerOrderAccess =
+  | { kind: 'admin'; uid: string; rateKey: string }
+  | { kind: 'user'; uid: string; rateKey: string }
+  | { kind: 'guest'; rateKey: string };
+
+async function authorizeCustomerOrderAccess(
+  req: Request,
+  adminDb: NonNullable<ReturnType<typeof getAdminDb>>,
+  order: any
+): Promise<CustomerOrderAccess | null> {
+  const authToken = await readBearerToken(req);
+  if (authToken) {
+    const role = await getAdminRole(authToken);
+    if (role) {
+      return { kind: 'admin', uid: authToken.uid, rateKey: `admin:${authToken.uid}` };
+    }
+    if (safeString(order?.userId, 160) === authToken.uid) {
+      return { kind: 'user', uid: authToken.uid, rateKey: `user:${authToken.uid}` };
+    }
+  }
+
+  if (order?.guestCheckout !== true) return null;
+  const presented = safeString(req.header(GUEST_ORDER_ACCESS_HEADER), 500);
+  if (!presented) return null;
+
+  const accessSnap = await adminDb.collection('guest_order_access').doc(safeString(order.id, 120)).get();
+  if (!accessSnap.exists) return null;
+  const accessData: any = accessSnap.data() || {};
+  if (Number(accessData.expiresAtMs) <= Date.now()) return null;
+
+  const expectedHash = safeString(accessData.tokenHash, 64);
+  const actualHash = hashGuestOrderAccessToken(presented);
+  if (!/^[a-f0-9]{64}$/i.test(expectedHash) || !/^[a-f0-9]{64}$/i.test(actualHash)) return null;
+
+  const expected = Buffer.from(expectedHash, 'hex');
+  const actual = Buffer.from(actualHash, 'hex');
+  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null;
+
+  return {
+    kind: 'guest',
+    rateKey: `guest:${safeString(order.id, 120)}:${actualHash.slice(0, 16)}`
+  };
+}
+
+function customerOrderAccessStillMatches(order: any, access: CustomerOrderAccess) {
+  if (access.kind === 'admin') return true;
+  if (access.kind === 'user') return safeString(order?.userId, 160) === access.uid;
+  return order?.guestCheckout === true;
 }
 
 function calculateDiscount(codeRaw: unknown, subtotalLKR: number) {
@@ -2997,19 +3078,28 @@ app.post('/api/orders', async (req, res) => {
       return res.status(400).json({ error: 'Order item quantity or product reference is invalid.' });
     }
 
-    const authToken = await readBearerToken(req);
-    if (!authToken) {
-      return res.status(401).json({ error: 'Please sign in before placing an order.' });
-    }
-    const authenticatedEmail = typeof authToken.email === 'string' ? authToken.email.toLowerCase() : '';
-    if (!authenticatedEmail || authToken.email_verified !== true || authenticatedEmail !== email) {
-      return res.status(403).json({ error: 'Order email must match your verified account email.' });
-    }
     if (!(await hasValidAppCheck(req))) {
       return res.status(401).json({ error: 'App integrity check failed. Please refresh and try again.' });
     }
-    if (!(await enforceRateLimit(adminDb, `orders:${authToken.uid}`, 5, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many order attempts. Please wait a few minutes and try again.' });
+
+    const authToken = await readBearerToken(req);
+    const isGuestCheckout = !authToken;
+    if (authToken) {
+      const authenticatedEmail = typeof authToken.email === 'string' ? authToken.email.toLowerCase() : '';
+      if (!authenticatedEmail || authToken.email_verified !== true || authenticatedEmail !== email) {
+        return res.status(403).json({ error: 'Order email must match your verified account email.' });
+      }
+      if (!(await enforceRateLimit(adminDb, `orders:${authToken.uid}`, 5, 10 * 60_000))) {
+        return res.status(429).json({ error: 'Too many order attempts. Please wait a few minutes and try again.' });
+      }
+    } else {
+      const clientAddress = getClientAddress(req);
+      if (!(await enforceRateLimit(adminDb, `guest-orders-short:${clientAddress}`, 4, 10 * 60_000))) {
+        return res.status(429).json({ error: 'Too many guest checkout attempts. Please wait a few minutes and try again.' });
+      }
+      if (!(await enforceRateLimit(adminDb, `guest-orders-daily:${clientAddress}`, 20, 24 * 60 * 60_000))) {
+        return res.status(429).json({ error: 'Guest checkout limit reached for this network. Please try again later or sign in.' });
+      }
     }
 
     const requestedCurrency = safeString(body.currencyUsed, 10).toUpperCase();
@@ -3021,8 +3111,11 @@ app.post('/api/orders', async (req, res) => {
     // Online provider references are created and linked server-side after the local order exists.
     const paymentProviderReference = '';
     const checkoutAttemptId = safeString(body.checkoutAttemptId, 120);
+    const checkoutIdentity = authToken
+      ? `uid:${authToken.uid}`
+      : `guest:${crypto.createHash('sha256').update(`${email}|${getClientAddress(req)}`).digest('hex')}`;
     const duplicateFingerprint = crypto.createHash('sha256').update(JSON.stringify({
-      uid: authToken.uid,
+      identity: checkoutIdentity,
       items: [...requested].sort((a, b) => `${a.productId}:${a.size}`.localeCompare(`${b.productId}:${b.size}`)),
       paymentMethod,
       paymentProviderReference,
@@ -3120,7 +3213,8 @@ app.post('/api/orders', async (req, res) => {
       const order: any = {
         id: orderNumber,
         orderNumber,
-        userId: authToken.uid,
+        userId: authToken?.uid || null,
+        guestCheckout: isGuestCheckout,
         customerName,
         email,
         phone,
@@ -3163,7 +3257,8 @@ app.post('/api/orders', async (req, res) => {
       const guardExpiresAtMs = Date.now() + idempotencyWindowMs;
       transaction.set(guardRef, {
         orderNumber,
-        userId: authToken.uid,
+        userId: authToken?.uid || null,
+        guestCheckout: isGuestCheckout,
         createdAtMs: Date.now(),
         expiresAtMs: guardExpiresAtMs,
         expiresAt: Timestamp.fromMillis(guardExpiresAtMs)
@@ -3179,7 +3274,11 @@ app.post('/api/orders', async (req, res) => {
     if (replayOrderNumber) {
       const existing = await adminDb.collection('orders').doc(replayOrderNumber).get();
       if (existing.exists) {
-        return res.status(200).setHeader('X-Idempotent-Replay', 'true').json({ id: existing.id, ...existing.data() });
+        const replayPayload: any = { id: existing.id, ...existing.data() };
+        if (replayPayload.guestCheckout === true) {
+          Object.assign(replayPayload, await issueGuestOrderAccess(adminDb, existing.id, safeString(replayPayload.email, 254)));
+        }
+        return res.status(200).setHeader('X-Idempotent-Replay', 'true').json(replayPayload);
       }
     }
 
@@ -3213,6 +3312,10 @@ app.post('/api/orders', async (req, res) => {
           paymentUpdatedAt: new Date().toISOString()
         });
       }
+    }
+
+    if (responseOrder?.guestCheckout === true) {
+      Object.assign(responseOrder, await issueGuestOrderAccess(adminDb, safeString(responseOrder.id, 120), safeString(responseOrder.email, 254)));
     }
 
     // Keep short-lived abuse-protection documents bounded without requiring a manual cleanup job.
