@@ -56,6 +56,35 @@ function createPayzyCheckoutAttemptId() {
   throw new Error('Secure checkout identifier generation is unavailable.');
 }
 
+const PayzyMark: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
+  <svg
+    data-testid="payzy-mark"
+    className={className}
+    viewBox="0 0 64 64"
+    fill="none"
+    aria-hidden="true"
+  >
+    <path
+      d="M8 8h29c11.6 0 19 7.7 19 18.4 0 10.6-7.5 18.3-19 18.3H25.7L8 58V8Z"
+      fill="#13A8DD"
+    />
+    <path
+      d="M18 17.5h18.7c6.8 0 11.3 3.7 11.3 9s-4.5 9-11.3 9H18l10.1-9L18 17.5Z"
+      fill="#34353C"
+    />
+    <path
+      d="M26.8 21.5h9.4c4.5 0 7.4 1.9 7.4 5s-2.9 5-7.4 5h-9.4"
+      stroke="white"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeDasharray="3.2 3.2"
+      opacity="0.95"
+    />
+    <path d="M18.2 22.8 24 26.5l-5.8 3.7" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="17.6" cy="26.5" r="2.1" fill="#34353C" />
+  </svg>
+);
+
 export const CheckoutPage: React.FC = () => {
   const { 
     cart, 
@@ -1071,10 +1100,10 @@ export const CheckoutPage: React.FC = () => {
                 {/* 2. Payzy (Sri Lanka Buy Now, Pay Later) */}
                 {paymentConfig.payzy.enabled && (
                   <div
-                    className={`rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden ${
+                    className={`rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden ${
                       paymentMethod === 'payzy'
-                        ? 'border-[#1A1816] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-[#1A1816]'
-                        : 'border-[#EAE3D9] bg-[#FCFBF9]/60 hover:border-[#D5CBBF] hover:bg-white'
+                        ? 'border-[#2D3138] bg-white shadow-[0_12px_32px_rgba(26,24,22,0.07)] ring-1 ring-[#2D3138]'
+                        : 'border-[#E7E0D6] bg-[#FCFBF9]/80 hover:border-[#CFC3B5] hover:bg-white'
                     }`}
                   >
                     <button
@@ -1089,63 +1118,104 @@ export const CheckoutPage: React.FC = () => {
                       className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#1A1816] disabled:cursor-wait"
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-lg bg-[#111111] border border-[#111111] flex items-center justify-center flex-shrink-0">
-                          <span className="text-white font-black text-[11px] tracking-[-0.04em] lowercase">payzy</span>
+                        <div className="w-12 h-12 rounded-xl bg-white border border-[#E8E2DA] shadow-[0_4px_14px_rgba(26,24,22,0.06)] flex items-center justify-center flex-shrink-0">
+                          <PayzyMark className="w-9 h-9" />
                         </div>
+
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs uppercase font-semibold tracking-wider text-[#1A1816]">
-                              Payzy
-                            </span>
-                            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded font-medium ${
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <div className="flex items-baseline leading-none">
+                              <span className="text-[15px] font-extrabold tracking-[-0.035em] text-[#34353C]">Pay</span>
+                              <span className="text-[15px] font-extrabold tracking-[-0.035em] text-[#13A8DD]">zy</span>
+                            </div>
+                            <span className={`text-[9px] uppercase tracking-[0.14em] px-2.5 py-1 rounded-full font-semibold ${
                               paymentConfig.payzy.mode === 'sandbox'
                                 ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : 'bg-[#EAF8FD] text-[#087DA8] border border-[#BDEAF8]'
                             }`}>
                               {paymentConfig.payzy.mode === 'sandbox'
-                                ? `Sandbox Test · LKR ${paymentConfig.payzy.testAmountLKR || 10}`
-                                : 'Buy Now, Pay Later'}
+                                ? `Sandbox · LKR ${paymentConfig.payzy.testAmountLKR || 10}`
+                                : 'Pay in 3 or 4'}
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#665A4E] mt-0.5">
+                          <p className="text-[11px] sm:text-xs text-[#665A4E] mt-1 leading-relaxed">
                             {paymentConfig.payzy.mode === 'sandbox'
                               ? 'Secure Payzy test checkout for integration verification.'
-                              : 'Pay securely with Payzy instalments in Sri Lanka.'}
+                              : 'Split your purchase into interest-free monthly instalments.'}
                           </p>
                         </div>
                       </div>
 
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all shrink-0 ${
-                        paymentMethod === 'payzy' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all shrink-0 ${
+                        paymentMethod === 'payzy'
+                          ? 'border-[#13A8DD] bg-[#F3FBFE]'
+                          : 'border-[#D5CBBF] bg-white'
                       }`}>
-                        {paymentMethod === 'payzy' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}
+                        {paymentMethod === 'payzy' && <div className="w-2.5 h-2.5 rounded-full bg-[#13A8DD]" />}
                       </div>
                     </button>
 
                     {paymentMethod === 'payzy' && (
-                      <div id="payment-payzy-details" className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] bg-[#FCFBF9]/50 space-y-4">
-                        <div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs text-[#5A4E40] space-y-2">
-                          <div className="flex items-center justify-between text-[#1A1816] font-medium">
-                            <span>{paymentConfig.payzy.mode === 'sandbox' ? 'Sandbox Test Charge:' : 'Order Total via Payzy:'}</span>
-                            <span className="font-serif text-sm">
-                              LKR {paymentConfig.payzy.mode === 'sandbox'
-                                ? Number(paymentConfig.payzy.testAmountLKR || 10).toLocaleString('en-US')
-                                : totalLKR.toLocaleString('en-US')}
-                            </span>
+                      <div id="payment-payzy-details" className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EEE8DF] bg-[linear-gradient(180deg,#FBFEFF_0%,#FCFBF9_100%)] space-y-4">
+                        <div className="rounded-xl bg-white border border-[#E5DFD7] overflow-hidden shadow-[0_4px_16px_rgba(26,24,22,0.035)]">
+                          <div className="p-4 flex items-start justify-between gap-4 border-b border-[#F0EBE4]">
+                            <div>
+                              <p className="text-[10px] uppercase tracking-[0.16em] font-semibold text-[#8A7762]">
+                                {paymentConfig.payzy.mode === 'sandbox' ? 'Sandbox amount' : 'Payzy order total'}
+                              </p>
+                              <p className="font-serif text-xl text-[#1A1816] mt-1">
+                                LKR {paymentConfig.payzy.mode === 'sandbox'
+                                  ? Number(paymentConfig.payzy.testAmountLKR || 10).toLocaleString('en-US')
+                                  : totalLKR.toLocaleString('en-US')}
+                              </p>
+                            </div>
+                            <div className="w-10 h-10 rounded-xl bg-[#F2FAFD] border border-[#D5F0F9] flex items-center justify-center shrink-0">
+                              <PayzyMark className="w-7 h-7" />
+                            </div>
                           </div>
-                          <p className="text-[11px] text-[#7A6E60] leading-relaxed">
-                            {paymentConfig.payzy.mode === 'sandbox'
-                              ? 'This LKR 10 sandbox transaction is only for Payzy integration testing. A successful sandbox callback will be verified by the SAELYXE server, then the test order will be closed automatically and will not reduce stock or enter fulfilment.'
-                              : 'You will be redirected to Payzy to complete your payment. The order is treated as paid only after SAELYXE verifies Payzy\'s signed response on the server.'}
-                          </p>
-                          <p className="text-[10px] text-[#8A7762] leading-relaxed">
-                            Available for Sri Lankan delivery addresses. Your Payzy signing key is never exposed to the browser.
-                          </p>
+
+                          <div className="p-4 space-y-3">
+                            {paymentConfig.payzy.mode === 'sandbox' ? (
+                              <p className="text-[11px] text-[#6B5E50] leading-relaxed">
+                                This sandbox transaction is only for Payzy integration verification. A successful sandbox callback is verified by the SAELYXE server and the test order is then closed without entering fulfilment.
+                              </p>
+                            ) : (
+                              <>
+                                <div className="flex gap-3">
+                                  <div className="mt-0.5 w-5 h-5 rounded-full bg-[#EAF8FD] text-[#0B8CBA] flex items-center justify-center shrink-0">
+                                    <Check className="w-3 h-3" strokeWidth={2.4} />
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-semibold text-[#2A2724]">Choose 3 or 4 monthly instalments</p>
+                                    <p className="text-[10.5px] text-[#74685B] mt-0.5 leading-relaxed">Your instalment plan is selected securely on Payzy.</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-3">
+                                  <div className="mt-0.5 w-5 h-5 rounded-full bg-[#EAF8FD] text-[#0B8CBA] flex items-center justify-center shrink-0">
+                                    <Check className="w-3 h-3" strokeWidth={2.4} />
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-semibold text-[#2A2724]">First instalment is due at purchase</p>
+                                    <p className="text-[10.5px] text-[#74685B] mt-0.5 leading-relaxed">Remaining instalments are handled by Payzy on the selected schedule.</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-3">
+                                  <div className="mt-0.5 w-5 h-5 rounded-full bg-[#EAF8FD] text-[#0B8CBA] flex items-center justify-center shrink-0">
+                                    <Lock className="w-3 h-3" strokeWidth={2.2} />
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-semibold text-[#2A2724]">Secure provider checkout</p>
+                                    <p className="text-[10.5px] text-[#74685B] mt-0.5 leading-relaxed">You will continue to Payzy to complete payment. SAELYXE confirms the order only after the signed payment response is verified.</p>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
 
                         {!paymentConfig.payzy.configured ? (
-                          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] text-amber-900">
-                            Payzy is added to checkout, but the server-side Payzy key still needs to be added to Vercel before the sandbox button can be used.
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] text-amber-900">
+                            Payzy is temporarily unavailable while the secure payment connection is being prepared.
                           </div>
                         ) : (
                           <button
@@ -1155,7 +1225,7 @@ export const CheckoutPage: React.FC = () => {
                               void handlePayzyOrder();
                             }}
                             disabled={isSubmitting}
-                            className="w-full h-12 rounded-xl bg-[#111111] text-white text-[11px] uppercase tracking-[0.2em] font-semibold hover:bg-black transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full min-h-[52px] rounded-xl bg-[#303139] text-white text-[11px] uppercase tracking-[0.18em] font-semibold hover:bg-[#24252B] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-3 shadow-[0_8px_20px_rgba(48,49,57,0.16)] border border-[#303139]"
                           >
                             {isSubmitting ? (
                               <>
@@ -1166,9 +1236,20 @@ export const CheckoutPage: React.FC = () => {
                                 <span>Opening Payzy...</span>
                               </>
                             ) : (
-                              <span>CONTINUE WITH PAYZY</span>
+                              <>
+                                <span className="w-7 h-7 rounded-lg bg-white flex items-center justify-center shrink-0">
+                                  <PayzyMark className="w-5 h-5" />
+                                </span>
+                                <span>Continue with Payzy</span>
+                              </>
                             )}
                           </button>
+                        )}
+
+                        {paymentConfig.payzy.mode === 'live' && (
+                          <p className="text-center text-[9.5px] text-[#8A7D70] leading-relaxed px-2">
+                            Available to eligible Payzy customers in Sri Lanka.
+                          </p>
                         )}
                       </div>
                     )}
