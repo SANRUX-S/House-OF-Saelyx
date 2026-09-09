@@ -546,7 +546,7 @@ export const CheckoutPage: React.FC = () => {
 
   // Reconcile the Payzy provider return using the protected server-side order state.
   useEffect(() => {
-    if (!user || payzyReturnHandledRef.current) return;
+    if (payzyReturnHandledRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const payzyState = params.get('payzy');
     const orderId = params.get('orderId');
@@ -585,7 +585,7 @@ export const CheckoutPage: React.FC = () => {
         window.history.replaceState({}, '', '/checkout');
       }
     })();
-  }, [user, getPayzyPaymentStatus]);
+  }, [getPayzyPaymentStatus]);
 
   // Confirmed Order Screen
   if (confirmedOrder) {
