@@ -479,7 +479,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         {/* Footer */}
         <footer className="admin-footer">
           <div>
-            <strong>SAELYXE ATELIER ADMIN</strong> &copy; {new Date().getFullYear()} • High-Fashion Boutique Control Plane
+            <strong>SAELYXE ADMIN</strong> &copy; {new Date().getFullYear()} • High-Fashion Boutique Control Plane
           </div>
           <div className="flex items-center gap-4 text-xs">
             <span>Server: Active</span>
