@@ -53,7 +53,7 @@ jobs:
           java-version: '21'
 
       - name: Install isolated QA tooling
-        run: npm install --no-save --package-lock=false @playwright/test firebase-tools @firebase/rules-unit-testing
+        run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test firebase-tools @firebase/rules-unit-testing
 
       - name: Firestore authorization emulator tests
         run: npm run rules:test
