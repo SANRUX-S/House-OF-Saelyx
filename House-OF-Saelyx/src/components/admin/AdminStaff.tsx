@@ -247,7 +247,7 @@ export const AdminStaffView: React.FC<AdminStaffProps> = ({
               </div>
               <div>
                 <label className="form-label-custom">Username / Internal ID</label>
-                <input type="text" required pattern="[A-Za-z0-9._-]{3,60}" value={form.username} onChange={event => setForm({ ...form, username: event.target.value })} placeholder="e.g. kasun_atelier" className="form-input-custom font-mono" />
+                <input type="text" required pattern="[A-Za-z0-9._-]{3,60}" value={form.username} onChange={event => setForm({ ...form, username: event.target.value })} placeholder="e.g. kasun_admin" className="form-input-custom font-mono" />
               </div>
               <div>
                 <label className="form-label-custom">Official Email Address</label>
