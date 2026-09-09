@@ -218,23 +218,107 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
   }
 }
 
-export async function sendAdminPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+
+export async function verifyAdminGoogleCredentials(rememberMe = true): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
+  if (!isFirebaseConfigured) {
+    return { valid: false, error: 'Firebase administrator authentication is not configured.' };
+  }
+
   try {
-    const appCheckHeaders = await getAppCheckRequestHeaders();
-    const response = await fetch('/api/admin/password-reset', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...appCheckHeaders
-      },
-      body: JSON.stringify({ email: email.trim().toLowerCase() })
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return { success: false, error: payload?.error || 'Unable to request a password reset right now.' };
+    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+    const credential = await signInWithPopup(auth, googleProvider);
+    const email = credential.user.email?.trim().toLowerCase() || '';
+
+    if (!email || credential.user.emailVerified !== true) {
+      await fbSignOut(auth);
+      return { valid: false, error: 'This Google account does not have a verified email address.' };
     }
+
+    const allowlistedRole = ADMIN_ROLES[email];
+    if (allowlistedRole) {
+      return {
+        valid: true,
+        user: {
+          uid: credential.user.uid,
+          name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Administrator',
+          email: credential.user.email || '',
+          role: allowlistedRole,
+          authProvider: 'google',
+          joinedDate: new Date().toISOString().slice(0, 10)
+        }
+      };
+    }
+
+    const adminDoc = await getDoc(doc(db, 'admins', credential.user.uid));
+    const adminData = adminDoc.exists() ? adminDoc.data() : null;
+    const adminRecordMatches =
+      adminData?.status === 'active' &&
+      typeof adminData?.email === 'string' &&
+      adminData.email.toLowerCase() === email;
+
+    const trustedRole: UserRole | undefined = adminRecordMatches
+      ? adminData?.role === 'super_admin'
+        ? 'super_admin'
+        : adminData?.role === 'admin'
+          ? 'admin'
+          : undefined
+      : undefined;
+
+    if (!trustedRole) {
+      await fbSignOut(auth);
+      return { valid: false, error: 'This Google account does not have active SAELYXE administrator access.' };
+    }
+
+    return {
+      valid: true,
+      user: {
+        uid: credential.user.uid,
+        name: credential.user.displayName || credential.user.email?.split('@')[0] || 'Administrator',
+        email: credential.user.email || '',
+        role: trustedRole,
+        authProvider: 'google',
+        joinedDate: new Date().toISOString().slice(0, 10)
+      }
+    };
+  } catch (err: any) {
+    const code = String(err?.code || '');
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      return { valid: false, error: 'Google sign-in was cancelled.' };
+    }
+    if (code === 'auth/popup-blocked') {
+      return { valid: false, error: 'Your browser blocked the Google sign-in popup. Allow popups and try again.' };
+    }
+    if (code === 'auth/account-exists-with-different-credential') {
+      return { valid: false, error: 'This administrator email already uses a different Firebase sign-in method. Use password sign-in or reset the password first.' };
+    }
+    console.warn('Administrator Google sign-in diagnostic:', code || err);
+    return { valid: false, error: 'Administrator Google sign-in could not be completed.' };
+  }
+}
+
+export async function sendAdminPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return { success: false, error: 'Enter your administrator email first.' };
+
+  try {
+    await sendPasswordResetEmail(auth, normalizedEmail);
     return { success: true };
-  } catch {
+  } catch (err: any) {
+    const code = String(err?.code || '');
+
+    // Keep account existence private on the public login screen.
+    if (code === 'auth/user-not-found') return { success: true };
+    if (code === 'auth/too-many-requests') {
+      return { success: false, error: 'Too many reset attempts. Please wait a few minutes and try again.' };
+    }
+    if (code === 'auth/invalid-email') {
+      return { success: false, error: 'Enter a valid administrator email address.' };
+    }
+    if (code === 'auth/network-request-failed') {
+      return { success: false, error: 'Could not reach Firebase Authentication. Check the connection and try again.' };
+    }
+
+    console.warn('Administrator password reset diagnostic:', code || err);
     return { success: false, error: 'Unable to request a password reset right now.' };
   }
 }
