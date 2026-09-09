@@ -55,7 +55,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
       setCountdownTarget(settings.countdownTarget || new Date(Date.now() + 86400000 * 7).toISOString());
       setAnnouncementText(settings.announcementText || 'FREE WHITE-GLOVE DOORSTEP DELIVERY WITHIN SRI LANKA');
       setFreeShippingThreshold(settings.freeShippingThresholdLKR || 35000);
-      setHeroHeadline(settings.heroHeadline || 'THE ATELIER COLLECTION');
+      setHeroHeadline(settings.heroHeadline || 'THE SAELYXE COLLECTION');
       setHeroSubhead(settings.heroSubhead || 'A curation of our most refined heavyweight textures.');
       setSpotlightBackgroundImage(settings.spotlightBackgroundImage || '');
       setShowHeroSection(settings.showHeroSection !== false);
@@ -276,7 +276,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
                 value={heroHeadline}
                 onChange={e => setHeroHeadline(e.target.value)}
                 className="form-input-custom"
-                placeholder="THE ATELIER COLLECTION"
+                placeholder="THE SAELYXE COLLECTION"
               />
             </div>
 
@@ -378,10 +378,10 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({
               </label>
             </div>
 
-            {/* Switch 4: Atelier Authenticity & FAQ */}
+            {/* Switch 4: Brand Authenticity & FAQ */}
             <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-100">
               <div>
-                <h5 className="text-sm font-bold text-stone-900">Atelier Authenticity & FAQ</h5>
+                <h5 className="text-sm font-bold text-stone-900">Brand Authenticity & FAQ</h5>
                 <p className="text-xs text-stone-500">Brand trust, dispatch schedules, & social proof elements.</p>
               </div>
               <label className="ios-switch">
