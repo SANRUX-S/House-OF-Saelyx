@@ -7,6 +7,17 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import {
+  PAYZY_REQUEST_SIGNED_FIELDS,
+  type PayzySignedData,
+  getPayzyConfig,
+  buildPayzySignedData,
+  requestPayzyCheckout,
+  verifyPayzyReturnSignature,
+  stripInternalPayzyOrderFields,
+  markPayzyLiveVerified,
+  markPayzySandboxVerified
+} from './payzy.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -718,6 +729,7 @@ function formatLkrEmail(value: unknown) {
 function formatOrderPaymentMethod(order: any) {
   if (order?.paymentMethod === 'cod') return 'Cash on Delivery';
   if (order?.paymentMethod === 'paypal') return 'PayPal';
+  if (order?.paymentMethod === 'payzy') return 'Payzy';
   return safeString(order?.paymentMethod, 40) || 'Payment method pending';
 }
 
@@ -2203,7 +2215,7 @@ app.post('/api/products/:productId/reviews', async (req, res) => {
       if (!hasExactProduct) continue;
 
       let isPaidAndVerified = false;
-      if (paymentMethod === 'paypal' && paymentStatus === 'verified') {
+      if ((paymentMethod === 'paypal' || paymentMethod === 'payzy') && paymentStatus === 'verified') {
         isPaidAndVerified = true;
       } else if (paymentMethod === 'cod' && (paymentStatus === 'cod_collected' || status === 'delivered')) {
         isPaidAndVerified = true;
@@ -2351,14 +2363,136 @@ app.get('/api/currencies', (_req, res) => {
 app.get('/api/payments/config', (_req, res) => {
   const payPalClientId = process.env.PAYPAL_CLIENT_ID || '';
   const payPalServerConfigured = Boolean(payPalClientId && process.env.PAYPAL_CLIENT_SECRET);
+  const payzy = getPayzyConfig();
 
   return res.json({
     paypal: {
       enabled: payPalServerConfigured,
       clientId: payPalServerConfigured ? payPalClientId : '',
       mode: process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox'
+    },
+    payzy: {
+      enabled: process.env.PAYZY_UI_ENABLED !== 'false',
+      configured: payzy.configured,
+      mode: payzy.mode,
+      testAmountLKR: payzy.mode === 'sandbox' ? payzy.sandboxTestAmountLKR : null
     }
   });
+});
+
+app.post('/api/payments/payzy/create/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    const orderId = safeString(req.params.orderId, 120);
+    if (!(await enforceRateLimit(adminDb, `payzy-create:${token.uid}:${orderId}`, 6, 10 * 60_000))) return res.status(429).json({ error: 'Too many Payzy payment attempts. Please wait and retry.' });
+    const config = getPayzyConfig();
+    if (!config.configured) return res.status(503).json({ error: 'Payzy server credentials are not configured yet.' });
+    const ref = adminDb.collection('orders').doc(orderId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const order: any = { id: snap.id, ...snap.data() };
+    if (order.userId !== token.uid && !(await isAdminToken(token))) return res.status(403).json({ error: 'Order access denied.' });
+    if (order.paymentMethod !== 'payzy') return res.status(400).json({ error: 'This order is not a Payzy order.' });
+    if (order.paymentStatus === 'verified') return res.status(409).json({ error: 'Payment is already verified.' });
+    if (order.status === 'cancelled' && order.payzySandboxVerified !== true) return res.status(409).json({ error: 'Cancelled orders cannot start a new Payzy payment.' });
+    if (safeString(order.country, 80).toLowerCase() !== 'sri lanka') return res.status(400).json({ error: 'Payzy is currently available only for Sri Lankan delivery addresses.' });
+    const signedData = buildPayzySignedData(order, config);
+    const started = await requestPayzyCheckout(signedData, config);
+    const now = new Date().toISOString();
+    await ref.update({
+      paymentProviderReference: `payzy:${safeString(order.orderNumber || order.id, 120)}`,
+      paymentStatus: 'pending_verification',
+      paymentVerificationSource: 'payzy_server_created',
+      paymentVerificationError: FieldValue.delete(),
+      paymentUpdatedAt: now,
+      payzyMode: config.mode,
+      payzyExpectedAmountLKR: Number(signedData.x_amount),
+      payzyCheckoutInitiatedAt: now,
+      payzySignedData: signedData,
+      payzyRequestSignature: started.requestSignature,
+      payzyRequestSignatureVariant: started.signatureVariant,
+      payzyCheckoutUrl: started.checkoutUrl,
+      payzySandboxVerified: false
+    });
+    const updated = await ref.get();
+    return res.json({ checkoutUrl: started.checkoutUrl, mode: config.mode, testAmountLKR: config.mode === 'sandbox' ? config.sandboxTestAmountLKR : null, order: stripInternalPayzyOrderFields({ id: updated.id, ...updated.data() }) });
+  } catch (error: any) {
+    const status = Number(error?.statusCode) || 502;
+    return res.status(status).json({ error: safeString(error?.message, 240) || 'Unable to start Payzy checkout.' });
+  }
+});
+
+app.get('/api/payments/payzy/status/:orderId', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Payment service is not configured.' });
+    const token = await readBearerToken(req);
+    if (!token) return res.status(401).json({ error: 'Authentication required.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    const orderId = safeString(req.params.orderId, 120);
+    if (!(await enforceRateLimit(adminDb, `payzy-status:${token.uid}:${orderId}`, 30, 10 * 60_000))) return res.status(429).json({ error: 'Too many Payzy status checks. Please wait and retry.' });
+    const snap = await adminDb.collection('orders').doc(orderId).get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const order: any = { id: snap.id, ...snap.data() };
+    if (order.userId !== token.uid && !(await isAdminToken(token))) return res.status(404).json({ error: 'Order not found.' });
+    if (order.paymentMethod !== 'payzy') return res.status(400).json({ error: 'This order is not a Payzy order.' });
+    return res.json(stripInternalPayzyOrderFields(order));
+  } catch {
+    return res.status(500).json({ error: 'Unable to load Payzy payment status.' });
+  }
+});
+
+app.get('/api/payments/payzy/return', async (req, res) => {
+  const config = getPayzyConfig();
+  const fallbackSite = config.siteUrl || 'https://www.saelyxe.com';
+  const orderId = safeString(req.query.x_order_id, 120);
+  const responseCode = safeString(req.query.response_code, 20);
+  const signature = safeString(req.query.signature, 500).replace(/\s/g, '+');
+  const redirect = (state: 'success' | 'sandbox-success' | 'failed' | 'error') => {
+    const url = new URL('/checkout', fallbackSite);
+    url.searchParams.set('payzy', state);
+    if (orderId) url.searchParams.set('orderId', orderId);
+    return res.redirect(303, url.toString());
+  };
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb || !config.configured || !orderId || !responseCode || !signature) return redirect('error');
+    const clientIp = getClientAddress(req);
+    if (!(await enforceRateLimit(adminDb, `payzy-return:${clientIp}:${orderId}`, 30, 10 * 60_000))) return redirect('error');
+    const ref = adminDb.collection('orders').doc(orderId);
+    const snap = await ref.get();
+    if (!snap.exists) return redirect('error');
+    const order: any = { id: snap.id, ...snap.data() };
+    if (order.paymentMethod !== 'payzy') return redirect('error');
+    const signedData = order.payzySignedData as PayzySignedData | undefined;
+    if (!signedData || !hasOnlyKeys(signedData, PAYZY_REQUEST_SIGNED_FIELDS)) {
+      await ref.set({ paymentVerificationSource: 'payzy_signed_callback', paymentVerificationError: 'missing_signed_request_snapshot', paymentUpdatedAt: new Date().toISOString() }, { merge: true });
+      return redirect('error');
+    }
+    if (!verifyPayzyReturnSignature(responseCode, signature, signedData, config.secretKey)) {
+      await ref.set({ paymentVerificationSource: 'payzy_signed_callback', paymentVerificationError: 'signature_mismatch', paymentUpdatedAt: new Date().toISOString(), payzyResponseCode: responseCode, payzyReturnedAt: new Date().toISOString() }, { merge: true });
+      return redirect('error');
+    }
+    if (responseCode !== '00') {
+      await ref.set({ paymentStatus: 'failed', paymentVerificationSource: 'payzy_signed_callback', paymentVerificationError: `response_code_${responseCode}`, paymentUpdatedAt: new Date().toISOString(), payzyResponseCode: responseCode, payzyReturnedAt: new Date().toISOString() }, { merge: true });
+      return redirect('failed');
+    }
+    const payzyMode = safeString(order.payzyMode, 20) === 'live' ? 'live' : 'sandbox';
+    if (payzyMode === 'sandbox') {
+      await markPayzySandboxVerified(adminDb, orderId, responseCode);
+      return redirect('sandbox-success');
+    }
+    const updated = await markPayzyLiveVerified(adminDb, orderId, responseCode);
+    await ensureOrderConfirmationEmail(adminDb, updated);
+    return redirect('success');
+  } catch (error) {
+    console.error('Payzy return verification error:', error);
+    return redirect('error');
+  }
 });
 
 app.get('/api/payments/paypal/status', async (req, res) => {
@@ -2869,10 +3003,10 @@ app.post('/api/orders', async (req, res) => {
     const requestedCurrency = safeString(body.currencyUsed, 10).toUpperCase();
     const currency = CURRENCIES.find(item => item.code === requestedCurrency) || CURRENCIES[0];
     const paymentMethod = safeString(body.paymentMethod, 30);
-    if (!['paypal', 'cod'].includes(paymentMethod)) {
+    if (!['paypal', 'payzy', 'cod'].includes(paymentMethod)) {
       return res.status(400).json({ error: 'Unsupported payment method.' });
     }
-    // The PayPal provider reference is created and linked server-side after the local order exists.
+    // Online provider references are created and linked server-side after the local order exists.
     const paymentProviderReference = '';
     const checkoutAttemptId = safeString(body.checkoutAttemptId, 120);
     const duplicateFingerprint = crypto.createHash('sha256').update(JSON.stringify({
@@ -3074,8 +3208,8 @@ app.post('/api/orders', async (req, res) => {
       console.warn('Security cleanup note:', error);
     });
 
-    // Send confirmation email for COD immediately, or for PayPal ONLY if already verified.
-    // Unverified PayPal orders do NOT receive confirmation email until verified capture.
+    // Send confirmation email for COD immediately, or online providers only after verified settlement.
+    // Unverified PayPal/Payzy orders do NOT receive confirmation email.
     if (paymentMethod === 'cod' || responseOrder.paymentStatus === 'verified') {
       await ensureOrderConfirmationEmail(adminDb, responseOrder);
     }
@@ -3672,6 +3806,13 @@ app.put('/api/orders/:id/status', async (req, res) => {
       ) {
         throw new Error('Verified PayPal orders must be cancelled through the Super Admin refund workflow.');
       }
+      if (
+        status === 'cancelled' &&
+        current.paymentMethod === 'payzy' &&
+        safeString(current.paymentStatus, 40) === 'verified'
+      ) {
+        throw new Error('Verified Payzy orders must be refunded from the Payzy merchant portal before cancellation.');
+      }
 
       if (!canTransitionOrderStatus(currentStatus, status)) {
         throw new Error(
@@ -3750,8 +3891,8 @@ app.put('/api/orders/:id/status', async (req, res) => {
       }
 
       if (needsInventoryCommit) {
-        if (current.paymentMethod === 'paypal' && current.paymentStatus !== 'verified') {
-          throw new Error('Payment must be verified by PayPal before moving this order into an active fulfillment stage.');
+        if (['paypal', 'payzy'].includes(current.paymentMethod) && current.paymentStatus !== 'verified') {
+          throw new Error('Online payment must be verified before moving this order into an active fulfillment stage.');
         }
 
         for (const [productId, quantity] of quantityByProduct.entries()) {
@@ -3846,7 +3987,8 @@ app.put('/api/orders/:id/status', async (req, res) => {
       message.startsWith('Invalid order transition') ? 409 :
       message.includes('Cancelled orders are terminal') ? 409 :
       message.includes('must be cancelled through') ? 409 :
-      message.includes('Payment must be verified') ? 409 :
+      message.includes('must be refunded from the Payzy merchant portal') ? 409 :
+      message.includes('Online payment must be verified') ? 409 :
       message.includes('not enough stock') ? 409 :
       message.includes('Courier and tracking number are required') ? 409 :
       message === 'Order not found.' ? 404 : 400;
