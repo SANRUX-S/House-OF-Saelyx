@@ -292,7 +292,7 @@ function parseRouteFromUrl(): AppRoute {
       window.history.replaceState({}, '', '/');
       return { name: 'home' };
     }
-    if (path.startsWith('/atelier-console')) {
+    if (path === '/atelier-console' || path.startsWith('/atelier-console/')) {
       const tab = search.get('tab') as any;
       return { name: 'admin', tab: tab || 'overview' };
     }
