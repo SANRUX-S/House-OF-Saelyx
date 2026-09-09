@@ -83,6 +83,127 @@ const ROOT_ADMIN_EMAILS = new Set([
   'saelyxe.co@gmail.com'
 ]);
 
+const ADMIN_FALLBACK_TOKEN_KEY = 'saelyxe_admin_auth_token_v1';
+const ADMIN_FALLBACK_EXPIRES_KEY = 'saelyxe_admin_auth_expires_v1';
+
+function clearStoredAdminFallbackToken() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(ADMIN_FALLBACK_TOKEN_KEY);
+    localStorage.removeItem(ADMIN_FALLBACK_EXPIRES_KEY);
+    sessionStorage.removeItem(ADMIN_FALLBACK_TOKEN_KEY);
+    sessionStorage.removeItem(ADMIN_FALLBACK_EXPIRES_KEY);
+  } catch {
+    // Storage cleanup is best-effort only.
+  }
+}
+
+function storeAdminFallbackToken(idToken: string, expiresInSeconds: number, rememberMe: boolean) {
+  if (typeof window === 'undefined') return;
+  clearStoredAdminFallbackToken();
+  const storage = rememberMe ? localStorage : sessionStorage;
+  const boundedLifetimeSeconds = Math.max(60, Math.min(Number(expiresInSeconds) || 3300, 3300));
+  try {
+    storage.setItem(ADMIN_FALLBACK_TOKEN_KEY, idToken);
+    storage.setItem(ADMIN_FALLBACK_EXPIRES_KEY, String(Date.now() + boundedLifetimeSeconds * 1000));
+  } catch {
+    // The active page can still continue even if browser persistence is unavailable.
+  }
+}
+
+function readStoredAdminFallbackToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  for (const storage of [sessionStorage, localStorage]) {
+    try {
+      const token = storage.getItem(ADMIN_FALLBACK_TOKEN_KEY) || '';
+      const expiresAt = Number(storage.getItem(ADMIN_FALLBACK_EXPIRES_KEY) || 0);
+      if (!token) continue;
+      if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+        storage.removeItem(ADMIN_FALLBACK_TOKEN_KEY);
+        storage.removeItem(ADMIN_FALLBACK_EXPIRES_KEY);
+        continue;
+      }
+      return token;
+    } catch {
+      // Try the other storage scope.
+    }
+  }
+  return null;
+}
+
+export async function getAdminAccessToken(): Promise<string | null> {
+  if (auth.currentUser) {
+    try {
+      return await auth.currentUser.getIdToken();
+    } catch {
+      // Fall through to the same-origin server-auth token.
+    }
+  }
+  return readStoredAdminFallbackToken();
+}
+
+export function clearAdminFallbackSession() {
+  clearStoredAdminFallbackToken();
+}
+
+async function verifyAdminCredentialsViaServer(
+  username: string,
+  pass: string,
+  rememberMe: boolean
+): Promise<{ valid: boolean; user?: AppUser; error?: string }> {
+  try {
+    const response = await fetch('/api/admin/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        email: username.trim().toLowerCase(),
+        password: pass
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return {
+        valid: false,
+        error: typeof payload?.error === 'string' ? payload.error : 'Administrator sign-in could not be completed.'
+      };
+    }
+
+    const idToken = typeof payload?.idToken === 'string' ? payload.idToken : '';
+    const user = payload?.user as AppUser | undefined;
+    if (!idToken || !user?.uid || !user?.email || (user.role !== 'admin' && user.role !== 'super_admin')) {
+      return { valid: false, error: 'Administrator sign-in could not be completed.' };
+    }
+
+    storeAdminFallbackToken(idToken, Number(payload?.expiresIn) || 3300, rememberMe);
+    return { valid: true, user };
+  } catch {
+    return { valid: false, error: 'Could not reach the SAELYXE authentication service. Please try again.' };
+  }
+}
+
+export async function restoreAdminFallbackSession(): Promise<AppUser | null> {
+  const idToken = readStoredAdminFallbackToken();
+  if (!idToken) return null;
+
+  try {
+    const response = await fetch('/api/admin/auth/session', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${idToken}` },
+      credentials: 'same-origin'
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.user?.uid) {
+      clearStoredAdminFallbackToken();
+      return null;
+    }
+    return payload.user as AppUser;
+  } catch {
+    return null;
+  }
+}
+
 export function getConfiguredAdminRole(email?: string | null, emailVerified = false): UserRole | undefined {
   if (!email) return undefined;
   const normalizedEmail = email.toLowerCase();
@@ -99,6 +220,7 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
   try {
     await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
     const credential = await signInWithEmailAndPassword(auth, username.trim(), pass);
+    clearStoredAdminFallbackToken();
     const email = credential.user.email?.toLowerCase() || '';
     const allowlistedRole = email ? ADMIN_ROLES[email] : undefined;
 
@@ -179,7 +301,12 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
     if (code === 'auth/invalid-email') return { valid: false, error: 'Enter a valid administrator email address.' };
     if (code === 'auth/user-disabled') return { valid: false, error: 'This Firebase administrator account is disabled.' };
     if (code === 'auth/too-many-requests') return { valid: false, error: 'Too many sign-in attempts. Wait a few minutes, then try again or reset the password.' };
-    if (code === 'auth/network-request-failed') return { valid: false, error: 'Could not reach Firebase Authentication. Check the connection and try again.' };
+    if (code === 'auth/network-request-failed') {
+      // Some browsers, privacy tools, DNS filters, or networks block direct calls
+      // to Firebase Auth. Retry through the same-origin SAELYXE backend so admin
+      // access does not depend on the browser reaching Google identity endpoints.
+      return verifyAdminCredentialsViaServer(username, pass, rememberMe);
+    }
     if (code === 'auth/operation-not-allowed') return { valid: false, error: 'Email/password sign-in is not enabled for this Firebase project.' };
     if (code === 'permission-denied' || code === 'firestore/permission-denied') {
       return { valid: false, error: 'Firebase signed in, but administrator access data could not be read. Please try again.' };
