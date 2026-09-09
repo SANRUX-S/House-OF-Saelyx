@@ -89,7 +89,7 @@ try {
     email_verified: true
   }).firestore();
   const unverifiedRootDb = testEnv.authenticatedContext('root-bootstrap', {
-    email: 'saelyx.co+super@gmail.com',
+    email: 'saelyx.co@gmail.com',
     email_verified: false
   }).firestore();
 

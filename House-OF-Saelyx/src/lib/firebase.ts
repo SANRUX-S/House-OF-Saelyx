@@ -87,13 +87,11 @@ export const facebookProvider = new FacebookAuthProvider();
 
 const ADMIN_ROLES: Record<string, UserRole> = {
   'saelyx.co@gmail.com': 'super_admin',
-  'saelyx.co+super@gmail.com': 'super_admin',
   'saelyx.co+admin@gmail.com': 'admin'
 };
 
 const ROOT_ADMIN_EMAILS = new Set([
-  'saelyx.co@gmail.com',
-  'saelyx.co+super@gmail.com'
+  'saelyx.co@gmail.com'
 ]);
 
 export function getConfiguredAdminRole(email?: string | null, emailVerified = false): UserRole | undefined {
