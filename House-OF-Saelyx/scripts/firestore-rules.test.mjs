@@ -102,6 +102,7 @@ try {
     name: 'Allowed Patron',
     firstName: 'Allowed',
     lastName: 'Patron',
+    ordersCount: 0,
     lastLoginAt: new Date().toISOString()
   }));
   await assertFails(setDoc(doc(escalationDb, 'users', 'customer-escalation'), {
@@ -136,12 +137,12 @@ try {
 
   await assertSucceeds(getDoc(doc(customerDb, 'orders', 'order-owner')));
   await assertFails(getDoc(doc(otherDb, 'orders', 'order-owner')));
-  await assertSucceeds(updateDoc(doc(customerDb, 'orders', 'order-owner'), { city: 'Kandy' }));
+  await assertFails(updateDoc(doc(customerDb, 'orders', 'order-owner'), { city: 'Kandy' }));
   await assertFails(updateDoc(doc(customerDb, 'orders', 'order-owner'), { status: 'delivered' }));
 
   await assertSucceeds(getDoc(doc(adminDb, 'orders', 'order-owner')));
   await assertFails(getDoc(doc(unverifiedAdminDb, 'orders', 'order-owner')));
-  await assertSucceeds(getDoc(doc(unverifiedRootDb, 'orders', 'order-owner')));
+  await assertFails(getDoc(doc(unverifiedRootDb, 'orders', 'order-owner')));
   await assertFails(updateDoc(doc(adminDb, 'products', 'prod-1'), { stockCount: 99 }));
   await assertFails(updateDoc(doc(superDb, 'products', 'prod-1'), { stockCount: 99 }));
   await assertFails(setDoc(doc(adminDb, 'audit_logs', 'forged'), {
@@ -162,12 +163,12 @@ try {
     status: 'subscribed'
   }));
 
-  await assertSucceeds(setDoc(doc(superDb, 'admins', 'new-admin'), {
+  await assertFails(setDoc(doc(superDb, 'admins', 'new-admin'), {
     email: 'new-admin@saelyxe.com',
     role: 'admin',
     status: 'active'
   }));
-  await assertSucceeds(setDoc(doc(unverifiedRootDb, 'admins', 'root-created-admin'), {
+  await assertFails(setDoc(doc(unverifiedRootDb, 'admins', 'root-created-admin'), {
     email: 'root-created-admin@saelyxe.com',
     role: 'admin',
     status: 'active'
@@ -179,7 +180,7 @@ try {
   }));
 
   await assertFails(deleteDoc(doc(customerDb, 'users', 'customer-1')));
-  await assertSucceeds(deleteDoc(doc(superDb, 'users', 'customer-1')));
+  await assertFails(deleteDoc(doc(superDb, 'users', 'customer-1')));
 
   console.log('SAELYXE Firestore emulator rules tests passed.');
 } finally {
