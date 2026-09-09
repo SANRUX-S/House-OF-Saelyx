@@ -183,12 +183,13 @@ assert(!indexHtml.includes('<script type="application/ld+json">'), 'static HTML 
 assert(seoManager.includes("document.createElement('script')") && seoManager.includes("'application/ld+json'"), 'structured data must be injected by the trusted application bundle');
 assert(vercel.includes('"deploymentEnabled"') && vercel.includes('"**": false') && vercel.includes('"main": true'), 'Vercel preview deployments must stay disabled while main remains deployable');
 
-assert(!firebaseClient.includes("from 'firebase/storage'") && !firebaseClient.includes('getStorage('), 'client must not depend on Firebase Storage for product media');
-assert(!fs.existsSync('firebase-storage.rules') && !fs.existsSync('storage.rules'), 'retired Firebase media Storage rules must not remain');
+assert(!firebaseClient.includes("from 'firebase/storage'") && !firebaseClient.includes('getStorage('), 'browser client must not write directly to Firebase Storage');
+assert(!fs.existsSync('firebase-storage.rules') && !fs.existsSync('storage.rules'), 'admin media writes must stay behind the protected server API rather than public client Storage rules');
 assert(!fs.existsSync('functions/index.js'), 'duplicate Firebase Functions runtime must be retired');
-assert(api.includes('CLOUDINARY_URL') && api.includes('CLOUDINARY_CLOUD_NAME') && api.includes('CLOUDINARY_API_SECRET'), 'admin media uploads must use server-only Cloudinary configuration');
-assert(api.includes('media-upload:'), 'Cloudinary media uploads must be rate limited per admin');
-assert(api.includes("createHash('sha256')") && api.includes("signedBody.append('signature', signature)"), 'Cloudinary signed uploads must use a server-generated SHA-256 signature');
+assert(api.includes("from 'firebase-admin/storage'") && api.includes('getStorage().bucket(bucketName)'), 'admin media uploads must use Firebase Admin Storage on the trusted server');
+assert(api.includes('firebaseStorageDownloadTokens'), 'Firebase media delivery must use per-object download tokens');
+assert(api.includes('media-upload:'), 'Firebase media uploads must be rate limited per admin');
+assert(!api.includes('CLOUDINARY_URL') && !api.includes('CLOUDINARY_API_SECRET'), 'Cloudinary upload credentials must not be required by the application');
 assert(adminDrop.includes("uploadAdminImage(file, 'settings')"), 'drop background must use the protected media service instead of Firestore base64');
 assert(!adminDrop.includes('readAsDataURL'), 'drop settings must not store base64 images in Firestore');
 
