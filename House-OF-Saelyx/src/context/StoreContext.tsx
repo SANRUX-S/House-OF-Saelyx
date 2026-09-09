@@ -174,7 +174,7 @@ interface StoreContextType {
   logAuditEvent: (action: string, details: string) => Promise<void>;
 
   // Products
-  saveProduct: (product: Partial<Product>) => Promise<boolean>;
+  saveProduct: (product: Partial<Product>) => Promise<{ success: boolean; error?: string; product?: Product }>;
   deleteProduct: (id: string) => Promise<boolean>;
 
   // Staff
@@ -1822,7 +1822,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Products mutations use the trusted API for validation, authorization, and audit logging.
-  const saveProduct = async (productData: Partial<Product>): Promise<boolean> => {
+  const saveProduct = async (productData: Partial<Product>): Promise<{ success: boolean; error?: string; product?: Product }> => {
     try {
       const id = productData.id || `prod-${cryptoSafeClientId()}`;
       const slug = productData.slug || productData.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `product-${id}`;
@@ -1833,17 +1833,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        console.error('Product save failed:', payload?.error || response.status);
-        return false;
+        const error = payload?.error || `Product save failed with status ${response.status}.`;
+        console.error('Product save failed:', error);
+        return { success: false, error };
       }
+      const saved = payload as Product;
       setProducts(prev => {
         const exists = prev.some(product => product.id === id);
-        return exists ? prev.map(product => product.id === id ? payload as Product : product) : [payload as Product, ...prev];
+        return exists ? prev.map(product => product.id === id ? saved : product) : [saved, ...prev];
       });
-      return true;
+      return { success: true, product: saved };
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save product.';
       console.error('Error saving product:', error);
-      return false;
+      return { success: false, error: message };
     }
   };
 
