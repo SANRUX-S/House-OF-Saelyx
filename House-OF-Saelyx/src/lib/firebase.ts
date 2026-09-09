@@ -31,7 +31,7 @@ const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'gen-lang-client-0800900976.firebaseapp.com',
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'gen-lang-client-0800900976.firebasestorage.app',
+  storageBucket: 'gen-lang-client-0800900976.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '915679491947',
   oAuthClientId: import.meta.env.VITE_FIREBASE_OAUTH_CLIENT_ID || '',
 };
@@ -46,16 +46,9 @@ export const isFirebaseConfigured = isRealtimeFirebaseEnabled && [
   firebaseConfig.messagingSenderId
 ].every(value => !placeholderFirebaseValues.has(value) && !value.startsWith('replace-with-') && !value.startsWith('your-'));
 
-// Initialize Firebase App safely
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-
-// Initialize Firebase Auth
 export const auth = getAuth(app);
-
-// Initialize Firestore with custom database ID
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
-
-// Admin product/settings media uses Firebase Storage directly with Firebase Auth + App Check.
 export const storage = getStorage(app);
 
 const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APP_CHECK_SITE_KEY || '';
@@ -82,7 +75,6 @@ export async function getAppCheckRequestHeaders(): Promise<Record<string, string
   }
 }
 
-// Providers
 export const googleProvider = new GoogleAuthProvider();
 export const facebookProvider = new FacebookAuthProvider();
 
@@ -97,10 +89,6 @@ const ROOT_ADMIN_EMAILS = new Set([
 export function getConfiguredAdminRole(email?: string | null, emailVerified = false): UserRole | undefined {
   if (!email) return undefined;
   const normalizedEmail = email.toLowerCase();
-
-  // The single bootstrap root uses Firebase email/password authentication plus
-  // the exact allowlisted address. Invited/configured staff still require a
-  // verified Firebase email before receiving any administrator role.
   if (ROOT_ADMIN_EMAILS.has(normalizedEmail)) return 'super_admin';
   if (!emailVerified) return undefined;
   return ADMIN_ROLES[normalizedEmail];
@@ -119,10 +107,6 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
 
     if (allowlistedRole) {
       const isBootstrapRoot = ROOT_ADMIN_EMAILS.has(email);
-
-      // The bootstrap root can authenticate directly with the exact Firebase
-      // email/password pair. Other configured administrators must still verify
-      // their email before privileged access is granted.
       if (!isBootstrapRoot && !credential.user.emailVerified) {
         try {
           await sendEmailVerification(credential.user);
@@ -130,10 +114,7 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
           // Firebase may throttle repeated verification emails.
         }
         await fbSignOut(auth);
-        return {
-          valid: false,
-          error: 'Verify this administrator email first, then sign in again.'
-        };
+        return { valid: false, error: 'Verify this administrator email first, then sign in again.' };
       }
 
       return {
@@ -149,8 +130,6 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
       };
     }
 
-    // Invited staff accounts must additionally have an active protected admin
-    // record bound to the same verified Firebase email.
     const adminDoc = await getDoc(doc(db, 'admins', credential.user.uid));
     const adminData = adminDoc.exists() ? adminDoc.data() : null;
     const adminRecordMatches =
@@ -181,7 +160,6 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
         await fbSignOut(auth);
         return { valid: false, error: 'Administrator access has been revoked or suspended.' };
       }
-
       await fbSignOut(auth);
       return { valid: false, error: 'This Firebase account does not have active SAELYXE administrator access.' };
     }
@@ -198,35 +176,21 @@ export async function verifyAdminCredentials(username: string, pass: string, rem
     };
   } catch (err: any) {
     const code = String(err?.code || '');
-
     if (['auth/invalid-credential', 'auth/invalid-login-credentials', 'auth/user-not-found', 'auth/wrong-password'].includes(code)) {
       return { valid: false, error: 'Email or password is incorrect.' };
     }
-    if (code === 'auth/invalid-email') {
-      return { valid: false, error: 'Enter a valid administrator email address.' };
-    }
-    if (code === 'auth/user-disabled') {
-      return { valid: false, error: 'This Firebase administrator account is disabled.' };
-    }
-    if (code === 'auth/too-many-requests') {
-      return { valid: false, error: 'Too many sign-in attempts. Wait a few minutes, then try again or reset the password.' };
-    }
-    if (code === 'auth/network-request-failed') {
-      return { valid: false, error: 'Could not reach Firebase Authentication. Check the connection and try again.' };
-    }
-    if (code === 'auth/operation-not-allowed') {
-      return { valid: false, error: 'Email/password sign-in is not enabled for this Firebase project.' };
-    }
+    if (code === 'auth/invalid-email') return { valid: false, error: 'Enter a valid administrator email address.' };
+    if (code === 'auth/user-disabled') return { valid: false, error: 'This Firebase administrator account is disabled.' };
+    if (code === 'auth/too-many-requests') return { valid: false, error: 'Too many sign-in attempts. Wait a few minutes, then try again or reset the password.' };
+    if (code === 'auth/network-request-failed') return { valid: false, error: 'Could not reach Firebase Authentication. Check the connection and try again.' };
+    if (code === 'auth/operation-not-allowed') return { valid: false, error: 'Email/password sign-in is not enabled for this Firebase project.' };
     if (code === 'permission-denied' || code === 'firestore/permission-denied') {
       return { valid: false, error: 'Firebase signed in, but administrator access data could not be read. Please try again.' };
     }
-
     console.warn('Administrator sign-in diagnostic:', code || err);
     return { valid: false, error: 'Administrator sign-in could not be completed. Please try again.' };
   }
 }
-
-
 
 export async function sendAdminPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
   try {
