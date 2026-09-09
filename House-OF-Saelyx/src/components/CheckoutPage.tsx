@@ -1177,7 +1177,7 @@ export const CheckoutPage: React.FC = () => {
                           <div className="p-4 space-y-3">
                             {paymentConfig.payzy.mode === 'sandbox' ? (
                               <p className="text-[11px] text-[#6B5E50] leading-relaxed">
-                                This sandbox transaction is only for Payzy integration verification. A successful sandbox callback is verified by the SAELYXE server and the test order is then closed without entering fulfilment.
+                                This LKR 10 sandbox transaction is not a live settlement and is only for Payzy integration verification. A successful sandbox callback is verified by the SAELYXE server and the test order is then closed without entering fulfilment.
                               </p>
                             ) : (
                               <>
@@ -1240,7 +1240,7 @@ export const CheckoutPage: React.FC = () => {
                                 <span className="w-7 h-7 rounded-lg bg-white flex items-center justify-center shrink-0">
                                   <PayzyMark className="w-5 h-5" />
                                 </span>
-                                <span>Continue with Payzy</span>
+                                <span>CONTINUE WITH PAYZY</span>
                               </>
                             )}
                           </button>
