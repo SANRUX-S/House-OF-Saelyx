@@ -15,7 +15,8 @@ service cloud.firestore {
     }
 
     function isBootstrapRootAdmin() {
-      return hasVerifiedEmail() &&
+      return isAuthenticated() &&
+        request.auth.token.email is string &&
         request.auth.token.email == 'saelyx.co@gmail.com';
     }
 
