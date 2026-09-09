@@ -13,8 +13,6 @@ export const CartDrawer: React.FC = () => {
     clearCart,
     selectedCurrency,
     createOrder,
-    user,
-    setIsAuthOpen,
     navigateTo
   } = useStore();
 
@@ -412,11 +410,7 @@ export const CartDrawer: React.FC = () => {
               <button
                 onClick={() => {
                   handleClose();
-                  if (!user) {
-                    setIsAuthOpen(true);
-                  } else {
-                    navigateTo({ name: 'checkout' });
-                  }
+                  navigateTo({ name: 'checkout' });
                 }}
                 className="w-full py-3.5 sm:py-4 bg-white text-black font-semibold text-xs tracking-[0.2em] uppercase rounded-full hover:bg-neutral-200 transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer"
               >
