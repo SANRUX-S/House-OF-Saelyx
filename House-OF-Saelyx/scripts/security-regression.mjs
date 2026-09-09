@@ -146,7 +146,7 @@ assert(vercel.includes('https://*.paypal.com'), 'CSP must allow PayPal SDK resou
 assert(!vercel.includes("script-src 'self' 'unsafe-inline'"), 'script-src must not allow unsafe-inline execution');
 assert(vercel.includes("script-src-attr 'none'"), 'inline script attributes must be blocked');
 assert(!vercel.includes("connect-src 'self' https: wss:"), 'connect-src must use an explicit origin allowlist');
-assert(!vercel.includes("img-src 'self' data: blob: https:"), 'img-src must use an explicit origin allowlist');
+assert(vercel.includes("img-src 'self' data: blob: https://saelyxe.com https://www.saelyxe.com"), 'img-src must use an explicit trusted-origin allowlist');
 assert(!indexHtml.includes('<script type="application/ld+json">'), 'static HTML must not require inline JSON-LD under strict CSP');
 assert(seoManager.includes("document.createElement('script')") && seoManager.includes("'application/ld+json'"), 'structured data must be injected by the trusted application bundle');
 assert(vercel.includes('"deploymentEnabled"') && vercel.includes('"**": false') && vercel.includes('"main": true'), 'Vercel preview deployments must stay disabled while main remains deployable');
