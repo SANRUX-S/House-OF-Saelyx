@@ -264,7 +264,7 @@ export const AdminPanel: React.FC = () => {
       case 'products':
         return {
           title: 'Products',
-          subtitle: 'Manage atelier silhouettes, fabric specifications, imagery, and inventory.',
+          subtitle: 'Manage products, fabric specifications, imagery, and inventory.',
           breadcrumb: [{ label: 'Operations' }, { label: 'Products' }]
         };
       case 'orders':

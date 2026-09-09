@@ -7,6 +7,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import {
   PAYZY_REQUEST_SIGNED_FIELDS,
   type PayzySignedData,
@@ -1956,58 +1957,14 @@ app.get('/api/admin/health', async (req, res) => {
       ok: true,
       firebaseAdminConfigured: Boolean(getAdminDb()),
       transactionalEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
-      mediaStorageConfigured: Boolean(
-        process.env.CLOUDINARY_CLOUD_NAME &&
-        process.env.CLOUDINARY_API_KEY &&
-        process.env.CLOUDINARY_API_SECRET
-      ),
+      mediaStorageConfigured: true,
+      mediaStorageProvider: 'firebase_storage',
       appCheckEnforced: isAppCheckEnforced(),
       abuseProtectionConfigured: true,
       payPalServerConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
     });
   } catch {
     return res.status(500).json({ error: 'Unable to load administrator health status.' });
-  }
-});
-
-app.post('/api/media/cloudinary-signature', async (req, res) => {
-  try {
-    const adminDb = getAdminDb();
-    if (!adminDb) return res.status(503).json({ error: 'Media service is not configured.' });
-
-    const token = await readBearerToken(req);
-    if (!token || !(await isAdminToken(token))) return res.status(403).json({ error: 'Admin access required.' });
-    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
-    if (!(await enforceRateLimit(adminDb, `media-signature:${token.uid}`, 30, 10 * 60_000))) {
-      return res.status(429).json({ error: 'Too many media upload authorizations. Please wait and try again.' });
-    }
-
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
-    if (!cloudName || !apiKey || !apiSecret) {
-      return res.status(503).json({ error: 'Media storage is not configured.' });
-    }
-
-    const kind = safeString(req.body?.kind, 30);
-    const folder = kind === 'settings' ? 'saelyxe/settings' : 'saelyxe/products';
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signatureBase = `folder=${folder}&timestamp=${timestamp}`;
-    const signature = crypto
-      .createHash('sha256')
-      .update(`${signatureBase}${apiSecret}`)
-      .digest('hex');
-
-    return res.json({
-      cloudName,
-      apiKey,
-      timestamp,
-      folder,
-      signature,
-      maxFileSizeBytes: 10 * 1024 * 1024
-    });
-  } catch {
-    return res.status(500).json({ error: 'Unable to authorize media upload.' });
   }
 });
 
@@ -2041,13 +1998,6 @@ app.post('/api/media/upload', async (req, res) => {
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
     if (!(await enforceRateLimit(adminDb, `media-upload:${token.uid}`, 40, 10 * 60_000))) {
       return res.status(429).json({ error: 'Too many image uploads. Please wait a few minutes and try again.' });
-    }
-
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
-    if (!cloudName || !apiKey || !apiSecret) {
-      return res.status(503).json({ error: 'Media storage is not configured.' });
     }
 
     if (!hasOnlyKeys(req.body, ['kind', 'fileName', 'mimeType', 'dataBase64'])) {
@@ -2084,53 +2034,51 @@ app.post('/api/media/upload', async (req, res) => {
       .replace(/[^a-zA-Z0-9._-]+/g, '-')
       .replace(/^-+|-+$/g, '') || `saelyxe-${Date.now()}`;
     const ext = detectedMime === 'image/jpeg' ? 'jpg' : detectedMime.split('/')[1];
-    const baseName = requestedName.replace(/\.[^.]+$/, '').slice(0, 120) || `saelyxe-${Date.now()}`;
+    const baseName = requestedName.replace(/\.[^.]+$/, '').slice(0, 100) || `saelyxe-${Date.now()}`;
     const folder = kind === 'settings' ? 'saelyxe/settings' : 'saelyxe/products';
+    const objectId = crypto.randomUUID();
+    const objectPath = `${folder}/${Date.now()}-${objectId}-${baseName}.${ext}`;
 
-    const formData = new FormData();
-    formData.append('file', new Blob([buffer], { type: detectedMime }), `${baseName}.${ext}`);
-    formData.append('folder', folder);
-    formData.append('use_filename', 'true');
-    formData.append('unique_filename', 'true');
-    formData.append('overwrite', 'false');
+    const bucketName =
+      process.env.FIREBASE_STORAGE_BUCKET ||
+      process.env.VITE_FIREBASE_STORAGE_BUCKET ||
+      'gen-lang-client-0800900976.firebasestorage.app';
+    const downloadToken = crypto.randomUUID();
 
-    const authorization = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-    const cloudinaryResponse = await fetch(
-      `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Basic ${authorization}` },
-        body: formData
+    const bucket = getStorage().bucket(bucketName);
+    const file = bucket.file(objectPath);
+    await file.save(buffer, {
+      resumable: false,
+      metadata: {
+        contentType: detectedMime,
+        cacheControl: 'public,max-age=31536000,immutable',
+        metadata: {
+          firebaseStorageDownloadTokens: downloadToken,
+          saelyxeUploadedBy: token.uid,
+          saelyxeMediaKind: kind
+        }
       }
-    );
-    const uploaded: any = await cloudinaryResponse.json().catch(() => ({}));
+    });
 
-    if (!cloudinaryResponse.ok) {
-      const providerMessage = safeString(uploaded?.error?.message, 240);
-      console.error('Cloudinary server upload failed:', cloudinaryResponse.status, providerMessage);
-      return res.status(502).json({
-        error: providerMessage ? `Image storage rejected the upload: ${providerMessage}` : 'Image storage rejected the upload.'
-      });
-    }
-
-    const secureUrl = safeString(uploaded?.secure_url, 1400);
-    if (!secureUrl.startsWith('https://res.cloudinary.com/')) {
-      return res.status(502).json({ error: 'Image storage did not return a secure delivery URL.' });
-    }
+    const secureUrl =
+      `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucketName)}/o/${encodeURIComponent(objectPath)}?alt=media&token=${encodeURIComponent(downloadToken)}`;
 
     return res.status(201).json({
-      secureUrl: secureUrl.replace('/image/upload/', '/image/upload/f_auto,q_auto/'),
-      width: Number(uploaded?.width) || null,
-      height: Number(uploaded?.height) || null,
-      bytes: Number(uploaded?.bytes) || buffer.length,
-      format: safeString(uploaded?.format, 20)
+      secureUrl,
+      bytes: buffer.length,
+      format: ext,
+      storage: 'firebase'
     });
-  } catch (error) {
-    console.error('Administrator media upload error:', error instanceof Error ? error.message : error);
+  } catch (error: any) {
+    const code = safeString(error?.code, 120);
+    const message = safeString(error?.message, 240);
+    console.error('Firebase Storage admin media upload error:', code || message || 'unknown');
+    if (code.includes('storage') || code.includes('permission') || message.toLowerCase().includes('permission')) {
+      return res.status(503).json({ error: 'Firebase media storage permission is not ready for this server account.' });
+    }
     return res.status(500).json({ error: 'Unable to upload image right now.' });
   }
 });
-
 
 app.post('/api/newsletter', async (req, res) => {
   try {

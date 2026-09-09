@@ -652,7 +652,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
                       Product Images <span className="text-rose-600">*</span>
                     </label>
                     <p className="text-[10px] leading-relaxed text-stone-500">
-                      Upload from your PC. Images are automatically optimized and stored in SAELYXE Cloud Media.
+                      Upload from your PC. Images are automatically optimized and stored securely in SAELYXE Media Storage.
                     </p>
                   </div>
                   <div className="rounded-full bg-white border border-stone-200 px-2.5 py-1 text-[10px] font-bold text-stone-500 shrink-0">

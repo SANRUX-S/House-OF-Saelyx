@@ -96,7 +96,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
       label: 'CONTACT SUPPORT',
       icon: Headset,
       action: () => navigateTo({ name: 'contact-support' }),
-      desc: 'Atelier concierge assistance'
+      desc: 'Customer support assistance'
     }
   ];
 
@@ -145,7 +145,7 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({ isOpen, onClos
           >
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="w-4 h-4 text-amber-800 stroke-[2] group-hover:scale-110 transition-transform duration-200" />
-              <span>ATELIER ADMIN PANEL</span>
+              <span>SAELYXE ADMIN PANEL</span>
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-[#7A6E60] group-hover:translate-x-1 transition-transform duration-200" />
           </button>
