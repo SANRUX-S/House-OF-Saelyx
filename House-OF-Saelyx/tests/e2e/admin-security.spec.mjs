@@ -34,7 +34,7 @@ test('order tracking supports account or scoped guest access without leaking pri
   await page.goto('/track-order?id=SLX-PRIVATE-TEST');
   await expect(page.getByText(/TRACK YOUR ORDER/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /TRACK ORDER/i })).toBeVisible();
-  await expect(page.getByText(/browser used at checkout/i)).toBeVisible();
+  await expect(page.getByText(/browser used at checkout/i).first()).toBeVisible();
   await expect(page.getByText(/Customer Name|Street Address|Payment Method/i)).toHaveCount(0);
 });
 
