@@ -71,6 +71,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/media/upload",
+      "destination": "/api/media-upload"
+    },
+    {
+      "source": "/api/admin/products/:id",
+      "destination": "/api/admin-product?id=:id"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
     },
