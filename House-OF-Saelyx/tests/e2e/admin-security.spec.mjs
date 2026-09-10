@@ -42,7 +42,7 @@ test('legacy admin and direct checkout URLs are retired', async ({ page }) => {
   }
 });
 
-test('secure checkout entry requires an authenticated customer', async ({ page }) => {
+test('secure checkout entry supports guest checkout and exposes COD', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('saelyx_cart', JSON.stringify([{
       productId: 'ci-checkout-product',
@@ -74,14 +74,16 @@ test('secure checkout entry requires an authenticated customer', async ({ page }
   });
   await page.goto('/secure-order-session');
 
-  const body = page.locator('body');
-  await expect(body).toContainText(/Sign in|Create Account|SAELYXE/i);
-  await expect(page.getByRole('radio', { name: /Cash on Delivery/i })).toHaveCount(0);
-  await expect(page.getByText(/PLACE CASH ON DELIVERY ORDER/i)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/secure-order-session$/);
+  await expect(page.getByText('Secure Guest Checkout')).toBeVisible();
+  const cod = page.getByRole('radio', { name: /Cash on Delivery/i });
+  await expect(cod).toBeVisible();
+  await cod.click();
+  await expect(page.getByText(/PLACE CASH ON DELIVERY ORDER/i)).toBeVisible();
 });
 
-test('order creation guard blocks anonymous and COD requests before order processing', async ({ request }) => {
-  const anonymous = await request.post('/api/orders', {
+test('order creation guard permits guest COD and rejects unsupported methods', async ({ request }) => {
+  const guestCod = await request.post('/api/orders', {
     data: {
       customerName: 'CI Patron',
       firstName: 'CI',
@@ -96,9 +98,27 @@ test('order creation guard blocks anonymous and COD requests before order proces
       paymentMethod: 'cod'
     }
   });
-  expect([401, 403]).toContain(anonymous.status());
-  const payload = await anonymous.json();
-  expect(String(payload.error || '')).toMatch(/sign in|account|session/i);
+  expect([401, 403]).not.toContain(guestCod.status());
+  expect([400, 503]).toContain(guestCod.status());
+
+  const unsupported = await request.post('/api/orders', {
+    data: {
+      customerName: 'CI Patron',
+      firstName: 'CI',
+      lastName: 'Patron',
+      email: 'ci@example.com',
+      phone: '+94771234567',
+      address: 'CI Address',
+      city: 'Colombo',
+      country: 'Sri Lanka',
+      items: [{ productId: 'ci-product', size: 'M', quantity: 1 }],
+      currencyUsed: 'LKR',
+      paymentMethod: 'bank-transfer'
+    }
+  });
+  expect(unsupported.status()).toBe(400);
+  const payload = await unsupported.json();
+  expect(String(payload.error || '')).toMatch(/PayPal|Payzy|Cash on Delivery/i);
 });
 
 test('public health endpoint is intentionally minimal', async ({ request }) => {
