@@ -18,7 +18,7 @@ export const SEOManager: React.FC = () => {
     if (routeName === 'product' && currentRoute.slug) {
       const product = getProductBySlug(currentRoute.slug);
       if (product) {
-        title = `${product.title} | SAELYXE Atelier`;
+        title = `${product.title} | SAELYXE`;
         description = product.description 
           ? product.description.replace(/(<([^>]+)>)/gi, '').substring(0, 160)
           : `${product.title} - Handcrafted minimalist luxury streetwear by SAELYXE. Fabric: ${product.fabricDetails || 'Luxury blend'}.`;
@@ -77,11 +77,11 @@ export const SEOManager: React.FC = () => {
         }
       };
     } else if (routeName === 'vip') {
-      title = 'VIP House Membership | SAELYXE Private Atelier Access';
+      title = 'VIP House Membership | SAELYXE Private SAELYXE Access';
       description = 'Join SAELYXE VIP House for exclusive tier benefits, priority drop access, bespoke concierge support, and private vault previews.';
       canonicalPath = '/vip';
     } else if (routeName === 'checkout') {
-      title = 'Secure Checkout | SAELYXE Atelier';
+      title = 'Secure Checkout | SAELYXE';
       description = 'Complete your SAELYXE purchase with encrypted SSL checkout and insured express delivery across Sri Lanka.';
       canonicalPath = '/secure-order-session';
     } else if (routeName === 'track-order' || routeName === 'track') {
@@ -90,7 +90,7 @@ export const SEOManager: React.FC = () => {
       canonicalPath = '/track';
     } else if (routeName === 'legal-terms') {
       title = 'Terms of Service | SAELYXE';
-      description = 'Official terms of service and client governance for SAELYXE House.';
+      description = 'Official terms of service and client governance for SAELYXE.';
       canonicalPath = '/legal/terms';
     } else if (routeName === 'legal-privacy') {
       title = 'Privacy Policy | SAELYXE Security & Data Care';
@@ -105,7 +105,7 @@ export const SEOManager: React.FC = () => {
       description = 'Express courier delivery across Sri Lanka, insured dispatch, and luxury custom packaging options.';
       canonicalPath = '/care/shipping';
     } else if (routeName === 'care-concierge') {
-      title = 'Atelier Concierge | SAELYXE';
+      title = 'SAELYXE Concierge | SAELYXE';
       description = 'Personal styling assistance, garment care advice, and private client service.';
       canonicalPath = '/care-concierge';
     } else if (routeName === 'care-size-guide') {

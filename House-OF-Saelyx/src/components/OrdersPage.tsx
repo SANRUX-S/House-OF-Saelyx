@@ -104,7 +104,7 @@ export const OrdersPage: React.FC = () => {
       case 'paypal': return 'PayPal';
       case 'payzy': return 'Payzy';
       case 'cod': return 'Cash on Delivery';
-      default: return 'Atelier Commission';
+      default: return 'Other Payment';
     }
   };
 

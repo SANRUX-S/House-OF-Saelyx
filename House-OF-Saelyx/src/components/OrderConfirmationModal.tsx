@@ -24,7 +24,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
       case 'paypal': return 'PayPal';
       case 'payzy': return 'Payzy';
       case 'cod': return 'Cash on Delivery';
-      default: return 'Atelier Commission';
+      default: return 'Other Payment';
     }
   };
 

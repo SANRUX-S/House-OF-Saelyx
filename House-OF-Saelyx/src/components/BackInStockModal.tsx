@@ -136,7 +136,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
             <div className="flex items-center space-x-2.5">
               <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
               <span className="text-[11px] font-sans tracking-widest text-neutral-300 uppercase">
-                Atelier Priority Restock Waitlist
+                Priority Restock Waitlist
               </span>
             </div>
             <button
@@ -335,7 +335,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       {notificationPermission === 'default' && (
                         <div className="space-y-2">
                           <p className="text-[10px] text-neutral-400 font-sans leading-relaxed">
-                            To receive live, instantaneous Atelier restocking alerts directly on this device, please authorize browser notifications.
+                            To receive live, instantaneous SAELYXE restocking alerts directly on this device, please authorize browser notifications.
                           </p>
                           <button
                             type="button"
@@ -452,7 +452,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       <span className="text-amber-400">Automated Dispatch</span>
                     </div>
                     <div className="text-sm font-serif text-white">
-                      Subject: Restock Notification: {product.title} is now available at the Atelier
+                      Subject: Restock Notification: {product.title} is now available at the SAELYXE
                     </div>
                     <p className="text-neutral-300 text-xs leading-relaxed">
                       Dear {name || 'Valued Patron'},<br /><br />
@@ -486,7 +486,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                   onClick={onClose}
                   className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-sans text-xs uppercase tracking-widest transition-colors cursor-pointer"
                 >
-                  Return to Atelier Catalog
+                  Return to SAELYXE Catalog
                 </button>
               </div>
             </div>

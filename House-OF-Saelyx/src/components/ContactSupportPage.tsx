@@ -65,7 +65,7 @@ export const ContactSupportPage: React.FC = () => {
 
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#3E3730]">
             <Clock className="w-4 h-4 text-emerald-800 stroke-[2]" />
-            <span>Atelier Response within 2h</span>
+            <span>Support Response within 2h</span>
           </div>
         </div>
 
@@ -89,7 +89,7 @@ export const ContactSupportPage: React.FC = () => {
             </div>
             <div className="space-y-2">
               <h2 className="font-serif text-2xl text-[#1A1816]">
-                Message Received by Atelier
+                Message Received by SAELYXE
               </h2>
               <p className="text-xs text-[#3E3730] font-medium max-w-md mx-auto leading-relaxed">
                 Thank you, {name}. Your inquiry has been registered in our concierge ledger. A private director will follow up directly at <strong className="text-[#1A1816]">{email}</strong>.
@@ -197,7 +197,7 @@ export const ContactSupportPage: React.FC = () => {
                 className="w-full h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-full transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{isSubmitting ? 'DISPATCHING TO ATELIER...' : 'TRANSMIT TO CONCIERGE'}</span>
+                <span>{isSubmitting ? 'DISPATCHING TO SAELYXE...' : 'TRANSMIT TO CONCIERGE'}</span>
               </button>
             </div>
           </form>

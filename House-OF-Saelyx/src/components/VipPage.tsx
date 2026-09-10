@@ -28,7 +28,7 @@ export const VipPage: React.FC = () => {
         {/* Headline */}
         <div className="space-y-3">
           <span className="text-[11px] uppercase tracking-[0.3em] font-semibold text-[#8C7A68] block">
-            SAELYXE ATELIER
+            SAELYXE
           </span>
           <h1 className="font-serif text-3xl sm:text-5xl text-[#1A1816] font-normal tracking-tight">
             VIP ELIGIBLE

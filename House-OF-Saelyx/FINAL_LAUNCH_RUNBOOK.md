@@ -13,7 +13,7 @@ This file is the single source of truth for the final production release.
 ## Current pre-deploy state
 
 - Latest customer/order/security work is already based on current `main`.
-- Temporary Cash on Delivery (COD) checkout is included for no-money end-to-end testing.
+- Cash on Delivery (COD) checkout is supported for eligible registered and guest orders and remains unpaid until delivery settlement.
 - COD orders remain unpaid as `cod_pending` and are never marked PayPal verified.
 - PayPal refund routes remain restricted to verified PayPal payments.
 - Legacy demo/test operational cleanup is prepared.

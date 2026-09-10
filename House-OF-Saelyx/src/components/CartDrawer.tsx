@@ -158,7 +158,7 @@ export const CartDrawer: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-400">Delivery Status:</span>
-                    <span className="text-emerald-400 font-semibold uppercase">Dispatched to Atelier</span>
+                    <span className="text-emerald-400 font-semibold uppercase">Order Received</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-400">Direct Hand Delivery ETA:</span>

@@ -485,7 +485,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                       <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                       Archival Run Sold Out
                     </span>
-                    <span className="text-[10px] font-sans text-neutral-400">Atelier Waitlist</span>
+                    <span className="text-[10px] font-sans text-neutral-400">SAELYXE Waitlist</span>
                   </div>
                   <p className="text-xs text-neutral-300 font-normal leading-relaxed">
                     This silhouette is currently fully allocated. Register your email below to receive an automated notification by email when the next replenishment batch is released.
@@ -552,7 +552,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                           {inlineNotificationPermission === 'default' && (
                             <div className="space-y-1.5">
                               <p className="text-[10px] text-[#665A4E] font-sans leading-relaxed">
-                                Please authorize notifications in your browser to receive live, instantaneous Atelier restocking alerts on this device.
+                                Please authorize notifications in your browser to receive live, instantaneous SAELYXE restocking alerts on this device.
                               </p>
                               <button
                                 type="button"

@@ -17,7 +17,7 @@ const defaultFaqs: FaqItem[] = [
     question: "WILL DROP 001 RESTOCK?",
     content: (
       <div className="space-y-3 text-[13px] text-[#1a1a1a] font-normal leading-relaxed">
-        <p>Drop 001 silhouettes are produced in limited edition quantities with dedicated atelier fabric milling. While certain core silhouettes may be considered for future seasonal runs, restocks are never guaranteed once allocations are exhausted.</p>
+        <p>Drop 001 silhouettes are produced in limited edition quantities with dedicated premium fabric milling. While certain core silhouettes may be considered for future seasonal runs, restocks are never guaranteed once allocations are exhausted.</p>
         <p>We encourage patrons to join the Back-in-Stock waitlist on individual garment pages for real-time dispatch updates.</p>
       </div>
     )

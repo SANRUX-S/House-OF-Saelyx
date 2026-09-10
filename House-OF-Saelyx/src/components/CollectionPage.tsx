@@ -16,7 +16,7 @@ export const CollectionPage: React.FC<{ category: string }> = ({ category }) => 
   const [selectedSubCat, setSelectedSubCat] = useState<string>('all');
 
   const formattedCatTitle = 
-    category === 'men' ? "Men's Atelier Drop"
+    category === 'men' ? "Men's Collection"
     : category === 'women' ? "Women's Couturier"
     : category === 'new' ? "New Seasonal Drops"
     : category === 'knits' ? "Heavyweight Knits & Coordinates"
@@ -137,7 +137,7 @@ export const CollectionPage: React.FC<{ category: string }> = ({ category }) => 
               <div className="p-5 sm:p-6 space-y-3">
                 <div className="space-y-1">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-[#857768] font-semibold">
-                    {product.fit || 'ATELIER TAILORING'}
+                    {product.fit || 'SAELYXE TAILORING'}
                   </div>
                   <h3 className="font-sans text-sm sm:text-base font-bold uppercase tracking-wide text-[#1A1816] group-hover:text-amber-950 transition-colors">
                     {product.title}

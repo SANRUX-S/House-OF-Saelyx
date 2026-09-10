@@ -244,7 +244,7 @@ export const LegalPrivacyPage: React.FC = () => {
               <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#EBE3D7] space-y-1.5">
                 <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Technology & Service Providers</h4>
                 <p className="text-xs text-[#665A4E]">
-                  We use Firebase / Google Cloud for authentication and application data services, Vercel for website hosting and server execution, Cloudinary for product-media storage and delivery, and Resend for transactional email delivery. These providers process only the information reasonably required to provide their services to SAELYXE.
+                  We use Firebase / Google Cloud for authentication, application data, and product-media storage, Vercel for website hosting and server execution, and Resend for transactional email delivery. These providers process only the information reasonably required to provide their services to SAELYXE.
                 </p>
               </div>
 

@@ -44,7 +44,7 @@ export const LegalTermsPage: React.FC = () => {
             SAELYXE Terms & Conditions
           </h1>
           <p className="text-xs text-[#665A4E] uppercase tracking-widest font-sans">
-            Last Updated: September 3, 2026
+            Last Updated: September 10, 2026
           </p>
           <p className="text-sm text-[#665A4E] font-normal max-w-3xl leading-relaxed pt-1">
             Welcome to <strong className="font-semibold text-[#1A1816]">SAELYXE</strong>. These Terms & Conditions govern your access to and use of the SAELYXE website, your SAELYXE account, and the purchase of products through our online store.
@@ -68,16 +68,16 @@ export const LegalTermsPage: React.FC = () => {
             <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
               <UserX className="w-4 h-4" />
             </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">No Guest Checkout</h4>
-            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Eligible customer account required to place orders.</p>
+            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Guest Checkout Available</h4>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Customers may order as guests or use a SAELYXE account.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
             <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
               <CreditCard className="w-4 h-4" />
             </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Online Payments</h4>
-            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Authorised online payments with no full card storage on SAELYXE servers.</p>
+            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Payment Options</h4>
+            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">PayPal, Payzy, and Cash on Delivery are available where shown at checkout.</p>
           </div>
 
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
@@ -110,17 +110,17 @@ export const LegalTermsPage: React.FC = () => {
                 Account Registration
               </h3>
               <p className="text-xs sm:text-sm">
-                Certain SAELYXE features and purchases require customers to create and maintain a personal account. Customers agree to provide accurate, current, and complete information, maintain account security, and not create accounts using false or unauthorised details. SAELYXE may restrict, suspend, or terminate accounts where there is evidence of fraud or misuse.
+                A SAELYXE account is optional for checkout, but some account features may require registration. Registered customers agree to provide accurate, current, and complete information, maintain account security, and not create accounts using false or unauthorised details. SAELYXE may restrict, suspend, or terminate accounts where there is evidence of fraud or misuse.
               </p>
             </div>
 
             <div className="space-y-3 border-t border-[#F0E8DD] pt-6 bg-[#FAF6F0] p-4 rounded-xl border border-[#E0D5C7]">
               <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-sans flex items-center justify-center">3</span>
-                No Guest Checkout
+                Guest Checkout Available
               </h3>
               <p className="text-xs sm:text-sm text-[#4A3E30]">
-                SAELYXE does not provide <strong className="font-semibold text-[#1A1816]">guest checkout</strong> where an order can be placed without an eligible customer account. Customers must use their own authorised SAELYXE account when placing an order. An account must not be created or used on behalf of another person without proper authorisation.
+                SAELYXE provides <strong className="font-semibold text-[#1A1816]">guest checkout</strong> for eligible orders. Guest customers must provide accurate contact and delivery information. Customers who choose to use a SAELYXE account are responsible for keeping their account credentials secure and must not use another person’s account without authorisation.
               </p>
             </div>
           </section>
@@ -212,7 +212,7 @@ export const LegalTermsPage: React.FC = () => {
                 Orders & Acceptance
               </h3>
               <p className="text-xs sm:text-sm">
-                Placing an order constitutes a request to purchase. Orders are subject to payment confirmation, stock verification, and acceptance by SAELYXE. We reserve the right to limit or cancel orders in cases of stock unavailability, pricing errors, or fraud verification.
+                Placing an order constitutes a request to purchase. Orders are subject to stock verification and acceptance by SAELYXE. Prepaid orders require successful server-side payment confirmation, while Cash on Delivery orders remain unpaid until the applicable delivery settlement. We reserve the right to limit or cancel orders in cases of stock unavailability, pricing errors, or fraud verification.
               </p>
             </div>
 
@@ -242,7 +242,7 @@ export const LegalTermsPage: React.FC = () => {
             <div className="space-y-3 border-t border-[#E3D8C8] pt-6">
               <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-sans flex items-center justify-center">14</span>
-                Online Payments & Zero Card Storage
+                Payment Options & Zero Card Storage
               </h3>
               <p className="text-xs sm:text-sm text-[#4A3E30]">
                 Online payments are processed through the selected provider's infrastructure, including PayPal or Payzy where applicable. An online order is considered successfully paid only after SAELYXE receives and verifies the applicable provider confirmation. SAELYXE does not intentionally store full credit/debit card numbers or security codes on its servers.

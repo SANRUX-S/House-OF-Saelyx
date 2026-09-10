@@ -1,4 +1,4 @@
-# SAELYXE Luxury Atelier - Robots Configuration
+# SAELYXE - Robots Configuration
 User-agent: *
 Allow: /
 Disallow: /admin

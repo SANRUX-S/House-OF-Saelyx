@@ -202,7 +202,7 @@ export const AuthModal: React.FC = () => {
             </h2>
             <p className="mt-1.5 text-xs leading-relaxed text-[#786F64]">
               {signupSuccess
-                ? 'Welcome to the house. Please check your email for the verification link.'
+                ? 'Welcome to SAELYXE. Please check your email for the verification link.'
                 : isForgot
                   ? 'Enter your registered email address and we will send you a password reset link.'
                   : isSignUp 

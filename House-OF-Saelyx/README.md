@@ -1,48 +1,48 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# SAELYXE
 
-# Run and deploy your AI Studio app
+SAELYXE is the production e-commerce storefront and protected administrator application for the SAELYXE fashion brand.
 
-This contains everything you need to run your app locally.
+## Local development
 
-View your app in AI Studio: https://ai.studio/apps/9fd90c38-837e-435e-b027-e53891c99a41
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to your local environment file and provide the required Firebase, payment, and email values.
+3. Run `npm run dev`.
+4. Before shipping changes, run the project TypeScript/security checks and `npm run build`.
 
-## Run Locally
+## Production architecture
 
-**Prerequisites:**  Node.js
+- **Frontend:** React + TypeScript + Vite.
+- **Hosting/API:** Vercel.
+- **Authentication, application data, and product media:** Firebase / Google Cloud. Admin media uploads are authenticated, App Check protected, optimized in the browser, and stored through protected Firebase Storage server functions.
+- **Transactional email:** Resend.
+- **Payments:** PayPal, Payzy, and Cash on Delivery where the checkout UI makes them available.
 
+## Checkout rules
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+SAELYXE supports both registered-customer checkout and eligible guest checkout. Guest orders are protected with scoped order-access capabilities. Cash on Delivery orders remain unpaid until delivery settlement. PayPal and Payzy orders must never be treated as paid until the payment is verified by the trusted server-side flow.
 
 ## Firebase Admin API configuration
 
-The browser Firebase settings are not sufficient for protected admin API routes. Set these server-only variables in the local environment and in Vercel Project Settings > Environment Variables:
+Protected server routes require these server-only values in the local environment and Vercel Project Settings > Environment Variables:
 
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_CLIENT_EMAIL`
-- `FIREBASE_PRIVATE_KEY` (the service-account private key, with newlines preserved or encoded as `\\n`)
+- `FIREBASE_PRIVATE_KEY`
+- `FIREBASE_STORAGE_BUCKET`
 
-Use a Firebase service-account key from Project settings > Service accounts. Never commit the key or put it in a `VITE_*` variable.
-
+Never commit service-account credentials and never expose them through `VITE_*` variables. Browser Firebase configuration is separate and may use the public `VITE_FIREBASE_*` values shown in `.env.example`.
 
 ## Production hardening checklist
 
-Before promoting a deployment to production:
+1. Keep `VITE_FIREBASE_ENABLE_REALTIME=true` only with the intended production Firebase project.
+2. Keep `saelyxe.com` and `www.saelyxe.com` in Firebase Authentication authorized domains.
+3. Deploy and review `firestore.rules` before production data-model changes.
+4. Keep Firebase App Check and administrator authorization enforced for protected write/upload routes.
+5. Configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` only as server-side values.
+6. Verify PayPal/Payzy payments server-side before marking prepaid orders as paid.
+7. Keep COD orders in an unpaid/pending state until delivery settlement.
+8. Run the SAELYXE CI checks and production build before final deployment.
 
-1. Configure the Firebase browser variables and set `VITE_FIREBASE_ENABLE_REALTIME=true`.
-2. Configure the server-only Firebase Admin variables: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`.
-3. Add `saelyxe.com` and `www.saelyxe.com` to Firebase Authentication authorized domains and enable only the sign-in providers used by the UI.
-4. Deploy `firestore.rules` after reviewing the target Firebase project. SAELYXE media uploads use signed Cloudinary uploads; Firebase Storage is not required.
-5. For transactional email and staff invitations, configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in Vercel. Firebase Functions are intentionally not used; restock delivery runs through the protected Vercel API.
-6. Do not mark PayPal orders as paid until the payment has been verified server-side against the linked PayPal order and completed capture.
-7. Run `npm run lint` and `npm run build` before merging production changes.
+### Local server alignment
 
-
-### Local development architecture
-
-The local VS Code server mounts the same `api/index.ts` implementation used by Vercel. Legacy local StoreDB and duplicate authentication/API routes are intentionally removed so development and production authorization behavior stay aligned.
+The local VS Code server mounts the same protected API implementation used in production so authorization and order behavior stay aligned between development and Vercel.
