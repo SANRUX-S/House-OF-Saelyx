@@ -8,6 +8,8 @@ import { getStorage } from 'firebase-admin/storage';
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
 const ROOT_ADMIN_EMAIL = 'saelyxe.co@gmail.com';
 const ALLOWED_CATEGORIES = new Set(['men', 'women', 'new', 'collections', 'knits', 'sets', 'accessories']);
+const BLOB_API_URL = 'https://vercel.com/api/blob';
+const BLOB_API_VERSION = '12';
 
 function safeString(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -132,26 +134,100 @@ function parseFirebaseStorageUrl(url: string) {
   }
 }
 
+function parseVercelBlobProductUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return null;
+    if (!parsed.hostname.endsWith('.blob.vercel-storage.com')) return null;
+    const objectPath = decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+    if (!objectPath.startsWith('saelyxe/products/')) return null;
+    return { url: parsed.toString(), objectPath };
+  } catch {
+    return null;
+  }
+}
+
+function getBlobCredentials() {
+  const token = safeString(process.env.BLOB_READ_WRITE_TOKEN, 5000);
+  if (!token) return null;
+  const configuredStoreId = safeString(process.env.BLOB_STORE_ID, 300).replace(/^store_/, '');
+  const tokenStoreId = token.split('_')[3] || '';
+  const storeId = configuredStoreId || tokenStoreId;
+  return storeId ? { token, storeId } : null;
+}
+
+async function cleanupVercelBlobImages(urls: string[]) {
+  if (!urls.length) return { deleted: 0, failed: 0 };
+  const credentials = getBlobCredentials();
+  if (!credentials) {
+    console.error('Unable to remove retired SAELYXE Vercel Blob images: Blob credentials are unavailable.');
+    return { deleted: 0, failed: urls.length };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const requestId = `${credentials.storeId}:${Date.now()}:${crypto.randomBytes(8).toString('hex')}`;
+    const response = await fetch(`${BLOB_API_URL}/delete`, {
+      method: 'POST',
+      body: JSON.stringify({ urls }),
+      signal: controller.signal,
+      headers: {
+        authorization: `Bearer ${credentials.token}`,
+        'content-type': 'application/json',
+        'x-vercel-blob-store-id': credentials.storeId,
+        'x-api-version': BLOB_API_VERSION,
+        'x-api-blob-request-id': requestId,
+        'x-api-blob-request-attempt': '0'
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.error('Unable to remove retired SAELYXE Vercel Blob images:', response.status, text.slice(0, 300));
+      return { deleted: 0, failed: urls.length };
+    }
+    return { deleted: urls.length, failed: 0 };
+  } catch (error) {
+    console.error('Unable to remove retired SAELYXE Vercel Blob images:', error);
+    return { deleted: 0, failed: urls.length };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function cleanupProductImages(urls: string[]) {
   let deleted = 0;
   let failed = 0;
+  const blobUrls: string[] = [];
+
   for (const url of urls) {
-    const target = parseFirebaseStorageUrl(url);
-    if (!target || !target.objectPath.startsWith('saelyxe/products/')) continue;
-    try {
-      await getStorage().bucket(target.bucket).file(target.objectPath).delete({ ignoreNotFound: true });
-      deleted += 1;
-    } catch (error) {
-      failed += 1;
-      console.error('Unable to remove retired SAELYXE product image:', target, error);
+    const firebaseTarget = parseFirebaseStorageUrl(url);
+    if (firebaseTarget?.objectPath.startsWith('saelyxe/products/')) {
+      try {
+        await getStorage().bucket(firebaseTarget.bucket).file(firebaseTarget.objectPath).delete({ ignoreNotFound: true });
+        deleted += 1;
+      } catch (error) {
+        failed += 1;
+        console.error('Unable to remove retired SAELYXE Firebase product image:', firebaseTarget, error);
+      }
+      continue;
     }
+
+    const blobTarget = parseVercelBlobProductUrl(url);
+    if (blobTarget) blobUrls.push(blobTarget.url);
   }
+
+  const blobCleanup = await cleanupVercelBlobImages(blobUrls);
+  deleted += blobCleanup.deleted;
+  failed += blobCleanup.failed;
   return { deleted, failed };
 }
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   try {
     ensureAdminApp();
@@ -242,7 +318,7 @@ export default async function handler(req: any, res: any) {
 
     if (req.method === 'DELETE') {
       if (role !== 'super_admin') return res.status(403).json({ error: 'Super Admin access required.' });
-      if (!hasRecentAuthentication(token)) return res.status(428).json({ error: 'Recent administrator authentication required before deleting a product. Sign out and sign in again.' });
+      if (!hasRecentAuthentication(token)) return res.status(428).json({ error: 'Recent administrator authentication required before deleting a product.' });
       if (!(await enforceRateLimit(token.uid, 'admin-product-delete-v2', 30, 60 * 60_000))) {
         return res.status(429).json({ error: 'Product deletion is rate limited. Please wait and retry.' });
       }
@@ -254,6 +330,9 @@ export default async function handler(req: any, res: any) {
       const hoverImage = safeString(data.hoverImage, 1200);
       if (hoverImage.startsWith('https://') && !images.includes(hoverImage)) images.push(hoverImage);
 
+      // Deleting the catalogue record is authoritative. Media cleanup follows and is
+      // deliberately non-fatal so a temporary storage problem can never resurrect a
+      // product that the Super Admin successfully retired.
       await ref.delete();
       const mediaCleanup = await cleanupProductImages(images);
       await writeAudit(token, 'PRODUCT_RETIRED', `Retired ${safeString(data.title, 200) || id} (${id}); media deleted=${mediaCleanup.deleted}, failed=${mediaCleanup.failed}.`);
