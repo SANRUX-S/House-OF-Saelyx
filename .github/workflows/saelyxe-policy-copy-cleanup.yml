@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Align COD, guest checkout, storage and brand copy
+      - name: Final wording cleanup
         shell: bash
         run: |
           python - <<'PY'
@@ -31,125 +31,47 @@ jobs:
           root = Path('House-OF-Saelyx')
           changed = []
 
-          def save(path: Path, original: str, updated: str):
-              if updated != original:
-                  path.write_text(updated, encoding='utf-8')
+          def update(path: Path, transform):
+              original = path.read_text(encoding='utf-8')
+              text = transform(original)
+              if text != original:
+                  path.write_text(text, encoding='utf-8')
                   changed.append(str(path))
 
-          # Legal Terms: guest checkout is intentionally allowed; COD is intentionally available.
-          path = root / 'src/components/LegalTermsPage.tsx'
-          original = path.read_text(encoding='utf-8')
-          text = original
-          text = text.replace('Last Updated: September 3, 2026', 'Last Updated: September 10, 2026')
-          text = text.replace('No Guest Checkout', 'Guest Checkout Available')
-          text = text.replace('Eligible customer account required to place orders.', 'Customers may order as guests or use a SAELYXE account.')
-          text = text.replace(
-              'SAELYXE does not provide <strong className="font-semibold text-[#1A1816]">guest checkout</strong> where an order can be placed without an eligible customer account. Customers must use their own authorised SAELYXE account when placing an order. An account must not be created or used on behalf of another person without proper authorisation.',
-              'SAELYXE provides <strong className="font-semibold text-[#1A1816]">guest checkout</strong> for eligible orders. Guest customers must provide accurate contact and delivery information. Customers who choose to use a SAELYXE account are responsible for keeping their account credentials secure and must not use another person’s account without authorisation.'
-          )
-          text = text.replace(
-              'Certain SAELYXE features and purchases require customers to create and maintain a personal account. Customers agree to provide accurate, current, and complete information, maintain account security, and not create accounts using false or unauthorised details. SAELYXE may restrict, suspend, or terminate accounts where there is evidence of fraud or misuse.',
-              'A SAELYXE account is optional for checkout, but some account features may require registration. Registered customers agree to provide accurate, current, and complete information, maintain account security, and not create accounts using false or unauthorised details. SAELYXE may restrict, suspend, or terminate accounts where there is evidence of fraud or misuse.'
-          )
-          text = text.replace('Online Payments', 'Payment Options')
-          text = text.replace(
-              'Authorised online payments with no full card storage on SAELYXE servers.',
-              'PayPal, Payzy, and Cash on Delivery are available where shown at checkout.'
-          )
-          text = text.replace(
-              'Orders are subject to payment confirmation, stock verification, and acceptance by SAELYXE. We reserve the right to limit or cancel orders in cases of stock unavailability, pricing errors, or fraud verification.',
-              'Orders are subject to stock verification and acceptance by SAELYXE. Prepaid orders require successful server-side payment confirmation, while Cash on Delivery orders remain unpaid until the applicable delivery settlement. We reserve the right to limit or cancel orders in cases of stock unavailability, pricing errors, or fraud verification.'
-          )
-          save(path, original, text)
+          # Remove the old Atelier branding term from customer/admin component copy.
+          for path in (root / 'src/components').rglob('*.tsx'):
+              def transform(text: str) -> str:
+                  text = text.replace('available at the SAELYXE', 'available at SAELYXE')
+                  text = text.replace('at the SAELYXE catalog', 'in the SAELYXE catalog')
+                  text = text.replace('Return to SAELYXE Catalog', 'Return to SAELYXE Catalog')
+                  text = re.sub(r'\batelier\b', 'studio', text, flags=re.IGNORECASE)
+                  return text
+              update(path, transform)
 
-          # Privacy: Firebase/Google Cloud is the active product-media storage provider.
-          path = root / 'src/components/LegalPrivacyPage.tsx'
-          original = path.read_text(encoding='utf-8')
-          text = original.replace('Last Updated: September 3, 2026', 'Last Updated: September 10, 2026')
-          text = text.replace(
-              'We use Firebase / Google Cloud for authentication and application data services, Vercel for website hosting and server execution, Cloudinary for product-media storage and delivery, and Resend for transactional email delivery. These providers process only the information reasonably required to provide their services to SAELYXE.',
-              'We use Firebase / Google Cloud for authentication, application data, and product-media storage, Vercel for website hosting and server execution, and Resend for transactional email delivery. These providers process only the information reasonably required to provide their services to SAELYXE.'
-          )
-          text = text.replace('Cloudinary', 'Firebase Storage')
-          save(path, original, text)
+          # Remove the stale wording from schema/SEO metadata while retaining legacy redirect protection elsewhere.
+          blueprint = root / 'firebase-blueprint.json'
+          if blueprint.exists():
+              update(blueprint, lambda text: re.sub(r'\batelier\b', 'SAELYXE', text, flags=re.IGNORECASE))
 
-          # Public/customer-facing SAELYXE wording cleanup.
-          component_replacements = {
-              'SAELYXE • ATELIER PROVENANCE': 'SAELYXE • AUTHENTICITY',
-              'SAELYXE ATELIER': 'SAELYXE',
-              'SAELYXE Atelier': 'SAELYXE',
-              'SAELYXE House': 'SAELYXE',
-              'Atelier Response within 2h': 'Support Response within 2h',
-              'Atelier Priority Restock Waitlist': 'Priority Restock Waitlist',
-              'Dispatched to Atelier': 'Order Received',
-              "Men's Atelier Drop": "Men's Collection",
-              'Atelier Commission': 'Other Payment',
-              'Welcome to the house. Please check your email for the verification link.': 'Welcome to SAELYXE. Please check your email for the verification link.',
-              'dedicated atelier fabric milling': 'dedicated premium fabric milling',
-          }
-          components = root / 'src/components'
-          for path in components.rglob('*.tsx'):
-              original = path.read_text(encoding='utf-8')
-              text = original
-              for old, new in component_replacements.items():
-                  text = text.replace(old, new)
-              # Remove the remaining capitalized branding label while preserving normal words such as "house number".
-              text = re.sub(r'\bATELIER\b', 'SAELYXE', text)
-              text = re.sub(r'\bAtelier\b', 'SAELYXE', text)
-              save(path, original, text)
+          index = root / 'index.html'
+          update(index, lambda text: re.sub(r'\batelier\b', 'luxury', text, flags=re.IGNORECASE))
 
-          # Static SEO/robots copy.
-          path = root / 'index.html'
-          original = path.read_text(encoding='utf-8')
-          text = original.replace('SAELYXE House', 'SAELYXE').replace('atelier apparel', 'luxury apparel')
-          save(path, original, text)
+          robots = root / 'public/robots.txt'
+          update(robots, lambda text: re.sub(r'\batelier\b', 'SAELYXE', text, flags=re.IGNORECASE))
 
-          path = root / 'public/robots.txt'
-          original = path.read_text(encoding='utf-8')
-          text = original.replace('SAELYXE Luxury Atelier', 'SAELYXE')
-          save(path, original, text)
+          # Keep legal/storage truth consistent with production behavior.
+          terms = root / 'src/components/LegalTermsPage.tsx'
+          update(terms, lambda text: text.replace('No Guest Checkout', 'Guest Checkout Available'))
 
-          # Correct the final brand spelling in fallback catalog copy without renaming internal storage keys.
-          path = root / 'data/saelyx_store.json'
-          original = path.read_text(encoding='utf-8')
-          text = re.sub(r'\bSAELYX\b', 'SAELYXE', original)
-          save(path, original, text)
-
-          # Environment example: Cloudinary is not part of the active upload path.
-          path = root / '.env.example'
-          original = path.read_text(encoding='utf-8')
-          text = re.sub(
-              r'\n# Cloudinary Free media storage \(server-only; never expose API secret as VITE_\*\)\n# CLOUDINARY_URL is preferred when your Cloudinary/Vercel integration provides it\.\nCLOUDINARY_URL=.*?\nCLOUDINARY_CLOUD_NAME=.*?\nCLOUDINARY_API_KEY=.*?\nCLOUDINARY_API_SECRET=.*?\n',
-              '\n',
-              original,
-              flags=re.S,
-          )
-          save(path, original, text)
-
-          # Replace stale template/Cloudinary README guidance with the current production architecture.
-          path = root / 'README.md'
-          original = path.read_text(encoding='utf-8')
-          text = '''# SAELYXE\n\nSAELYXE is the production e-commerce storefront and protected administrator application for the SAELYXE fashion brand.\n\n## Local development\n\n1. Install dependencies with `npm install`.\n2. Copy `.env.example` to your local environment file and provide the required Firebase, payment, and email values.\n3. Run `npm run dev`.\n4. Before shipping changes, run the project TypeScript/security checks and `npm run build`.\n\n## Production architecture\n\n- **Frontend:** React + TypeScript + Vite.\n- **Hosting/API:** Vercel.\n- **Authentication, application data, and product media:** Firebase / Google Cloud. Admin media uploads are authenticated, App Check protected, optimized in the browser, and stored through protected Firebase Storage server functions.\n- **Transactional email:** Resend.\n- **Payments:** PayPal, Payzy, and Cash on Delivery where the checkout UI makes them available.\n\n## Checkout rules\n\nSAELYXE supports both registered-customer checkout and eligible guest checkout. Guest orders are protected with scoped order-access capabilities. Cash on Delivery orders remain unpaid until delivery settlement. PayPal and Payzy orders must never be treated as paid until the payment is verified by the trusted server-side flow.\n\n## Firebase Admin API configuration\n\nProtected server routes require these server-only values in the local environment and Vercel Project Settings > Environment Variables:\n\n- `FIREBASE_PROJECT_ID`\n- `FIREBASE_CLIENT_EMAIL`\n- `FIREBASE_PRIVATE_KEY`\n- `FIREBASE_STORAGE_BUCKET`\n\nNever commit service-account credentials and never expose them through `VITE_*` variables. Browser Firebase configuration is separate and may use the public `VITE_FIREBASE_*` values shown in `.env.example`.\n\n## Production hardening checklist\n\n1. Keep `VITE_FIREBASE_ENABLE_REALTIME=true` only with the intended production Firebase project.\n2. Keep `saelyxe.com` and `www.saelyxe.com` in Firebase Authentication authorized domains.\n3. Deploy and review `firestore.rules` before production data-model changes.\n4. Keep Firebase App Check and administrator authorization enforced for protected write/upload routes.\n5. Configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` only as server-side values.\n6. Verify PayPal/Payzy payments server-side before marking prepaid orders as paid.\n7. Keep COD orders in an unpaid/pending state until delivery settlement.\n8. Run the SAELYXE CI checks and production build before final deployment.\n\n### Local server alignment\n\nThe local VS Code server mounts the same protected API implementation used in production so authorization and order behavior stay aligned between development and Vercel.\n'''
-          save(path, original, text)
-
-          # Deployment runbook: COD is an intentional supported checkout method, not a temporary test-only path.
-          path = root / 'FINAL_LAUNCH_RUNBOOK.md'
-          if path.exists():
-              original = path.read_text(encoding='utf-8')
-              text = original.replace(
-                  'Temporary Cash on Delivery (COD) checkout is included for no-money end-to-end testing.',
-                  'Cash on Delivery (COD) checkout is supported for eligible registered and guest orders and remains unpaid until delivery settlement.'
-              )
-              save(path, original, text)
+          privacy = root / 'src/components/LegalPrivacyPage.tsx'
+          update(privacy, lambda text: text.replace('Cloudinary', 'Firebase Storage'))
 
           print('Changed files:')
           for item in changed:
               print(f' - {item}')
-          if not changed:
-              raise SystemExit('No files changed; cleanup assumptions no longer match main.')
           PY
 
-      - name: Verify aligned production rules
+      - name: Verify final production copy
         shell: bash
         run: |
           set -euo pipefail
@@ -157,22 +79,27 @@ jobs:
           PRIVACY="House-OF-Saelyx/src/components/LegalPrivacyPage.tsx"
           ENVFILE="House-OF-Saelyx/.env.example"
           README="House-OF-Saelyx/README.md"
+
           grep -q "Guest Checkout Available" "$TERMS"
+          grep -q "guest checkout" "$TERMS"
           grep -q "Cash on Delivery" "$TERMS"
           ! grep -q "No Guest Checkout" "$TERMS"
-          ! grep -q "Cloudinary" "$PRIVACY"
+          ! grep -qi "Cloudinary" "$PRIVACY"
           ! grep -q "CLOUDINARY_" "$ENVFILE"
-          ! grep -q "Cloudinary" "$README"
-          grep -q "guest checkout" "$README"
-          grep -q "Cash on Delivery" "$README"
+          ! grep -qi "Cloudinary" "$README"
+          ! grep -RqiE '\batelier\b' House-OF-Saelyx/src/components House-OF-Saelyx/index.html House-OF-Saelyx/public/robots.txt House-OF-Saelyx/firebase-blueprint.json
           ! grep -Eq '\bSAELYX\b' House-OF-Saelyx/data/saelyx_store.json
 
-      - name: Commit cleanup to production main
+      - name: Commit final pass to production main
         shell: bash
         run: |
           set -euo pipefail
+          if git diff --quiet; then
+            echo "No further wording changes required."
+            exit 0
+          fi
           git config user.name "SAELYXE Maintenance"
           git config user.email "actions@users.noreply.github.com"
           git add House-OF-Saelyx
-          git commit -m "fix(content): align COD guest checkout and SAELYXE copy"
+          git commit -m "fix(content): finish SAELYXE policy and wording cleanup"
           git push origin HEAD:main
