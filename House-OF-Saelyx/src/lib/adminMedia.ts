@@ -8,9 +8,10 @@ const MAX_SOURCE_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_SOURCE_DIMENSION = 12000;
 const MAX_IMAGE_MEGAPIXELS = 60;
 const MAX_UPLOAD_BYTES = 1_850_000;
-const MAX_OUTPUT_DIMENSION = 2800;
-const MAX_OUTPUT_MEGAPIXELS = 10;
-const UPLOAD_TIMEOUT_MS = 45_000;
+const FAST_PATH_BYTES = 1_500_000;
+const MAX_OUTPUT_DIMENSION = 2600;
+const MAX_OUTPUT_MEGAPIXELS = 8;
+const UPLOAD_TIMEOUT_MS = 35_000;
 
 export function isSupportedAdminImageFile(file: File) {
   return ALLOWED_IMAGE_TYPES.has(String(file.type || '').toLowerCase());
@@ -62,6 +63,24 @@ function cleanFileName(file: File) {
     .slice(0, 100) || 'saelyxe-product';
 }
 
+function makeWebpFile(file: File, blob: Blob) {
+  return new File([blob], `${cleanFileName(file)}.webp`, {
+    type: 'image/webp',
+    lastModified: Date.now()
+  });
+}
+
+async function encodeCanvasFast(canvas: HTMLCanvasElement, file: File): Promise<File | null> {
+  // Most images now need only one encode. The second pass exists only for unusually
+  // detailed images that still exceed the serverless upload budget.
+  const first = await canvasToBlob(canvas, 'image/webp', 0.82);
+  if (first.size <= MAX_UPLOAD_BYTES) return makeWebpFile(file, first);
+
+  const second = await canvasToBlob(canvas, 'image/webp', 0.68);
+  if (second.size <= MAX_UPLOAD_BYTES) return makeWebpFile(file, second);
+  return null;
+}
+
 async function optimizeFromDrawable(
   file: File,
   width: number,
@@ -69,40 +88,50 @@ async function optimizeFromDrawable(
   draw: (context: CanvasRenderingContext2D, targetWidth: number, targetHeight: number) => void
 ): Promise<File> {
   validateDimensions(width, height);
+
+  // Fast path: normal already-small product images can be uploaded as-is. This avoids
+  // an expensive canvas/WebP encode and makes the common admin upload nearly instant.
+  if (
+    file.size <= FAST_PATH_BYTES &&
+    width <= MAX_OUTPUT_DIMENSION &&
+    height <= MAX_OUTPUT_DIMENSION &&
+    ALLOWED_IMAGE_TYPES.has(file.type.toLowerCase())
+  ) {
+    return file;
+  }
+
   const sourcePixels = width * height;
   const dimensionScale = Math.min(1, MAX_OUTPUT_DIMENSION / width, MAX_OUTPUT_DIMENSION / height);
   const pixelScale = Math.min(1, Math.sqrt((MAX_OUTPUT_MEGAPIXELS * 1_000_000) / sourcePixels));
   const baseScale = Math.min(dimensionScale, pixelScale);
+  const targetWidth = Math.max(1, Math.round(width * baseScale));
+  const targetHeight = Math.max(1, Math.round(height * baseScale));
 
-  if (baseScale === 1 && file.size <= MAX_UPLOAD_BYTES && file.type === 'image/webp') return file;
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const context = canvas.getContext('2d', { alpha: true });
+  if (!context) throw new Error('Image optimization is unavailable in this browser.');
+  draw(context, targetWidth, targetHeight);
 
-  const scaleSteps = [baseScale, baseScale * 0.88, baseScale * 0.76, baseScale * 0.64, baseScale * 0.52, baseScale * 0.42]
-    .map(value => Math.max(0.18, Math.min(1, value)));
-  const qualitySteps = [0.9, 0.84, 0.78, 0.72, 0.66, 0.6];
-  let smallestBlob: Blob | null = null;
+  const normalResult = await encodeCanvasFast(canvas, file);
+  if (normalResult) return normalResult;
 
-  for (const scale of scaleSteps) {
-    const targetWidth = Math.max(1, Math.round(width * scale));
-    const targetHeight = Math.max(1, Math.round(height * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    const context = canvas.getContext('2d', { alpha: true });
-    if (!context) throw new Error('Image optimization is unavailable in this browser.');
-    draw(context, targetWidth, targetHeight);
+  // One final smaller pass instead of the previous dozens of repeated encodes.
+  const reducedWidth = Math.max(1, Math.round(targetWidth * 0.78));
+  const reducedHeight = Math.max(1, Math.round(targetHeight * 0.78));
+  const reducedCanvas = document.createElement('canvas');
+  reducedCanvas.width = reducedWidth;
+  reducedCanvas.height = reducedHeight;
+  const reducedContext = reducedCanvas.getContext('2d', { alpha: true });
+  if (!reducedContext) throw new Error('Image optimization is unavailable in this browser.');
+  reducedContext.drawImage(canvas, 0, 0, reducedWidth, reducedHeight);
 
-    for (const quality of qualitySteps) {
-      const blob = await canvasToBlob(canvas, 'image/webp', quality);
-      if (!smallestBlob || blob.size < smallestBlob.size) smallestBlob = blob;
-      if (blob.size <= MAX_UPLOAD_BYTES) {
-        return new File([blob], `${cleanFileName(file)}.webp`, { type: 'image/webp', lastModified: Date.now() });
-      }
-    }
-  }
+  const reduced = await canvasToBlob(reducedCanvas, 'image/webp', 0.66);
+  if (reduced.size <= MAX_UPLOAD_BYTES) return makeWebpFile(file, reduced);
 
-  if (smallestBlob && smallestBlob.size <= 2_000_000) {
-    return new File([smallestBlob], `${cleanFileName(file)}.webp`, { type: 'image/webp', lastModified: Date.now() });
-  }
+  const finalBlob = await canvasToBlob(reducedCanvas, 'image/webp', 0.56);
+  if (finalBlob.size <= MAX_UPLOAD_BYTES) return makeWebpFile(file, finalBlob);
 
   throw new Error('The image is still too large after optimization. Please choose a smaller image.');
 }
@@ -196,7 +225,7 @@ function isTrustedAdminMediaUrl(value: string) {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.username || url.password) return false;
     return url.hostname === 'firebasestorage.googleapis.com' ||
-      url.hostname.endsWith('.public.blob.vercel-storage.com');
+      url.hostname.endsWith('.blob.vercel-storage.com');
   } catch {
     return false;
   }
