@@ -19,6 +19,7 @@ const store = read('src/context/StoreContext.tsx');
 const app = read('src/App.tsx');
 const navbar = read('src/components/Navbar.tsx');
 const checkout = read('src/components/CheckoutPage.tsx');
+const googlePayTest = read('src/components/GooglePayTestButton.tsx');
 const spotlight = read('src/components/SpotlightProduct.tsx');
 const hero = read('src/components/HeroSection.tsx');
 const adminPanel = read('src/components/AdminPanel.tsx');
@@ -73,12 +74,17 @@ assert(!mediaUpload.includes('CLOUDINARY_API_SECRET'), 'Cloudinary secrets must 
 
 assert(app.includes("case 'checkout':") && app.includes('if (!user)'), 'storefront must block guest checkout before rendering payment UI');
 assert(app.includes('SAELYXE checkout is available to signed-in customers only'), 'guest checkout block must explain the requirement');
-assert(checkout.includes("useState<'paypal' | 'payzy' | null>"), 'checkout payment state must contain only PayPal and Payzy');
+assert(checkout.includes("useState<'paypal' | 'payzy' | 'googlepay' | null>"), 'checkout may expose the isolated Google Pay review mode in addition to live PayPal/Payzy');
+assert(checkout.includes("saelyxe_google_pay_review_v1") && checkout.includes("gpaytest"), 'Google Pay review UI must remain explicitly gated');
+assert(googlePayTest.includes("environment: 'TEST'"), 'Google Pay review flow must stay in the non-chargeable TEST environment');
+assert(googlePayTest.includes("gateway: 'example'") && googlePayTest.includes("gatewayMerchantId: 'exampleMerchantId'"), 'Google Pay review flow must use test tokenization only');
+assert(googlePayTest.includes('no card can be charged') && checkout.includes('no production order was created'), 'Google Pay review flow must not masquerade as a live paid order');
+assert(!checkout.includes("paymentMethod: 'googlepay'"), 'Google Pay review mode must not persist production orders before a real processor is connected');
 assert(!checkout.includes("paymentMethod: 'cod'"), 'checkout must not create Cash on Delivery orders');
 assert(!checkout.includes('PLACE CASH ON DELIVERY ORDER'), 'checkout must not expose a Cash on Delivery action');
 assert(!checkout.includes('createCodCheckoutAttemptId'), 'COD idempotency flow must be removed from customer checkout');
 assert(ordersGuard.includes('verifyIdToken'), 'order-creation guard must cryptographically verify the customer Firebase token');
-assert(ordersGuard.includes("!['paypal', 'payzy'].includes(paymentMethod)"), 'order-creation guard must reject non-online payment methods');
+assert(ordersGuard.includes("!['paypal', 'payzy'].includes(paymentMethod)"), 'order-creation guard must reject non-live payment methods');
 assert(ordersGuard.includes('email_verified !== true'), 'order-creation guard must require a verified account');
 assert(vercel.includes('"source": "/api/orders"') && vercel.includes('"destination": "/api/orders-guard"'), 'production order creation must pass through the account-only guard');
 
@@ -104,6 +110,7 @@ assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enf
 assert(!vercel.includes('Content-Security-Policy-Report-Only'), 'CSP must not be report-only');
 assert(vercel.includes("script-src-attr 'none'"), 'inline script attributes must be blocked');
 assert(vercel.includes('https://*.public.blob.vercel-storage.com'), 'CSP must allow product media from Vercel Blob');
+assert(vercel.includes('https://pay.google.com'), 'CSP must allow the official Google Pay web library in gated review mode');
 assert(!vercel.includes('https://res.cloudinary.com'), 'unused Cloudinary image origin must be removed from CSP');
 assert(!indexHtml.includes('<script type="application/ld+json">'), 'static HTML must not require inline JSON-LD');
 assert(seoManager.includes("'application/ld+json'"), 'SEO structured data must be injected by trusted application code');
