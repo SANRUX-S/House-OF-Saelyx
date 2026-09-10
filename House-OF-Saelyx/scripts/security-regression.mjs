@@ -437,7 +437,7 @@ assert(checkout.includes('createPayPalCheckoutAttemptId'), 'checkout must use th
 assert(ciWorkflow.includes('npm audit --omit=dev --audit-level=high'), 'CI must block high/critical production dependency vulnerabilities');
 assert(!pkg.dependencies?.['@google/genai'], 'unused @google/genai dependency must not remain in package.json');
 assert(!packageLock.includes('"node_modules/@google/genai"'), 'unused @google/genai package must be pruned from package-lock');
-assert(privacyPage.includes('Firebase / Google Cloud') && privacyPage.includes('Vercel') && privacyPage.includes('Cloudinary') && privacyPage.includes('Resend'), 'Privacy Policy must identify production technology service providers');
+assert(privacyPage.includes('Firebase / Google Cloud') && privacyPage.includes('product-media storage') && privacyPage.includes('Vercel') && privacyPage.includes('Resend') && !privacyPage.includes('Cloudinary'), 'Privacy Policy must identify current production technology service providers and Firebase media storage');
 assert(api.includes("res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate')"), 'all API responses must disable browser/shared caching');
 assert(api.includes("res.setHeader('Pragma', 'no-cache')") && api.includes("res.setHeader('Expires', '0')"), 'API responses must include legacy no-cache protections');
 
