@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, CheckCircle2, Save, AlertCircle, UploadCloud, Clock3 } from 'lucide-react';
+import { Settings, CheckCircle2, Save, AlertCircle, UploadCloud, Clock3, BadgeDollarSign } from 'lucide-react';
 import { DropSettings } from '../../types';
 import { ADMIN_IMAGE_ACCEPT, isSupportedAdminImageFile, uploadAdminImage } from '../../lib/adminMedia';
 
@@ -30,7 +30,6 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
   const [dropSubhead, setDropSubhead] = useState('');
   const [dropDesc, setDropDesc] = useState('');
   const [spotlightEyebrow, setSpotlightEyebrow] = useState('');
-  const [spotlightPrice, setSpotlightPrice] = useState(0);
   const [countdownTarget, setCountdownTarget] = useState('');
   const [announcementText, setAnnouncementText] = useState('');
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(0);
@@ -53,7 +52,6 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
     setDropSubhead(settings.spotlightSubhead ?? 'A balanced pairing of relaxed weight & refined contour.');
     setDropDesc(settings.spotlightDescription ?? 'Cut from premium materials and shaped for understated presence.');
     setSpotlightEyebrow(normalizeBrandText(settings.spotlightEyebrow ?? 'SAELYXE PREMIER KNITS'));
-    setSpotlightPrice(settings.spotlightPriceLKR ?? 38500);
     setCountdownTarget(isoToLocalInput(settings.countdownTarget));
     setAnnouncementText(settings.announcementText ?? 'COMPLIMENTARY DELIVERY ON QUALIFYING ORDERS');
     setFreeShippingThreshold(settings.freeShippingThresholdLKR ?? 35000);
@@ -103,7 +101,6 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
         spotlightSubhead: dropSubhead.trim(),
         spotlightDescription: dropDesc.trim(),
         spotlightEyebrow: normalizeBrandText(spotlightEyebrow.trim()),
-        spotlightPriceLKR: Number(spotlightPrice),
         countdownTarget: countdownIso,
         announcementText: announcementText.trim(),
         freeShippingThresholdLKR: Number(freeShippingThreshold),
@@ -164,16 +161,19 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
             {spotlightBackgroundImage && <img src={spotlightBackgroundImage} alt="Spotlight background preview" className="mt-3 aspect-video w-full rounded-xl border border-stone-200 object-cover" />}
           </div>
 
-          <div className="form-section-title pt-4">Countdown, Pricing & Hero</div>
+          <div className="form-section-title pt-4">Countdown & Hero</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div><label className="form-label-custom">Spotlight Price (LKR)</label><input type="number" required min={0} step={1} value={spotlightPrice} onChange={event => setSpotlightPrice(Number(event.target.value))} className="form-input-custom" /></div>
-            <div><label className="form-label-custom">Free Shipping Threshold (LKR)</label><input type="number" required min={0} step={1} value={freeShippingThreshold} onChange={event => setFreeShippingThreshold(Number(event.target.value))} className="form-input-custom" /></div>
+            <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-sky-900"><BadgeDollarSign className="w-4 h-4" />Spotlight Product Price</div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-sky-800">The storefront now always uses the actual catalog product price. Edit the product price in Products; this prevents a different spotlight price from being displayed and charged.</p>
+            </div>
+            <div><label className="form-label-custom">Free Shipping Threshold (LKR)</label><input type="number" required min={0} step={1} value={freeShippingThreshold} onFocus={event => event.currentTarget.select()} onChange={event => setFreeShippingThreshold(Number(event.target.value))} className="form-input-custom" /></div>
           </div>
 
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
             <label className="form-label-custom flex items-center gap-2"><Clock3 className="w-4 h-4" />Live Spotlight Countdown Target</label>
             <input type="datetime-local" required value={countdownTarget} onChange={event => setCountdownTarget(event.target.value)} className="form-input-custom" />
-            <p className="mt-2 text-[11px] text-emerald-800">The second homepage section now reads this value directly. Before this time it is locked; when the target is reached it unlocks automatically.</p>
+            <p className="mt-2 text-[11px] text-emerald-800">The second homepage section reads this value directly. Before this time it is locked; when the target is reached it unlocks automatically.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
