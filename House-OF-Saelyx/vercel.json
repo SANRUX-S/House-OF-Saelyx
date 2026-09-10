@@ -79,6 +79,10 @@
       "destination": "/api/admin-bootstrap"
     },
     {
+      "source": "/api/admin/health",
+      "destination": "/api/admin-health"
+    },
+    {
       "source": "/api/admin/products/:id",
       "destination": "/api/admin-product?id=:id"
     },
