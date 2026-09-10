@@ -21,86 +21,30 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Polish customer wording and retain legacy route block
+      - name: Align security regression with current production providers
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          root = Path('House-OF-Saelyx')
-          replacements = {
-              root / 'public/robots.txt': [
-                  ('Disallow: /SAELYXE-console', 'Disallow: /atelier-console'),
-              ],
-              root / 'index.html': [
-                  ('SAELYXE luxury Drop', 'SAELYXE Luxury Collection'),
-              ],
-              root / 'src/components/CheckoutPage.tsx': [
-                  ('Please contact studio support.', 'Please contact SAELYXE support.'),
-              ],
-              root / 'src/components/ContactSupportPage.tsx': [
-                  ('Our Colombo studio directors and dedicated logistics concierges are on standby for your bespoke requests.', 'Our SAELYXE support and logistics team is ready to assist with your requests.'),
-              ],
-              root / 'src/components/OrderConfirmationModal.tsx': [
-                  ('Your bespoke order has been successfully placed in our studio ledger.', 'Your order has been successfully received by SAELYXE.'),
-              ],
-              root / 'src/components/ProfilePage.tsx': [
-                  ('Your client profile and delivery details have been securely synchronized with the studio.', 'Your client profile and delivery details have been securely synchronized with SAELYXE.'),
-              ],
-              root / 'src/components/TrackOrderPage.tsx': [
-                  ('contact studio support.', 'contact SAELYXE support.'),
-              ],
-              root / 'src/components/CareAuthenticityPage.tsx': [
-                  ('our dedicated Colombo studio using premium heavyweight organic yarn', 'our dedicated Colombo production studio using premium heavyweight organic yarn'),
-              ],
-          }
-
-          changed = []
-          for path, pairs in replacements.items():
-              original = path.read_text(encoding='utf-8')
-              text = original
-              for old, new in pairs:
-                  text = text.replace(old, new)
-              if text != original:
-                  path.write_text(text, encoding='utf-8')
-                  changed.append(str(path))
-
-          print('Changed files:')
-          for item in changed:
-              print(f' - {item}')
+          path = Path('House-OF-Saelyx/scripts/security-regression.mjs')
+          original = path.read_text(encoding='utf-8')
+          old = "assert(privacyPage.includes('Firebase / Google Cloud') && privacyPage.includes('Vercel') && privacyPage.includes('Cloudinary') && privacyPage.includes('Resend'), 'Privacy Policy must identify production technology service providers');"
+          new = "assert(privacyPage.includes('Firebase / Google Cloud') && privacyPage.includes('product-media storage') && privacyPage.includes('Vercel') && privacyPage.includes('Resend') && !privacyPage.includes('Cloudinary'), 'Privacy Policy must identify current production technology service providers and Firebase media storage');"
+          if old not in original:
+              raise SystemExit('Expected stale provider assertion was not found.')
+          path.write_text(original.replace(old, new), encoding='utf-8')
           PY
 
-      - name: Verify intended production behavior and copy
+      - name: Run security regression before commit
+        working-directory: House-OF-Saelyx
+        run: npm run security:check
+
+      - name: Commit regression correction to production main
         shell: bash
         run: |
           set -euo pipefail
-          TERMS="House-OF-Saelyx/src/components/LegalTermsPage.tsx"
-          PRIVACY="House-OF-Saelyx/src/components/LegalPrivacyPage.tsx"
-          ENVFILE="House-OF-Saelyx/.env.example"
-          README="House-OF-Saelyx/README.md"
-          ROBOTS="House-OF-Saelyx/public/robots.txt"
-
-          grep -q "Guest Checkout Available" "$TERMS"
-          grep -q "guest checkout" "$TERMS"
-          grep -q "Cash on Delivery" "$TERMS"
-          ! grep -q "No Guest Checkout" "$TERMS"
-          ! grep -qi "Cloudinary" "$PRIVACY"
-          ! grep -q "CLOUDINARY_" "$ENVFILE"
-          ! grep -qi "Cloudinary" "$README"
-          grep -q "Disallow: /atelier-console" "$ROBOTS"
-          ! grep -q "Disallow: /SAELYXE-console" "$ROBOTS"
-          ! grep -Eq '\bSAELYX\b' House-OF-Saelyx/data/saelyx_store.json
-
-      - name: Commit final correction to production main
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet; then
-            echo "No further corrections required."
-            exit 0
-          fi
           git config user.name "SAELYXE Maintenance"
           git config user.email "actions@users.noreply.github.com"
-          git add House-OF-Saelyx
-          git commit -m "fix(content): polish SAELYXE customer copy and legacy route block"
+          git add House-OF-Saelyx/scripts/security-regression.mjs
+          git commit -m "test(security): align privacy provider gate with Firebase Storage"
           git push origin HEAD:main
