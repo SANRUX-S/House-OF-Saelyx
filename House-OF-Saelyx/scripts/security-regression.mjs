@@ -17,6 +17,7 @@ const ordersGuard = read('api/orders-guard.ts');
 const mediaUpload = read('api/media-upload.ts');
 const store = read('src/context/StoreContext.tsx');
 const app = read('src/App.tsx');
+const navbar = read('src/components/Navbar.tsx');
 const checkout = read('src/components/CheckoutPage.tsx');
 const spotlight = read('src/components/SpotlightProduct.tsx');
 const hero = read('src/components/HeroSection.tsx');
@@ -32,7 +33,6 @@ const seoManager = read('src/components/SEOManager.tsx');
 const tracker = read('src/components/TrackOrderPage.tsx');
 const adminSecurity = read('src/components/admin/AdminSecurity.tsx');
 
-// Customer/order privacy and authorization.
 const trackingStart = api.indexOf("app.get('/api/orders/:id'");
 const trackingEnd = api.indexOf("app.post('/api/orders/:id/cancellation-request'", trackingStart);
 const trackingRoute = trackingStart >= 0 && trackingEnd > trackingStart ? api.slice(trackingStart, trackingEnd) : '';
@@ -44,7 +44,6 @@ assert(!trackingRoute.includes('phone:'), 'tracking response must not expose pho
 assert(!trackingRoute.includes('address:'), 'tracking response must not expose street address');
 assert(tracker.includes("'Not assigned yet'") && tracker.includes("'Pending courier update'"), 'tracking UI must not invent courier data');
 
-// Firestore privileged access cannot be self-assigned.
 assert(rules.includes("request.resource.data.role == 'patron'"), 'new customer profiles must remain patron-only');
 assert(rules.includes('request.resource.data.role == resource.data.role'), 'profile updates must preserve role');
 assert(rules.includes("data.status == 'active'"), 'admin records must be active');
@@ -53,7 +52,6 @@ assert(rules.includes('allow create, update, delete: if false;'), 'server-owned 
 assert(rules.includes("request.auth.token.email == 'saelyxe.co@gmail.com'"), 'bootstrap root must remain the configured root identity');
 assert(!rules.includes("saelyx.co+admin@gmail.com") && !rules.includes("saelyx.co+super@gmail.com"), 'legacy administrator aliases must not retain access');
 
-// Administrator authentication and session protection.
 assert(firebaseClient.includes("adminData?.status === 'active'"), 'administrator login must require active staff records');
 assert(firebaseClient.includes("'auth/too-many-requests'") && firebaseClient.includes("'auth/network-request-failed'"), 'administrator login must surface auth throttling/network failures');
 assert(firebaseClient.includes('verifyAdminCredentialsViaServer(username, pass, rememberMe)'), 'administrator login must retain same-origin fallback');
@@ -65,7 +63,6 @@ assert(!adminLogin.includes('CONTINUE WITH GOOGLE'), 'administrator console must
 assert(api.includes('hasRecentAuthentication(token)'), 'sensitive administrator actions must retain recent-auth protection');
 assert(adminPanel.includes('Verify Administrator') && adminPanel.includes('reauthenticateWithCredential'), 'product deletion must reauthenticate without weakening backend security');
 
-// Admin product/media integrity.
 assert(store.includes('/api/admin/products/'), 'product writes must use the trusted admin API');
 assert(store.includes('/api/admin/settings'), 'storefront settings writes must use the trusted admin API');
 assert(adminProducts.includes('isSupportedAdminImageFile') && adminProducts.includes('uploadAdminImage'), 'product images must use the validated upload helper');
@@ -74,7 +71,6 @@ assert(mediaUpload.includes('hasValidAppCheck') || mediaUpload.includes('verifyT
 assert(mediaUpload.includes('verifyIdToken'), 'media upload must validate Firebase administrator identity');
 assert(!mediaUpload.includes('CLOUDINARY_API_SECRET'), 'Cloudinary secrets must not return to the media path');
 
-// Final business policy: account-only, prepaid checkout.
 assert(app.includes("case 'checkout':") && app.includes('if (!user)'), 'storefront must block guest checkout before rendering payment UI');
 assert(app.includes('SAELYXE checkout is available to signed-in customers only'), 'guest checkout block must explain the requirement');
 assert(checkout.includes("useState<'paypal' | 'payzy' | null>"), 'checkout payment state must contain only PayPal and Payzy');
@@ -86,7 +82,6 @@ assert(ordersGuard.includes("!['paypal', 'payzy'].includes(paymentMethod)"), 'or
 assert(ordersGuard.includes('email_verified !== true'), 'order-creation guard must require a verified account');
 assert(vercel.includes('"source": "/api/orders"') && vercel.includes('"destination": "/api/orders-guard"'), 'production order creation must pass through the account-only guard');
 
-// PayPal/Payzy server verification still required.
 assert(api.includes("app.post('/api/payments/paypal/capture/:orderId'"), 'PayPal server capture route must exist');
 assert(api.includes('verifyPayPalOrder'), 'PayPal provider result must be verified server-side');
 assert(api.includes("app.post('/api/payments/payzy/create/:orderId'"), 'Payzy checkout creation route must exist');
@@ -94,16 +89,15 @@ assert(api.includes('verifyPayzyReturnSignature'), 'Payzy provider return signat
 assert(api.includes("app.post('/api/admin/orders/:id/refund'"), 'Super Admin PayPal refund endpoint must remain available');
 assert(api.includes('paymentCaptureId'), 'PayPal capture ID must be persisted for refunds');
 
-// Storefront settings must actually drive the rendered homepage.
 assert(spotlight.includes('settings?.countdownTarget'), 'spotlight countdown must use the admin-managed target');
 assert(spotlight.includes('const isDropped = timeLeft.totalMs <= 0'), 'spotlight must unlock from the real countdown target');
 assert(!spotlight.includes('const isDropped = false'), 'spotlight release state must not be hardcoded');
 assert(adminDrop.includes('type="datetime-local"'), 'admin countdown must use a safe date/time control');
 assert(hero.includes('settings?.heroHeadline') && hero.includes('settings?.heroSubhead'), 'hero copy must use admin settings');
 assert(!hero.includes('scrollY * 0.12'), 'hero parallax must remain removed');
-assert(app.includes('settings?.announcementText'), 'announcement bar must be connected to admin settings');
+assert(navbar.includes('settings?.announcementText'), 'announcement bar must be connected to admin settings');
+assert(navbar.includes('fixed top-0') && navbar.includes('{announcementText &&'), 'announcement must be integrated with fixed navigation without overlay duplication');
 
-// Routing and browser security headers.
 assert(store.includes("path === '/congsoleadmintechbypenetix'"), 'private administrator route must remain available');
 assert(store.includes("path === '/admin'") && store.includes("path === '/atelier-console'"), 'legacy admin routes must remain retired');
 assert(vercel.includes('"Content-Security-Policy"'), 'production CSP must be enforced');
