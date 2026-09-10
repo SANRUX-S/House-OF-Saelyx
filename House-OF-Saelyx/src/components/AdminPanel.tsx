@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import '../styles/admin.css';
 import { useStore } from '../context/StoreContext';
@@ -49,6 +49,19 @@ async function readJsonResponse(response: Response) {
     return JSON.parse(text);
   } catch {
     throw new Error('The admin API returned invalid JSON.');
+  }
+}
+
+function getHeaderMeta(activeTab: AdminTab) {
+  switch (activeTab) {
+    case 'products': return { title: 'Products', subtitle: 'Manage products, imagery, fabric specifications, and inventory.', breadcrumb: [{ label: 'Operations' }, { label: 'Products' }] };
+    case 'orders': return { title: 'Orders', subtitle: 'Manage customer orders, payment state, fulfillment, and delivery details.', breadcrumb: [{ label: 'Operations' }, { label: 'Orders' }] };
+    case 'messages': return { title: 'Customer Support', subtitle: 'Review customer messages and keep support requests moving.', breadcrumb: [{ label: 'Operations' }, { label: 'Customer Support' }] };
+    case 'restock': return { title: 'Restock', subtitle: 'Review waitlist demand and send verified restock notifications.', breadcrumb: [{ label: 'Operations' }, { label: 'Restock' }] };
+    case 'staff': return { title: 'Staff', subtitle: 'Manage administrator access, roles, activation, and revocation.', breadcrumb: [{ label: 'Administration' }, { label: 'Staff' }] };
+    case 'security': return { title: 'Security', subtitle: 'Review protected service health, authorization controls, and backups.', breadcrumb: [{ label: 'Administration' }, { label: 'Security & Audit' }] };
+    case 'drop-config': return { title: 'Store Settings', subtitle: 'Manage homepage content, thresholds, imagery, and visibility.', breadcrumb: [{ label: 'Administration' }, { label: 'Store Settings' }] };
+    default: return { title: 'Dashboard', subtitle: 'Manage SAELYXE operations with care and precision.', breadcrumb: [{ label: 'Dashboard' }] };
   }
 }
 
@@ -289,18 +302,7 @@ export const AdminPanel: React.FC = () => {
     restock: stockNotifications.filter(notification => ['pending', 'failed'].includes(notification.status)).length || undefined
   };
 
-  const headerMeta = useMemo(() => {
-    switch (activeTab) {
-      case 'products': return { title: 'Products', subtitle: 'Manage products, imagery, fabric specifications, and inventory.', breadcrumb: [{ label: 'Operations' }, { label: 'Products' }] };
-      case 'orders': return { title: 'Orders', subtitle: 'Manage customer orders, payment state, fulfillment, and delivery details.', breadcrumb: [{ label: 'Operations' }, { label: 'Orders' }] };
-      case 'messages': return { title: 'Customer Support', subtitle: 'Review customer messages and keep support requests moving.', breadcrumb: [{ label: 'Operations' }, { label: 'Customer Support' }] };
-      case 'restock': return { title: 'Restock', subtitle: 'Review waitlist demand and send verified restock notifications.', breadcrumb: [{ label: 'Operations' }, { label: 'Restock' }] };
-      case 'staff': return { title: 'Staff', subtitle: 'Manage administrator access, roles, activation, and revocation.', breadcrumb: [{ label: 'Administration' }, { label: 'Staff' }] };
-      case 'security': return { title: 'Security', subtitle: 'Review protected service health, authorization controls, and backups.', breadcrumb: [{ label: 'Administration' }, { label: 'Security & Audit' }] };
-      case 'drop-config': return { title: 'Store Settings', subtitle: 'Manage homepage content, thresholds, imagery, and visibility.', breadcrumb: [{ label: 'Administration' }, { label: 'Store Settings' }] };
-      default: return { title: 'Dashboard', subtitle: 'Manage SAELYXE operations with care and precision.', breadcrumb: [{ label: 'Dashboard' }] };
-    }
-  }, [activeTab]);
+  const headerMeta = getHeaderMeta(activeTab);
 
   const globalSearchItems = [
     ...products.map(product => ({ id: product.id, label: product.title, meta: `Product · ${product.category} · ${product.stockCount ?? 0} in stock`, tab: 'products' as const })),
