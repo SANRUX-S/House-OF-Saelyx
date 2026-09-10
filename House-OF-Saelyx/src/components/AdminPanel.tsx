@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { EmailAuthProvider, onAuthStateChanged, reauthenticateWithCredential } from 'firebase/auth';
 import '../styles/admin.css';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
@@ -23,14 +23,15 @@ type AdminDialog = {
   title: string;
   message: string;
   confirmLabel?: string;
-  onConfirm?: () => Promise<void> | void;
+  passwordInput?: boolean;
+  onConfirm?: (inputValue?: string) => Promise<void> | void;
 };
 
 function safeApiError(status: number, payload: any, fallback: string) {
   if (typeof payload?.error === 'string' && payload.error.trim()) return payload.error.trim();
   if (status === 401) return 'App integrity verification failed. Refresh the admin page and retry.';
   if (status === 403) return 'Administrator access expired. Sign out and sign in again.';
-  if (status === 428) return 'For security, please sign out and sign in again before this sensitive action.';
+  if (status === 428) return 'Recent administrator verification is required before this sensitive action.';
   if (status === 429) return 'Too many requests were sent. Wait a moment and retry.';
   return fallback;
 }
@@ -105,6 +106,7 @@ export const AdminPanel: React.FC = () => {
   });
   const [customDialog, setCustomDialog] = useState<AdminDialog | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
+  const [dialogInput, setDialogInput] = useState('');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -120,8 +122,6 @@ export const AdminPanel: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // When Firebase already has a signed-in user, wait until StoreContext has finished
-  // translating that Firebase session into the application admin user before rendering login.
   const isAuthHydrating = !firebaseAuthReady || Boolean(auth.currentUser && !user);
 
   useEffect(() => {
@@ -162,42 +162,114 @@ export const AdminPanel: React.FC = () => {
     setIsProductModalOpen(true);
   };
 
+  async function requestProductDelete(id: string, forceRefresh = false) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return { ok: false, status: 403, payload: { error: 'Please sign in again before deleting a product.' } };
+    }
+    const token = await currentUser.getIdToken(forceRefresh);
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    const response = await fetch(`/api/admin/products/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...appCheckHeaders
+      },
+      cache: 'no-store'
+    });
+    const payload = await readJsonResponse(response);
+    return { ok: response.ok, status: response.status, payload };
+  }
+
+  function openDeleteReauthDialog(id: string, message = 'Enter your current administrator password to verify this permanent deletion. You do not need to sign out.') {
+    setDialogInput('');
+    setCustomDialog({
+      type: 'confirm',
+      title: 'Verify Administrator',
+      message,
+      confirmLabel: 'Verify & Retire',
+      passwordInput: true,
+      onConfirm: async (password) => {
+        const currentUser = auth.currentUser;
+        const email = currentUser?.email || '';
+        if (!currentUser || !email) {
+          setCustomDialog({ type: 'alert', title: 'Authentication Required', message: 'Your administrator session cannot be reverified here. Sign in again and retry.' });
+          setDialogInput('');
+          return;
+        }
+        if (!currentUser.providerData.some(provider => provider.providerId === 'password')) {
+          setCustomDialog({ type: 'alert', title: 'Authentication Required', message: 'This administrator account must be signed in again with its original provider before permanent deletion.' });
+          setDialogInput('');
+          return;
+        }
+        if (!password?.trim()) {
+          openDeleteReauthDialog(id, 'Administrator password is required before this permanent deletion.');
+          return;
+        }
+
+        try {
+          const credential = EmailAuthProvider.credential(email, password);
+          await reauthenticateWithCredential(currentUser, credential);
+          const result = await requestProductDelete(id, true);
+          if (!result.ok) {
+            if (result.status === 428) {
+              openDeleteReauthDialog(id, 'Verification did not refresh correctly. Please enter the administrator password once more.');
+              return;
+            }
+            setCustomDialog({
+              type: 'alert',
+              title: 'Product Delete Failed',
+              message: safeApiError(result.status, result.payload, 'Unable to delete the product.')
+            });
+            setDialogInput('');
+            return;
+          }
+          await refetchData();
+          setDialogInput('');
+          setCustomDialog(null);
+        } catch (error: any) {
+          const code = String(error?.code || '');
+          if (['auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(code)) {
+            openDeleteReauthDialog(id, 'That administrator password was not accepted. Check it and try again.');
+            return;
+          }
+          setCustomDialog({
+            type: 'alert',
+            title: 'Verification Failed',
+            message: error instanceof Error ? error.message : 'Administrator verification could not be completed.'
+          });
+          setDialogInput('');
+        }
+      }
+    });
+  }
+
   const handleDeleteProduct = (id: string) => {
     if (!isSuperAdmin) {
       setCustomDialog({ type: 'alert', title: 'Access Restricted', message: 'Only Super Admins may permanently retire products.' });
       return;
     }
 
+    setDialogInput('');
     setCustomDialog({
       type: 'confirm',
       title: 'Retire Product',
       message: 'Are you sure you want to permanently retire this product from the catalogue?',
       confirmLabel: 'Retire Product',
       onConfirm: async () => {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-          setCustomDialog({ type: 'alert', title: 'Authentication Required', message: 'Please sign out and sign in again before deleting a product.' });
-          return;
-        }
-
         try {
-          const token = await currentUser.getIdToken();
-          const appCheckHeaders = await getAppCheckRequestHeaders();
-          const response = await fetch(`/api/admin/products/${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            headers: {
-              Accept: 'application/json',
-              Authorization: `Bearer ${token}`,
-              ...appCheckHeaders
-            },
-            cache: 'no-store'
-          });
-          const payload = await readJsonResponse(response);
-          if (!response.ok) {
-            const message = response.status === 428
-              ? 'For security, please sign out and sign in again before permanently deleting a product.'
-              : safeApiError(response.status, payload, 'Product deletion failed.');
-            setCustomDialog({ type: 'alert', title: 'Product Delete Failed', message });
+          const result = await requestProductDelete(id);
+          if (!result.ok) {
+            if (result.status === 428) {
+              openDeleteReauthDialog(id);
+              return;
+            }
+            setCustomDialog({
+              type: 'alert',
+              title: 'Product Delete Failed',
+              message: safeApiError(result.status, result.payload, 'Product deletion failed.')
+            });
             return;
           }
           await refetchData();
@@ -215,6 +287,7 @@ export const AdminPanel: React.FC = () => {
 
   const handleDeleteStaff = (id: string, name: string) => {
     if (!isSuperAdmin) return;
+    setDialogInput('');
     setCustomDialog({
       type: 'confirm',
       title: 'Revoke Administrator Access',
@@ -339,15 +412,56 @@ export const AdminPanel: React.FC = () => {
           <div role="dialog" aria-modal="true" className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 space-y-4">
             <h3 className="text-base font-bold text-stone-900">{customDialog.title}</h3>
             <p className="text-xs text-stone-600 leading-relaxed">{customDialog.message}</p>
+            {customDialog.passwordInput && (
+              <div>
+                <label htmlFor="admin-sensitive-password" className="form-label-custom">Administrator Password</label>
+                <input
+                  id="admin-sensitive-password"
+                  type="password"
+                  autoComplete="current-password"
+                  autoFocus
+                  value={dialogInput}
+                  onChange={event => setDialogInput(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      const button = document.getElementById('admin-dialog-confirm');
+                      button?.click();
+                    }
+                  }}
+                  disabled={dialogBusy}
+                  className="form-input-custom"
+                  placeholder="Enter password"
+                />
+              </div>
+            )}
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
-              {customDialog.type === 'confirm' && <button type="button" disabled={dialogBusy} onClick={() => setCustomDialog(null)} className="btn-table-action disabled:opacity-50">Cancel</button>}
+              {customDialog.type === 'confirm' && (
+                <button
+                  type="button"
+                  disabled={dialogBusy}
+                  onClick={() => { setDialogInput(''); setCustomDialog(null); }}
+                  className="btn-table-action disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              )}
               <button
+                id="admin-dialog-confirm"
                 type="button"
-                disabled={dialogBusy}
+                disabled={dialogBusy || Boolean(customDialog.passwordInput && !dialogInput.trim())}
                 onClick={async () => {
-                  if (!customDialog.onConfirm) { setCustomDialog(null); return; }
+                  if (!customDialog.onConfirm) {
+                    setDialogInput('');
+                    setCustomDialog(null);
+                    return;
+                  }
                   setDialogBusy(true);
-                  try { await customDialog.onConfirm(); } finally { setDialogBusy(false); }
+                  try {
+                    await customDialog.onConfirm(dialogInput);
+                  } finally {
+                    setDialogBusy(false);
+                  }
                 }}
                 className="btn-saelyxe-primary bg-rose-700! hover:bg-rose-800! disabled:opacity-50"
               >
