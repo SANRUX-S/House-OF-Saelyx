@@ -94,9 +94,9 @@ export const SpotlightProduct: React.FC = () => {
     return spotlightProduct.sizes.includes('M') ? 'M' : spotlightProduct.sizes[0];
   }, [spotlightProduct]);
 
-  const displayPrice = Number(settings?.spotlightPriceLKR) > 0
-    ? Number(settings?.spotlightPriceLKR)
-    : Number(spotlightProduct?.priceLKR || 0);
+  // Product price has one source of truth: the catalog product itself.
+  // Storefront settings must never be able to display a different amount from checkout.
+  const displayPrice = Number(spotlightProduct?.priceLKR || 0);
 
   const handleAdd = () => {
     if (!spotlightProduct || !isDropped || !spotlightProduct.inStock) return;
