@@ -77,7 +77,7 @@ export const TrackOrderPage: React.FC<TrackOrderPageProps> = ({ initialOrderId }
       }
     } catch (err) {
       console.error(err);
-      setError("We couldn't complete the tracking lookup. Please check your connection or contact studio support.");
+      setError("We couldn't complete the tracking lookup. Please check your connection or contact SAELYXE support.");
     } finally {
       setLoading(false);
     }

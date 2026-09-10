@@ -185,7 +185,7 @@ export const ProfilePage: React.FC = () => {
         {savedSuccess && (
           <div className="p-4 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center gap-3 text-emerald-800 text-xs animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span>Your client profile and delivery details have been securely synchronized with the studio.</span>
+            <span>Your client profile and delivery details have been securely synchronized with SAELYXE.</span>
           </div>
         )}
 

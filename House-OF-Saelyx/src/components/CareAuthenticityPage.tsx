@@ -48,7 +48,7 @@ export const CareAuthenticityPage: React.FC = () => {
           </div>
 
           <p className="text-xs text-neutral-300 font-serif leading-relaxed italic">
-            "This certificate verifies that this garment was individually cut, stitched, dyed, and hand-finished in our dedicated Colombo studio using premium heavyweight organic yarn and bespoke tailored hardware."
+            "This certificate verifies that this garment was individually cut, stitched, dyed, and hand-finished in our dedicated Colombo production studio using premium heavyweight organic yarn and bespoke tailored hardware."
           </p>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 border-t border-white/10 text-xs">

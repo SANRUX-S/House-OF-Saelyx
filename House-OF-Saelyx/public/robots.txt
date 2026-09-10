@@ -2,7 +2,7 @@
 User-agent: *
 Allow: /
 Disallow: /admin
-Disallow: /SAELYXE-console
+Disallow: /atelier-console
 Disallow: /congsoleadmintechbypenetix
 Disallow: /secure-order-session
 Disallow: /checkout
