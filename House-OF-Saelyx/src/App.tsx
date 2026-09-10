@@ -76,6 +76,21 @@ const StoreContent: React.FC = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [currentRoute.name, (currentRoute as any).slug, (currentRoute as any).category]);
 
+  // Admin number fields frequently start at 0. Select that placeholder value on
+  // first focus so typing "1" replaces 0 instead of producing an awkward "01".
+  React.useEffect(() => {
+    if (currentRoute.name !== 'admin') return;
+    const handleNumberFocus = (event: FocusEvent) => {
+      const input = event.target instanceof HTMLInputElement ? event.target : null;
+      if (!input || input.type !== 'number' || input.value !== '0') return;
+      window.requestAnimationFrame(() => {
+        if (document.activeElement === input && input.value === '0') input.select();
+      });
+    };
+    document.addEventListener('focusin', handleNumberFocus);
+    return () => document.removeEventListener('focusin', handleNumberFocus);
+  }, [currentRoute.name]);
+
   if (currentRoute.name === 'admin') {
     return (
       <div className="min-h-screen bg-[#F4F6F5] text-stone-900 selection:bg-[#B4F105] selection:text-black font-sans antialiased">
