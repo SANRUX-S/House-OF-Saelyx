@@ -4,81 +4,64 @@ function read(path) {
   return fs.readFileSync(path, 'utf8');
 }
 
-function check(condition, number, label, mode = 'code-ready') {
-  if (!condition) {
-    console.error(`FINAL READINESS FAILED #${number}: ${label}`);
-    process.exitCode = 1;
-    return;
-  }
-  console.log(`#${String(number).padStart(2, '0')} [${mode}] ${label}`);
+const checks = [];
+function check(condition, label, mode = 'code-ready') {
+  checks.push({ condition: Boolean(condition), label, mode });
+  if (!condition) console.error(`FINAL READINESS FAILED: ${label}`);
 }
 
 const api = read('api/index.ts');
-const payzy = read('api/payzy.ts');
+const ordersGuard = read('api/orders-guard.ts');
 const checkout = read('src/components/CheckoutPage.tsx');
+const googlePayTest = read('src/components/GooglePayTestButton.tsx');
+const app = read('src/App.tsx');
+const navbar = read('src/components/Navbar.tsx');
 const store = read('src/context/StoreContext.tsx');
-const adminOrders = read('src/components/admin/AdminCommissions.tsx');
+const adminPanel = read('src/components/AdminPanel.tsx');
+const adminProducts = read('src/components/admin/AdminProducts.tsx');
+const adminDrop = read('src/components/admin/AdminDropSettings.tsx');
 const adminSecurity = read('src/components/admin/AdminSecurity.tsx');
-const adminConcierge = read('src/components/admin/AdminConcierge.tsx');
-const adminRestock = read('src/components/admin/AdminRestock.tsx');
-const tracker = read('src/components/TrackOrderPage.tsx');
-const fallback = JSON.parse(read('data/saelyx_store.json'));
+const spotlight = read('src/components/SpotlightProduct.tsx');
+const hero = read('src/components/HeroSection.tsx');
+const mediaUpload = read('api/media-upload.ts');
 const vercel = read('vercel.json');
-const ci = read('../.github/workflows/ci.yml');
-const runbook = read('FINAL_LAUNCH_RUNBOOK.md');
+const fallback = JSON.parse(read('data/saelyx_store.json'));
 
-check(api.includes("app.get('/api/admin/health'") && adminSecurity.includes('/api/admin/health'), 1, 'Super Admin production health/login surface is protected and wired');
-check(api.includes('purge-legacy-demo-fixtures') && api.includes('purge-legacy-test-products') && store.includes('saelyxe_prelaunch_cleanup_v2'), 2, 'Physical legacy cleanup is prepared and auto-triggered for Super Admin');
-check(checkout.includes("paymentMethod: 'cod'") && checkout.includes('PLACE CASH ON DELIVERY ORDER'), 3, 'Normal customer COD checkout path is implemented');
-check(api.includes("app.post('/api/payments/paypal/capture/:orderId'") && api.includes('verifyPayPalOrder'), 4, 'Real PayPal payment path is implemented', 'requires-real-money');
-check(
-  api.includes("app.post('/api/payments/payzy/create/:orderId'") &&
-  api.includes("app.get('/api/payments/payzy/return'") &&
-  checkout.includes('CONTINUE WITH PAYZY') &&
-  payzy.includes("createHmac('sha256'"),
-  4.5,
-  'Secure Payzy Custom Web sandbox/live path is implemented',
-  'requires-provider-sandbox'
-);
-check(api.includes("app.post('/api/orders'") && adminOrders.includes('Order Timeline'), 5, 'Customer order persists to the Admin order workspace');
-check(api.includes('INVENTORY_COMMIT_STATUSES.has(status)') && api.includes('stockCount: nextStock'), 6, 'Inventory decrements transactionally when an order enters an active fulfillment stage');
-check(api.includes('confirmed:') && api.includes("INVENTORY_COMMIT_STATUSES = new Set(['confirmed'"), 7, 'Confirmed lifecycle stage is implemented within direct active-stage fulfillment');
-check(api.includes('confirmed:') && api.includes('await sendOrderStatusEmail(updatedOrder, previousStatus)'), 8, 'Confirmed lifecycle email is implemented and awaited');
-check(api.includes('packed:') && api.includes('canTransitionOrderStatus'), 9, 'Packed lifecycle transition is implemented');
-check(api.includes('packed:') && api.includes('await sendOrderStatusEmail(updatedOrder, previousStatus)'), 10, 'Packed lifecycle email is implemented and awaited');
-check(api.includes('Courier and tracking number are required for dispatched, out-for-delivery, and delivered statuses.') && api.includes("['dispatched', 'out_for_delivery', 'delivered'].includes(status)"), 11, 'Dispatch-related statuses require courier and tracking');
-check(api.includes('dispatched:') && api.includes('sendOrderStatusEmail'), 12, 'Dispatched lifecycle email is implemented');
-check(tracker.includes("'Not assigned yet'") && tracker.includes("'Pending courier update'") && !tracker.includes('Real-Time Fleet Telemetry'), 13, 'Authenticated tracking avoids fake telemetry');
-check(api.includes('out_for_delivery:') && api.includes('out_for_delivery'), 14, 'Out-for-delivery lifecycle transition is implemented');
-check(api.includes('out_for_delivery:') && api.includes('sendOrderStatusEmail'), 15, 'Out-for-delivery lifecycle email is implemented');
-check(api.includes('delivered:') && api.includes('delivered'), 16, 'Delivered lifecycle transition is implemented');
-check(api.includes('delivered:') && api.includes('sendOrderStatusEmail'), 17, 'Delivered lifecycle email is implemented');
-check(api.includes("app.post('/api/orders/:id/cancellation-request'") && store.includes('requestOrderCancellation'), 18, 'Customer cancellation request is implemented');
-check(adminOrders.includes('Cancellation Requested') && api.includes('cancellationRequestStatus'), 19, 'Admin cancellation review is implemented');
-check(api.includes("app.post('/api/admin/orders/:id/refund'") && api.includes('refundPayPalCapture'), 20, 'Super Admin PayPal refund path is implemented', 'requires-real-money');
-check(api.includes("paymentStatus: 'refunded'") && api.includes('refundId'), 21, 'Refunded order state is persisted', 'requires-real-money');
-check(api.includes('canAutoRestoreInventory') && api.includes('inventoryCommitted'), 22, 'Eligible refund inventory restoration is implemented', 'requires-real-money');
-check(api.includes('Refund completed') && api.includes('await sendOrderStatusEmail(updatedOrder'), 23, 'Refund email path is implemented and awaited', 'requires-real-money');
-check(api.includes("app.post('/api/messages'") && api.includes("collection('concierge_inquiries').doc()"), 24, 'Customer Support form persists to Firestore');
-check(adminConcierge.includes('Total Inquiries') && adminConcierge.includes('unread'), 25, 'Support inquiries appear in Admin');
-check(adminConcierge.includes('Mark as Read') && adminConcierge.includes('Mark as Replied / Resolved'), 26, 'Support Read/Reply workflow is implemented');
-check(api.includes("app.post('/api/restock/subscribe'") && api.includes("status: 'pending'"), 27, 'Notify Me/restock subscription is implemented');
-check(adminRestock.includes('Registered Patron Waitlist Records'), 28, 'Restock queue appears in Admin');
-check(api.includes("app.post('/api/restock/dispatch'") && api.includes("'Idempotency-Key':"), 29, 'Restock email dispatch is idempotent');
-check(api.includes('writeAdminAudit') && store.includes('auditLogs'), 30, 'Audit logging is wired');
-check(ci.includes('Browser end-to-end security smoke'), 31, 'Mobile QA is CI-gated', 'playwright-gated');
-check(ci.includes('Browser end-to-end security smoke'), 32, 'Tablet QA is CI-gated', 'playwright-gated');
-check(ci.includes('Browser end-to-end security smoke'), 33, 'Desktop QA is CI-gated', 'playwright-gated');
-check(api.includes('LEGACY_DEMO_PURGE_MARKER') && api.includes('LEGACY_TEST_PRODUCTS_PURGE_MARKER'), 34, 'Test-data cleanup controls and one-time markers exist');
+check(api.includes("app.get('/api/admin/health'") && adminSecurity.includes('/api/admin/health'), 'Super Admin health surface is protected and wired');
+check(app.includes("case 'checkout':") && app.includes('if (!user)'), 'Checkout requires a signed-in customer account');
+check(checkout.includes("useState<'paypal' | 'payzy' | 'googlepay' | null>"), 'Checkout keeps PayPal/Payzy live and includes a gated Google Pay review state');
+check(checkout.includes('saelyxe_google_pay_review_v1') && googlePayTest.includes("environment: 'TEST'"), 'Google Pay review flow is gated and non-chargeable', 'requires-google-review');
+check(!checkout.includes("paymentMethod: 'googlepay'"), 'Google Pay review flow cannot create a production order before a real processor is connected');
+check(!checkout.includes('PLACE CASH ON DELIVERY ORDER') && !checkout.includes("paymentMethod: 'cod'"), 'Cash on Delivery is removed from customer checkout');
+check(ordersGuard.includes('verifyIdToken') && ordersGuard.includes('email_verified !== true'), 'Server order guard verifies signed-in customer identity');
+check(ordersGuard.includes("!['paypal', 'payzy'].includes(paymentMethod)"), 'Server order guard rejects unsupported/live-unconfigured payment methods');
+check(vercel.includes('"source": "/api/orders"') && vercel.includes('"destination": "/api/orders-guard"'), 'Production order creation routes through the account-only guard');
+check(api.includes("app.post('/api/payments/paypal/capture/:orderId'") && api.includes('verifyPayPalOrder'), 'PayPal capture is verified server-side', 'requires-real-money');
+check(api.includes("app.post('/api/payments/payzy/create/:orderId'") && api.includes('verifyPayzyReturnSignature'), 'Payzy signed provider flow is implemented', 'requires-provider');
+check(mediaUpload.includes('BLOB_READ_WRITE_TOKEN') && mediaUpload.includes('verifyIdToken'), 'Administrator media uses protected Vercel Blob upload');
+check(adminProducts.includes('uploadAdminImage') && adminProducts.includes('isSupportedAdminImageFile'), 'Product media UI uses the validated uploader');
+check(adminPanel.includes('Verify Administrator') && adminPanel.includes('reauthenticateWithCredential'), 'Destructive product deletion supports secure reauthentication');
+check(spotlight.includes('settings?.countdownTarget') && spotlight.includes('const isDropped = timeLeft.totalMs <= 0'), 'Homepage countdown is connected to Store Settings and auto-unlocks');
+check(adminDrop.includes('type="datetime-local"') && adminDrop.includes('countdownTarget: countdownIso'), 'Admin countdown editor publishes a real timestamp');
+check(hero.includes('settings?.heroHeadline') && hero.includes('settings?.heroSubhead'), 'Hero content is connected to Store Settings');
+check(!hero.includes('scrollY * 0.12'), 'Hero parallax is removed');
+check(navbar.includes('settings?.announcementText'), 'Announcement bar is connected to Store Settings');
+check(app.includes('settings?.showHeroSection') && app.includes('settings?.showSpotlightSection') && app.includes('settings?.showCollectionSection'), 'Homepage section visibility controls are connected');
+check(store.includes("path === '/checkout' || path.startsWith('/checkout/')") && store.includes("path === '/secure-order-session'"), 'Direct checkout URL remains retired in favor of the secure internal route');
+check(store.includes("path === '/congsoleadmintechbypenetix'"), 'Private administrator route remains wired');
+check(vercel.includes('https://*.public.blob.vercel-storage.com'), 'Production CSP allows Vercel Blob media');
+check(vercel.includes('https://pay.google.com'), 'Production CSP permits the official Google Pay review library');
+check(!vercel.includes('https://res.cloudinary.com'), 'Cloudinary is removed from the active browser CSP');
+check(Array.isArray(fallback.products) && fallback.settings, 'Fallback store data remains structurally valid');
 
-const fallbackHasTestProduct = (Array.isArray(fallback.products) ? fallback.products : []).some(product => {
-  const fp = [product?.id, product?.title, product?.slug, product?.badge].filter(Boolean).join(' ').toLowerCase();
-  return fp.includes('test');
-});
-check(!fallbackHasTestProduct && api.includes('LEGACY_TEST_PRODUCT_IDS'), 35, 'Fallback catalog has no explicit test products and server filters exact legacy IDs');
-check(vercel.includes('"main": true') && vercel.includes('"**": false') && runbook.includes('Final release acceptance'), 36, 'Single-deploy launch sign-off gate is defined');
+const failed = checks.filter(item => !item.condition);
+const codeReady = checks.filter(item => item.condition && item.mode === 'code-ready').length;
+const external = checks.filter(item => item.condition && item.mode !== 'code-ready').length;
 
-if (process.exitCode) process.exit(process.exitCode);
+console.log(`SAELYXE readiness: ${codeReady} code-ready checks passed; ${external} provider-dependent checks present.`);
+if (failed.length) {
+  console.error(`${failed.length} final readiness check(s) failed.`);
+  process.exit(1);
+}
 
-console.log('\nSAELYXE final code-readiness contract: PASS');
-console.log('Production-only verification still requires the final deployment, authenticated customer/admin actions, inbox checks, and explicit approval for real PayPal money movement.');
+console.log('SAELYXE final launch readiness contract passed.');

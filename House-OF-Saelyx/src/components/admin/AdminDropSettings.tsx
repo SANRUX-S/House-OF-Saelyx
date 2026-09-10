@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, CheckCircle2, Save, AlertCircle, UploadCloud } from 'lucide-react';
+import { Settings, CheckCircle2, Save, AlertCircle, UploadCloud, Clock3, BadgeDollarSign } from 'lucide-react';
 import { DropSettings } from '../../types';
 import { ADMIN_IMAGE_ACCEPT, isSupportedAdminImageFile, uploadAdminImage } from '../../lib/adminMedia';
 
@@ -8,12 +8,28 @@ export interface AdminDropSettingsProps {
   onUpdateSettings: (newSettings: Partial<DropSettings>) => Promise<boolean>;
 }
 
+function normalizeBrandText(value: string) {
+  return value.replace(/\bSAELYX\b/g, 'SAELYXE');
+}
+
+function isoToLocalInput(value?: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function localInputToIso(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
 export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, onUpdateSettings }) => {
   const [dropTitle, setDropTitle] = useState('');
   const [dropSubhead, setDropSubhead] = useState('');
   const [dropDesc, setDropDesc] = useState('');
   const [spotlightEyebrow, setSpotlightEyebrow] = useState('');
-  const [spotlightPrice, setSpotlightPrice] = useState(0);
   const [countdownTarget, setCountdownTarget] = useState('');
   const [announcementText, setAnnouncementText] = useState('');
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(0);
@@ -34,14 +50,13 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
     if (!settings) return;
     setDropTitle(settings.spotlightTitle ?? 'THE SIGNATURE COORDINATES SET');
     setDropSubhead(settings.spotlightSubhead ?? 'A balanced pairing of relaxed weight & refined contour.');
-    setDropDesc(settings.spotlightDescription ?? 'Cut from 400 GSM custom combed cotton, this two-piece ensemble redefines casual architectural tailoring.');
-    setSpotlightEyebrow(settings.spotlightEyebrow ?? 'DROP 001');
-    setSpotlightPrice(settings.spotlightPriceLKR ?? 38500);
-    setCountdownTarget(settings.countdownTarget ?? new Date(Date.now() + 86400000 * 7).toISOString());
-    setAnnouncementText(settings.announcementText ?? 'FREE WHITE-GLOVE DOORSTEP DELIVERY WITHIN SRI LANKA');
+    setDropDesc(settings.spotlightDescription ?? 'Cut from premium materials and shaped for understated presence.');
+    setSpotlightEyebrow(normalizeBrandText(settings.spotlightEyebrow ?? 'SAELYXE PREMIER KNITS'));
+    setCountdownTarget(isoToLocalInput(settings.countdownTarget));
+    setAnnouncementText(settings.announcementText ?? 'COMPLIMENTARY DELIVERY ON QUALIFYING ORDERS');
     setFreeShippingThreshold(settings.freeShippingThresholdLKR ?? 35000);
-    setHeroHeadline(settings.heroHeadline ?? 'THE SAELYXE COLLECTION');
-    setHeroSubhead(settings.heroSubhead ?? 'A curation of our most refined heavyweight textures.');
+    setHeroHeadline(normalizeBrandText(settings.heroHeadline ?? 'MADE FOR PRESENCE'));
+    setHeroSubhead(settings.heroSubhead ?? 'Designed for those who enter a room before they speak.');
     setSpotlightBackgroundImage(settings.spotlightBackgroundImage ?? '');
     setShowHeroSection(settings.showHeroSection !== false);
     setShowSpotlightSection(settings.showSpotlightSection !== false);
@@ -70,6 +85,13 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
     if (isSaving || isUploadingBackground) return;
+
+    const countdownIso = localInputToIso(countdownTarget);
+    if (!countdownIso) {
+      setSaveError('Choose a valid countdown date and time.');
+      return;
+    }
+
     setIsSaving(true);
     setConfigSaved(false);
     setSaveError('');
@@ -78,12 +100,11 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
         spotlightTitle: dropTitle.trim(),
         spotlightSubhead: dropSubhead.trim(),
         spotlightDescription: dropDesc.trim(),
-        spotlightEyebrow: spotlightEyebrow.trim(),
-        spotlightPriceLKR: Number(spotlightPrice),
-        countdownTarget: countdownTarget.trim(),
+        spotlightEyebrow: normalizeBrandText(spotlightEyebrow.trim()),
+        countdownTarget: countdownIso,
         announcementText: announcementText.trim(),
         freeShippingThresholdLKR: Number(freeShippingThreshold),
-        heroHeadline: heroHeadline.trim(),
+        heroHeadline: normalizeBrandText(heroHeadline.trim()),
         heroSubhead: heroSubhead.trim(),
         spotlightBackgroundImage,
         showHeroSection,
@@ -108,7 +129,10 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
     <div className="space-y-6 animate-in fade-in duration-300">
       <form onSubmit={handleSave} className="space-y-6">
         <div className="admin-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div><h3 className="text-base font-extrabold text-stone-900 flex items-center gap-2"><Settings className="w-4 h-4" />Storefront Configuration</h3><p className="text-xs text-stone-500 mt-0.5">Manage spotlight content, homepage copy, thresholds, and section visibility.</p></div>
+          <div>
+            <h3 className="text-base font-extrabold text-stone-900 flex items-center gap-2"><Settings className="w-4 h-4" />Storefront Configuration</h3>
+            <p className="text-xs text-stone-500 mt-0.5">These controls publish directly to the live storefront after Save & Publish.</p>
+          </div>
           <div className="flex items-center gap-3">
             {configSaved && <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200"><CheckCircle2 className="w-4 h-4" />Published</span>}
             <button type="submit" disabled={isSaving || isUploadingBackground} className="btn-saelyxe-lime text-xs disabled:opacity-50"><Save className="w-4 h-4" /><span>{isSaving ? 'Publishing...' : 'SAVE & PUBLISH'}</span></button>
@@ -137,19 +161,26 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
             {spotlightBackgroundImage && <img src={spotlightBackgroundImage} alt="Spotlight background preview" className="mt-3 aspect-video w-full rounded-xl border border-stone-200 object-cover" />}
           </div>
 
-          <div className="form-section-title pt-4">Boutique Financial Thresholds & Hero</div>
+          <div className="form-section-title pt-4">Countdown & Hero</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div><label className="form-label-custom">Spotlight Price (LKR)</label><input type="number" required min={0} step={1} value={spotlightPrice} onChange={event => setSpotlightPrice(Number(event.target.value))} className="form-input-custom" /></div>
-            <div><label className="form-label-custom">Free Shipping Threshold (LKR)</label><input type="number" required min={0} step={1} value={freeShippingThreshold} onChange={event => setFreeShippingThreshold(Number(event.target.value))} className="form-input-custom" /></div>
+            <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-sky-900"><BadgeDollarSign className="w-4 h-4" />Spotlight Product Price</div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-sky-800">The storefront now always uses the actual catalog product price. Edit the product price in Products; this prevents a different spotlight price from being displayed and charged.</p>
+            </div>
+            <div><label className="form-label-custom">Free Shipping Threshold (LKR)</label><input type="number" required min={0} step={1} value={freeShippingThreshold} onFocus={event => event.currentTarget.select()} onChange={event => setFreeShippingThreshold(Number(event.target.value))} className="form-input-custom" /></div>
           </div>
+
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+            <label className="form-label-custom flex items-center gap-2"><Clock3 className="w-4 h-4" />Live Spotlight Countdown Target</label>
+            <input type="datetime-local" required value={countdownTarget} onChange={event => setCountdownTarget(event.target.value)} className="form-input-custom" />
+            <p className="mt-2 text-[11px] text-emerald-800">The second homepage section reads this value directly. Before this time it is locked; when the target is reached it unlocks automatically.</p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div><label className="form-label-custom">Hero Main Headline</label><input type="text" required value={heroHeadline} onChange={event => setHeroHeadline(event.target.value)} className="form-input-custom" /></div>
             <div><label className="form-label-custom">Hero Subheading</label><input type="text" required value={heroSubhead} onChange={event => setHeroSubhead(event.target.value)} className="form-input-custom" /></div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div><label className="form-label-custom">Announcement Bar Text</label><input type="text" required value={announcementText} onChange={event => setAnnouncementText(event.target.value)} className="form-input-custom" /></div>
-            <div><label className="form-label-custom">Countdown Timer Target (ISO)</label><input type="text" required value={countdownTarget} onChange={event => setCountdownTarget(event.target.value)} className="form-input-custom font-mono text-xs" /></div>
-          </div>
+          <div><label className="form-label-custom">Announcement Bar Text</label><input type="text" required value={announcementText} onChange={event => setAnnouncementText(event.target.value)} className="form-input-custom" /></div>
         </div>
 
         <div className="admin-card space-y-5">
@@ -161,7 +192,7 @@ export const AdminDropSettings: React.FC<AdminDropSettingsProps> = ({ settings, 
             ['Brand Authenticity & FAQ', showSocialFAQSection, setShowSocialFAQSection]
           ].map(([label, checked, setter]) => (
             <div key={String(label)} className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-100">
-              <div><h5 className="text-sm font-bold text-stone-900">{String(label)}</h5></div>
+              <h5 className="text-sm font-bold text-stone-900">{String(label)}</h5>
               <label className="ios-switch"><input type="checkbox" checked={Boolean(checked)} onChange={event => (setter as React.Dispatch<React.SetStateAction<boolean>>)(event.target.checked)} /><span className="ios-slider" /></label>
             </div>
           ))}

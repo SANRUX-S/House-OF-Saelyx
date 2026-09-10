@@ -13,6 +13,9 @@ import { SearchModal } from './components/SearchModal';
 import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { AuthModal } from './components/AuthModal';
 import { BackInStockModal } from './components/BackInStockModal';
+import { ScrollToTop } from './components/ScrollToTop';
+import { SEOManager } from './components/SEOManager';
+
 const AdminPanel = React.lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
 const ProductDetailPage = React.lazy(() => import('./components/ProductDetailPage').then(module => ({ default: module.ProductDetailPage })));
 const CollectionPage = React.lazy(() => import('./components/CollectionPage').then(module => ({ default: module.CollectionPage })));
@@ -38,49 +41,73 @@ const RouteLoading: React.FC = () => (
     </div>
   </div>
 );
-import { ScrollToTop } from './components/ScrollToTop';
-import { SEOManager } from './components/SEOManager';
 
 const StoreContent: React.FC = () => {
-  const { 
+  const {
     currentRoute,
-    user, 
-    isRestockModalOpen, 
-    closeRestockModal, 
-    restockModalProduct, 
+    user,
+    isRestockModalOpen,
+    closeRestockModal,
+    restockModalProduct,
     restockModalSize,
     settings,
-    refetchData
+    refetchData,
+    setIsAuthOpen,
+    navigateTo,
   } = useStore();
 
-  // Smart, low-overhead sync (avoids 10s idle network spam & unnecessary re-renders)
   const isFetchingRef = React.useRef(false);
   const safeRefetch = React.useCallback(() => {
-    if (isFetchingRef.current || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) {
-      return;
-    }
+    if (isFetchingRef.current || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return;
     isFetchingRef.current = true;
     refetchData()
-      .catch(err => console.warn('Database resync warning:', err))
+      .catch(error => console.warn('Database resync warning:', error))
       .finally(() => {
         isFetchingRef.current = false;
       });
   }, [refetchData]);
 
   React.useEffect(() => {
-    // Firestore listeners provide live updates. A focus refresh covers stale tabs without background polling.
     window.addEventListener('focus', safeRefetch);
-    return () => {
-      window.removeEventListener('focus', safeRefetch);
-    };
+    return () => window.removeEventListener('focus', safeRefetch);
   }, [safeRefetch]);
 
-  // Fix: Automatically scroll window to top whenever current route/page changes in SPA mode
   React.useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [currentRoute.name, (currentRoute as any).slug, (currentRoute as any).category]);
 
-  // If in Admin mode, render completely isolated full-screen Atelier interface without consumer navbar/footer
+  // Admin number fields frequently start at 0. Selecting the field is convenient,
+  // and this key handler guarantees that the first typed digit replaces 0 instead
+  // of producing an awkward 01 value in a controlled React number input.
+  React.useEffect(() => {
+    if (currentRoute.name !== 'admin') return;
+
+    const handleNumberFocus = (event: FocusEvent) => {
+      const input = event.target instanceof HTMLInputElement ? event.target : null;
+      if (!input || input.type !== 'number' || input.value !== '0') return;
+      window.requestAnimationFrame(() => {
+        if (document.activeElement === input && input.value === '0') input.select();
+      });
+    };
+
+    const handleNumberKeyDown = (event: KeyboardEvent) => {
+      const input = event.target instanceof HTMLInputElement ? event.target : null;
+      if (!input || input.type !== 'number' || input.value !== '0' || !/^[0-9]$/.test(event.key)) return;
+      event.preventDefault();
+      const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      if (nativeValueSetter) nativeValueSetter.call(input, event.key);
+      else input.value = event.key;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    document.addEventListener('focusin', handleNumberFocus);
+    document.addEventListener('keydown', handleNumberKeyDown, true);
+    return () => {
+      document.removeEventListener('focusin', handleNumberFocus);
+      document.removeEventListener('keydown', handleNumberKeyDown, true);
+    };
+  }, [currentRoute.name]);
+
   if (currentRoute.name === 'admin') {
     return (
       <div className="min-h-screen bg-[#F4F6F5] text-stone-900 selection:bg-[#B4F105] selection:text-black font-sans antialiased">
@@ -88,11 +115,11 @@ const StoreContent: React.FC = () => {
         <React.Suspense fallback={<RouteLoading />}>
           <AdminPanel />
         </React.Suspense>
-        <BackInStockModal 
-          isOpen={isRestockModalOpen} 
-          onClose={closeRestockModal} 
-          product={restockModalProduct} 
-          initialSize={restockModalSize} 
+        <BackInStockModal
+          isOpen={isRestockModalOpen}
+          onClose={closeRestockModal}
+          product={restockModalProduct}
+          initialSize={restockModalSize}
         />
         <ScrollToTop />
       </div>
@@ -106,7 +133,36 @@ const StoreContent: React.FC = () => {
       case 'collection':
         return <CollectionPage category={currentRoute.category || 'all'} />;
       case 'checkout':
-        return <CheckoutPage key={user?.uid || 'guest'} />;
+        if (!user) {
+          return (
+            <section className="min-h-[65vh] flex items-center justify-center px-6 py-24 bg-[#F8F6F2]">
+              <div className="w-full max-w-lg rounded-3xl border border-[#DED5C9] bg-white p-8 sm:p-10 text-center shadow-sm">
+                <p className="text-[10px] uppercase tracking-[0.26em] text-[#8A7B6A]">Secure Checkout</p>
+                <h1 className="mt-3 font-serif text-3xl text-[#1A1816]">Sign in to continue</h1>
+                <p className="mt-3 text-sm leading-relaxed text-[#6B5E50]">
+                  SAELYXE checkout is available to signed-in customers only. Your bag stays available while you sign in or create an account.
+                </p>
+                <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsAuthOpen(true)}
+                    className="rounded-full bg-[#1A1816] px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white hover:bg-black"
+                  >
+                    Sign In / Create Account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigateTo({ name: 'home' })}
+                    className="rounded-full border border-[#CFC4B6] px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#1A1816] hover:bg-[#F3EDE4]"
+                  >
+                    Continue Shopping
+                  </button>
+                </div>
+              </div>
+            </section>
+          );
+        }
+        return <CheckoutPage key={user.uid} />;
       case 'profile':
         return <ProfilePage />;
       case 'orders':
@@ -136,16 +192,9 @@ const StoreContent: React.FC = () => {
       default:
         return (
           <>
-            {/* Section 1: Hero Section */}
             {settings?.showHeroSection !== false && <HeroSection />}
-
-            {/* Section 2: Spotlight Hero Product */}
             {settings?.showSpotlightSection !== false && <SpotlightProduct />}
-
-            {/* Section 3: Collection Grid */}
             {settings?.showCollectionSection !== false && <CollectionGrid />}
-
-            {/* Section 4 & 5: Social Proof & FAQ */}
             {settings?.showSocialFAQSection !== false && (
               <>
                 <SocialProof />
@@ -160,33 +209,26 @@ const StoreContent: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#F8F6F2] selection:bg-[#181614] selection:text-[#F8F6F2]">
       <SEOManager />
-      {/* Top Luxury Navigation */}
       <Navbar />
 
-      {/* Main Viewport Router with proper spacing */}
       <main className="flex-grow">
         <React.Suspense fallback={<RouteLoading />}>
           {renderRoute()}
         </React.Suspense>
       </main>
 
-      {/* Section 6: Minimalist Footer */}
       <Footer />
-
-      {/* Scroll To Top floating action button */}
       <ScrollToTop />
-
-      {/* Global Interactive Drawers & Modals */}
       <CartDrawer />
       <ProductModal />
       <SearchModal />
       <OrderTrackerModal />
       <AuthModal />
-      <BackInStockModal 
-        isOpen={isRestockModalOpen} 
-        onClose={closeRestockModal} 
-        product={restockModalProduct} 
-        initialSize={restockModalSize} 
+      <BackInStockModal
+        isOpen={isRestockModalOpen}
+        onClose={closeRestockModal}
+        product={restockModalProduct}
+        initialSize={restockModalSize}
       />
     </div>
   );

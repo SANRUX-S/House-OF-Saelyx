@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, ArrowRight, ShieldCheck, Sparkles, Ruler, Bell } from 'lucide-react';
+import { X, Check, ArrowRight, ShieldCheck, Ruler, Bell, Clock3 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export const ProductModal: React.FC = () => {
@@ -18,6 +18,7 @@ export const ProductModal: React.FC = () => {
   const currentSize = selectedSize;
   const needsSize = (activeModalProduct.sizes?.length || 0) > 0 && !currentSize;
   const isOutOfStock = !activeModalProduct.inStock || (activeModalProduct.stockCount !== undefined && activeModalProduct.stockCount <= 0);
+  const isPreOrder = /\bpre[\s-]?order\b/i.test(activeModalProduct.badge || '');
 
   const handleAdd = () => {
     if (!addToCart(activeModalProduct, currentSize, quantity)) return;
@@ -36,7 +37,6 @@ export const ProductModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto select-none">
-      {/* Backdrop */}
       <div
         onClick={() => setActiveModalProduct(null)}
         className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity"
@@ -44,8 +44,6 @@ export const ProductModal: React.FC = () => {
 
       <div className="min-h-screen px-4 py-8 flex items-center justify-center">
         <div className="relative w-full max-w-4xl bg-[#FAF8F5] text-[#1A1816] rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-[#E3D9CD] z-10 animate-in fade-in zoom-in-95 duration-200">
-          
-          {/* Close Button */}
           <button
             onClick={() => setActiveModalProduct(null)}
             className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-md transition-all cursor-pointer"
@@ -55,8 +53,6 @@ export const ProductModal: React.FC = () => {
           </button>
 
           <div className="grid grid-cols-1 md:grid-cols-2">
-            
-            {/* Left Column: Image Canvas & Thumbnails */}
             <div className="bg-[#EAE4DC] p-6 sm:p-8 flex flex-col justify-between">
               <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#DDD5CA] shadow-inner">
                 <img
@@ -66,13 +62,13 @@ export const ProductModal: React.FC = () => {
                   referrerPolicy="no-referrer"
                 />
                 {activeModalProduct.badge && (
-                  <div className="absolute top-3 left-3 bg-[#1A1816] text-white text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full shadow-md">
-                    {activeModalProduct.badge}
+                  <div className={`absolute top-3 left-3 inline-flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full shadow-md ${isPreOrder ? 'bg-amber-50 text-amber-950 border border-amber-300' : 'bg-[#1A1816] text-white'}`}>
+                    {isPreOrder && <Clock3 className="w-3 h-3" />}
+                    <span>{activeModalProduct.badge}</span>
                   </div>
                 )}
               </div>
 
-              {/* Gallery Thumbnails if multiple */}
               {activeModalProduct.images.length > 1 && (
                 <div className="flex gap-3 mt-4 overflow-x-auto pb-1">
                   {activeModalProduct.images.map((img, idx) => (
@@ -90,7 +86,6 @@ export const ProductModal: React.FC = () => {
               )}
             </div>
 
-            {/* Right Column: Garment Specs & Purchase Controls */}
             <div className="p-6 sm:p-8 md:p-10 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div>
@@ -123,7 +118,6 @@ export const ProductModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Size Selector */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold uppercase tracking-wider text-[#1A1816]">
@@ -152,7 +146,6 @@ export const ProductModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Action Controls */}
               <div className="space-y-3 pt-2">
                 {isOutOfStock ? (
                   <div className="space-y-2">
@@ -165,7 +158,7 @@ export const ProductModal: React.FC = () => {
                       <span>EMAIL ME WHEN BACK IN STOCK</span>
                     </button>
                     <p className="text-[10px] text-neutral-500 text-center font-sans">
-                      ⚡ Automated email notification via SAELYXE Resend dispatch on replenishment
+                      Automated email notification via SAELYXE Resend dispatch on replenishment
                     </p>
                   </div>
                 ) : (
@@ -207,11 +200,8 @@ export const ProductModal: React.FC = () => {
                   </span>
                 </div>
               </div>
-
             </div>
-
           </div>
-
         </div>
       </div>
     </div>

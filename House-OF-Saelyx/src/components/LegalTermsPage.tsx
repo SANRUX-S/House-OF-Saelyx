@@ -1,19 +1,15 @@
 import React from 'react';
-import { 
-  ArrowLeft, 
-  Scale, 
-  ShieldCheck, 
-  UserCheck, 
-  UserX, 
-  CreditCard, 
-  Truck, 
-  AlertTriangle, 
-  ShoppingBag, 
-  Clock, 
-  FileText, 
-  Lock, 
-  Globe, 
-  Gavel, 
+import {
+  ArrowLeft,
+  Scale,
+  UserCheck,
+  CreditCard,
+  ShieldCheck,
+  Truck,
+  ShoppingBag,
+  Lock,
+  AlertTriangle,
+  Gavel,
   MessageSquare
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
@@ -24,9 +20,8 @@ export const LegalTermsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 pb-24 px-5 sm:px-8">
       <div className="max-w-4xl mx-auto space-y-12">
-        
-        {/* Back Button */}
         <button
+          type="button"
           onClick={() => navigateTo({ name: 'home' })}
           className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#665A4E] hover:text-[#1A1816] transition-colors group"
         >
@@ -34,429 +29,121 @@ export const LegalTermsPage: React.FC = () => {
           <span>Return to Boutique</span>
         </button>
 
-        {/* Title Header */}
         <div className="space-y-4 border-b border-[#E3D9CD] pb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EFE9E0] border border-[#DCD0C0] text-[11px] font-semibold uppercase tracking-[0.25em] text-[#665A4E]">
             <Scale className="w-3.5 h-3.5 text-[#857768]" />
             SAELYXE • TERMS OF SERVICE & CONDITIONS
           </div>
-          <h1 className="font-serif text-3xl sm:text-5xl text-[#1A1816] font-normal tracking-tight leading-tight">
-            SAELYXE Terms & Conditions
-          </h1>
-          <p className="text-xs text-[#665A4E] uppercase tracking-widest font-sans">
-            Last Updated: September 10, 2026
-          </p>
-          <p className="text-sm text-[#665A4E] font-normal max-w-3xl leading-relaxed pt-1">
-            Welcome to <strong className="font-semibold text-[#1A1816]">SAELYXE</strong>. These Terms & Conditions govern your access to and use of the SAELYXE website, your SAELYXE account, and the purchase of products through our online store.
-          </p>
-          <p className="text-xs text-[#665A4E] italic">
-            By accessing our website, creating an account, or placing an order, you acknowledge that you have read, understood, and agreed to these Terms & Conditions and our applicable policies, including our <button onClick={() => navigateTo({ name: 'legal-privacy' })} className="underline hover:text-[#1A1816]">Privacy Policy</button> and <button onClick={() => navigateTo({ name: 'legal-returns' })} className="underline hover:text-[#1A1816]">Refund & Return Policy</button>.
+          <h1 className="font-serif text-3xl sm:text-5xl text-[#1A1816] font-normal tracking-tight leading-tight">SAELYXE Terms & Conditions</h1>
+          <p className="text-xs text-[#665A4E] uppercase tracking-widest">Last Updated: September 10, 2026</p>
+          <p className="text-sm text-[#665A4E] max-w-3xl leading-relaxed">
+            These Terms & Conditions govern use of the SAELYXE website, customer accounts, purchases, payments, delivery, returns, and related services.
           </p>
         </div>
 
-        {/* Highlight Feature Badges */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
-            <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
-              <UserCheck className="w-4 h-4" />
-            </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">18+ Age Requirement</h4>
-            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Intended for customers 18 years of age or older.</p>
+            <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center"><UserCheck className="w-4 h-4" /></div>
+            <h4 className="font-serif text-sm font-semibold">18+ Only</h4>
+            <p className="text-[12px] text-[#665A4E]">Customers must be 18 years of age or older.</p>
           </div>
-
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
-            <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
-              <UserX className="w-4 h-4" />
-            </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Guest Checkout Available</h4>
-            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Customers may order as guests or use a SAELYXE account.</p>
+            <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center"><Lock className="w-4 h-4" /></div>
+            <h4 className="font-serif text-sm font-semibold">Account Required</h4>
+            <p className="text-[12px] text-[#665A4E]">Browsing is open, but checkout requires a signed-in SAELYXE account.</p>
           </div>
-
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
-            <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
-              <CreditCard className="w-4 h-4" />
-            </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Payment Options</h4>
-            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">PayPal, Payzy, and Cash on Delivery are available where shown at checkout.</p>
+            <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center"><CreditCard className="w-4 h-4" /></div>
+            <h4 className="font-serif text-sm font-semibold">Online Payments</h4>
+            <p className="text-[12px] text-[#665A4E]">PayPal and Payzy are supported where available. Cash on Delivery is not offered.</p>
           </div>
-
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
-            <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center text-[#5C5042]">
-              <Gavel className="w-4 h-4" />
-            </div>
-            <h4 className="font-serif text-sm font-semibold text-[#1A1816]">Sri Lankan Law</h4>
-            <p className="text-[12px] text-[#665A4E] font-normal leading-snug">Governed by applicable laws & consumer rights in Sri Lanka.</p>
+            <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center"><Gavel className="w-4 h-4" /></div>
+            <h4 className="font-serif text-sm font-semibold">Sri Lankan Law</h4>
+            <p className="text-[12px] text-[#665A4E]">Applicable Sri Lankan law and consumer protections apply.</p>
           </div>
         </div>
 
-        {/* Detailed Sections List */}
-        <div className="space-y-8 text-sm text-[#3A332C] leading-relaxed font-normal">
-          
-          {/* Section 1 & 2 & 3 */}
+        <div className="space-y-8 text-sm text-[#3A332C] leading-relaxed">
           <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
             <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">1</span>
-                Eligibility & Age Requirement
-              </h3>
-              <p className="text-xs sm:text-sm">
-                SAELYXE is intended for customers who are <strong className="font-semibold text-[#1A1816]">18 years of age or older</strong>. By creating an account or placing an order, you confirm that you are at least 18 years old and legally able to enter into a transaction. SAELYXE does not knowingly accept purchases from individuals under 18 years of age.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><UserCheck className="w-4 h-4" />Eligibility & Account</h3>
+              <p>
+                SAELYXE is intended for customers aged 18 or older. A customer account is required before checkout. You must provide accurate account and delivery information, keep credentials secure, and not impersonate another person or use false details.
               </p>
             </div>
-
             <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">2</span>
-                Account Registration
-              </h3>
-              <p className="text-xs sm:text-sm">
-                A SAELYXE account is optional for checkout, but some account features may require registration. Registered customers agree to provide accurate, current, and complete information, maintain account security, and not create accounts using false or unauthorised details. SAELYXE may restrict, suspend, or terminate accounts where there is evidence of fraud or misuse.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#F0E8DD] pt-6 bg-[#FAF6F0] p-4 rounded-xl border border-[#E0D5C7]">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-sans flex items-center justify-center">3</span>
-                Guest Checkout Available
-              </h3>
-              <p className="text-xs sm:text-sm text-[#4A3E30]">
-                SAELYXE provides <strong className="font-semibold text-[#1A1816]">guest checkout</strong> for eligible orders. Guest customers must provide accurate contact and delivery information. Customers who choose to use a SAELYXE account are responsible for keeping their account credentials secure and must not use another person’s account without authorisation.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><ShieldCheck className="w-4 h-4" />Website Use</h3>
+              <p>
+                The website may only be used for lawful shopping and account activity. Fraud, malicious code, automated abuse, unauthorised access attempts, scraping intended to disrupt service, or misuse of promotions is prohibited.
               </p>
             </div>
           </section>
 
-          {/* Section 4 & 5 */}
           <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
             <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">4</span>
-                Customer Information
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Customers are responsible for providing accurate information during registration and checkout (Full name, email, mobile number, delivery address, billing details). SAELYXE may not be responsible for delivery failures, delays, or communication errors caused by inaccurate customer information.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><ShoppingBag className="w-4 h-4" />Products, Stock & Pre-Orders</h3>
+              <p>
+                Product images, descriptions, colours, measurements, and availability are presented as accurately as reasonably possible. Stock is subject to change. Pre-order dispatch estimates may move because of production or logistics factors. If a system error accepts an unavailable item, SAELYXE may cancel and refund the affected order.
               </p>
             </div>
-
             <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">5</span>
-                Website Use & Restrictions
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Customers agree to use the SAELYXE website only for lawful purposes. You must not use the website for fraudulent activity, attempt unauthorised system access, upload malicious code, scrape data via automated tools, impersonate others, or misuse promotional offers.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Pricing & Promotions</h3>
+              <p>
+                Prices may change before an order is completed. Obvious pricing or system errors may be corrected before acceptance. Promotions, vouchers, and discount codes can have eligibility, expiry, and usage limits and cannot be exchanged for cash.
               </p>
             </div>
           </section>
 
-          {/* Section 6, 7 & 8 */}
           <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
             <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">6</span>
-                Product Information
-              </h3>
-              <p className="text-xs sm:text-sm">
-                SAELYXE makes reasonable efforts to ensure accurate product descriptions, images, colours, measurements, and availability. Slight variations may occur due to screen settings, lighting, or manufacturing factors. Images are for illustrative purposes.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><CreditCard className="w-4 h-4" />Payments & Order Acceptance</h3>
+              <p>
+                SAELYXE currently accepts PayPal and Payzy where those services are available. Cash on Delivery is not supported. An order is confirmed only after the applicable payment has been successfully verified by SAELYXE server-side systems. A provider screen or browser redirect alone does not constitute confirmation.
               </p>
             </div>
-
             <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">7</span>
-                Product Availability & Stock
-              </h3>
-              <p className="text-xs sm:text-sm">
-                All products are subject to availability (In-stock, limited-stock, pre-order, or temporarily sold out). In the event of a system error displaying an unavailable item as available, SAELYXE reserves the right to cancel the order and issue a full refund.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">8</span>
-                Pre-Orders
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Where a product is offered as a <strong className="font-semibold text-[#1A1816]">pre-order</strong>, estimated dispatch periods will be communicated on the product page. Pre-order timelines may change due to production or logistics factors beyond reasonable control.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><Lock className="w-4 h-4" />Payment Security</h3>
+              <p>
+                Payment credentials are processed by the relevant payment provider. SAELYXE does not intentionally store full card credentials. Orders that cannot be verified may remain pending, be cancelled, or require support review to prevent duplicate payment.
               </p>
             </div>
           </section>
 
-          {/* Section 9 & 10 */}
           <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
             <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">9</span>
-                Pricing & Price Errors
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Prices may change without prior notice. Price changes after a completed order will not affect that order. In the event of an obvious pricing or system error, SAELYXE may place the order on hold, contact the customer with the corrected price, or cancel the order with a full refund.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><Truck className="w-4 h-4" />Delivery</h3>
+              <p>
+                Delivery charges are shown at checkout. Courier names, tracking information, and estimated delivery times are shown only when available from the order record or delivery partner. SAELYXE does not guarantee a courier or delivery date that has not been assigned.
               </p>
             </div>
-
             <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">10</span>
-                Promotions, Discount Codes & Vouchers
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Promotions and discount vouchers are subject to specific conditions, eligibility rules, expiry dates, and usage limits per customer. Promotional benefits cannot be exchanged for cash.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><ShieldCheck className="w-4 h-4" />Returns & Refunds</h3>
+              <p>
+                Returns and refunds are governed by the SAELYXE Refund & Return Policy. Eligibility may depend on item condition, timing, exclusions, inspection, and the original payment method.
               </p>
+              <button type="button" onClick={() => navigateTo({ name: 'legal-returns' })} className="text-xs font-semibold underline underline-offset-4">Read Refund & Return Policy</button>
             </div>
           </section>
 
-          {/* Section 11 & 12 */}
           <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
             <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">11</span>
-                Orders & Acceptance
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Placing an order constitutes a request to purchase. Orders are subject to stock verification and acceptance by SAELYXE. Prepaid orders require successful server-side payment confirmation, while Cash on Delivery orders remain unpaid until the applicable delivery settlement. We reserve the right to limit or cancel orders in cases of stock unavailability, pricing errors, or fraud verification.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">12</span>
-                Order Confirmation
-              </h3>
-              <p className="text-xs sm:text-sm">
-                After order submission, an order confirmation will be sent to your account email/contact. An order confirmation does not remove SAELYXE's right to review stock, payment, or pricing before dispatch.
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><Gavel className="w-4 h-4" />Liability, Changes & Governing Law</h3>
+              <p>
+                To the extent permitted by law, SAELYXE is not responsible for indirect losses caused by third-party payment networks, couriers, internet outages, or events outside reasonable control. We may update these terms as services change. Applicable Sri Lankan law and non-excludable consumer rights remain unaffected.
               </p>
             </div>
           </section>
-
-          {/* Section 13, 14, 15, 16 & 17 - Payment Methods */}
-          <section className="bg-[#FAF6F0] border border-[#DFD5C6] p-6 sm:p-8 rounded-2xl space-y-6">
-            <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-sans flex items-center justify-center">13</span>
-                Payment Methods & COD Availability
-              </h3>
-              <p className="text-xs sm:text-sm text-[#4A3E30]">
-                SAELYXE accepts the payment methods expressly displayed at checkout, which may include <strong className="font-semibold text-[#1A1816]">PayPal, Payzy, and Cash on Delivery (COD)</strong>. Availability may vary by order, delivery location, provider status, or testing/live environment.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#E3D8C8] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-sans flex items-center justify-center">14</span>
-                Payment Options & Zero Card Storage
-              </h3>
-              <p className="text-xs sm:text-sm text-[#4A3E30]">
-                Online payments are processed through the selected provider's infrastructure, including PayPal or Payzy where applicable. An online order is considered successfully paid only after SAELYXE receives and verifies the applicable provider confirmation. SAELYXE does not intentionally store full credit/debit card numbers or security codes on its servers.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#E3D8C8] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#E4D7C5] text-[#4A3E30] text-xs font-sans flex items-center justify-center">15</span>
-                Cardholder & Account Holder Verification
-              </h3>
-              <p className="text-xs sm:text-sm text-[#4A3E30]">
-                The person placing an order must be authorised to use the selected payment method. For security, SAELYXE may review whether the payment holder and SAELYXE account holder are appropriately connected. Suspicious transactions may be delayed or cancelled.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-[#E3D8C8] pt-6">
-              <div className="p-3.5 bg-white/80 rounded-xl border border-[#E0D5C7] space-y-1">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">16. Payment Statuses</h4>
-                <p className="text-xs text-[#5C5042]">
-                  Status definitions: Pending (unconfirmed), Paid (confirmed), Failed (declined), Refunded (processed).
-                </p>
-              </div>
-
-              <div className="p-3.5 bg-white/80 rounded-xl border border-[#E0D5C7] space-y-1">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">17. Duplicate Payments</h4>
-                <p className="text-xs text-[#5C5042]">
-                  If charged twice for an order, contact Customer Support with payment receipts for swift processor review and refund.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Section 18 & 19 - Shipping & Delivery */}
-          <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
-            <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">18</span>
-                Shipping & Delivery Timelines
-              </h3>
-              <p className="text-xs sm:text-sm">
-                SAELYXE provides delivery within <strong className="font-semibold text-[#1A1816]">Sri Lanka</strong>. Shipping charges are displayed at checkout. Estimated delivery timeframe is generally <strong className="font-semibold text-[#1A1816]">1–4 working days</strong>, depending on customer location and courier handling.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">19</span>
-                Delivery Address & Failed Delivery
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Customers are responsible for providing complete and accurate address and contact details. SAELYXE is not responsible for delivery delays or extra re-dispatch costs caused by incorrect address info or customer unreachability.
-              </p>
-            </div>
-          </section>
-
-          {/* Section 20, 21 & 22 - Returns & Cancellations */}
-          <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
-            <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">20</span>
-                Returns, Exchanges & Refunds
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Returns, exchanges, refunds, and defective claims are strictly governed by the <button onClick={() => navigateTo({ name: 'legal-returns' })} className="underline font-semibold text-[#1A1816]">SAELYXE Refund & Return Policy</button>.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">21</span>
-                Order Cancellation
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Cancellation requests must be submitted as soon as possible. Orders cannot be cancelled once packed or dispatched. Approved cancellations will be refunded through the original payment processor.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">22</span>
-                Damaged, Defective or Incorrect Products
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Contact Customer Support immediately upon delivery of damaged or incorrect items with clear photos/videos. Verified claims will be resolved via replacement, exchange, or refund without extra cost.
-              </p>
-            </div>
-          </section>
-
-          {/* Section 23, 24, 25 & 26 - IP, Content & Account Deletion */}
-          <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
-            <div className="space-y-3">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">23</span>
-                Intellectual Property
-              </h3>
-              <p className="text-xs sm:text-sm">
-                All content (brand names, logos, product images, designs, text, graphics, layouts) is owned by or licensed to SAELYXE and protected by intellectual property laws. Unauthorised reproduction or commercial exploitation is prohibited.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
-              <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#F0E8DD] text-[#6E6050] text-xs font-sans flex items-center justify-center">24</span>
-                User-Submitted Content
-              </h3>
-              <p className="text-xs sm:text-sm">
-                Reviews, feedback, or photos submitted by customers must be lawful. SAELYXE reserves the right to moderate or remove offensive, fraudulent, or unlawful content.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-[#F0E8DD] pt-6">
-              <div className="p-3.5 bg-[#FAF8F5] rounded-xl border border-[#EDE5DA] space-y-1">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">25. Privacy & Personal Info</h4>
-                <p className="text-xs text-[#6E6050]">
-                  Personal data collection & usage is handled strictly according to the SAELYXE Privacy Policy.
-                </p>
-              </div>
-
-              <div className="p-3.5 bg-[#FAF8F5] rounded-xl border border-[#EDE5DA] space-y-1">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">26. Account Deletion</h4>
-                <p className="text-xs text-[#6E6050]">
-                  Request account deletion via Contact Support. Retention applies for legal, accounting, and anti-fraud purposes.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Section 27 to 36 - Legal Framework & Governance */}
-          <section className="bg-white border border-[#E6DCCF] p-6 sm:p-8 rounded-2xl shadow-sm space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">27. Website Availability</h4>
-                <p className="text-xs text-[#5C5042]">
-                  SAELYXE aims for high uptime but cannot guarantee uninterrupted service during maintenance or third-party outages.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">28. Third-Party Services</h4>
-                <p className="text-xs text-[#5C5042]">
-                  Services rely on trusted partners (including PayPal, Payzy, couriers, cloud hosting, and communications providers) operating under their respective privacy terms.
-                </p>
-              </div>
-
-              <div className="space-y-2 border-t border-[#F0E8DD] pt-4">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">29. Limitation of Liability</h4>
-                <p className="text-xs text-[#5C5042]">
-                  To maximum extent permitted by law, SAELYXE is not liable for indirect or consequential losses.
-                </p>
-              </div>
-
-              <div className="space-y-2 border-t border-[#F0E8DD] pt-4">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">30. Force Majeure</h4>
-                <p className="text-xs text-[#5C5042]">
-                  Not responsible for delays caused by natural disasters, severe weather, courier strikes, or system failures.
-                </p>
-              </div>
-
-              <div className="space-y-2 border-t border-[#F0E8DD] pt-4">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">31. Anti-Fraud Activity</h4>
-                <p className="text-xs text-[#5C5042]">
-                  Right to investigate, restrict, or report suspicious transactions or promotional abuse to authorities.
-                </p>
-              </div>
-
-              <div className="space-y-2 border-t border-[#F0E8DD] pt-4">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">32. Changes to Terms</h4>
-                <p className="text-xs text-[#5C5042]">
-                  Terms may be modified periodically. Continued site usage constitutes acceptance of updated terms.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4 border-t border-[#F0E8DD] pt-6">
-              <div className="bg-[#FAF6F0] p-4 rounded-xl border border-[#DFD5C6] space-y-2">
-                <h4 className="font-serif text-base font-semibold text-[#1A1816]">33 & 34. Governing Law & Sri Lankan Consumer Rights</h4>
-                <p className="text-xs text-[#4A3E30] leading-relaxed">
-                  These Terms & Conditions shall be interpreted and applied in accordance with the <strong className="font-semibold text-[#1A1816]">laws applicable in Sri Lanka</strong>. Nothing in these Terms & Conditions is intended to remove, restrict, or waive any mandatory consumer rights or protections available under applicable Sri Lankan law.
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <h4 className="font-serif text-sm font-semibold text-[#1A1816]">35. Dispute Resolution & Complaints</h4>
-                <p className="text-xs text-[#5C5042]">
-                  Customers are encouraged to contact SAELYXE Customer Support to resolve any complaint, dispute, payment, or delivery issue fairly.
-                </p>
-              </div>
-            </div>
-          </section>
-
         </div>
 
-        {/* Section 36 - Contact Us CTA Box */}
-        <div className="bg-[#1A1816] text-[#FAF8F5] p-8 sm:p-10 rounded-2xl space-y-5 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="space-y-2">
-            <h3 className="font-serif text-2xl text-white font-normal">
-              36. Contact SAELYXE Support
-            </h3>
-            <p className="text-xs text-stone-300 font-normal max-w-lg">
-              For questions relating to these Terms & Conditions, orders, payments, refunds, or account issues, please contact SAELYXE Customer Support with your order number and registered account details.
-            </p>
+        <div className="bg-[#1A1816] text-[#F7F1E8] p-6 sm:p-8 rounded-2xl flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between">
+          <div>
+            <h3 className="font-serif text-xl flex items-center gap-2"><MessageSquare className="w-4 h-4" />Questions about these terms?</h3>
+            <p className="text-xs text-[#CFC4B6] mt-2">Use SAELYXE Contact Support for account, order, payment, or policy questions.</p>
           </div>
-          <button
-            onClick={() => navigateTo({ name: 'care-concierge' })}
-            className="shrink-0 px-6 py-3.5 bg-white text-[#1A1816] text-xs font-semibold uppercase tracking-[0.2em] rounded-xl hover:bg-[#EFE9E0] transition-colors inline-flex items-center gap-2"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>Contact Support</span>
-          </button>
+          <button type="button" onClick={() => navigateTo({ name: 'contact-support' })} className="rounded-full bg-white text-[#1A1816] px-5 py-2.5 text-[10px] uppercase tracking-[0.18em] font-semibold">Contact Support</button>
         </div>
-
       </div>
     </div>
   );
 };
-
