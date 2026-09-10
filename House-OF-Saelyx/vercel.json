@@ -75,6 +75,10 @@
       "destination": "/api/media-upload"
     },
     {
+      "source": "/api/admin/bootstrap",
+      "destination": "/api/admin-bootstrap"
+    },
+    {
       "source": "/api/admin/products/:id",
       "destination": "/api/admin-product?id=:id"
     },
