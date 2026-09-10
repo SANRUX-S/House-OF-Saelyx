@@ -3,13 +3,14 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 
 const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
 const ROOT_ADMIN_EMAIL = 'saelyxe.co@gmail.com';
 const MAX_UPLOAD_BYTES = 2_100_000;
 const MAX_REQUEST_BASE64_CHARS = 3_000_000;
 const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+const BLOB_API_URL = 'https://vercel.com/api/blob';
+const BLOB_API_VERSION = '12';
 
 function safeString(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -19,30 +20,15 @@ function getProjectId() {
   return process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'gen-lang-client-0800900976';
 }
 
-function getBucketCandidates() {
-  const projectId = getProjectId();
-  const configured = safeString(process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET, 300);
-  return Array.from(new Set([
-    configured,
-    `${projectId}.firebasestorage.app`,
-    `${projectId}.appspot.com`
-  ].filter(Boolean)));
-}
-
 function ensureAdminApp() {
   if (getApps().length) return;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   const projectId = getProjectId();
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const storageBucket = getBucketCandidates()[0];
   if (!projectId || !clientEmail || !privateKey || privateKey.startsWith('replace-with-')) {
     throw new Error('Firebase Admin credentials are not configured.');
   }
-  if (!storageBucket) throw new Error('Firebase Storage bucket is not configured.');
-  initializeApp({
-    credential: cert({ projectId, clientEmail, privateKey }),
-    storageBucket
-  });
+  initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
 }
 
 async function readAdminToken(req: any): Promise<DecodedIdToken | null> {
@@ -124,41 +110,83 @@ function cleanBase64(value: string) {
   return value.replace(/^data:[^;]+;base64,/, '').replace(/\s+/g, '');
 }
 
-async function saveToFirstAvailableBucket(
-  buffer: Buffer,
-  objectPath: string,
-  contentType: string,
-  downloadToken: string,
-  uid: string,
-  kind: 'products' | 'settings'
-) {
-  const candidates = getBucketCandidates();
-  if (!candidates.length) throw new Error('Firebase Storage bucket is not configured.');
-  const errors: string[] = [];
-  for (const bucketName of candidates) {
-    try {
-      const object = getStorage().bucket(bucketName).file(objectPath);
-      await object.save(buffer, {
-        resumable: false,
-        validation: 'crc32c',
-        metadata: {
-          contentType,
-          cacheControl: 'public,max-age=31536000,immutable',
-          metadata: {
-            firebaseStorageDownloadTokens: downloadToken,
-            saelyxeUploadedBy: uid,
-            saelyxeMediaKind: kind
-          }
-        }
-      });
-      return { bucketName, objectPath };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      errors.push(`${bucketName}: ${message.slice(0, 180)}`);
-    }
+function getBlobCredentials() {
+  const token = safeString(process.env.BLOB_READ_WRITE_TOKEN, 5000);
+  if (!token) {
+    throw new Error('Vercel Blob is not configured for this project. Connect the Blob store to the Vercel project and redeploy.');
   }
-  console.error('SAELYXE Firebase Storage upload failed for configured bucket candidates:', errors);
-  throw new Error('Firebase Storage rejected the image. Verify the configured storage bucket and service-account access.');
+  const configuredStoreId = safeString(process.env.BLOB_STORE_ID, 300).replace(/^store_/, '');
+  const tokenStoreId = token.split('_')[3] || '';
+  const storeId = configuredStoreId || tokenStoreId;
+  if (!storeId) {
+    throw new Error('Vercel Blob store configuration is incomplete. Reconnect the Blob store and redeploy.');
+  }
+  return { token, storeId };
+}
+
+async function uploadToVercelBlob(buffer: Buffer, pathname: string, contentType: string) {
+  const { token, storeId } = getBlobCredentials();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const requestId = `${storeId}:${Date.now()}:${crypto.randomBytes(8).toString('hex')}`;
+    const response = await fetch(`${BLOB_API_URL}/?pathname=${encodeURIComponent(pathname)}`, {
+      method: 'PUT',
+      body: buffer,
+      signal: controller.signal,
+      headers: {
+        authorization: `Bearer ${token}`,
+        'x-vercel-blob-store-id': storeId,
+        'x-api-version': BLOB_API_VERSION,
+        'x-api-blob-request-id': requestId,
+        'x-api-blob-request-attempt': '0',
+        'x-vercel-blob-access': 'public',
+        'x-content-type': contentType,
+        'x-cache-control-max-age': '31536000',
+        'x-add-random-suffix': '0',
+        'x-allow-overwrite': '0'
+      }
+    });
+
+    const responseText = await response.text();
+    let payload: any = {};
+    try {
+      payload = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      payload = {};
+    }
+
+    if (!response.ok) {
+      const blobCode = safeString(payload?.error?.code, 100);
+      const blobMessage = safeString(payload?.error?.message, 300);
+      console.error('SAELYXE Vercel Blob upload rejected:', { status: response.status, code: blobCode, message: blobMessage });
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Vercel Blob access was rejected. Reconnect the Blob store to this Vercel project and redeploy.');
+      }
+      if (response.status === 413 || blobCode === 'file_too_large') {
+        throw new Error('The optimized image is too large for Vercel Blob.');
+      }
+      if (response.status === 429 || blobCode === 'rate_limited') {
+        throw new Error('Vercel Blob is temporarily rate limited. Please wait a moment and retry.');
+      }
+      if (blobCode === 'store_not_found') {
+        throw new Error('The connected Vercel Blob store could not be found. Reconnect the store and redeploy.');
+      }
+      throw new Error('Vercel Blob rejected the image upload. Please retry.');
+    }
+
+    const url = safeString(payload?.url, 2000);
+    if (!url.startsWith('https://') || !url.includes('.blob.vercel-storage.com/')) {
+      console.error('SAELYXE Vercel Blob returned an invalid media URL shape.');
+      throw new Error('Vercel Blob did not return a valid image URL. Please retry.');
+    }
+    return url;
+  } catch (error: any) {
+    if (error?.name === 'AbortError') throw new Error('Vercel Blob upload timed out. Please retry.');
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export default async function handler(req: any, res: any) {
@@ -211,15 +239,13 @@ export default async function handler(req: any, res: any) {
     const baseName = requestedName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 100) || `saelyxe-${Date.now()}`;
     const folder = kind === 'settings' ? 'saelyxe/settings' : 'saelyxe/products';
     const objectPath = `${folder}/${Date.now()}-${crypto.randomUUID()}-${baseName}.${ext}`;
-    const downloadToken = crypto.randomUUID();
-    const saved = await saveToFirstAvailableBucket(buffer, objectPath, detectedMime, downloadToken, token.uid, kind);
-    const secureUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(saved.bucketName)}/o/${encodeURIComponent(saved.objectPath)}?alt=media&token=${encodeURIComponent(downloadToken)}`;
+    const secureUrl = await uploadToVercelBlob(buffer, objectPath, detectedMime);
 
-    return res.status(201).json({ secureUrl, bytes: buffer.length, format: ext, provider: 'firebase_storage' });
+    return res.status(201).json({ secureUrl, bytes: buffer.length, format: ext, provider: 'vercel_blob' });
   } catch (error) {
     console.error('SAELYXE media upload error:', error);
     const message = error instanceof Error ? error.message : 'Unable to upload image right now.';
-    const status = /not configured/i.test(message) ? 503 : 500;
+    const status = /not configured|configuration is incomplete|reconnect/i.test(message) ? 503 : 500;
     return res.status(status).json({ error: message });
   }
 }
