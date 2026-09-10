@@ -213,13 +213,45 @@ export const AdminCommissions: React.FC<AdminCommissionsProps> = ({
               <button type="button" disabled={isUpdating} onClick={closeModal} className="p-1.5 text-stone-400 hover:text-stone-700 rounded-lg disabled:opacity-40" aria-label="Close order editor"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleSaveDispatch} className="p-6 space-y-4 overflow-y-auto">
-              <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-[11px] text-stone-600">Payment: <strong>{selectedOrder.paymentStatus || 'pending'}</strong>{selectedOrder.refundStatus ? <> · Refund: <strong>{selectedOrder.refundStatus}</strong></> : null}</div>
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-[11px] text-stone-600">
+                Payment: <strong>{selectedOrder.paymentStatus || 'pending'}</strong>
+                {selectedOrder.refundStatus ? <> · Refund: <strong>{selectedOrder.refundStatus}</strong></> : null}
+                {selectedOrder.paymentCaptureId ? <><br />Capture: <span className="font-mono">{selectedOrder.paymentCaptureId}</span></> : null}
+                <span className="block mt-1">Last customer email: <strong>{selectedOrder.lastStatusEmailStatus || selectedOrder.confirmationEmailStatus || 'not recorded'}</strong></span>
+              </div>
+
               {selectedOrder.cancellationRequestStatus === 'pending' && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900"><div className="font-extrabold uppercase tracking-wider text-[10px]">Customer Cancellation Request</div><p className="mt-1">{selectedOrder.cancellationReason || 'No reason supplied.'}</p></div>}
-              <div><label className="form-label-custom">Order Status</label><select value={newStatus} onChange={event => setNewStatus(event.target.value as OrderStatus)} className="form-input-custom font-semibold"><option value="placed">Placed (Pending Review)</option><option value="confirmed">Confirmed (Processing)</option><option value="packed">Packed</option><option value="dispatched">Dispatched</option><option value="out_for_delivery">Out for Delivery</option><option value="delivered">Delivered</option><option value="cancelled" disabled={(selectedOrder.paymentMethod === 'payzy' && selectedOrder.paymentStatus === 'verified') || (!isSuperAdmin && selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || ''))}>{selectedOrder.paymentMethod === 'payzy' && selectedOrder.paymentStatus === 'verified' ? 'Refund in Payzy Merchant Portal First' : 'Cancelled'}</option></select></div>
+
+              <div className="rounded-xl border border-stone-200 bg-white p-3">
+                <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-stone-400 mb-2">Order Timeline</div>
+                <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                  {(selectedOrder.statusHistory || []).length > 0 ? [...(selectedOrder.statusHistory || [])].reverse().map((historyEvent, index) => (
+                    <div key={`${historyEvent.status}-${historyEvent.timestamp}-${index}`} className="flex gap-2.5 text-[11px]">
+                      <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
+                      <div>
+                        <div className="font-bold capitalize text-stone-800">{historyEvent.status.replace(/_/g, ' ')}</div>
+                        <div className="text-stone-500">{historyEvent.note}</div>
+                        <div className="mt-0.5 font-mono text-[9px] text-stone-400">{new Date(historyEvent.timestamp).toLocaleString()} {historyEvent.location ? `· ${historyEvent.location}` : ''}</div>
+                      </div>
+                    </div>
+                  )) : <div className="text-[11px] text-stone-400">No timeline events recorded yet.</div>}
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label-custom">Order Status</label>
+                <select value={newStatus} onChange={event => setNewStatus(event.target.value as OrderStatus)} className="form-input-custom font-semibold">
+                  <option value="placed">Placed (Pending Review)</option><option value="confirmed">Confirmed (Processing)</option><option value="packed">Packed</option><option value="dispatched">Dispatched</option><option value="out_for_delivery">Out for Delivery</option><option value="delivered">Delivered</option>
+                  <option value="cancelled" disabled={(selectedOrder.paymentMethod === 'payzy' && selectedOrder.paymentStatus === 'verified') || (!isSuperAdmin && selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || ''))}>{selectedOrder.paymentMethod === 'payzy' && selectedOrder.paymentStatus === 'verified' ? 'Refund in Payzy Merchant Portal First' : selectedOrder.paymentMethod === 'paypal' && ['verified', 'refund_pending'].includes(selectedOrder.paymentStatus || '') ? 'Cancel & Refund PayPal Payment (Super Admin)' : 'Cancelled'}</option>
+                </select>
+                <p className="mt-2 text-[10px] leading-relaxed text-stone-500">You can select any active order stage directly. Courier and tracking details are required for Dispatched, Out for Delivery, and Delivered. Cancelled orders remain terminal for payment and audit safety.</p>
+              </div>
+
               {selectedOrder.paymentMethod === 'payzy' && selectedOrder.paymentStatus === 'verified' && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">Verified Payzy orders must be refunded in the Payzy merchant portal before cancellation.</div>}
               <div><label className="form-label-custom">Courier & Logistics Provider</label><input type="text" value={newCourier} required={['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus)} onChange={event => setNewCourier(event.target.value)} placeholder="Enter courier or logistics provider" className="form-input-custom" /></div>
               <div><label className="form-label-custom">Tracking Number / Con-Note</label><input type="text" value={newTracking} required={['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus)} onChange={event => setNewTracking(event.target.value)} placeholder="Enter courier tracking number" className="form-input-custom font-mono" /></div>
               <div><label className="form-label-custom">Estimated Delivery ETA</label><input type="text" value={newEta} onChange={event => setNewEta(event.target.value)} placeholder="e.g. Tomorrow by 2:00 PM" className="form-input-custom" /></div>
+              {['dispatched', 'out_for_delivery', 'delivered'].includes(newStatus) && (!newCourier.trim() || !newTracking.trim()) && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">Courier and tracking number are required from Dispatch onward.</div>}
               {updateError && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{updateError}</div>}
               <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-3"><button type="button" disabled={isUpdating} onClick={closeModal} className="btn-table-action disabled:opacity-40">Cancel</button><button type="submit" disabled={isUpdating} className="btn-saelyxe-primary">{isUpdating ? 'Updating...' : 'Save Order Update'}</button></div>
             </form>
