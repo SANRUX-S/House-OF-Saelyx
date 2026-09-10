@@ -2,15 +2,19 @@ import { getAdminAccessToken, getAppCheckRequestHeaders } from './firebase';
 
 export type AdminMediaKind = 'products' | 'settings';
 
-const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+export const ADMIN_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/avif';
+const ALLOWED_IMAGE_TYPES = new Set(ADMIN_IMAGE_ACCEPT.split(','));
 const MAX_SOURCE_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_SOURCE_DIMENSION = 12000;
 const MAX_IMAGE_MEGAPIXELS = 60;
-// Keep the optimized file comfortably below the serverless JSON body limit after base64 expansion.
 const MAX_UPLOAD_BYTES = 1_850_000;
 const MAX_OUTPUT_DIMENSION = 2800;
 const MAX_OUTPUT_MEGAPIXELS = 10;
 const UPLOAD_TIMEOUT_MS = 45_000;
+
+export function isSupportedAdminImageFile(file: File) {
+  return ALLOWED_IMAGE_TYPES.has(String(file.type || '').toLowerCase());
+}
 
 async function decodeWithImageElement(file: File): Promise<{ image: HTMLImageElement; revoke: () => void }> {
   const objectUrl = URL.createObjectURL(file);
@@ -104,7 +108,7 @@ async function optimizeFromDrawable(
 }
 
 async function prepareAdminImage(file: File): Promise<File> {
-  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+  if (!isSupportedAdminImageFile(file)) {
     throw new Error('Only JPG, PNG, WebP, or AVIF images are allowed.');
   }
   if (file.size <= 0) throw new Error('The selected image file is empty.');
@@ -124,8 +128,6 @@ async function prepareAdminImage(file: File): Promise<File> {
       }
     } catch (error) {
       if (error instanceof Error && error.message.includes('too large')) throw error;
-      // Some browser/codec combinations cannot decode AVIF/WebP through createImageBitmap.
-      // Fall back to the normal HTML image decoder below.
     }
   }
 
@@ -138,7 +140,8 @@ async function prepareAdminImage(file: File): Promise<File> {
     } finally {
       decoded.revoke();
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('too large')) throw error;
     throw new Error('This image could not be opened. Please use a normal JPG, PNG, WebP, or AVIF file.');
   }
 }
@@ -155,14 +158,37 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 function uploadErrorMessage(status: number, payload: any) {
-  const serverMessage = typeof payload?.error === 'string' ? payload.error : '';
+  const serverMessage = typeof payload?.error === 'string' ? payload.error.trim() : '';
   if (serverMessage) return serverMessage;
+  if (status === 400) return 'The image upload request was rejected. Choose the image again and retry.';
   if (status === 401) return 'Image upload was blocked by the app integrity check. Refresh the admin page and try again.';
   if (status === 403) return 'Admin image upload access expired. Sign out, sign in again, and retry.';
   if (status === 413) return 'The optimized image payload is still too large. Choose a smaller image.';
+  if (status === 415) return 'The selected file is not a valid JPG, PNG, WebP, or AVIF image.';
   if (status === 429) return 'Too many image uploads were sent at once. Wait a moment and retry.';
   if (status === 503) return 'SAELYXE Media Storage is not configured on the server.';
-  return 'Unable to upload image right now.';
+  if (status >= 500) return 'SAELYXE Media Storage could not save the image. Please retry shortly.';
+  return `Unable to upload image right now (HTTP ${status}).`;
+}
+
+async function readApiPayload(response: Response) {
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+  const text = await response.text();
+  const trimmed = text.trim();
+
+  if (!contentType.includes('application/json')) {
+    if (contentType.includes('text/html') || /^<!doctype html/i.test(trimmed) || /^<html/i.test(trimmed)) {
+      throw new Error('Image upload API returned HTML instead of JSON. The media API route is not being reached correctly.');
+    }
+    throw new Error('Image upload API returned an unexpected response. Please verify the media API route.');
+  }
+
+  if (!trimmed) return {};
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error('Image upload API returned invalid JSON. Please verify the media API deployment.');
+  }
 }
 
 export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promise<string> {
@@ -195,7 +221,7 @@ export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promis
       signal: controller.signal
     });
 
-    const payload = await response.json().catch(() => ({}));
+    const payload = await readApiPayload(response);
     if (!response.ok) throw new Error(uploadErrorMessage(response.status, payload));
 
     const secureUrl = String(payload?.secureUrl || '');
@@ -206,6 +232,9 @@ export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promis
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error('Image upload timed out. Check your connection and try again.');
+    }
+    if (error instanceof TypeError) {
+      throw new Error('Image upload could not reach the server. Check your connection and retry.');
     }
     throw error;
   } finally {
