@@ -31,6 +31,10 @@ export function createApp() {
     next();
   });
 
+  // The dedicated upload handler needs a parsed JSON body before it runs locally.
+  // 4 MB safely covers the client-side optimized/base64 payload while retaining a hard cap.
+  app.use(express.json({ limit: '4mb' }));
+
   // Keep local development on the same dedicated media handler that Vercel uses.
   // This prevents local/prod behavior drift and guarantees /api/media/upload cannot
   // fall through to the Vite SPA HTML response.
