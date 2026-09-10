@@ -5,6 +5,7 @@ import { createServer as createViteServer } from 'vite';
 import productionApi from './api/index.js';
 import mediaUploadHandler from './api/media-upload.js';
 import adminBootstrapHandler from './api/admin-bootstrap.js';
+import adminHealthHandler from './api/admin-health.js';
 
 const LOCAL_CSP =
   "default-src 'self'; " +
@@ -40,6 +41,7 @@ export function createApp() {
   // Mount them before the general production API so these requests can never fall through
   // to an older implementation or the Vite SPA HTML response.
   app.get('/api/admin/bootstrap', adminBootstrapHandler);
+  app.get('/api/admin/health', adminHealthHandler);
   app.post('/api/media/upload', mediaUploadHandler);
 
   // All remaining local API endpoints use the same production Express API.
