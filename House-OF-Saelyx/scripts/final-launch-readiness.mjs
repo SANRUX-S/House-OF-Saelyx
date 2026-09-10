@@ -13,6 +13,7 @@ function check(condition, label, mode = 'code-ready') {
 const api = read('api/index.ts');
 const ordersGuard = read('api/orders-guard.ts');
 const checkout = read('src/components/CheckoutPage.tsx');
+const googlePayTest = read('src/components/GooglePayTestButton.tsx');
 const app = read('src/App.tsx');
 const navbar = read('src/components/Navbar.tsx');
 const store = read('src/context/StoreContext.tsx');
@@ -28,10 +29,12 @@ const fallback = JSON.parse(read('data/saelyx_store.json'));
 
 check(api.includes("app.get('/api/admin/health'") && adminSecurity.includes('/api/admin/health'), 'Super Admin health surface is protected and wired');
 check(app.includes("case 'checkout':") && app.includes('if (!user)'), 'Checkout requires a signed-in customer account');
-check(checkout.includes("useState<'paypal' | 'payzy' | null>"), 'Checkout exposes only PayPal and Payzy');
+check(checkout.includes("useState<'paypal' | 'payzy' | 'googlepay' | null>"), 'Checkout keeps PayPal/Payzy live and includes a gated Google Pay review state');
+check(checkout.includes('saelyxe_google_pay_review_v1') && googlePayTest.includes("environment: 'TEST'"), 'Google Pay review flow is gated and non-chargeable', 'requires-google-review');
+check(!checkout.includes("paymentMethod: 'googlepay'"), 'Google Pay review flow cannot create a production order before a real processor is connected');
 check(!checkout.includes('PLACE CASH ON DELIVERY ORDER') && !checkout.includes("paymentMethod: 'cod'"), 'Cash on Delivery is removed from customer checkout');
 check(ordersGuard.includes('verifyIdToken') && ordersGuard.includes('email_verified !== true'), 'Server order guard verifies signed-in customer identity');
-check(ordersGuard.includes("!['paypal', 'payzy'].includes(paymentMethod)"), 'Server order guard rejects unsupported payment methods');
+check(ordersGuard.includes("!['paypal', 'payzy'].includes(paymentMethod)"), 'Server order guard rejects unsupported/live-unconfigured payment methods');
 check(vercel.includes('"source": "/api/orders"') && vercel.includes('"destination": "/api/orders-guard"'), 'Production order creation routes through the account-only guard');
 check(api.includes("app.post('/api/payments/paypal/capture/:orderId'") && api.includes('verifyPayPalOrder'), 'PayPal capture is verified server-side', 'requires-real-money');
 check(api.includes("app.post('/api/payments/payzy/create/:orderId'") && api.includes('verifyPayzyReturnSignature'), 'Payzy signed provider flow is implemented', 'requires-provider');
@@ -47,6 +50,7 @@ check(app.includes('settings?.showHeroSection') && app.includes('settings?.showS
 check(store.includes("path === '/checkout' || path.startsWith('/checkout/')") && store.includes("path === '/secure-order-session'"), 'Direct checkout URL remains retired in favor of the secure internal route');
 check(store.includes("path === '/congsoleadmintechbypenetix'"), 'Private administrator route remains wired');
 check(vercel.includes('https://*.public.blob.vercel-storage.com'), 'Production CSP allows Vercel Blob media');
+check(vercel.includes('https://pay.google.com'), 'Production CSP permits the official Google Pay review library');
 check(!vercel.includes('https://res.cloudinary.com'), 'Cloudinary is removed from the active browser CSP');
 check(Array.isArray(fallback.products) && fallback.settings, 'Fallback store data remains structurally valid');
 
