@@ -2,7 +2,7 @@
   "entities": {
     "Product": {
       "title": "Product",
-      "description": "Atelier garment item in the store catalog",
+      "description": "SAELYXE garment item in the store catalog",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -99,7 +99,7 @@
     },
     "User": {
       "title": "User",
-      "description": "Atelier patron and registered customer profile",
+      "description": "SAELYXE patron and registered customer profile",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -115,7 +115,7 @@
     },
     "Staff": {
       "title": "Staff",
-      "description": "Atelier staff operator with special administrative clearance",
+      "description": "SAELYXE staff operator with special administrative clearance",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -152,15 +152,15 @@
     },
     "/audit_logs/{logId}": {
       "schema": { "$ref": "#/entities/AuditLog" },
-      "description": "Atelier security logs"
+      "description": "SAELYXE security logs"
     },
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
-      "description": "Atelier registered customer records"
+      "description": "SAELYXE registered customer records"
     },
     "/staff/{staffId}": {
       "schema": { "$ref": "#/entities/Staff" },
-      "description": "Atelier staff operator registry"
+      "description": "SAELYXE staff operator registry"
     }
   }
 }

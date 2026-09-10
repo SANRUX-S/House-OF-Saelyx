@@ -423,7 +423,7 @@ export const CheckoutPage: React.FC = () => {
     if (!pendingOrder || !paypalOrderId) {
       setFieldErrors(prev => ({
         ...prev,
-        general: 'PayPal approval was received, but the order reference is unavailable. Please contact atelier support.'
+        general: 'PayPal approval was received, but the order reference is unavailable. Please contact studio support.'
       }));
       return;
     }

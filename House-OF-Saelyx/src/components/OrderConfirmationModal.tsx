@@ -63,7 +63,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
                 ORDER PLACED
               </h2>
               <p className="text-xs text-[#665A4E] leading-relaxed max-w-sm mx-auto">
-                Thank you for shopping with SAELYXE. Your bespoke order has been successfully placed in our atelier ledger.
+                Thank you for shopping with SAELYXE. Your bespoke order has been successfully placed in our studio ledger.
               </p>
             </div>
 

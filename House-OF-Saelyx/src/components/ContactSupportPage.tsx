@@ -78,7 +78,7 @@ export const ContactSupportPage: React.FC = () => {
             HOW MAY WE ASSIST YOU?
           </h1>
           <p className="text-xs text-[#3E3730] font-medium max-w-md mx-auto leading-relaxed">
-            Our Colombo atelier directors and dedicated logistics concierges are on standby for your bespoke requests.
+            Our Colombo studio directors and dedicated logistics concierges are on standby for your bespoke requests.
           </p>
         </div>
 

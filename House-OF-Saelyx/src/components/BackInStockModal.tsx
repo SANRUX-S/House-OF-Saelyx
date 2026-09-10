@@ -452,7 +452,7 @@ export const BackInStockModal: React.FC<BackInStockModalProps> = ({
                       <span className="text-amber-400">Automated Dispatch</span>
                     </div>
                     <div className="text-sm font-serif text-white">
-                      Subject: Restock Notification: {product.title} is now available at the SAELYXE
+                      Subject: Restock Notification: {product.title} is now available at SAELYXE
                     </div>
                     <p className="text-neutral-300 text-xs leading-relaxed">
                       Dear {name || 'Valued Patron'},<br /><br />
