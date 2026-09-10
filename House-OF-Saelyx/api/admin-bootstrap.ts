@@ -7,7 +7,10 @@ const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxma
 const ROOT_ADMIN_EMAIL = 'saelyxe.co@gmail.com';
 const SNAPSHOT_LIMIT = 100;
 const AUDIT_LIMIT = 100;
-const CACHE_TTL_MS = 90_000;
+// The browser already has realtime Firestore listeners for active admin data. Keep the
+// server bootstrap as a resilient snapshot/fallback, but cache it long enough that the
+// legacy 30-second client refresh cannot repeatedly fan out into five Firestore reads.
+const CACHE_TTL_MS = 5 * 60_000;
 const FIRESTORE_TIMEOUT_MS = 12_000;
 
 type AdminSnapshot = {
