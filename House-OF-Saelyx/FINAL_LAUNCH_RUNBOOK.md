@@ -1,68 +1,58 @@
 # SAELYXE Final Launch Runbook
 
-This file is the production source of truth for the SAELYXE storefront and administrator console.
+This file is the single source of truth for the final production release.
 
-## Final business rules
+## Release rule
 
-- Brand name is **SAELYXE**.
-- Customers may browse without an account, but **checkout requires a signed-in and verified customer account**.
-- **Guest checkout is disabled.**
-- **Cash on Delivery is disabled.**
-- Customer checkout payment methods are **PayPal** and **Payzy** only when their production configuration reports them as available.
-- Orders are confirmed only after server-side payment verification.
-- PayPal is configured for live mode in production.
-- Payzy is configured for live mode in production.
-- Product and administrator media use the connected **Vercel Blob** store.
-- Firebase remains responsible for authentication, Firestore application data, App Check, and trusted server authorization.
-- Do not reintroduce Cloudinary into the active media upload flow.
+- Use PR #59 as the only final release PR.
+- Do not trigger feature-branch Vercel previews.
+- Merge PR #59 to `main` only after the complete SAELYXE CI workflow is green.
+- Allow one production deployment from `main`.
 
-## Storefront configuration
+## Final release scope
 
-The Admin Console → Store Settings controls the live storefront fields below after **Save & Publish**:
+The release includes the completed storefront/admin hardening pass:
 
-- Spotlight headline, eyebrow, subhead, description, price, and background image.
-- Spotlight countdown target. The second homepage section stays locked before this timestamp and unlocks automatically when the target is reached.
-- Hero headline and subheading.
-- Announcement bar text.
-- Free-shipping threshold.
-- Homepage section visibility toggles.
+- Admin Store Settings drive the live second-section countdown and automatic unlock.
+- Hero headline, hero subheading, announcement bar, homepage section visibility, and spotlight background are wired to Store Settings.
+- Hero parallax has been removed.
+- Spotlight price now always uses the actual catalog product price; the legacy separate spotlight price control is retired so display and checkout amounts cannot diverge.
+- Admin number inputs that begin at `0` select the placeholder zero on focus so entering `1` replaces it instead of creating an awkward `01` edit flow.
+- Product badges using `PRE-ORDER`, `PRE ORDER`, or `PREORDER` render with a visible clock icon on storefront catalog cards and quick view; pre-order labeling is not hidden by zero stock.
+- Customer checkout requires an authenticated SAELYXE account.
+- Cash on Delivery is removed from customer checkout; live checkout accepts only PayPal and Payzy.
+- Server order creation rejects guest checkout and rejects unsupported payment methods.
+- Firebase Authentication, App Check, administrator authorization, destructive-action recent-authentication checks, and rate limiting remain enabled.
+- Admin product media uses Firebase Storage through the protected server upload route.
+- Legacy Cloudinary image origin is removed from the production CSP.
+- Admin bootstrap reads are cached/deduplicated to reduce unnecessary Firestore load while realtime client listeners remain authoritative.
+- Legal copy and regression tests are aligned with the account-only, PayPal/Payzy checkout policy.
 
-Use a future date/time when a countdown is required. An expired countdown target intentionally means the drop is already unlocked.
+## Required CI gate
 
-## Administrator rules
+The PR may be merged only when all of the following pass:
 
-- Administrator access remains on the private SAELYXE console route.
-- Legacy `/admin` and `/atelier-console` entry points remain retired.
-- Product deletion is Super Admin only and requires recent Firebase authentication; the UI may request the administrator password to securely reauthenticate instead of weakening the server rule.
-- App Check, Firebase ID-token verification, rate limits, role checks, and audit logging must not be bypassed.
-- Product images must be validated before upload and stored in Vercel Blob.
+1. Security regression check.
+2. Final launch readiness contract.
+3. Production dependency vulnerability audit.
+4. TypeScript check.
+5. Production build.
+6. Firestore authorization emulator tests.
+7. Browser end-to-end security smoke.
 
-## Release checks
+## Production verification after merge
 
-Before merging a production change run:
+After Vercel deploys `main`, verify the following on `https://www.saelyxe.com`:
 
-```bash
-npm ci
-npm run security:check
-npm run final:readiness
-npm run lint
-npm run build
-npm run rules:test
-npm run e2e
-```
+1. Home page, navigation, announcement bar, hero, spotlight countdown, and catalog render without runtime errors.
+2. Admin console login works at the private SAELYXE admin route.
+3. Product create/edit accepts price and stock numbers normally, including changing a zero value directly to `1`.
+4. Product image upload succeeds through Firebase Storage.
+5. A product with a pre-order badge visibly shows the pre-order clock badge on catalog cards/quick view.
+6. Permanent product deletion succeeds for a freshly authenticated Super Admin and a blocked recent-auth attempt shows the security message instead of failing silently.
+7. Direct `/checkout` access is retired and authenticated internal checkout navigation works.
+8. Guest checkout and COD are unavailable.
+9. PayPal and Payzy payment configuration endpoints respond correctly without exposing secrets.
+10. `/api/health` returns the intentionally minimal public health payload.
 
-Do not merge if a code/security/build test fails. Provider-dependent payment tests must never initiate a real-money transaction in CI.
-
-After the production deployment verify:
-
-- `https://www.saelyxe.com/` returns 200.
-- `/api/health` returns the minimal healthy response.
-- `/api/products`, `/api/settings`, and `/api/payments/config` return expected production data.
-- Anonymous `POST /api/orders` is rejected.
-- Checkout does not expose Cash on Delivery.
-- The second homepage countdown reflects the Admin Store Settings target.
-- Current Vercel runtime logs contain no new error/fatal clusters.
-
-## Secrets
-
-Never commit Firebase private keys, Vercel Blob read-write tokens, PayPal secrets, Payzy secrets, or Resend keys. Keep all server credentials in Vercel environment variables only.
+If any production verification item fails, do not stack unrelated fixes onto `main`; repair it on a new branch and run the full CI gate again.
