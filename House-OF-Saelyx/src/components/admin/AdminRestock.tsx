@@ -70,7 +70,7 @@ export const AdminRestock: React.FC<AdminRestockProps> = ({ stockNotifications, 
       </div>
 
       <div className="table-card-custom">
-        <div className="table-header-control"><div><h4 className="text-sm font-bold text-stone-900">Registered Waitlist Records</h4><p className="text-xs text-stone-500">Live synchronized records from Firestore stock_notifications</p></div><div className="table-search-box"><Search className="w-4 h-4 text-stone-400" /><input type="text" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Search patron, email, product..." className="table-search-input" /></div></div>
+        <div className="table-header-control"><div><h4 className="text-sm font-bold text-stone-900">Registered Patron Waitlist Records</h4><p className="text-xs text-stone-500">Live synchronized records from Firestore stock_notifications</p></div><div className="table-search-box"><Search className="w-4 h-4 text-stone-400" /><input type="text" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Search patron, email, product..." className="table-search-input" /></div></div>
         <div className="overflow-x-auto">
           <table className="table-custom">
             <thead><tr><th>PRODUCT</th><th>PATRON DETAILS</th><th>SIZE</th><th>CHANNEL</th><th>STATUS</th><th>REGISTERED</th><th className="text-center">ACTIONS</th></tr></thead>
