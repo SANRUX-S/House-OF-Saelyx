@@ -23,6 +23,17 @@ jobs:
           cp .github/hotfix/customer_flow.py /tmp/customer_flow.py
           git fetch origin main
           git reset --hard origin/main
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('House-OF-Saelyx/src/components/CheckoutPage.tsx')
+          s = p.read_text()
+          actual = "    if (!user && !isPayzyReturn) {\n      navigateTo({ name: 'home' });\n      setIsAuthOpen(true);\n      return;\n    }\n"
+          normalized = "    if (!user && !isPayzyReturn) {\n      navigateTo({ name: 'home' });\n      setIsCartOpen(true);\n      setIsAuthOpen(true);\n      return;\n    }\n"
+          if actual in s:
+              s = s.replace(actual, normalized, 1)
+          s = s.replace('  }, [user, cart.length, confirmedOrder, navigateTo, setIsAuthOpen, setIsCartOpen]);', '  }, [user, cart.length, confirmedOrder, navigateTo, setIsCartOpen, setIsAuthOpen]);', 1)
+          p.write_text(s)
+          PY
           python3 /tmp/customer_flow.py
 
       - name: Setup Node
