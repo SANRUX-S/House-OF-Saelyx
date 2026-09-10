@@ -6,6 +6,8 @@ import productionApi from './api/index.js';
 import mediaUploadHandler from './api/media-upload.js';
 import adminBootstrapHandler from './api/admin-bootstrap.js';
 import adminHealthHandler from './api/admin-health.js';
+import ordersGuardHandler from './api/orders-guard.js';
+import maintenanceRetiredHandler from './api/maintenance-retired.js';
 
 const LOCAL_CSP =
   "default-src 'self'; " +
@@ -33,18 +35,17 @@ export function createApp() {
     next();
   });
 
-  // Dedicated serverless-compatible handlers receive the same parsed JSON body locally.
-  // 4 MB safely covers optimized/base64 media payloads while retaining a hard cap.
   app.use(express.json({ limit: '4mb' }));
 
-  // Keep local development on the same bounded admin/media handlers that Vercel uses.
-  // Mount them before the general production API so these requests can never fall through
-  // to an older implementation or the Vite SPA HTML response.
+  // Mirror the exact dedicated production routes locally so development and CI
+  // cannot silently exercise a weaker code path than Vercel production.
   app.get('/api/admin/bootstrap', adminBootstrapHandler);
   app.get('/api/admin/health', adminHealthHandler);
   app.post('/api/media/upload', mediaUploadHandler);
+  app.post('/api/orders', ordersGuardHandler as any);
+  app.post('/api/admin/maintenance/purge-legacy-demo-fixtures', maintenanceRetiredHandler as any);
+  app.post('/api/admin/maintenance/purge-legacy-test-products', maintenanceRetiredHandler as any);
 
-  // All remaining local API endpoints use the same production Express API.
   app.use(productionApi);
   return app;
 }
