@@ -4,6 +4,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import productionApi from './api/index.js';
 import mediaUploadHandler from './api/media-upload.js';
+import adminBootstrapHandler from './api/admin-bootstrap.js';
 
 const LOCAL_CSP =
   "default-src 'self'; " +
@@ -31,13 +32,14 @@ export function createApp() {
     next();
   });
 
-  // The dedicated upload handler needs a parsed JSON body before it runs locally.
-  // 4 MB safely covers the client-side optimized/base64 payload while retaining a hard cap.
+  // Dedicated serverless-compatible handlers receive the same parsed JSON body locally.
+  // 4 MB safely covers optimized/base64 media payloads while retaining a hard cap.
   app.use(express.json({ limit: '4mb' }));
 
-  // Keep local development on the same dedicated media handler that Vercel uses.
-  // This prevents local/prod behavior drift and guarantees /api/media/upload cannot
-  // fall through to the Vite SPA HTML response.
+  // Keep local development on the same bounded admin/media handlers that Vercel uses.
+  // Mount them before the general production API so these requests can never fall through
+  // to an older implementation or the Vite SPA HTML response.
+  app.get('/api/admin/bootstrap', adminBootstrapHandler);
   app.post('/api/media/upload', mediaUploadHandler);
 
   // All remaining local API endpoints use the same production Express API.
