@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import productionApi from './api/index.js';
+import mediaUploadHandler from './api/media-upload.js';
 
 const LOCAL_CSP =
   "default-src 'self'; " +
@@ -30,8 +31,12 @@ export function createApp() {
     next();
   });
 
-  // Local development and the standalone server use exactly the same API
-  // implementation as Vercel. No legacy StoreDB/auth routes are mounted.
+  // Keep local development on the same dedicated media handler that Vercel uses.
+  // This prevents local/prod behavior drift and guarantees /api/media/upload cannot
+  // fall through to the Vite SPA HTML response.
+  app.post('/api/media/upload', mediaUploadHandler);
+
+  // All remaining local API endpoints use the same production Express API.
   app.use(productionApi);
   return app;
 }
