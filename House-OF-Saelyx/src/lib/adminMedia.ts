@@ -6,35 +6,39 @@ const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'i
 const MAX_SOURCE_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_SOURCE_DIMENSION = 12000;
 const MAX_IMAGE_MEGAPIXELS = 60;
-const MAX_UPLOAD_BYTES = 2_400_000;
-const MAX_OUTPUT_DIMENSION = 3200;
-const MAX_OUTPUT_MEGAPIXELS = 12;
+// Keep the optimized file comfortably below the serverless JSON body limit after base64 expansion.
+const MAX_UPLOAD_BYTES = 1_850_000;
+const MAX_OUTPUT_DIMENSION = 2800;
+const MAX_OUTPUT_MEGAPIXELS = 10;
+const UPLOAD_TIMEOUT_MS = 45_000;
 
-async function decodeAdminImage(file: File): Promise<ImageBitmap> {
-  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-    throw new Error('Only JPEG, PNG, WebP, or AVIF images are allowed.');
-  }
-  if (file.size > MAX_SOURCE_FILE_BYTES) {
-    throw new Error('The selected image is too large. Use an image smaller than 25 MB.');
-  }
-
+async function decodeWithImageElement(file: File): Promise<{ image: HTMLImageElement; revoke: () => void }> {
+  const objectUrl = URL.createObjectURL(file);
   try {
-    const bitmap = await createImageBitmap(file);
-    const pixels = bitmap.width * bitmap.height;
-    if (
-      bitmap.width < 1 ||
-      bitmap.height < 1 ||
-      bitmap.width > MAX_SOURCE_DIMENSION ||
-      bitmap.height > MAX_SOURCE_DIMENSION ||
-      pixels > MAX_IMAGE_MEGAPIXELS * 1_000_000
-    ) {
-      bitmap.close();
-      throw new Error('The selected image dimensions are too large.');
-    }
-    return bitmap;
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = objectUrl;
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Unable to decode image.'));
+    });
+    return { image, revoke: () => URL.revokeObjectURL(objectUrl) };
   } catch (error) {
-    if (error instanceof Error && error.message.includes('too large')) throw error;
-    throw new Error('This image could not be opened. Please use a normal JPG, PNG, WebP, or AVIF file.');
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+}
+
+function validateDimensions(width: number, height: number) {
+  const pixels = width * height;
+  if (
+    width < 1 ||
+    height < 1 ||
+    width > MAX_SOURCE_DIMENSION ||
+    height > MAX_SOURCE_DIMENSION ||
+    pixels > MAX_IMAGE_MEGAPIXELS * 1_000_000
+  ) {
+    throw new Error('The selected image dimensions are too large.');
   }
 }
 
@@ -47,55 +51,95 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
   });
 }
 
-async function prepareAdminImage(file: File): Promise<File> {
-  const bitmap = await decodeAdminImage(file);
-  try {
-    const sourcePixels = bitmap.width * bitmap.height;
-    const dimensionScale = Math.min(1, MAX_OUTPUT_DIMENSION / bitmap.width, MAX_OUTPUT_DIMENSION / bitmap.height);
-    const pixelScale = Math.min(1, Math.sqrt((MAX_OUTPUT_MEGAPIXELS * 1_000_000) / sourcePixels));
-    const baseScale = Math.min(dimensionScale, pixelScale);
+function cleanFileName(file: File) {
+  return (file.name || 'saelyxe-product')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .slice(0, 100) || 'saelyxe-product';
+}
 
-    if (baseScale === 1 && file.size <= MAX_UPLOAD_BYTES) return file;
+async function optimizeFromDrawable(
+  file: File,
+  width: number,
+  height: number,
+  draw: (context: CanvasRenderingContext2D, targetWidth: number, targetHeight: number) => void
+): Promise<File> {
+  validateDimensions(width, height);
+  const sourcePixels = width * height;
+  const dimensionScale = Math.min(1, MAX_OUTPUT_DIMENSION / width, MAX_OUTPUT_DIMENSION / height);
+  const pixelScale = Math.min(1, Math.sqrt((MAX_OUTPUT_MEGAPIXELS * 1_000_000) / sourcePixels));
+  const baseScale = Math.min(dimensionScale, pixelScale);
 
-    const scaleSteps = [baseScale, baseScale * 0.88, baseScale * 0.76, baseScale * 0.64, baseScale * 0.54]
-      .map(value => Math.max(0.2, Math.min(1, value)));
-    const qualitySteps = [0.92, 0.86, 0.8, 0.74, 0.68];
+  if (baseScale === 1 && file.size <= MAX_UPLOAD_BYTES && file.type === 'image/webp') return file;
 
-    let smallestBlob: Blob | null = null;
-    for (const scale of scaleSteps) {
-      const width = Math.max(1, Math.round(bitmap.width * scale));
-      const height = Math.max(1, Math.round(bitmap.height * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext('2d', { alpha: true });
-      if (!context) throw new Error('Image optimization is unavailable in this browser.');
-      context.drawImage(bitmap, 0, 0, width, height);
+  const scaleSteps = [baseScale, baseScale * 0.88, baseScale * 0.76, baseScale * 0.64, baseScale * 0.52, baseScale * 0.42]
+    .map(value => Math.max(0.18, Math.min(1, value)));
+  const qualitySteps = [0.9, 0.84, 0.78, 0.72, 0.66, 0.6];
+  let smallestBlob: Blob | null = null;
 
-      for (const quality of qualitySteps) {
-        const blob = await canvasToBlob(canvas, 'image/webp', quality);
-        if (!smallestBlob || blob.size < smallestBlob.size) smallestBlob = blob;
-        if (blob.size <= MAX_UPLOAD_BYTES) {
-          const cleanName = (file.name || 'saelyxe-product')
-            .replace(/\.[^.]+$/, '')
-            .replace(/[^a-zA-Z0-9._-]+/g, '-')
-            .slice(0, 100) || 'saelyxe-product';
-          return new File([blob], `${cleanName}.webp`, { type: 'image/webp', lastModified: Date.now() });
-        }
+  for (const scale of scaleSteps) {
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const context = canvas.getContext('2d', { alpha: true });
+    if (!context) throw new Error('Image optimization is unavailable in this browser.');
+    draw(context, targetWidth, targetHeight);
+
+    for (const quality of qualitySteps) {
+      const blob = await canvasToBlob(canvas, 'image/webp', quality);
+      if (!smallestBlob || blob.size < smallestBlob.size) smallestBlob = blob;
+      if (blob.size <= MAX_UPLOAD_BYTES) {
+        return new File([blob], `${cleanFileName(file)}.webp`, { type: 'image/webp', lastModified: Date.now() });
       }
     }
+  }
 
-    if (smallestBlob && smallestBlob.size <= 2_600_000) {
-      const cleanName = (file.name || 'saelyxe-product')
-        .replace(/\.[^.]+$/, '')
-        .replace(/[^a-zA-Z0-9._-]+/g, '-')
-        .slice(0, 100) || 'saelyxe-product';
-      return new File([smallestBlob], `${cleanName}.webp`, { type: 'image/webp', lastModified: Date.now() });
+  if (smallestBlob && smallestBlob.size <= 2_000_000) {
+    return new File([smallestBlob], `${cleanFileName(file)}.webp`, { type: 'image/webp', lastModified: Date.now() });
+  }
+
+  throw new Error('The image is still too large after optimization. Please choose a smaller image.');
+}
+
+async function prepareAdminImage(file: File): Promise<File> {
+  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+    throw new Error('Only JPG, PNG, WebP, or AVIF images are allowed.');
+  }
+  if (file.size <= 0) throw new Error('The selected image file is empty.');
+  if (file.size > MAX_SOURCE_FILE_BYTES) {
+    throw new Error('The selected image is too large. Use an image smaller than 25 MB.');
+  }
+
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file);
+      try {
+        return await optimizeFromDrawable(file, bitmap.width, bitmap.height, (context, width, height) => {
+          context.drawImage(bitmap, 0, 0, width, height);
+        });
+      } finally {
+        bitmap.close();
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('too large')) throw error;
+      // Some browser/codec combinations cannot decode AVIF/WebP through createImageBitmap.
+      // Fall back to the normal HTML image decoder below.
     }
+  }
 
-    throw new Error('The image is still too large after optimization. Please choose a smaller image.');
-  } finally {
-    bitmap.close();
+  try {
+    const decoded = await decodeWithImageElement(file);
+    try {
+      return await optimizeFromDrawable(file, decoded.image.naturalWidth, decoded.image.naturalHeight, (context, width, height) => {
+        context.drawImage(decoded.image, 0, 0, width, height);
+      });
+    } finally {
+      decoded.revoke();
+    }
+  } catch {
+    throw new Error('This image could not be opened. Please use a normal JPG, PNG, WebP, or AVIF file.');
   }
 }
 
@@ -110,6 +154,17 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+function uploadErrorMessage(status: number, payload: any) {
+  const serverMessage = typeof payload?.error === 'string' ? payload.error : '';
+  if (serverMessage) return serverMessage;
+  if (status === 401) return 'Image upload was blocked by the app integrity check. Refresh the admin page and try again.';
+  if (status === 403) return 'Admin image upload access expired. Sign out, sign in again, and retry.';
+  if (status === 413) return 'The optimized image payload is still too large. Choose a smaller image.';
+  if (status === 429) return 'Too many image uploads were sent at once. Wait a moment and retry.';
+  if (status === 503) return 'SAELYXE Media Storage is not configured on the server.';
+  return 'Unable to upload image right now.';
+}
+
 export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promise<string> {
   const idToken = await getAdminAccessToken();
   if (!idToken) throw new Error('Admin session expired. Please sign in again.');
@@ -117,30 +172,43 @@ export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promis
   const prepared = await prepareAdminImage(file);
   const appCheckHeaders = await getAppCheckRequestHeaders();
   const dataBase64 = arrayBufferToBase64(await prepared.arrayBuffer());
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
-  const response = await fetch('/api/media/upload', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${idToken}`,
-      'Content-Type': 'application/json',
-      ...appCheckHeaders
-    },
-    body: JSON.stringify({
-      kind,
-      fileName: prepared.name,
-      mimeType: prepared.type,
-      dataBase64
-    })
-  });
+  try {
+    const response = await fetch('/api/media/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...appCheckHeaders
+      },
+      body: JSON.stringify({
+        kind,
+        fileName: prepared.name,
+        mimeType: prepared.type,
+        dataBase64
+      }),
+      cache: 'no-store',
+      credentials: 'same-origin',
+      signal: controller.signal
+    });
 
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload?.error || 'Unable to upload image right now.');
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(uploadErrorMessage(response.status, payload));
+
+    const secureUrl = String(payload?.secureUrl || '');
+    if (!secureUrl.startsWith('https://firebasestorage.googleapis.com/')) {
+      throw new Error('SAELYXE Media Storage did not return a valid Firebase image URL.');
+    }
+    return secureUrl;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Image upload timed out. Check your connection and try again.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
   }
-
-  const secureUrl = String(payload?.secureUrl || '');
-  if (!secureUrl.startsWith('https://firebasestorage.googleapis.com/')) {
-    throw new Error('SAELYXE Media Storage did not return a valid Firebase image URL.');
-  }
-  return secureUrl;
 }
