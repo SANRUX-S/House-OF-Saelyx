@@ -174,19 +174,10 @@ const StoreContent: React.FC = () => {
     }
   };
 
-  const announcementText = (settings?.announcementText || '').trim();
-
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#F8F6F2] selection:bg-[#181614] selection:text-[#F8F6F2]">
       <SEOManager />
-      <div>
-        {announcementText && (
-          <div className="w-full bg-[#181614] px-4 py-2 text-center text-[9px] sm:text-[10px] font-medium uppercase tracking-[0.18em] text-white">
-            {announcementText}
-          </div>
-        )}
-        <Navbar />
-      </div>
+      <Navbar />
 
       <main className="flex-grow">
         <React.Suspense fallback={<RouteLoading />}>
