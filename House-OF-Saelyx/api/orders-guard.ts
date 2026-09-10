@@ -54,10 +54,8 @@ export default async function handler(
   }
 
   try {
-    if (!ensureFirebaseAdmin()) {
-      return json(res, 503, { error: 'Order authentication service is not configured.' });
-    }
-
+    // Authentication must fail closed before any infrastructure/configuration
+    // check so anonymous callers never learn server configuration state.
     const authorization = String(req.headers.authorization || '');
     if (!authorization.startsWith('Bearer ')) {
       return json(res, 401, { error: 'Please sign in to your SAELYXE account before checkout.' });
@@ -65,6 +63,10 @@ export default async function handler(
 
     const idToken = authorization.slice(7).trim();
     if (!idToken) return json(res, 401, { error: 'Please sign in to your SAELYXE account before checkout.' });
+
+    if (!ensureFirebaseAdmin()) {
+      return json(res, 503, { error: 'Order authentication service is temporarily unavailable.' });
+    }
 
     let decoded: any;
     try {
@@ -80,7 +82,7 @@ export default async function handler(
     const body = await readJsonBody(req);
     const paymentMethod = typeof body.paymentMethod === 'string' ? body.paymentMethod.trim().toLowerCase() : '';
     if (!['paypal', 'payzy'].includes(paymentMethod)) {
-      return json(res, 400, { error: 'SAELYXE accepts PayPal or Payzy for online checkout. Cash on Delivery is not available.' });
+      return json(res, 400, { error: 'SAELYXE accepts PayPal or Payzy for live online checkout. Google Pay remains in review mode until its processor is connected; Cash on Delivery is not available.' });
     }
 
     req.body = body;
