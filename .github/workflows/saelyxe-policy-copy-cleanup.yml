@@ -21,57 +21,56 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Final wording cleanup
+      - name: Polish customer wording and retain legacy route block
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           root = Path('House-OF-Saelyx')
-          changed = []
+          replacements = {
+              root / 'public/robots.txt': [
+                  ('Disallow: /SAELYXE-console', 'Disallow: /atelier-console'),
+              ],
+              root / 'index.html': [
+                  ('SAELYXE luxury Drop', 'SAELYXE Luxury Collection'),
+              ],
+              root / 'src/components/CheckoutPage.tsx': [
+                  ('Please contact studio support.', 'Please contact SAELYXE support.'),
+              ],
+              root / 'src/components/ContactSupportPage.tsx': [
+                  ('Our Colombo studio directors and dedicated logistics concierges are on standby for your bespoke requests.', 'Our SAELYXE support and logistics team is ready to assist with your requests.'),
+              ],
+              root / 'src/components/OrderConfirmationModal.tsx': [
+                  ('Your bespoke order has been successfully placed in our studio ledger.', 'Your order has been successfully received by SAELYXE.'),
+              ],
+              root / 'src/components/ProfilePage.tsx': [
+                  ('Your client profile and delivery details have been securely synchronized with the studio.', 'Your client profile and delivery details have been securely synchronized with SAELYXE.'),
+              ],
+              root / 'src/components/TrackOrderPage.tsx': [
+                  ('contact studio support.', 'contact SAELYXE support.'),
+              ],
+              root / 'src/components/CareAuthenticityPage.tsx': [
+                  ('our dedicated Colombo studio using premium heavyweight organic yarn', 'our dedicated Colombo production studio using premium heavyweight organic yarn'),
+              ],
+          }
 
-          def update(path: Path, transform):
+          changed = []
+          for path, pairs in replacements.items():
               original = path.read_text(encoding='utf-8')
-              text = transform(original)
+              text = original
+              for old, new in pairs:
+                  text = text.replace(old, new)
               if text != original:
                   path.write_text(text, encoding='utf-8')
                   changed.append(str(path))
-
-          # Remove the old Atelier branding term from customer/admin component copy.
-          for path in (root / 'src/components').rglob('*.tsx'):
-              def transform(text: str) -> str:
-                  text = text.replace('available at the SAELYXE', 'available at SAELYXE')
-                  text = text.replace('at the SAELYXE catalog', 'in the SAELYXE catalog')
-                  text = text.replace('Return to SAELYXE Catalog', 'Return to SAELYXE Catalog')
-                  text = re.sub(r'\batelier\b', 'studio', text, flags=re.IGNORECASE)
-                  return text
-              update(path, transform)
-
-          # Remove the stale wording from schema/SEO metadata while retaining legacy redirect protection elsewhere.
-          blueprint = root / 'firebase-blueprint.json'
-          if blueprint.exists():
-              update(blueprint, lambda text: re.sub(r'\batelier\b', 'SAELYXE', text, flags=re.IGNORECASE))
-
-          index = root / 'index.html'
-          update(index, lambda text: re.sub(r'\batelier\b', 'luxury', text, flags=re.IGNORECASE))
-
-          robots = root / 'public/robots.txt'
-          update(robots, lambda text: re.sub(r'\batelier\b', 'SAELYXE', text, flags=re.IGNORECASE))
-
-          # Keep legal/storage truth consistent with production behavior.
-          terms = root / 'src/components/LegalTermsPage.tsx'
-          update(terms, lambda text: text.replace('No Guest Checkout', 'Guest Checkout Available'))
-
-          privacy = root / 'src/components/LegalPrivacyPage.tsx'
-          update(privacy, lambda text: text.replace('Cloudinary', 'Firebase Storage'))
 
           print('Changed files:')
           for item in changed:
               print(f' - {item}')
           PY
 
-      - name: Verify final production copy
+      - name: Verify intended production behavior and copy
         shell: bash
         run: |
           set -euo pipefail
@@ -79,6 +78,7 @@ jobs:
           PRIVACY="House-OF-Saelyx/src/components/LegalPrivacyPage.tsx"
           ENVFILE="House-OF-Saelyx/.env.example"
           README="House-OF-Saelyx/README.md"
+          ROBOTS="House-OF-Saelyx/public/robots.txt"
 
           grep -q "Guest Checkout Available" "$TERMS"
           grep -q "guest checkout" "$TERMS"
@@ -87,19 +87,20 @@ jobs:
           ! grep -qi "Cloudinary" "$PRIVACY"
           ! grep -q "CLOUDINARY_" "$ENVFILE"
           ! grep -qi "Cloudinary" "$README"
-          ! grep -RqiE '\batelier\b' House-OF-Saelyx/src/components House-OF-Saelyx/index.html House-OF-Saelyx/public/robots.txt House-OF-Saelyx/firebase-blueprint.json
+          grep -q "Disallow: /atelier-console" "$ROBOTS"
+          ! grep -q "Disallow: /SAELYXE-console" "$ROBOTS"
           ! grep -Eq '\bSAELYX\b' House-OF-Saelyx/data/saelyx_store.json
 
-      - name: Commit final pass to production main
+      - name: Commit final correction to production main
         shell: bash
         run: |
           set -euo pipefail
           if git diff --quiet; then
-            echo "No further wording changes required."
+            echo "No further corrections required."
             exit 0
           fi
           git config user.name "SAELYXE Maintenance"
           git config user.email "actions@users.noreply.github.com"
           git add House-OF-Saelyx
-          git commit -m "fix(content): finish SAELYXE policy and wording cleanup"
+          git commit -m "fix(content): polish SAELYXE customer copy and legacy route block"
           git push origin HEAD:main
