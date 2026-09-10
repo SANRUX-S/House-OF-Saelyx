@@ -14,6 +14,7 @@ const api = read('api/index.ts');
 const ordersGuard = read('api/orders-guard.ts');
 const checkout = read('src/components/CheckoutPage.tsx');
 const app = read('src/App.tsx');
+const navbar = read('src/components/Navbar.tsx');
 const store = read('src/context/StoreContext.tsx');
 const adminPanel = read('src/components/AdminPanel.tsx');
 const adminProducts = read('src/components/admin/AdminProducts.tsx');
@@ -41,7 +42,7 @@ check(spotlight.includes('settings?.countdownTarget') && spotlight.includes('con
 check(adminDrop.includes('type="datetime-local"') && adminDrop.includes('countdownTarget: countdownIso'), 'Admin countdown editor publishes a real timestamp');
 check(hero.includes('settings?.heroHeadline') && hero.includes('settings?.heroSubhead'), 'Hero content is connected to Store Settings');
 check(!hero.includes('scrollY * 0.12'), 'Hero parallax is removed');
-check(app.includes('settings?.announcementText'), 'Announcement bar is connected to Store Settings');
+check(navbar.includes('settings?.announcementText'), 'Announcement bar is connected to Store Settings');
 check(app.includes('settings?.showHeroSection') && app.includes('settings?.showSpotlightSection') && app.includes('settings?.showCollectionSection'), 'Homepage section visibility controls are connected');
 check(store.includes("path === '/checkout' || path.startsWith('/checkout/')") && store.includes("path === '/secure-order-session'"), 'Direct checkout URL remains retired in favor of the secure internal route');
 check(store.includes("path === '/congsoleadmintechbypenetix'"), 'Private administrator route remains wired');
