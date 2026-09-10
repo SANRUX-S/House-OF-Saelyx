@@ -6,6 +6,7 @@ declare global {
   }
 }
 
+export const SAELYXE_GOOGLE_PAY_MERCHANT_ID = 'BCR2DN6DVKCKNRAM';
 const GOOGLE_PAY_SCRIPT_ID = 'saelyxe-google-pay-js';
 const GOOGLE_PAY_SCRIPT_SRC = 'https://pay.google.com/gp/p/js/pay.js';
 
@@ -23,7 +24,7 @@ const testCardPaymentMethod = {
     type: 'PAYMENT_GATEWAY',
     parameters: {
       gateway: 'example',
-      gatewayMerchantId: 'exampleMerchantId'
+      gatewayMerchantId: 'exampleGatewayMerchantId'
     }
   }
 };
@@ -167,7 +168,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID}>
       <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-hidden rounded-lg" />
       {error && <p className="text-[11px] text-rose-700">{error}</p>}
       <p className="text-[10px] leading-relaxed text-[#74685B]">Google Pay TEST mode · no real charge · no SAELYXE order is created. This flow is for Google production-review screenshots only.</p>
