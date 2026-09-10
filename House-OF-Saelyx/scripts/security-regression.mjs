@@ -77,7 +77,7 @@ assert(app.includes('SAELYXE checkout is available to signed-in customers only')
 assert(checkout.includes("useState<'paypal' | 'payzy' | 'googlepay' | null>"), 'checkout may expose the isolated Google Pay review mode in addition to live PayPal/Payzy');
 assert(checkout.includes("saelyxe_google_pay_review_v1") && checkout.includes("gpaytest"), 'Google Pay review UI must remain explicitly gated');
 assert(googlePayTest.includes("environment: 'TEST'"), 'Google Pay review flow must stay in the non-chargeable TEST environment');
-assert(googlePayTest.includes("gateway: 'example'") && googlePayTest.includes("gatewayMerchantId: 'exampleMerchantId'"), 'Google Pay review flow must use test tokenization only');
+assert(googlePayTest.includes("gateway: 'example'") && googlePayTest.includes("gatewayMerchantId: 'exampleGatewayMerchantId'"), 'Google Pay review flow must use test tokenization only');
 assert(googlePayTest.includes('no card can be charged') && checkout.includes('no production order was created'), 'Google Pay review flow must not masquerade as a live paid order');
 assert(!checkout.includes("paymentMethod: 'googlepay'"), 'Google Pay review mode must not persist production orders before a real processor is connected');
 assert(!checkout.includes("paymentMethod: 'cod'"), 'checkout must not create Cash on Delivery orders');
