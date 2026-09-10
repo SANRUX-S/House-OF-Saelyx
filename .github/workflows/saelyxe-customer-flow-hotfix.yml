@@ -1,0 +1,893 @@
+name: SAELYXE Customer Flow Hotfix
+
+on:
+  push:
+    branches: [maintenance/fix-customer-flow-20260911]
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: House-OF-Saelyx/package-lock.json
+
+      - name: Apply screenshot customer-flow fixes
+        working-directory: House-OF-Saelyx
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text()
+
+          def write(path, text):
+              Path(path).write_text(text)
+
+          def once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'missing patch target: {label}')
+              return text.replace(old, new, 1)
+
+          def sub_once(text, pattern, replacement, label, flags=re.S):
+              updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+              if count != 1:
+                  raise SystemExit(f'expected one regex target for {label}, found {count}')
+              return updated
+
+          # App: guest customers must be allowed to reach checkout.
+          p = 'src/App.tsx'
+          s = read(p)
+          s = sub_once(
+              s,
+              r"      case 'checkout':\n        if \(!user\) \{.*?\n        return <CheckoutPage key=\{user\.uid\} />;",
+              "      case 'checkout':\n        return <CheckoutPage />;",
+              'App guest checkout gate'
+          )
+          write(p, s)
+
+          # Checkout: preserve Google Pay review mode while restoring guest + COD checkout.
+          p = 'src/components/CheckoutPage.tsx'
+          s = read(p)
+          if 'function createCodCheckoutAttemptId()' not in s:
+              marker = 'const PayzyMark: React.FC<{ className?: string }> = ({ className = \'w-8 h-8\' }) => ('
+              cod_helper = '''function createCodCheckoutAttemptId() {
+            if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+              return `cod-${crypto.randomUUID()}`;
+            }
+            if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+              const values = new Uint32Array(4);
+              crypto.getRandomValues(values);
+              return `cod-${Array.from(values, value => value.toString(36)).join('-')}`;
+            }
+            throw new Error('Secure checkout identifier generation is unavailable.');
+          }
+
+          '''
+              s = once(s, marker, cod_helper + marker, 'COD idempotency helper')
+
+          s = once(
+              s,
+              "const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'googlepay' | null>(null);",
+              "const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>(null);",
+              'checkout payment method union'
+          )
+          s = once(
+              s,
+              '  const paypalCheckoutAttemptIdRef = useRef<string | null>(null);\n  const payzyCheckoutAttemptIdRef = useRef<string | null>(null);',
+              '  const paypalCheckoutAttemptIdRef = useRef<string | null>(null);\n  const codCheckoutAttemptIdRef = useRef<string | null>(null);\n  const payzyCheckoutAttemptIdRef = useRef<string | null>(null);',
+              'COD checkout ref'
+          )
+          s = once(
+              s,
+              "    if (!user && !isPayzyReturn) {\n      navigateTo({ name: 'home' });\n      setIsCartOpen(true);\n      setIsAuthOpen(true);\n      return;\n    }\n",
+              '',
+              'guest checkout redirect'
+          )
+          s = s.replace('  }, [user, cart.length, confirmedOrder, navigateTo, setIsCartOpen, setIsAuthOpen]);', '  }, [cart.length, confirmedOrder, navigateTo, setIsCartOpen]);', 1)
+          s = once(
+              s,
+              "  const handlePaymentMethodChange = async (method: 'paypal' | 'payzy' | 'googlepay') => {",
+              "  const handlePaymentMethodChange = async (method: 'paypal' | 'payzy' | 'cod' | 'googlepay') => {",
+              'payment switch COD union'
+          )
+
+          cod_handler = '''  const handleCodOrder = async () => {
+            if (cart.length === 0) {
+              setFieldErrors(previous => ({ ...previous, general: 'Your shopping bag is empty. Please select garments before placing an order.' }));
+              return;
+            }
+            if (!validateDeliveryDetails()) return;
+            if (country.trim().toLowerCase() !== 'sri lanka') {
+              setFieldErrors(previous => ({ ...previous, general: 'Cash on Delivery is currently available only for Sri Lankan delivery addresses.' }));
+              return;
+            }
+
+            setIsSubmitting(true);
+            setFieldErrors(previous => ({ ...previous, general: undefined }));
+            try {
+              const order = await createOrder({
+                customerName,
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                email: email.trim().toLowerCase(),
+                phone: phone.trim(),
+                address: address.trim(),
+                city: city.trim(),
+                postalCode: postalCode.trim(),
+                country: country.trim() || 'Sri Lanka',
+                items: cart.map(item => ({ productId: item.productId, size: item.size, quantity: item.quantity })),
+                currencyUsed: selectedCurrency?.code || 'LKR',
+                paymentMethod: 'cod',
+                promoCode: appliedPromo?.code,
+                checkoutAttemptId: codCheckoutAttemptIdRef.current || (codCheckoutAttemptIdRef.current = createCodCheckoutAttemptId()),
+                notes: notes.trim()
+              });
+              persistDeliveryDetailsIfNeeded();
+              setConfirmedOrder(order);
+              codCheckoutAttemptIdRef.current = null;
+              clearCart();
+            } catch (error) {
+              console.error('COD checkout exception:', error);
+              setFieldErrors(previous => ({ ...previous, general: error instanceof Error ? error.message : 'Cash on Delivery order could not be placed.' }));
+            } finally {
+              setIsSubmitting(false);
+            }
+          };
+
+          '''
+          if 'const handleCodOrder = async () =>' not in s:
+              s = once(s, '  const handlePayzyOrder = async () => {', cod_handler + '  const handlePayzyOrder = async () => {', 'COD handler')
+
+          s = once(
+              s,
+              "  const handlePayzyOrder = async () => {\n    if (!user) {\n      setIsAuthOpen(true);\n      return;\n    }\n",
+              "  const handlePayzyOrder = async () => {\n",
+              'Payzy guest block'
+          )
+
+          # Remove the component-level sign-in wall.
+          s = sub_once(
+              s,
+              r"\n  if \(!user\) \{\n    return \(.*?\n  \}\n\n  if \(googlePayTestComplete\)",
+              "\n  if (googlePayTestComplete)",
+              'Checkout sign-in wall'
+          )
+
+          s = once(s, '<span>Secure Account Checkout</span>', '<span>{user ? \'Secure Account Checkout\' : \'Secure Guest Checkout\'}</span>', 'checkout status label')
+          s = once(
+              s,
+              "{googlePayReviewMode ? 'PayPal, Payzy, or Google Pay TEST review.' : 'PayPal or Payzy only. Cash on Delivery is not available.'}",
+              "{googlePayReviewMode ? 'PayPal, Payzy, Cash on Delivery, or Google Pay TEST review.' : 'PayPal, Payzy, or Cash on Delivery.'}",
+              'payment method help text'
+          )
+
+          s = s.replace("                            if (!user) {\n                              setIsAuthOpen(true);\n                              return false;\n                            }\n", '', 1)
+          s = s.replace("createOrder={async () => { if (!user) throw new Error('Sign in before checkout.'); if (!validateDeliveryDetails())", "createOrder={async () => { if (!validateDeliveryDetails())", 1)
+
+          cod_card = '''                <div className={`rounded-2xl border overflow-hidden ${paymentMethod === 'cod' ? 'border-[#1A1816] ring-1 ring-[#1A1816]' : 'border-[#E7E0D6]'}`}>
+                    <button type="button" role="radio" aria-label="Cash on Delivery" aria-checked={paymentMethod === 'cod'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('cod')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-xl bg-[#F6F1E9] border border-[#E5DDD2] flex items-center justify-center"><Truck className="w-5 h-5 text-[#574A3D]" /></div>
+                        <div><span className="text-sm font-semibold text-[#1A1816]">Cash on Delivery</span><p className="text-[11px] text-[#665A4E] mt-1">Pay in cash when your order is delivered.</p></div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'cod' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'cod' && <div className="w-2.5 h-2.5 rounded-full bg-[#1A1816]" />}</div>
+                    </button>
+                    {paymentMethod === 'cod' && (
+                      <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EEE8DF] space-y-4">
+                        <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD7] p-4">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762]">Cash on Delivery total</p>
+                          <p className="font-serif text-xl mt-1">LKR {totalLKR.toLocaleString('en-US')}</p>
+                          <p className="text-[11px] text-[#74685B] mt-2">No online charge is made. Payment remains pending until cash is collected on delivery.</p>
+                        </div>
+                        <button id="btn-cod-place-order" type="button" onClick={handleCodOrder} disabled={isSubmitting} className="w-full min-h-[52px] rounded-xl bg-[#1A1816] text-white text-[11px] uppercase tracking-[0.18em] font-semibold disabled:opacity-50 flex items-center justify-center gap-3">
+                          <Truck className="w-4 h-4" />{isSubmitting ? 'PLACING ORDER...' : 'PLACE CASH ON DELIVERY ORDER'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+          '''
+          if 'id="btn-cod-place-order"' not in s:
+              s = once(s, '                {paymentConfig.paypal.enabled && (', cod_card + '                {paymentConfig.paypal.enabled && (', 'COD payment card')
+
+          s = once(
+              s,
+              "{confirmedOrder.paymentMethod === 'paypal' ? 'PayPal' : 'Payzy'}",
+              "{confirmedOrder.paymentMethod === 'paypal' ? 'PayPal' : confirmedOrder.paymentMethod === 'payzy' ? 'Payzy' : 'Cash on Delivery'}",
+              'confirmation payment method'
+          )
+          s = s.replace('COMMISSION CONFIRMED & SEALED', 'ORDER PLACED', 1)
+          s = s.replace('Payment and dispatch updates will appear in your client portal.', 'Track this order with the reference below or open My Orders on this browser for updates.', 1)
+          s = once(
+              s,
+              "{googlePayReviewMode ? 'PayPal and Payzy remain the only live methods. Google Pay is isolated in non-chargeable TEST review mode.' : 'Orders are confirmed only after PayPal or Payzy verification.'}",
+              "{googlePayReviewMode ? 'PayPal, Payzy and Cash on Delivery are available; Google Pay is isolated in non-chargeable TEST review mode.' : 'PayPal and Payzy require server verification. Cash on Delivery remains unpaid until collection.'}",
+              'payment summary wording'
+          )
+          old_remember = '''                {!hasSavedDetails ? (
+                  <div className="flex items-center gap-2.5 pt-2"><input id="remember-details-chk" type="checkbox" checked={rememberDetails} onChange={event => setRememberDetails(event.target.checked)} className="w-4 h-4 accent-[#1A1816]" /><label htmlFor="remember-details-chk" className="text-xs text-[#5A4E40]">Remember my delivery details for future orders</label></div>
+                ) : isDetailsChanged ? (
+                  <div className="flex items-center gap-2.5 pt-2"><input id="update-details-chk" type="checkbox" checked={updateSavedDetails} onChange={event => setUpdateSavedDetails(event.target.checked)} className="w-4 h-4 accent-[#1A1816]" /><label htmlFor="update-details-chk" className="text-xs text-amber-900 font-medium">Update my saved delivery details with these changes</label></div>
+                ) : null}'''
+          new_remember = old_remember.replace('{!hasSavedDetails ? (', '{user && (!hasSavedDetails ? (').replace('                ) : null}', '                ) : null)}')
+          if old_remember in s:
+              s = s.replace(old_remember, new_remember, 1)
+          write(p, s)
+
+          # Store context: verified email/password accounts only; guest commerce remains available.
+          p = 'src/context/StoreContext.tsx'
+          s = read(p)
+          s = once(s, '  createUserWithEmailAndPassword, \n  sendEmailVerification,', '  createUserWithEmailAndPassword, \n  sendEmailVerification,\n  applyActionCode,', 'applyActionCode import')
+
+          observer_marker = '''      // If an email signup is in-flight, allow signupWithEmail to write the definitive profile with the real customer name
+      if (activeSignupEmailRef.current === fbUser.email?.trim().toLowerCase()) {
+        return;
+      }
+
+      try {'''
+          observer_repl = '''      // If an email signup is in-flight, allow signupWithEmail to write the definitive profile with the real customer name
+      if (activeSignupEmailRef.current === fbUser.email?.trim().toLowerCase()) {
+        return;
+      }
+
+      const passwordProvider = fbUser.providerData.some(provider => provider.providerId === 'password');
+      const configuredSessionRole = getConfiguredAdminRole(fbUser.email, fbUser.emailVerified);
+      if (passwordProvider && !fbUser.emailVerified && !configuredSessionRole) {
+        setUser(null);
+        return;
+      }
+
+      try {'''
+          s = once(s, observer_marker, observer_repl, 'unverified password observer guard')
+
+          s = once(
+              s,
+              '    const currentUser = auth.currentUser;\n    const token = currentUser ? await currentUser.getIdToken() : null;',
+              "    const currentUser = auth.currentUser;\n    const passwordNeedsVerification = Boolean(currentUser?.providerData.some(provider => provider.providerId === 'password') && !currentUser.emailVerified && !getConfiguredAdminRole(currentUser.email, currentUser.emailVerified));\n    const token = currentUser && !passwordNeedsVerification ? await currentUser.getIdToken() : null;",
+              'public API token gating'
+          )
+
+          verification_effect = '''
+  // Handle branded SAELYXE verification links on our own domain instead of the Firebase default action page.
+  useEffect(() => {
+    if (window.location.pathname !== '/verify-email') return;
+    const code = new URLSearchParams(window.location.search).get('code')?.trim() || '';
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        if (!code) throw new Error('missing_verification_code');
+        await applyActionCode(auth, code);
+        try { await fbSignOut(auth); } catch { /* verification is already complete */ }
+        if (cancelled) return;
+        setUser(null);
+        sessionStorage.setItem('saelyxe_email_verification_notice', 'success');
+      } catch {
+        if (cancelled) return;
+        sessionStorage.setItem('saelyxe_email_verification_notice', 'error');
+      } finally {
+        if (cancelled) return;
+        window.history.replaceState({}, '', '/');
+        setAuthMode('signin');
+        setIsAuthOpen(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
+
+'''
+          marker = '  // Listen to Firebase Auth state. Privileged roles come only from trusted\n'
+          if 'saelyxe_email_verification_notice' not in s:
+              s = once(s, marker, verification_effect + marker, 'verification route effect')
+
+          helper = '''  const dispatchCustomerVerification = async (fbUser: any, displayName?: string) => {
+    const token = await fbUser.getIdToken();
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    const response = await fetch('/api/auth/customer-verification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...appCheckHeaders
+      },
+      body: JSON.stringify({ name: displayName || fbUser.displayName || '' })
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload?.error || 'Unable to send branded verification email.');
+    }
+  };
+
+'''
+          if 'const dispatchCustomerVerification' not in s:
+              s = once(s, '  const loginWithEmail = async (email: string, pass: string): Promise<boolean> => {', helper + '  const loginWithEmail = async (email: string, pass: string): Promise<boolean> => {', 'verification dispatch helper')
+
+          login_marker = '''      const res = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), pass);
+      const fbUser = res.user;
+
+      let existingData: Partial<AppUser> = {};'''
+          login_repl = '''      const res = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), pass);
+      const fbUser = res.user;
+
+      if (!fbUser.emailVerified && !getConfiguredAdminRole(fbUser.email, fbUser.emailVerified)) {
+        try {
+          await dispatchCustomerVerification(fbUser, fbUser.displayName || undefined);
+        } catch (verificationError) {
+          console.warn('Branded verification dispatch fallback:', verificationError);
+          try { await sendEmailVerification(fbUser); } catch { /* Firebase may throttle repeat verification emails. */ }
+        }
+        await fbSignOut(auth);
+        setUser(null);
+        setAuthError('Please verify your email before signing in. We sent a new SAELYXE verification link to your inbox.');
+        return false;
+      }
+
+      let existingData: Partial<AppUser> = {};'''
+          s = once(s, login_marker, login_repl, 'email login verification gate')
+
+          old_signup_mail = '''      // Send verification email safely
+      try {
+        await sendEmailVerification(res.user);
+      } catch (verifyErr) {
+        console.warn('Verification email dispatch note:', verifyErr);
+      }
+'''
+          new_signup_mail = '''      // Send the branded SAELYXE verification message from the configured Resend sender.
+      // Firebase's default template remains an emergency fallback only.
+      try {
+        await dispatchCustomerVerification(res.user, cleanName);
+      } catch (verifyErr) {
+        console.warn('Branded verification email dispatch note:', verifyErr);
+        try { await sendEmailVerification(res.user); } catch (fallbackErr) { console.warn('Firebase verification fallback note:', fallbackErr); }
+      }
+'''
+          s = once(s, old_signup_mail, new_signup_mail, 'signup branded verification')
+          s = once(
+              s,
+              '      setUser(newUser);\n      activeSignupEmailRef.current = null;\n      return true;',
+              "      await fbSignOut(auth);\n      setUser(null);\n      activeSignupEmailRef.current = null;\n      return true;",
+              'signup sign-out before verification'
+          )
+          write(p, s)
+
+          # Guest order capability helper: list only non-expired local order IDs.
+          p = 'src/lib/guestOrderAccess.ts'
+          s = read(p)
+          if 'export function listGuestOrderAccessIds' not in s:
+              s += '''\nexport function listGuestOrderAccessIds(): string[] {
+            const store = readStore();
+            const now = Date.now();
+            let changed = false;
+            for (const [orderId, record] of Object.entries(store)) {
+              const expiresMs = Date.parse(record?.expiresAt || '');
+              if (!record?.token || (Number.isFinite(expiresMs) && expiresMs <= now)) {
+                delete store[orderId];
+                changed = true;
+              }
+            }
+            if (changed) writeStore(store);
+            return Object.keys(store);
+          }
+          '''
+          write(p, s)
+
+          # My Orders: show secure local guest orders, and keep them visible after later account sign-in.
+          p = 'src/components/OrdersPage.tsx'
+          s = read(p)
+          s = once(s, "import { openOrderReceipt } from '../lib/orderReceipt';", "import { openOrderReceipt } from '../lib/orderReceipt';\nimport { getAppCheckRequestHeaders } from '../lib/firebase';\nimport { guestOrderAccessHeaders, listGuestOrderAccessIds } from '../lib/guestOrderAccess';", 'orders guest imports')
+          old_orders_block = '''  // Filter orders belonging to the authenticated customer
+  const userOrders = orders.filter(o => {
+    if (!user) return false;
+    if (o.userId && o.userId === user.uid) return true;
+    if (user.email && o.email && o.email.toLowerCase() === user.email.toLowerCase()) return true;
+    return false;
+  });'''
+          new_orders_block = '''  const [guestOrders, setGuestOrders] = useState<Order[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const ids = listGuestOrderAccessIds();
+    if (ids.length === 0) {
+      setGuestOrders([]);
+      return () => { cancelled = true; };
+    }
+
+    void (async () => {
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const results = await Promise.all(ids.map(async orderId => {
+        try {
+          const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/details`, {
+            headers: { ...appCheckHeaders, ...guestOrderAccessHeaders(orderId) }
+          });
+          if (!response.ok) return null;
+          return await response.json() as Order;
+        } catch {
+          return null;
+        }
+      }));
+      if (!cancelled) {
+        setGuestOrders(results.filter((order): order is Order => Boolean(order?.id)));
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user?.uid]);
+
+  const localGuestIds = new Set(listGuestOrderAccessIds());
+  const accountOrders = user ? orders.filter(o => {
+    if (o.userId && o.userId === user.uid) return true;
+    if (user.email && o.email && o.email.toLowerCase() === user.email.toLowerCase()) return true;
+    return false;
+  }) : [];
+  const inMemoryGuestOrders = orders.filter(o => o.guestCheckout === true && (localGuestIds.has(o.id) || localGuestIds.has(o.orderNumber)));
+  const mergedOrders = new Map<string, Order>();
+  [...accountOrders, ...inMemoryGuestOrders, ...guestOrders].forEach(order => mergedOrders.set(order.id || order.orderNumber, order));
+  const userOrders = Array.from(mergedOrders.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());'''
+          s = once(s, old_orders_block, new_orders_block, 'guest order archive')
+          s = s.replace('      const match = orders.find(o => o.orderNumber === (currentRoute as any).orderId || o.id === (currentRoute as any).orderId);', '      const match = userOrders.find(o => o.orderNumber === (currentRoute as any).orderId || o.id === (currentRoute as any).orderId);', 1)
+          s = s.replace('    const latest = orders.find(order => order.id === selectedOrder.id || order.orderNumber === selectedOrder.orderNumber);', '    const latest = userOrders.find(order => order.id === selectedOrder.id || order.orderNumber === selectedOrder.orderNumber);', 1)
+          s = sub_once(
+              s,
+              r"\n  if \(!user\) \{\n    return \(.*?\n  \}\n\n  return \(",
+              "\n  return (",
+              'orders authentication wall'
+          )
+          s = s.replace('<span>Authenticated Client Archive</span>', "<span>{user ? 'Authenticated Client Archive' : 'Guest Order Archive'}</span>", 1)
+          s = s.replace("You haven't placed any orders yet.", "No orders are available here yet.", 1)
+          s = s.replace('Explore our limited-run collections and commission your first piece with prompt courier delivery across Sri Lanka.', 'Guest orders placed in this browser and orders from your signed-in account will appear here.', 1)
+          write(p, s)
+
+          # Product quick view gets a clear full-product navigation control.
+          p = 'src/components/ProductModal.tsx'
+          s = read(p)
+          s = once(s, 'X, Check, ArrowRight, ShieldCheck, Ruler, Bell, Clock3', 'X, Check, ArrowRight, ShieldCheck, Ruler, Bell, Clock3, Maximize2', 'product modal icon')
+          s = once(s, 'const { activeModalProduct, setActiveModalProduct, addToCart, formatPrice, openRestockModal, settings } = useStore();', 'const { activeModalProduct, setActiveModalProduct, addToCart, formatPrice, openRestockModal, settings, navigateTo } = useStore();', 'product modal navigation')
+          close_button = '''          <button
+            onClick={() => setActiveModalProduct(null)}
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-md transition-all cursor-pointer"
+            aria-label="Close modal"
+          >'''
+          expand_button = '''          <button
+            type="button"
+            onClick={() => {
+              const slug = activeModalProduct.slug || activeModalProduct.id;
+              setActiveModalProduct(null);
+              navigateTo({ name: 'product', slug });
+            }}
+            className="absolute top-3 right-16 sm:top-4 sm:right-[4.25rem] z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-md transition-all cursor-pointer"
+            aria-label="View full product page"
+            title="View full product page"
+          >
+            <Maximize2 className="w-4.5 h-4.5" />
+          </button>
+
+'''
+          s = once(s, close_button, expand_button + close_button, 'product modal expand button')
+          write(p, s)
+
+          # Receipt print control: CSP blocks inline onclick, so attach the listener from trusted app code.
+          p = 'src/lib/orderReceipt.ts'
+          s = read(p)
+          s = once(s, '<button type="button" onclick="window.print()">Print / Save PDF</button>', '<button id="receipt-print-button" type="button">Print / Save PDF</button>', 'receipt inline print')
+          s = once(
+              s,
+              '  receiptWindow.document.close();\n  receiptWindow.focus();',
+              "  receiptWindow.document.close();\n  const printButton = receiptWindow.document.getElementById('receipt-print-button');\n  printButton?.addEventListener('click', () => receiptWindow.print());\n  receiptWindow.focus();",
+              'receipt trusted print listener'
+          )
+          write(p, s)
+
+          # Legal copy must match actual guest + COD behavior.
+          p = 'src/components/LegalTermsPage.tsx'
+          s = read(p)
+          s = s.replace('<h4 className="font-serif text-sm font-semibold">Account Required</h4>\n            <p className="text-[12px] text-[#665A4E]">Browsing is open, but checkout requires a signed-in SAELYXE account.</p>', '<h4 className="font-serif text-sm font-semibold">Guest Checkout</h4>\n            <p className="text-[12px] text-[#665A4E]">Checkout is available to guests and signed-in SAELYXE customers.</p>', 1)
+          s = s.replace('PayPal and Payzy are supported where available. Cash on Delivery is not offered.', 'PayPal, Payzy, and Cash on Delivery are supported where available.', 1)
+          s = s.replace('SAELYXE is intended for customers aged 18 or older. A customer account is required before checkout. You must provide accurate account and delivery information, keep credentials secure, and not impersonate another person or use false details.', 'SAELYXE is intended for customers aged 18 or older. Guests may checkout without an account. Email/password account access requires email verification. You must provide accurate account and delivery information, keep credentials secure, and not impersonate another person or use false details.', 1)
+          s = s.replace('SAELYXE currently accepts PayPal and Payzy where those services are available. Cash on Delivery is not supported. An order is confirmed only after the applicable payment has been successfully verified by SAELYXE server-side systems. A provider screen or browser redirect alone does not constitute confirmation.', 'SAELYXE currently accepts PayPal and Payzy where those services are available, plus Cash on Delivery for eligible Sri Lankan deliveries. PayPal and Payzy orders are confirmed only after the applicable payment has been successfully verified by SAELYXE server-side systems. Cash on Delivery remains unpaid until collection. A provider screen or browser redirect alone does not constitute confirmation.', 1)
+          write(p, s)
+
+          # Docs: align operational truth without disturbing other release notes.
+          for p in ['README.md', 'FINAL_LAUNCH_RUNBOOK.md']:
+              s = read(p)
+              s = s.replace('Customer checkout requires an authenticated SAELYXE account.', 'Customer checkout supports both secure guest checkout and signed-in SAELYXE accounts.')
+              s = s.replace('Cash on Delivery is removed from customer checkout; live checkout accepts only PayPal and Payzy.', 'Cash on Delivery is supported for eligible Sri Lankan orders and remains unpaid until delivery collection; PayPal and Payzy remain provider-verified online methods.')
+              s = s.replace('Server order creation rejects guest checkout and rejects unsupported payment methods.', 'Server order creation supports capability-protected guest checkout and rejects unsupported payment methods.')
+              s = s.replace('SAELYXE checkout requires an authenticated customer account. Guest browsing is allowed, but guest checkout is blocked.', 'SAELYXE checkout supports guests and signed-in customers. Guest order access is protected by a scoped browser capability token.')
+              write(p, s)
+
+          # Regression/readiness contracts must test the desired production rules, not the overwritten account-only rules.
+          p = 'scripts/security-regression.mjs'
+          s = read(p)
+          if "const customerVerification = read('api/customer-verification.ts');" not in s:
+              s = once(s, "const ordersGuard = read('api/orders-guard.ts');", "const ordersGuard = read('api/orders-guard.ts');\nconst customerVerification = read('api/customer-verification.ts');", 'security verification handler read')
+          old = '''assert(app.includes("case 'checkout':") && app.includes('if (!user)'), 'storefront must block guest checkout before rendering payment UI');
+          assert(app.includes('SAELYXE checkout is available to signed-in customers only'), 'guest checkout block must explain the requirement');
+          assert(checkout.includes("useState<'paypal' | 'payzy' | 'googlepay' | null>"), 'checkout may expose the isolated Google Pay review mode in addition to live PayPal/Payzy');'''.replace('          ', '')
+          new = '''assert(app.includes("case 'checkout':") && !app.includes('SAELYXE checkout is available to signed-in customers only'), 'storefront must allow guest checkout to render');
+          assert(checkout.includes("useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>"), 'checkout must support PayPal, Payzy, COD, plus isolated Google Pay review mode');'''.replace('          ', '')
+          s = once(s, old, new, 'security guest checkout assertions')
+          s = s.replace("assert(!checkout.includes(\"paymentMethod: 'cod'\"), 'checkout must not create Cash on Delivery orders');", "assert(checkout.includes(\"paymentMethod: 'cod'\"), 'checkout must create server-backed Cash on Delivery orders');", 1)
+          s = s.replace("assert(!checkout.includes('PLACE CASH ON DELIVERY ORDER'), 'checkout must not expose a Cash on Delivery action');", "assert(checkout.includes('PLACE CASH ON DELIVERY ORDER'), 'checkout must expose Cash on Delivery');", 1)
+          s = s.replace("assert(!checkout.includes('createCodCheckoutAttemptId'), 'COD idempotency flow must be removed from customer checkout');", "assert(checkout.includes('createCodCheckoutAttemptId'), 'COD checkout must use an idempotent attempt identifier');", 1)
+          s = s.replace("assert(ordersGuard.includes('verifyIdToken'), 'order-creation guard must cryptographically verify the customer Firebase token');\nassert(ordersGuard.includes(\"!['paypal', 'payzy'].includes(paymentMethod)\"), 'order-creation guard must reject non-live payment methods');\nassert(ordersGuard.includes('email_verified !== true'), 'order-creation guard must require a verified account');", "assert(ordersGuard.includes(\"!['paypal', 'payzy', 'cod'].includes(paymentMethod)\"), 'order-creation guard must allow only PayPal, Payzy, or COD');\nassert(api.includes('const isGuestCheckout = !authToken'), 'core order API must preserve secure guest checkout');\nassert(api.includes(\"paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'\"), 'COD must remain explicitly unpaid');\nassert(customerVerification.includes('generateEmailVerificationLink') && customerVerification.includes('api.resend.com/emails'), 'customer verification must use Firebase action codes delivered through branded Resend email');\nassert(customerVerification.includes('www.saelyxe.com/verify-email?code='), 'verification links must return to the SAELYXE domain');\nassert(api.includes(\"app.get('/api/orders/:id/details'\") && api.includes('authorizeCustomerOrderAccess(req, adminDb, order)'), 'guest order details must require signed-in ownership or scoped guest capability access');", 1)
+          write(p, s)
+
+          p = 'scripts/final-launch-readiness.mjs'
+          s = read(p)
+          if "const customerVerification = read('api/customer-verification.ts');" not in s:
+              s = once(s, "const ordersGuard = read('api/orders-guard.ts');", "const ordersGuard = read('api/orders-guard.ts');\nconst customerVerification = read('api/customer-verification.ts');", 'readiness verification handler read')
+          s = s.replace("check(app.includes(\"case 'checkout':\") && app.includes('if (!user)'), 'Checkout requires a signed-in customer account');", "check(app.includes(\"case 'checkout':\") && !app.includes('SAELYXE checkout is available to signed-in customers only'), 'Checkout supports guest and signed-in customers');", 1)
+          s = s.replace("check(checkout.includes(\"useState<'paypal' | 'payzy' | 'googlepay' | null>\"), 'Checkout keeps PayPal/Payzy live and includes a gated Google Pay review state');", "check(checkout.includes(\"useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>\"), 'Checkout keeps PayPal/Payzy/COD and includes a gated Google Pay review state');", 1)
+          s = s.replace("check(!checkout.includes('PLACE CASH ON DELIVERY ORDER') && !checkout.includes(\"paymentMethod: 'cod'\"), 'Cash on Delivery is removed from customer checkout');", "check(checkout.includes('PLACE CASH ON DELIVERY ORDER') && checkout.includes(\"paymentMethod: 'cod'\"), 'Cash on Delivery is available and server-backed');", 1)
+          s = s.replace("check(ordersGuard.includes('verifyIdToken') && ordersGuard.includes('email_verified !== true'), 'Server order guard verifies signed-in customer identity');\ncheck(ordersGuard.includes(\"!['paypal', 'payzy'].includes(paymentMethod)\"), 'Server order guard rejects unsupported/live-unconfigured payment methods');", "check(ordersGuard.includes(\"!['paypal', 'payzy', 'cod'].includes(paymentMethod)\"), 'Server order guard restricts checkout to PayPal, Payzy, or COD');\ncheck(api.includes('const isGuestCheckout = !authToken') && api.includes(\"paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'\"), 'Core order API securely supports guests and unpaid COD');\ncheck(customerVerification.includes('api.resend.com/emails') && customerVerification.includes('www.saelyxe.com/verify-email?code='), 'Email verification uses a branded SAELYXE delivery/link flow');", 1)
+          s = s.replace("check(vercel.includes('\"source\": \"/api/orders\"') && vercel.includes('\"destination\": \"/api/orders-guard\"'), 'Production order creation routes through the account-only guard');", "check(vercel.includes('\"source\": \"/api/orders\"') && vercel.includes('\"destination\": \"/api/orders-guard\"'), 'Production order creation routes through the checkout method guard');", 1)
+          write(p, s)
+          PY
+
+      - name: Create guest-aware order guard
+        working-directory: House-OF-Saelyx
+        shell: bash
+        run: |
+          cat > api/orders-guard.ts <<'EOF'
+          import type { IncomingMessage, ServerResponse } from 'node:http';
+          import app from './index.js';
+
+          const MAX_BODY_BYTES = 64 * 1024;
+
+          function json(res: ServerResponse, status: number, payload: Record<string, unknown>) {
+            res.statusCode = status;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.end(JSON.stringify(payload));
+          }
+
+          async function readJsonBody(req: IncomingMessage & { body?: unknown; _body?: boolean }) {
+            if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) return req.body as Record<string, unknown>;
+            const chunks: Buffer[] = [];
+            let total = 0;
+            for await (const chunk of req) {
+              const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+              total += buffer.length;
+              if (total > MAX_BODY_BYTES) throw Object.assign(new Error('Order request is too large.'), { statusCode: 413 });
+              chunks.push(buffer);
+            }
+            const raw = Buffer.concat(chunks).toString('utf8');
+            if (!raw.trim()) return {};
+            try { return JSON.parse(raw) as Record<string, unknown>; }
+            catch { throw Object.assign(new Error('Order request must contain valid JSON.'), { statusCode: 400 }); }
+          }
+
+          export default async function handler(
+            req: IncomingMessage & { url?: string; method?: string; headers: Record<string, any>; body?: unknown; _body?: boolean },
+            res: ServerResponse
+          ) {
+            if (req.method !== 'POST') {
+              req.url = '/api/orders';
+              return app(req as any, res as any);
+            }
+            try {
+              const body = await readJsonBody(req);
+              const paymentMethod = typeof body.paymentMethod === 'string' ? body.paymentMethod.trim().toLowerCase() : '';
+              if (!['paypal', 'payzy', 'cod'].includes(paymentMethod)) {
+                return json(res, 400, { error: 'SAELYXE accepts PayPal, Payzy, or Cash on Delivery for checkout.' });
+              }
+              req.body = body;
+              req._body = true;
+              req.url = '/api/orders';
+              return app(req as any, res as any);
+            } catch (error: any) {
+              return json(res, Number(error?.statusCode) || 500, { error: error?.message || 'Unable to create order.' });
+            }
+          }
+          EOF
+
+      - name: Create branded customer verification endpoint
+        working-directory: House-OF-Saelyx
+        shell: bash
+        run: |
+          cat > api/customer-verification.ts <<'EOF'
+          import type { IncomingMessage, ServerResponse } from 'node:http';
+          import crypto from 'node:crypto';
+          import { cert, getApps, initializeApp } from 'firebase-admin/app';
+          import { getAuth } from 'firebase-admin/auth';
+          import { getAppCheck } from 'firebase-admin/app-check';
+          import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
+
+          const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxmadeforpre-9fd90c38-837e-435e-b027-e53891c99a41';
+          const MAX_BODY_BYTES = 8 * 1024;
+
+          function ensureFirebaseAdmin() {
+            if (getApps().length) return true;
+            const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+            const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+            const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+            if (!projectId || !clientEmail || !privateKey || privateKey.startsWith('replace-with-')) return false;
+            initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
+            return true;
+          }
+
+          function json(res: ServerResponse, status: number, payload: Record<string, unknown>) {
+            res.statusCode = status;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.end(JSON.stringify(payload));
+          }
+
+          function safe(value: unknown, max: number) {
+            return typeof value === 'string' ? value.trim().slice(0, max) : '';
+          }
+
+          function escapeHtml(value: unknown) {
+            return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+          }
+
+          async function readJsonBody(req: IncomingMessage & { body?: unknown }) {
+            if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) return req.body as Record<string, unknown>;
+            const chunks: Buffer[] = [];
+            let total = 0;
+            for await (const chunk of req) {
+              const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+              total += buffer.length;
+              if (total > MAX_BODY_BYTES) throw Object.assign(new Error('Request is too large.'), { statusCode: 413 });
+              chunks.push(buffer);
+            }
+            const raw = Buffer.concat(chunks).toString('utf8');
+            if (!raw.trim()) return {};
+            try { return JSON.parse(raw) as Record<string, unknown>; }
+            catch { throw Object.assign(new Error('Invalid JSON request.'), { statusCode: 400 }); }
+          }
+
+          async function rateLimit(uid: string) {
+            const db = getFirestore(DATABASE_ID);
+            const now = Date.now();
+            const windowMs = 15 * 60_000;
+            const id = crypto.createHash('sha256').update(`customer-verify:${uid}`).digest('hex');
+            const ref = db.collection('security_rate_limits').doc(id);
+            return db.runTransaction(async tx => {
+              const snap = await tx.get(ref);
+              const data: any = snap.exists ? snap.data() || {} : {};
+              const started = Number(data.windowStartedAtMs) || 0;
+              const count = Number(data.count) || 0;
+              if (!started || now - started >= windowMs) {
+                tx.set(ref, { count: 1, windowStartedAtMs: now, expiresAtMs: now + windowMs, expiresAt: Timestamp.fromMillis(now + windowMs), updatedAt: FieldValue.serverTimestamp() });
+                return true;
+              }
+              if (count >= 4) return false;
+              tx.set(ref, { count: count + 1, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+              return true;
+            });
+          }
+
+          export default async function handler(req: IncomingMessage & { method?: string; headers: Record<string, any>; body?: unknown }, res: ServerResponse) {
+            if (req.method !== 'POST') {
+              res.setHeader('Allow', 'POST');
+              return json(res, 405, { error: 'Method not allowed.' });
+            }
+            try {
+              if (!ensureFirebaseAdmin()) return json(res, 503, { error: 'Verification service is temporarily unavailable.' });
+
+              const authorization = safe(req.headers.authorization, 8192);
+              if (!authorization.startsWith('Bearer ')) return json(res, 401, { error: 'Authentication required.' });
+              let token: any;
+              try { token = await getAuth().verifyIdToken(authorization.slice(7).trim()); }
+              catch { return json(res, 401, { error: 'Verification session expired. Please try again.' }); }
+              const email = safe(token?.email, 254).toLowerCase();
+              if (!token?.uid || !email) return json(res, 400, { error: 'A valid email account is required.' });
+              if (token.email_verified === true) return json(res, 200, { ok: true, alreadyVerified: true });
+
+              if (process.env.VERCEL_ENV === 'production' || process.env.FIREBASE_APP_CHECK_ENFORCE === 'true') {
+                const appCheckToken = safe(req.headers['x-firebase-appcheck'], 4096);
+                if (!appCheckToken) return json(res, 401, { error: 'App integrity check failed.' });
+                try { await getAppCheck().verifyToken(appCheckToken); }
+                catch { return json(res, 401, { error: 'App integrity check failed.' }); }
+              }
+              if (!(await rateLimit(token.uid))) return json(res, 429, { error: 'A verification email was sent recently. Please wait before trying again.' });
+
+              const body = await readJsonBody(req);
+              const name = safe(body.name, 120) || safe(token.name, 120) || 'SAELYXE Client';
+              const firebaseLink = await getAuth().generateEmailVerificationLink(email);
+              const firebaseUrl = new URL(firebaseLink);
+              const code = firebaseUrl.searchParams.get('oobCode') || '';
+              if (!code) throw new Error('Verification code could not be generated.');
+              const brandedLink = `https://www.saelyxe.com/verify-email?code=${encodeURIComponent(code)}`;
+
+              const apiKey = process.env.RESEND_API_KEY;
+              const configuredFrom = safe(process.env.RESEND_FROM_EMAIL, 320);
+              if (!apiKey || !configuredFrom) return json(res, 503, { error: 'Verification email delivery is temporarily unavailable.' });
+              const from = configuredFrom.includes('<') ? configuredFrom : `SAELYXE <${configuredFrom}>`;
+              const html = `<!doctype html><html><body style="margin:0;background:#eee9e2;font-family:Arial,Helvetica,sans-serif;color:#211d19"><div style="max-width:620px;margin:32px auto;background:#fff;border-radius:20px;overflow:hidden;border:1px solid #ddd4c8"><div style="background:#171411;color:#fff;padding:34px 38px"><div style="font-family:Georgia,serif;font-size:30px;font-weight:700;letter-spacing:.16em">SAELYXE</div><div style="margin-top:7px;color:#d8cdc0;font-size:10px;letter-spacing:.25em;text-transform:uppercase">Made for Presence</div></div><div style="padding:38px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#897b6d;font-weight:700">Email verification</div><h1 style="font-family:Georgia,serif;font-size:30px;font-weight:500;margin:10px 0 14px">Verify your SAELYXE account</h1><p style="font-size:14px;line-height:1.7;color:#665b50">Hello ${escapeHtml(name)},</p><p style="font-size:14px;line-height:1.7;color:#665b50">Confirm this email address to activate sign-in and your private client account. Guest shopping and guest orders remain available while you verify.</p><p style="margin:30px 0"><a href="${brandedLink}" style="display:inline-block;background:#171411;color:#fff;text-decoration:none;border-radius:999px;padding:14px 24px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Verify Email</a></p><p style="font-size:12px;line-height:1.6;color:#8b8075">If you did not create a SAELYXE account, you can ignore this message.</p></div><div style="background:#f8f5f1;border-top:1px solid #e5ddd4;padding:20px 38px;color:#8b8075;font-size:10px;letter-spacing:.13em;text-transform:uppercase">SAELYXE · Made for Presence</div></div></body></html>`;
+
+              const delivery = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                  'Idempotency-Key': `saelyxe-customer-verify-${token.uid}-${Math.floor(Date.now() / (15 * 60_000))}`
+                },
+                body: JSON.stringify({ from, to: [email], subject: 'Verify your SAELYXE email', html })
+              });
+              if (!delivery.ok) {
+                const detail = await delivery.text().catch(() => '');
+                console.error('Customer verification email failed:', delivery.status, detail.slice(0, 500));
+                return json(res, 502, { error: 'Verification email could not be delivered right now.' });
+              }
+              return json(res, 200, { ok: true, sent: true });
+            } catch (error: any) {
+              console.error('Customer verification handler error:', error?.message || error);
+              return json(res, Number(error?.statusCode) || 500, { error: 'Unable to send verification email right now.' });
+            }
+          }
+          EOF
+
+      - name: Add secure guest order details endpoint and verification route
+        working-directory: House-OF-Saelyx
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('api/index.ts')
+          s = p.read_text()
+          marker = "app.get('/api/orders/:id', async (req, res) => {"
+          if "app.get('/api/orders/:id/details'" not in s:
+              if marker not in s:
+                  raise SystemExit('order tracking route marker missing')
+              route = '''app.get('/api/orders/:id/details', async (req, res) => {
+            try {
+              const adminDb = getAdminDb();
+              if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
+              if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+              const id = safeString(req.params.id, 120);
+              const snap = await adminDb.collection('orders').doc(id).get();
+              if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+              const order: any = { id: snap.id, ...snap.data() };
+              const access = await authorizeCustomerOrderAccess(req, adminDb, order);
+              if (!access) return res.status(403).json({ error: 'Order access denied.' });
+              if (!(await enforceRateLimit(adminDb, `order-details:${access.rateKey}`, 60, 60 * 60_000))) {
+                return res.status(429).json({ error: 'Too many order detail requests. Please wait and try again.' });
+              }
+              const items = Array.isArray(order.items) ? order.items.slice(0, 80).map((item: any) => ({
+                productId: safeString(item?.productId, 160),
+                title: safeString(item?.title, 300),
+                image: safeString(item?.image, 2000),
+                size: safeString(item?.size, 80),
+                quantity: Math.max(1, Math.min(99, Math.floor(Number(item?.quantity) || 1))),
+                priceLKR: Math.max(0, Number(item?.priceLKR) || 0)
+              })) : [];
+              return res.json({
+                id: order.id,
+                orderNumber: safeString(order.orderNumber, 120),
+                userId: safeString(order.userId, 160) || null,
+                guestCheckout: order.guestCheckout === true,
+                customerName: safeString(order.customerName, 200),
+                email: safeString(order.email || order.customerEmail, 254),
+                phone: safeString(order.phone, 80),
+                address: safeString(order.address, 500),
+                city: safeString(order.city, 200),
+                postalCode: safeString(order.postalCode, 80),
+                country: safeString(order.country, 120),
+                items,
+                subtotalLKR: Math.max(0, Number(order.subtotalLKR) || 0),
+                discountLKR: Math.max(0, Number(order.discountLKR) || 0),
+                shippingLKR: Math.max(0, Number(order.shippingLKR) || 0),
+                totalLKR: Math.max(0, Number(order.totalLKR) || 0),
+                currencyUsed: safeString(order.currencyUsed, 10),
+                totalInCurrency: Math.max(0, Number(order.totalInCurrency) || 0),
+                status: safeString(order.status, 40),
+                paymentMethod: safeString(order.paymentMethod, 40),
+                paymentStatus: safeString(order.paymentStatus, 60),
+                payzySandboxVerified: order.payzySandboxVerified === true,
+                promoCode: safeString(order.promoCode, 80),
+                createdAt: safeString(order.createdAt, 80),
+                updatedAt: safeString(order.updatedAt, 80),
+                trackingNumber: safeString(order.trackingNumber, 160),
+                courierName: safeString(order.courierName, 160),
+                deliveryEta: safeString(order.deliveryEta, 160),
+                cancellationRequestStatus: safeString(order.cancellationRequestStatus, 40),
+                cancellationReason: safeString(order.cancellationReason, 500),
+                timeline: Array.isArray(order.timeline) ? order.timeline.slice(-30) : []
+              });
+            } catch {
+              return res.status(500).json({ error: 'Unable to load order details.' });
+            }
+          });
+
+          '''
+              s = s.replace(marker, route + marker, 1)
+              p.write_text(s)
+
+          p = Path('vercel.json')
+          s = p.read_text()
+          marker = '    { "source": "/api/orders", "destination": "/api/orders-guard" },'
+          route = '    { "source": "/api/auth/customer-verification", "destination": "/api/customer-verification" },\n'
+          if '/api/auth/customer-verification' not in s:
+              if marker not in s:
+                  raise SystemExit('vercel order rewrite marker missing')
+              s = s.replace(marker, route + marker, 1)
+              p.write_text(s)
+          PY
+
+      - name: Polish auth verification UI
+        working-directory: House-OF-Saelyx
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/AuthModal.tsx')
+          s = p.read_text()
+          if 'verificationNotice' not in s:
+              s = s.replace("  const [signupSuccess, setSignupSuccess] = useState<boolean>(false);", "  const [signupSuccess, setSignupSuccess] = useState<boolean>(false);\n  const [verificationNotice, setVerificationNotice] = useState<'success' | 'error' | null>(null);", 1)
+              marker = "  useEffect(() => {\n    if (!isAuthOpen) return;\n\n    const originalOverflow"
+              effect = '''  useEffect(() => {
+            if (!isAuthOpen) return;
+            try {
+              const notice = sessionStorage.getItem('saelyxe_email_verification_notice');
+              if (notice === 'success' || notice === 'error') {
+                setVerificationNotice(notice);
+                sessionStorage.removeItem('saelyxe_email_verification_notice');
+              }
+            } catch {
+              // The sign-in panel works even if session storage is unavailable.
+            }
+          }, [isAuthOpen]);
+
+'''
+              if marker not in s:
+                  raise SystemExit('AuthModal insertion marker missing')
+              s = s.replace(marker, effect + marker, 1)
+          s = s.replace('We sent a confirmation link to <span className="font-medium text-[#25211D]">{form.email}</span>. You may verify your email anytime while browsing your account.', 'We sent a SAELYXE confirmation link to <span className="font-medium text-[#25211D]">{form.email}</span>. Verify your email before signing in; you can continue shopping as a guest meanwhile.', 1)
+          marker = '              <form onSubmit={handleEmailSubmit} className="space-y-5" noValidate>'
+          notice = '''              {verificationNotice && (
+                <div className={`mb-5 rounded-xl border px-4 py-3 text-xs leading-relaxed ${verificationNotice === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-rose-200 bg-rose-50 text-rose-800'}`}>
+                  {verificationNotice === 'success' ? 'Email verified successfully. You can sign in to your SAELYXE account now.' : 'That verification link is invalid or expired. Sign in to request a fresh SAELYXE verification email.'}
+                </div>
+              )}
+'''
+          if 'Email verified successfully.' not in s:
+              if marker not in s:
+                  raise SystemExit('AuthModal form marker missing')
+              s = s.replace(marker, notice + marker, 1)
+          p.write_text(s)
+          PY
+
+      - name: Install and verify hotfix
+        working-directory: House-OF-Saelyx
+        run: |
+          npm ci
+          npm run security:check
+          npm run final:readiness
+          npm audit --omit=dev --audit-level=high
+          npm run lint
+          npm run build
+
+      - name: Commit verified hotfix to production main
+        shell: bash
+        run: |
+          git config user.name "SAELYXE Hotfix"
+          git config user.email "actions@users.noreply.github.com"
+          git add House-OF-Saelyx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "fix(storefront): restore guest COD and repair customer account flows"
+          git push origin HEAD:main
