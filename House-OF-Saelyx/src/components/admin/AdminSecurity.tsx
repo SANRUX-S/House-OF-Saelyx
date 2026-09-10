@@ -133,7 +133,7 @@ export const AdminSecurity: React.FC<AdminSecurityProps> = ({ onExportDatabase }
     ['app-check', 'Firebase App Check', 'App-integrity enforcement for protected endpoints.', health?.appCheckEnforced === true],
     ['abuse-protection', 'Abuse Protection', 'Server-side throttling and abuse controls.', health?.abuseProtectionConfigured === true],
     ['transactional-email', 'Transactional Email', 'Server-side order and operational email configuration.', health?.transactionalEmailConfigured === true],
-    ['media-storage', 'Media Storage', 'Protected Firebase media storage for admin uploads.', health?.mediaStorageConfigured === true],
+    ['media-storage', 'Media Storage', 'Protected Vercel Blob storage for SAELYXE admin product and settings images.', health?.mediaStorageConfigured === true],
     ['paypal-server', 'PayPal Server', 'Server credentials for PayPal order verification.', health?.payPalServerConfigured === true]
   ] as const;
 
