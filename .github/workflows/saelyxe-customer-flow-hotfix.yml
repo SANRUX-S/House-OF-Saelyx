@@ -35,6 +35,13 @@ jobs:
           p.write_text(s)
           PY
           python3 /tmp/customer_flow.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('House-OF-Saelyx/src/components/OrdersPage.tsx')
+          s = p.read_text()
+          s = s.replace("orders.filter(o => o.guestCheckout === true && (localGuestIds.has(o.id) || localGuestIds.has(o.orderNumber)))", "orders.filter(o => localGuestIds.has(o.id) || localGuestIds.has(o.orderNumber))", 1)
+          p.write_text(s)
+          PY
 
       - name: Setup Node
         uses: actions/setup-node@v4
