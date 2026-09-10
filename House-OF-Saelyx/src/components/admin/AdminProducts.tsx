@@ -41,6 +41,17 @@ const CATEGORY_OPTIONS: Array<{ value: Product['category']; label: string }> = [
   { value: 'accessories', label: 'Accessories / Leather' }
 ];
 
+const COMMON_SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
+
+function parseSizesText(value: string) {
+  return Array.from(new Set(
+    value
+      .split(',')
+      .map(size => size.trim())
+      .filter(Boolean)
+  ));
+}
+
 function getProductStock(product: Partial<Product>) {
   return Math.max(0, Number(product.stockCount) || 0);
 }
@@ -104,6 +115,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
   const [form, setForm] = useState<Partial<Product>>(createEmptyProduct());
   const [bulletsText, setBulletsText] = useState('');
   const [imagesText, setImagesText] = useState('');
+  const [sizesText, setSizesText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [formError, setFormError] = useState('');
@@ -119,6 +131,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setForm(createEmptyProduct());
     setBulletsText('');
     setImagesText('');
+    setSizesText('');
     setFormError('');
     setUploadStatus('');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -137,15 +150,18 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setUploadStatus('');
     if (editingProduct) {
       const urls = normalizeHttpsUrls(editingProduct.images || []);
+      const existingSizes = Array.from(new Set((editingProduct.sizes || []).map(size => String(size || '').trim()).filter(Boolean)));
       setForm({
         ...editingProduct,
         images: urls,
+        sizes: existingSizes,
         hoverImage: editingProduct.hoverImage && urls.includes(editingProduct.hoverImage) ? editingProduct.hoverImage : '',
         completeTheSetProductId: editingProduct.completeTheSetProductId || '',
         bulletDetails: editingProduct.bulletDetails || []
       });
       setBulletsText((editingProduct.bulletDetails || []).join('\n'));
       setImagesText(urls.join('\n'));
+      setSizesText(existingSizes.join(', '));
     } else {
       resetEditorState();
     }
@@ -174,6 +190,22 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
       hoverImage: current.hoverImage && unique.includes(current.hoverImage) ? current.hoverImage : ''
     }));
   }, []);
+
+  const syncSizes = useCallback((value: string) => {
+    setSizesText(value);
+    const parsed = parseSizesText(value);
+    setForm(current => ({ ...current, sizes: parsed }));
+  }, []);
+
+  const toggleCommonSize = useCallback((size: string) => {
+    const currentSizes = parseSizesText(sizesText);
+    const nextSizes = currentSizes.includes(size)
+      ? currentSizes.filter(item => item !== size)
+      : [...currentSizes, size];
+    const nextText = nextSizes.join(', ');
+    setSizesText(nextText);
+    setForm(current => ({ ...current, sizes: nextSizes }));
+  }, [sizesText]);
 
   const removeImageUrl = (url: string) => syncImages(imageUrls.filter(item => item !== url));
   const makePrimaryImage = (url: string) => syncImages([url, ...imageUrls.filter(item => item !== url)]);
@@ -233,7 +265,7 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
 
     const price = Number(form.priceLKR);
     const stock = Number(form.stockCount);
-    const normalizedSizes = Array.from(new Set((form.sizes || []).map(size => size.trim()).filter(Boolean)));
+    const normalizedSizes = parseSizesText(sizesText);
     const parsedImages = normalizeHttpsUrls(imageUrls);
     const publishCheck = getProductCompletion({ ...form, images: parsedImages, sizes: normalizedSizes });
 
@@ -405,7 +437,35 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div><label className="form-label-custom">Sizes {form.category !== 'accessories' ? '*' : '(optional)'}</label><input type="text" required={form.category !== 'accessories'} value={(form.sizes || []).join(', ')} onChange={event => setForm(current => ({ ...current, sizes: event.target.value.split(',').map(value => value.trim()).filter(Boolean) }))} placeholder="S, M, L, XL" className="form-input-custom" /></div>
+                <div>
+                  <label className="form-label-custom">Sizes {form.category !== 'accessories' ? '*' : '(optional)'}</label>
+                  <div className="mb-2 flex flex-wrap gap-1.5" aria-label="Common size options">
+                    {COMMON_SIZE_OPTIONS.map(size => {
+                      const selected = parseSizesText(sizesText).includes(size);
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => toggleCommonSize(size)}
+                          className={`min-w-9 rounded-lg border px-2.5 py-1.5 text-[10px] font-extrabold transition-colors ${selected ? 'border-[#051C12] bg-[#051C12] text-white' : 'border-stone-200 bg-white text-stone-600 hover:border-stone-400'}`}
+                        >
+                          {size}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="text"
+                    required={form.category !== 'accessories'}
+                    value={sizesText}
+                    onChange={event => syncSizes(event.target.value)}
+                    placeholder="S, M, L, XL"
+                    className="form-input-custom"
+                    autoComplete="off"
+                  />
+                  <p className="mt-1 text-[10px] leading-relaxed text-stone-400">Select sizes above or type custom sizes separated by commas.</p>
+                </div>
                 <div><label className="form-label-custom">Color *</label><input type="text" required value={form.color || ''} onChange={event => setForm(current => ({ ...current, color: event.target.value }))} placeholder="Ivory" className="form-input-custom" /></div>
                 <div><label className="form-label-custom">Fit *</label><input type="text" required value={form.fit || ''} onChange={event => setForm(current => ({ ...current, fit: event.target.value }))} placeholder="Relaxed Tailored Fit" className="form-input-custom" /></div>
               </div>
