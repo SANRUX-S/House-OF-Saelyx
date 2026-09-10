@@ -9,6 +9,7 @@ const DATABASE_ID = process.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-saelyxma
 const ROOT_ADMIN_EMAIL = 'saelyxe.co@gmail.com';
 const MAX_UPLOAD_BYTES = 2_100_000;
 const MAX_REQUEST_BASE64_CHARS = 3_000_000;
+const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
 
 function safeString(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -20,13 +21,12 @@ function getProjectId() {
 
 function getBucketCandidates() {
   const projectId = getProjectId();
+  const configured = safeString(process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET, 300);
   return Array.from(new Set([
-    process.env.FIREBASE_STORAGE_BUCKET?.trim(),
-    process.env.VITE_FIREBASE_STORAGE_BUCKET?.trim(),
+    configured,
     `${projectId}.firebasestorage.app`,
-    `${projectId}.appspot.com`,
-    'gen-lang-client-0800900976.firebasestorage.app'
-  ].filter((value): value is string => Boolean(value))));
+    `${projectId}.appspot.com`
+  ].filter(Boolean)));
 }
 
 function ensureAdminApp() {
@@ -34,12 +34,14 @@ function ensureAdminApp() {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   const projectId = getProjectId();
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const storageBucket = getBucketCandidates()[0];
   if (!projectId || !clientEmail || !privateKey || privateKey.startsWith('replace-with-')) {
     throw new Error('Firebase Admin credentials are not configured.');
   }
+  if (!storageBucket) throw new Error('Firebase Storage bucket is not configured.');
   initializeApp({
     credential: cert({ projectId, clientEmail, privateKey }),
-    storageBucket: getBucketCandidates()[0]
+    storageBucket
   });
 }
 
@@ -84,11 +86,11 @@ async function hasValidAppCheck(req: any) {
 
 async function enforceUploadRateLimit(uid: string) {
   const db = getFirestore(DATABASE_ID);
-  const key = crypto.createHash('sha256').update(`media-upload-v2:${uid}`).digest('hex');
+  const key = crypto.createHash('sha256').update(`media-upload:${uid}`).digest('hex');
   const ref = db.collection('security_rate_limits').doc(key);
   const now = Date.now();
   const windowMs = 10 * 60_000;
-  const limit = 100;
+  const limit = 40;
   return db.runTransaction(async transaction => {
     const snap = await transaction.get(ref);
     const data: any = snap.exists ? snap.data() || {} : {};
@@ -122,9 +124,18 @@ function cleanBase64(value: string) {
   return value.replace(/^data:[^;]+;base64,/, '').replace(/\s+/g, '');
 }
 
-async function saveToFirstAvailableBucket(buffer: Buffer, objectPath: string, contentType: string, downloadToken: string, uid: string) {
+async function saveToFirstAvailableBucket(
+  buffer: Buffer,
+  objectPath: string,
+  contentType: string,
+  downloadToken: string,
+  uid: string,
+  kind: 'products' | 'settings'
+) {
+  const candidates = getBucketCandidates();
+  if (!candidates.length) throw new Error('Firebase Storage bucket is not configured.');
   const errors: string[] = [];
-  for (const bucketName of getBucketCandidates()) {
+  for (const bucketName of candidates) {
     try {
       const object = getStorage().bucket(bucketName).file(objectPath);
       await object.save(buffer, {
@@ -136,7 +147,7 @@ async function saveToFirstAvailableBucket(buffer: Buffer, objectPath: string, co
           metadata: {
             firebaseStorageDownloadTokens: downloadToken,
             saelyxeUploadedBy: uid,
-            saelyxeMediaKind: 'products'
+            saelyxeMediaKind: kind
           }
         }
       });
@@ -146,13 +157,14 @@ async function saveToFirstAvailableBucket(buffer: Buffer, objectPath: string, co
       errors.push(`${bucketName}: ${message.slice(0, 180)}`);
     }
   }
-  console.error('SAELYXE Firebase Storage upload failed for all bucket candidates:', errors);
-  throw new Error('Firebase Storage rejected the image on every configured bucket.');
+  console.error('SAELYXE Firebase Storage upload failed for configured bucket candidates:', errors);
+  throw new Error('Firebase Storage rejected the image. Verify the configured storage bucket and service-account access.');
 }
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -164,13 +176,16 @@ export default async function handler(req: any, res: any) {
     const token = await readAdminToken(req);
     if (!token || !(await isAdmin(token))) return res.status(403).json({ error: 'Admin access required for image upload.' });
     if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed. Refresh the admin page and retry.' });
-    if (!(await enforceUploadRateLimit(token.uid))) return res.status(429).json({ error: 'Too many image uploads. Please wait and retry.' });
+    if (!(await enforceUploadRateLimit(token.uid))) return res.status(429).json({ error: 'Too many image uploads. Please wait a few minutes and try again.' });
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const kind = safeString(body.kind, 20);
+    const kind = safeString(body.kind, 20) as 'products' | 'settings';
     if (!['products', 'settings'].includes(kind)) return res.status(400).json({ error: 'Invalid media destination.' });
 
     const requestedName = safeString(body.fileName, 140) || 'saelyxe-image.webp';
+    const claimedMime = safeString(body.mimeType, 40).toLowerCase();
+    if (!ALLOWED_MIMES.has(claimedMime)) return res.status(415).json({ error: 'Only JPG, PNG, WebP, or AVIF images are accepted.' });
+
     const encoded = cleanBase64(safeString(body.dataBase64, MAX_REQUEST_BASE64_CHARS));
     if (!encoded) return res.status(400).json({ error: 'No image data was received from the computer.' });
 
@@ -185,19 +200,26 @@ export default async function handler(req: any, res: any) {
     }
 
     const detectedMime = detectMime(buffer);
-    if (!detectedMime) return res.status(415).json({ error: 'Only valid JPG, PNG, WebP, or AVIF images are accepted.' });
+    if (!detectedMime || !ALLOWED_MIMES.has(detectedMime)) {
+      return res.status(415).json({ error: 'Only valid JPG, PNG, WebP, or AVIF images are accepted.' });
+    }
+    if (claimedMime !== detectedMime) {
+      return res.status(415).json({ error: 'The image file type does not match its content.' });
+    }
 
     const ext = detectedMime === 'image/jpeg' ? 'jpg' : detectedMime.split('/')[1];
     const baseName = requestedName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 100) || `saelyxe-${Date.now()}`;
     const folder = kind === 'settings' ? 'saelyxe/settings' : 'saelyxe/products';
     const objectPath = `${folder}/${Date.now()}-${crypto.randomUUID()}-${baseName}.${ext}`;
     const downloadToken = crypto.randomUUID();
-    const saved = await saveToFirstAvailableBucket(buffer, objectPath, detectedMime, downloadToken, token.uid);
+    const saved = await saveToFirstAvailableBucket(buffer, objectPath, detectedMime, downloadToken, token.uid, kind);
     const secureUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(saved.bucketName)}/o/${encodeURIComponent(saved.objectPath)}?alt=media&token=${encodeURIComponent(downloadToken)}`;
 
     return res.status(201).json({ secureUrl, bytes: buffer.length, format: ext, provider: 'firebase_storage' });
   } catch (error) {
     console.error('SAELYXE media upload error:', error);
-    return res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to upload image right now.' });
+    const message = error instanceof Error ? error.message : 'Unable to upload image right now.';
+    const status = /not configured/i.test(message) ? 503 : 500;
+    return res.status(status).json({ error: message });
   }
 }
