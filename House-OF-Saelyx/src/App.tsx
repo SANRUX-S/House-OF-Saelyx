@@ -76,10 +76,12 @@ const StoreContent: React.FC = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [currentRoute.name, (currentRoute as any).slug, (currentRoute as any).category]);
 
-  // Admin number fields frequently start at 0. Select that placeholder value on
-  // first focus so typing "1" replaces 0 instead of producing an awkward "01".
+  // Admin number fields frequently start at 0. Selecting the field is convenient,
+  // and this key handler guarantees that the first typed digit replaces 0 instead
+  // of producing an awkward 01 value in a controlled React number input.
   React.useEffect(() => {
     if (currentRoute.name !== 'admin') return;
+
     const handleNumberFocus = (event: FocusEvent) => {
       const input = event.target instanceof HTMLInputElement ? event.target : null;
       if (!input || input.type !== 'number' || input.value !== '0') return;
@@ -87,8 +89,23 @@ const StoreContent: React.FC = () => {
         if (document.activeElement === input && input.value === '0') input.select();
       });
     };
+
+    const handleNumberKeyDown = (event: KeyboardEvent) => {
+      const input = event.target instanceof HTMLInputElement ? event.target : null;
+      if (!input || input.type !== 'number' || input.value !== '0' || !/^[0-9]$/.test(event.key)) return;
+      event.preventDefault();
+      const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      if (nativeValueSetter) nativeValueSetter.call(input, event.key);
+      else input.value = event.key;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
     document.addEventListener('focusin', handleNumberFocus);
-    return () => document.removeEventListener('focusin', handleNumberFocus);
+    document.addEventListener('keydown', handleNumberKeyDown, true);
+    return () => {
+      document.removeEventListener('focusin', handleNumberFocus);
+      document.removeEventListener('keydown', handleNumberKeyDown, true);
+    };
   }, [currentRoute.name]);
 
   if (currentRoute.name === 'admin') {
