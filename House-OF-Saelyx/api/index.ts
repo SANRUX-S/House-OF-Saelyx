@@ -3901,6 +3901,34 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+app.get('/api/orders/:id/details', async (req, res) => {
+  try {
+    const adminDb = getAdminDb();
+    if (!adminDb) return res.status(503).json({ error: 'Order service is not configured.' });
+    if (!(await hasValidAppCheck(req))) return res.status(401).json({ error: 'App integrity check failed.' });
+    const id = safeString(req.params.id, 120);
+    const snap = await adminDb.collection('orders').doc(id).get();
+    if (!snap.exists) return res.status(404).json({ error: 'Order not found.' });
+    const order: any = { id: snap.id, ...snap.data() };
+    const access = await authorizeCustomerOrderAccess(req, adminDb, order);
+    if (!access) return res.status(403).json({ error: 'Order access denied.' });
+    if (!(await enforceRateLimit(adminDb, `order-details:${access.rateKey}`, 60, 60 * 60_000))) return res.status(429).json({ error: 'Too many order detail requests. Please wait and try again.' });
+    const items = Array.isArray(order.items) ? order.items.slice(0, 80).map((item: any) => ({
+      productId: safeString(item?.productId, 160), title: safeString(item?.title, 300), image: safeString(item?.image, 2000), size: safeString(item?.size, 80),
+      quantity: Math.max(1, Math.min(99, Math.floor(Number(item?.quantity) || 1))), priceLKR: Math.max(0, Number(item?.priceLKR) || 0)
+    })) : [];
+    return res.json({
+      id: order.id, orderNumber: safeString(order.orderNumber, 120), userId: safeString(order.userId, 160) || null, guestCheckout: order.guestCheckout === true,
+      customerName: safeString(order.customerName, 200), email: safeString(order.email || order.customerEmail, 254), phone: safeString(order.phone, 80), address: safeString(order.address, 500), city: safeString(order.city, 200), postalCode: safeString(order.postalCode, 80), country: safeString(order.country, 120),
+      items, subtotalLKR: Math.max(0, Number(order.subtotalLKR) || 0), discountLKR: Math.max(0, Number(order.discountLKR) || 0), shippingLKR: Math.max(0, Number(order.shippingLKR) || 0), totalLKR: Math.max(0, Number(order.totalLKR) || 0), currencyUsed: safeString(order.currencyUsed, 10), totalInCurrency: Math.max(0, Number(order.totalInCurrency) || 0),
+      status: safeString(order.status, 40), paymentMethod: safeString(order.paymentMethod, 40), paymentStatus: safeString(order.paymentStatus, 60), payzySandboxVerified: order.payzySandboxVerified === true, promoCode: safeString(order.promoCode, 80), createdAt: safeString(order.createdAt, 80), updatedAt: safeString(order.updatedAt, 80),
+      trackingNumber: safeString(order.trackingNumber, 160), courierName: safeString(order.courierName, 160), deliveryEta: safeString(order.deliveryEta, 160), cancellationRequestStatus: safeString(order.cancellationRequestStatus, 40), cancellationReason: safeString(order.cancellationReason, 500), timeline: Array.isArray(order.timeline) ? order.timeline.slice(-30) : []
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to load order details.' });
+  }
+});
+
 app.get('/api/orders/:id', async (req, res) => {
   try {
     const adminDb = getAdminDb();

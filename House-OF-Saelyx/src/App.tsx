@@ -133,36 +133,7 @@ const StoreContent: React.FC = () => {
       case 'collection':
         return <CollectionPage category={currentRoute.category || 'all'} />;
       case 'checkout':
-        if (!user) {
-          return (
-            <section className="min-h-[65vh] flex items-center justify-center px-6 py-24 bg-[#F8F6F2]">
-              <div className="w-full max-w-lg rounded-3xl border border-[#DED5C9] bg-white p-8 sm:p-10 text-center shadow-sm">
-                <p className="text-[10px] uppercase tracking-[0.26em] text-[#8A7B6A]">Secure Checkout</p>
-                <h1 className="mt-3 font-serif text-3xl text-[#1A1816]">Sign in to continue</h1>
-                <p className="mt-3 text-sm leading-relaxed text-[#6B5E50]">
-                  SAELYXE checkout is available to signed-in customers only. Your bag stays available while you sign in or create an account.
-                </p>
-                <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsAuthOpen(true)}
-                    className="rounded-full bg-[#1A1816] px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white hover:bg-black"
-                  >
-                    Sign In / Create Account
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigateTo({ name: 'home' })}
-                    className="rounded-full border border-[#CFC4B6] px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#1A1816] hover:bg-[#F3EDE4]"
-                  >
-                    Continue Shopping
-                  </button>
-                </div>
-              </div>
-            </section>
-          );
-        }
-        return <CheckoutPage key={user.uid} />;
+        return <CheckoutPage />;
       case 'profile':
         return <ProfilePage />;
       case 'orders':

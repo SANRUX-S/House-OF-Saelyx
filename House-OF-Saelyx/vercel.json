@@ -34,6 +34,7 @@
     { "source": "/api/admin/products/:id", "destination": "/api/admin-product?id=:id" },
     { "source": "/api/admin/maintenance/purge-legacy-demo-fixtures", "destination": "/api/maintenance-retired" },
     { "source": "/api/admin/maintenance/purge-legacy-test-products", "destination": "/api/maintenance-retired" },
+    { "source": "/api/auth/customer-verification", "destination": "/api/customer-verification" },
     { "source": "/api/orders", "destination": "/api/orders-guard" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/api/(.*)", "destination": "/api" },

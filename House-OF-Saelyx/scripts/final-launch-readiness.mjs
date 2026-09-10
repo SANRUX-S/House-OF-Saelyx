@@ -12,6 +12,7 @@ function check(condition, label, mode = 'code-ready') {
 
 const api = read('api/index.ts');
 const ordersGuard = read('api/orders-guard.ts');
+const customerVerification = read('api/customer-verification.ts');
 const checkout = read('src/components/CheckoutPage.tsx');
 const googlePayTest = read('src/components/GooglePayTestButton.tsx');
 const app = read('src/App.tsx');
@@ -28,14 +29,15 @@ const vercel = read('vercel.json');
 const fallback = JSON.parse(read('data/saelyx_store.json'));
 
 check(api.includes("app.get('/api/admin/health'") && adminSecurity.includes('/api/admin/health'), 'Super Admin health surface is protected and wired');
-check(app.includes("case 'checkout':") && app.includes('if (!user)'), 'Checkout requires a signed-in customer account');
-check(checkout.includes("useState<'paypal' | 'payzy' | 'googlepay' | null>"), 'Checkout keeps PayPal/Payzy live and includes a gated Google Pay review state');
+check(app.includes("case 'checkout':") && !app.includes('SAELYXE checkout is available to signed-in customers only'), 'Checkout supports guest and signed-in customers');
+check(checkout.includes("useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>"), 'Checkout keeps PayPal/Payzy/COD and includes a gated Google Pay review state');
 check(checkout.includes('saelyxe_google_pay_review_v1') && googlePayTest.includes("environment: 'TEST'"), 'Google Pay review flow is gated and non-chargeable', 'requires-google-review');
 check(!checkout.includes("paymentMethod: 'googlepay'"), 'Google Pay review flow cannot create a production order before a real processor is connected');
-check(!checkout.includes('PLACE CASH ON DELIVERY ORDER') && !checkout.includes("paymentMethod: 'cod'"), 'Cash on Delivery is removed from customer checkout');
-check(ordersGuard.includes('verifyIdToken') && ordersGuard.includes('email_verified !== true'), 'Server order guard verifies signed-in customer identity');
-check(ordersGuard.includes("!['paypal', 'payzy'].includes(paymentMethod)"), 'Server order guard rejects unsupported/live-unconfigured payment methods');
-check(vercel.includes('"source": "/api/orders"') && vercel.includes('"destination": "/api/orders-guard"'), 'Production order creation routes through the account-only guard');
+check(checkout.includes('PLACE CASH ON DELIVERY ORDER') && checkout.includes("paymentMethod: 'cod'"), 'Cash on Delivery is available and server-backed');
+check(ordersGuard.includes("!['paypal', 'payzy', 'cod'].includes(paymentMethod)"), 'Server order guard restricts checkout to PayPal, Payzy, or COD');
+check(api.includes('const isGuestCheckout = !authToken') && api.includes("paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'"), 'Core order API securely supports guests and unpaid COD');
+check(customerVerification.includes('api.resend.com/emails') && customerVerification.includes('www.saelyxe.com/verify-email?code='), 'Email verification uses a branded SAELYXE delivery/link flow');
+check(vercel.includes('"source": "/api/orders"') && vercel.includes('"destination": "/api/orders-guard"'), 'Production order creation routes through the checkout method guard');
 check(api.includes("app.post('/api/payments/paypal/capture/:orderId'") && api.includes('verifyPayPalOrder'), 'PayPal capture is verified server-side', 'requires-real-money');
 check(api.includes("app.post('/api/payments/payzy/create/:orderId'") && api.includes('verifyPayzyReturnSignature'), 'Payzy signed provider flow is implemented', 'requires-provider');
 check(mediaUpload.includes('BLOB_READ_WRITE_TOKEN') && mediaUpload.includes('verifyIdToken'), 'Administrator media uses protected Vercel Blob upload');

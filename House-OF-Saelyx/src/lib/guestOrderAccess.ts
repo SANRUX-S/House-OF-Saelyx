@@ -71,3 +71,18 @@ export function clearGuestOrderAccess(orderId: string) {
   delete store[id];
   writeStore(store);
 }
+
+export function listGuestOrderAccessIds(): string[] {
+  const store = readStore();
+  const now = Date.now();
+  let changed = false;
+  for (const [orderId, record] of Object.entries(store)) {
+    const expiresMs = Date.parse(record?.expiresAt || '');
+    if (!record?.token || (Number.isFinite(expiresMs) && expiresMs <= now)) {
+      delete store[orderId];
+      changed = true;
+    }
+  }
+  if (changed) writeStore(store);
+  return Object.keys(store);
+}

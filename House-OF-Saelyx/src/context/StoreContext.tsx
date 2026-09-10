@@ -32,6 +32,7 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   sendEmailVerification,
+  applyActionCode,
   sendPasswordResetEmail,
   signOut as fbSignOut, 
   updateProfile,
@@ -508,6 +509,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Ref to prevent onAuthStateChanged from creating a fallback profile doc during active email signup
   const activeSignupEmailRef = useRef<string | null>(null);
 
+
+  // Handle branded SAELYXE verification links on our own domain instead of the Firebase default action page.
+  useEffect(() => {
+    if (window.location.pathname !== '/verify-email') return;
+    const code = new URLSearchParams(window.location.search).get('code')?.trim() || '';
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        if (!code) throw new Error('missing_verification_code');
+        await applyActionCode(auth, code);
+        try { await fbSignOut(auth); } catch { /* verification is already complete */ }
+        if (cancelled) return;
+        setUser(null);
+        sessionStorage.setItem('saelyxe_email_verification_notice', 'success');
+      } catch {
+        if (cancelled) return;
+        sessionStorage.setItem('saelyxe_email_verification_notice', 'error');
+      } finally {
+        if (cancelled) return;
+        window.history.replaceState({}, '', '/');
+        setAuthMode('signin');
+        setIsAuthOpen(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
+
   // Listen to Firebase Auth state. Privileged roles come only from trusted
   // Firebase custom claims, the protected admins collection, or the configured
   // administrator allowlist — never from the customer-editable users document.
@@ -532,6 +562,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // If an email signup is in-flight, allow signupWithEmail to write the definitive profile with the real customer name
       if (activeSignupEmailRef.current === fbUser.email?.trim().toLowerCase()) {
+        return;
+      }
+
+      const passwordProvider = fbUser.providerData.some(provider => provider.providerId === 'password');
+      const configuredSessionRole = getConfiguredAdminRole(fbUser.email, fbUser.emailVerified);
+      if (passwordProvider && !fbUser.emailVerified && !configuredSessionRole) {
+        setUser(null);
         return;
       }
 
@@ -706,7 +743,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const fetchAuthenticatedPublicApi = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const currentUser = auth.currentUser;
-    const token = currentUser ? await currentUser.getIdToken() : null;
+    const passwordNeedsVerification = Boolean(currentUser?.providerData.some(provider => provider.providerId === 'password') && !currentUser.emailVerified && !getConfiguredAdminRole(currentUser.email, currentUser.emailVerified));
+    const token = currentUser && !passwordNeedsVerification ? await currentUser.getIdToken() : null;
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
     const appCheckHeaders = await getAppCheckRequestHeaders();
@@ -1365,6 +1403,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const dispatchCustomerVerification = async (fbUser: any, displayName?: string) => {
+    const token = await fbUser.getIdToken();
+    const appCheckHeaders = await getAppCheckRequestHeaders();
+    const response = await fetch('/api/auth/customer-verification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...appCheckHeaders
+      },
+      body: JSON.stringify({ name: displayName || fbUser.displayName || '' })
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload?.error || 'Unable to send branded verification email.');
+    }
+  };
+
   const loginWithEmail = async (email: string, pass: string): Promise<boolean> => {
     if (isAuthLoading) return false;
     setIsAuthLoading(true);
@@ -1372,6 +1428,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const res = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), pass);
       const fbUser = res.user;
+
+      if (!fbUser.emailVerified && !getConfiguredAdminRole(fbUser.email, fbUser.emailVerified)) {
+        try {
+          await dispatchCustomerVerification(fbUser, fbUser.displayName || undefined);
+        } catch (verificationError) {
+          console.warn('Branded verification dispatch fallback:', verificationError);
+          try { await sendEmailVerification(fbUser); } catch { /* Firebase may throttle repeat verification emails. */ }
+        }
+        await fbSignOut(auth);
+        setUser(null);
+        setAuthError('Please verify your email before signing in. We sent a new SAELYXE verification link to your inbox.');
+        return false;
+      }
 
       let existingData: Partial<AppUser> = {};
       try {
@@ -1430,11 +1499,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Update Auth displayName
       await updateProfile(res.user, { displayName: cleanName });
 
-      // Send verification email safely
+      // Send the branded SAELYXE verification message from the configured Resend sender.
+      // Firebase's default template remains an emergency fallback only.
       try {
-        await sendEmailVerification(res.user);
+        await dispatchCustomerVerification(res.user, cleanName);
       } catch (verifyErr) {
-        console.warn('Verification email dispatch note:', verifyErr);
+        console.warn('Branded verification email dispatch note:', verifyErr);
+        try { await sendEmailVerification(res.user); } catch (fallbackErr) { console.warn('Firebase verification fallback note:', fallbackErr); }
       }
 
       const newUser: AppUser = {
@@ -1457,7 +1528,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Firestore user profile creation note:', e);
       }
 
-      setUser(newUser);
+      await fbSignOut(auth);
+      setUser(null);
       activeSignupEmailRef.current = null;
       return true;
     } catch (err: unknown) {

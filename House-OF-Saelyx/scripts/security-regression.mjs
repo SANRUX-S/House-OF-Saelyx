@@ -14,6 +14,7 @@ function assert(condition, message) {
 
 const api = read('api/index.ts');
 const ordersGuard = read('api/orders-guard.ts');
+const customerVerification = read('api/customer-verification.ts');
 const mediaUpload = read('api/media-upload.ts');
 const store = read('src/context/StoreContext.tsx');
 const app = read('src/App.tsx');
@@ -72,20 +73,22 @@ assert(mediaUpload.includes('hasValidAppCheck') || mediaUpload.includes('verifyT
 assert(mediaUpload.includes('verifyIdToken'), 'media upload must validate Firebase administrator identity');
 assert(!mediaUpload.includes('CLOUDINARY_API_SECRET'), 'Cloudinary secrets must not return to the media path');
 
-assert(app.includes("case 'checkout':") && app.includes('if (!user)'), 'storefront must block guest checkout before rendering payment UI');
-assert(app.includes('SAELYXE checkout is available to signed-in customers only'), 'guest checkout block must explain the requirement');
-assert(checkout.includes("useState<'paypal' | 'payzy' | 'googlepay' | null>"), 'checkout may expose the isolated Google Pay review mode in addition to live PayPal/Payzy');
+assert(app.includes("case 'checkout':") && !app.includes('SAELYXE checkout is available to signed-in customers only'), 'storefront must allow guest checkout to render');
+assert(checkout.includes("useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>"), 'checkout must support PayPal, Payzy, COD, plus isolated Google Pay review mode');
 assert(checkout.includes("saelyxe_google_pay_review_v1") && checkout.includes("gpaytest"), 'Google Pay review UI must remain explicitly gated');
 assert(googlePayTest.includes("environment: 'TEST'"), 'Google Pay review flow must stay in the non-chargeable TEST environment');
 assert(googlePayTest.includes("gateway: 'example'") && googlePayTest.includes("gatewayMerchantId: 'exampleGatewayMerchantId'"), 'Google Pay review flow must use test tokenization only');
 assert(googlePayTest.includes('no card can be charged') && checkout.includes('no production order was created'), 'Google Pay review flow must not masquerade as a live paid order');
 assert(!checkout.includes("paymentMethod: 'googlepay'"), 'Google Pay review mode must not persist production orders before a real processor is connected');
-assert(!checkout.includes("paymentMethod: 'cod'"), 'checkout must not create Cash on Delivery orders');
-assert(!checkout.includes('PLACE CASH ON DELIVERY ORDER'), 'checkout must not expose a Cash on Delivery action');
-assert(!checkout.includes('createCodCheckoutAttemptId'), 'COD idempotency flow must be removed from customer checkout');
-assert(ordersGuard.includes('verifyIdToken'), 'order-creation guard must cryptographically verify the customer Firebase token');
-assert(ordersGuard.includes("!['paypal', 'payzy'].includes(paymentMethod)"), 'order-creation guard must reject non-live payment methods');
-assert(ordersGuard.includes('email_verified !== true'), 'order-creation guard must require a verified account');
+assert(checkout.includes("paymentMethod: 'cod'"), 'checkout must create server-backed Cash on Delivery orders');
+assert(checkout.includes('PLACE CASH ON DELIVERY ORDER'), 'checkout must expose Cash on Delivery');
+assert(checkout.includes('createCodCheckoutAttemptId'), 'COD checkout must use an idempotent attempt identifier');
+assert(ordersGuard.includes("!['paypal', 'payzy', 'cod'].includes(paymentMethod)"), 'order-creation guard must allow only PayPal, Payzy, or COD');
+assert(api.includes('const isGuestCheckout = !authToken'), 'core order API must preserve secure guest checkout');
+assert(api.includes("paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'"), 'COD must remain explicitly unpaid');
+assert(customerVerification.includes('generateEmailVerificationLink') && customerVerification.includes('api.resend.com/emails'), 'customer verification must use Firebase action codes delivered through branded Resend email');
+assert(customerVerification.includes('www.saelyxe.com/verify-email?code='), 'verification links must return to the SAELYXE domain');
+assert(api.includes("app.get('/api/orders/:id/details'") && api.includes('authorizeCustomerOrderAccess(req, adminDb, order)'), 'guest order details must require signed-in ownership or scoped guest capability access');
 assert(vercel.includes('"source": "/api/orders"') && vercel.includes('"destination": "/api/orders-guard"'), 'production order creation must pass through the account-only guard');
 
 assert(api.includes("app.post('/api/payments/paypal/capture/:orderId'"), 'PayPal server capture route must exist');

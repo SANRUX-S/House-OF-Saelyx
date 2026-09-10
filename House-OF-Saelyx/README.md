@@ -20,7 +20,7 @@ SAELYXE is the production e-commerce storefront and protected administrator appl
 
 ## Checkout rules
 
-SAELYXE checkout requires an authenticated customer account. Guest browsing is allowed, but guest checkout is blocked. PayPal and Payzy orders must never be treated as paid until the payment is verified by the trusted server-side flow. Cash on Delivery is not supported.
+SAELYXE checkout supports guests and signed-in customers. Guest order access is protected by a scoped browser capability token. PayPal and Payzy orders must never be treated as paid until the payment is verified by the trusted server-side flow. Cash on Delivery is not supported.
 
 ## Server configuration
 

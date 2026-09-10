@@ -41,6 +41,18 @@ function createPayzyCheckoutAttemptId() {
   throw new Error('Secure checkout identifier generation is unavailable.');
 }
 
+function createCodCheckoutAttemptId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `cod-${crypto.randomUUID()}`;
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const values = new Uint32Array(4);
+    crypto.getRandomValues(values);
+    return `cod-${Array.from(values, value => value.toString(36)).join('-')}`;
+  }
+  throw new Error('Secure checkout identifier generation is unavailable.');
+}
+
 const PayzyMark: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
   <svg data-testid="payzy-mark" className={className} viewBox="0 0 64 64" fill="none" aria-hidden="true">
     <path d="M8 8h29c11.6 0 19 7.7 19 18.4 0 10.6-7.5 18.3-19 18.3H25.7L8 58V8Z" fill="#13A8DD" />
@@ -133,7 +145,7 @@ export const CheckoutPage: React.FC = () => {
     if (user.country && (!savedDetailsObj || !savedDetailsObj.country)) setCountry(user.country);
   }, [user]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'googlepay' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>(null);
   const [paymentConfig, setPaymentConfig] = useState({
     paypal: { enabled: true, clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || '', mode: 'sandbox' },
     payzy: { enabled: true, configured: false, mode: 'sandbox' as 'sandbox' | 'live', testAmountLKR: 10 as number | null }
@@ -181,22 +193,18 @@ export const CheckoutPage: React.FC = () => {
   const [paypalPendingOrder, setPaypalPendingOrder] = useState<Order | null>(null);
   const paypalPendingOrderRef = useRef<Order | null>(null);
   const paypalCheckoutAttemptIdRef = useRef<string | null>(null);
+  const codCheckoutAttemptIdRef = useRef<string | null>(null);
   const payzyCheckoutAttemptIdRef = useRef<string | null>(null);
   const payzyReturnHandledRef = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const isPayzyReturn = params.has('payzy') && params.has('orderId');
-    if (!user && !isPayzyReturn) {
-      navigateTo({ name: 'home' });
-      setIsAuthOpen(true);
-      return;
-    }
     if (cart.length === 0 && !confirmedOrder && !isPayzyReturn) {
       navigateTo({ name: 'home' });
       setIsCartOpen(true);
     }
-  }, [user, cart.length, confirmedOrder, navigateTo, setIsAuthOpen, setIsCartOpen]);
+  }, [cart.length, confirmedOrder, navigateTo, setIsCartOpen]);
 
   const customerName = `${firstName.trim()} ${lastName.trim()}`.trim();
   const isDetailsChanged = !!(savedDetailsObj && (
@@ -276,7 +284,7 @@ export const CheckoutPage: React.FC = () => {
     return reconciled;
   };
 
-  const handlePaymentMethodChange = async (method: 'paypal' | 'payzy' | 'googlepay') => {
+  const handlePaymentMethodChange = async (method: 'paypal' | 'payzy' | 'cod' | 'googlepay') => {
     if (paymentSwitchInFlightRef.current || isSubmitting) return;
     paymentSwitchInFlightRef.current = true;
     setIsSwitchingPayment(true);
@@ -370,11 +378,50 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handlePayzyOrder = async () => {
-    if (!user) {
-      setIsAuthOpen(true);
+  const handleCodOrder = async () => {
+    if (cart.length === 0) {
+      setFieldErrors(previous => ({ ...previous, general: 'Your shopping bag is empty. Please select garments before placing an order.' }));
       return;
     }
+    if (!validateDeliveryDetails()) return;
+    if (country.trim().toLowerCase() !== 'sri lanka') {
+      setFieldErrors(previous => ({ ...previous, general: 'Cash on Delivery is currently available only for Sri Lankan delivery addresses.' }));
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFieldErrors(previous => ({ ...previous, general: undefined }));
+    try {
+      const order = await createOrder({
+        customerName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        postalCode: postalCode.trim(),
+        country: country.trim() || 'Sri Lanka',
+        items: cart.map(item => ({ productId: item.productId, size: item.size, quantity: item.quantity })),
+        currencyUsed: selectedCurrency?.code || 'LKR',
+        paymentMethod: 'cod',
+        promoCode: appliedPromo?.code,
+        checkoutAttemptId: codCheckoutAttemptIdRef.current || (codCheckoutAttemptIdRef.current = createCodCheckoutAttemptId()),
+        notes: notes.trim()
+      });
+      persistDeliveryDetailsIfNeeded();
+      setConfirmedOrder(order);
+      codCheckoutAttemptIdRef.current = null;
+      clearCart();
+    } catch (error) {
+      console.error('COD checkout exception:', error);
+      setFieldErrors(previous => ({ ...previous, general: error instanceof Error ? error.message : 'Cash on Delivery order could not be placed.' }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePayzyOrder = async () => {
     if (cart.length === 0) {
       setFieldErrors(previous => ({ ...previous, general: 'Your shopping bag is empty. Please select garments before placing an order.' }));
       return;
@@ -456,19 +503,6 @@ export const CheckoutPage: React.FC = () => {
     })();
   }, [getPayzyPaymentStatus]);
 
-  if (!user) {
-    return (
-      <div className="min-h-[65vh] bg-[#FAF8F5] px-5 pt-32 pb-24 text-center">
-        <div className="max-w-lg mx-auto rounded-2xl border border-[#EAE3D9] bg-white p-8">
-          <Lock className="w-6 h-6 mx-auto text-[#665A4E]" />
-          <h1 className="mt-4 font-serif text-3xl">Sign in to checkout</h1>
-          <p className="mt-3 text-xs text-[#665A4E]">Guest browsing is available, but SAELYXE requires an account before payment.</p>
-          <button type="button" onClick={() => setIsAuthOpen(true)} className="mt-6 rounded-full bg-[#1A1816] px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white">Sign In / Create Account</button>
-        </div>
-      </div>
-    );
-  }
-
   if (googlePayTestComplete) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-32 pb-24 px-5 sm:px-8 select-none">
@@ -498,12 +532,12 @@ export const CheckoutPage: React.FC = () => {
         <div className="max-w-xl mx-auto bg-white p-8 sm:p-12 rounded-2xl border border-[#EAE3D9] shadow-[0_2px_16px_rgba(0,0,0,0.03)] text-center space-y-6">
           <div className="w-14 h-14 bg-[#FAF8F5] border border-[#EAE3D9] text-emerald-800 rounded-full flex items-center justify-center mx-auto"><CheckCircle2 className="w-8 h-8 stroke-[1.5]" /></div>
           <div className="space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.25em] text-emerald-900 font-medium">COMMISSION CONFIRMED & SEALED</span>
+            <span className="text-[10px] uppercase tracking-[0.25em] text-emerald-900 font-medium">ORDER PLACED</span>
             <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal">Thank you, {confirmedOrder.customerName}.</h1>
-            <p className="text-xs text-[#665A4E]">Your order reference is <strong className="font-mono text-[#1A1816]">{confirmedOrder.orderNumber}</strong>. Payment and dispatch updates will appear in your client portal.</p>
+            <p className="text-xs text-[#665A4E]">Your order reference is <strong className="font-mono text-[#1A1816]">{confirmedOrder.orderNumber}</strong>. Track this order with the reference below or open My Orders on this browser for updates.</p>
           </div>
           <div className="bg-[#FAF8F5] p-5 rounded-xl border border-[#EAE3D9] text-left space-y-3 text-xs">
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Payment Method</span><span className="font-medium text-[#1A1816] uppercase">{confirmedOrder.paymentMethod === 'paypal' ? 'PayPal' : 'Payzy'}</span></div>
+            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Payment Method</span><span className="font-medium text-[#1A1816] uppercase">{confirmedOrder.paymentMethod === 'paypal' ? 'PayPal' : confirmedOrder.paymentMethod === 'payzy' ? 'Payzy' : 'Cash on Delivery'}</span></div>
             <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Logistics Courier</span><span className="font-medium text-[#1A1816]">{confirmedOrder.courierName || 'Pending courier assignment'}</span></div>
             <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Estimated Delivery</span><span className="font-medium text-emerald-900">{confirmedOrder.deliveryEta || 'Pending courier update'}</span></div>
             <div className="flex justify-between items-center"><span className="text-[#7A6E60]">Destination</span><span className="font-medium text-[#1A1816]">{confirmedOrder.address}, {confirmedOrder.city}</span></div>
@@ -522,7 +556,7 @@ export const CheckoutPage: React.FC = () => {
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-4">
           <button type="button" onClick={() => navigateTo({ name: 'home' })} className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#665A4E] hover:text-[#1A1816] transition-colors cursor-pointer"><ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" /><span>Continue Shopping</span></button>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#665A4E]"><Lock className="w-3.5 h-3.5 text-emerald-800 stroke-[1.5]" /><span>Secure Account Checkout</span></div>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#665A4E]"><Lock className="w-3.5 h-3.5 text-emerald-800 stroke-[1.5]" /><span>{user ? 'Secure Account Checkout' : 'Secure Guest Checkout'}</span></div>
         </div>
 
         {fieldErrors.general && <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-800 flex items-start gap-2.5"><AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" /><span>{fieldErrors.general}</span></div>}
@@ -575,16 +609,16 @@ export const CheckoutPage: React.FC = () => {
 
                 <div><label htmlFor="field-notes" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">Courier Delivery Instructions (Optional)</label><input id="field-notes" type="text" value={notes} onChange={event => setNotes(event.target.value)} className="w-full h-[48px] bg-[#FCFBF9] border border-[#E5DDD2] rounded-lg px-4 text-xs text-[#1A1816] focus:outline-none focus:border-[#1A1816]" /></div>
 
-                {!hasSavedDetails ? (
+                {user && (!hasSavedDetails ? (
                   <div className="flex items-center gap-2.5 pt-2"><input id="remember-details-chk" type="checkbox" checked={rememberDetails} onChange={event => setRememberDetails(event.target.checked)} className="w-4 h-4 accent-[#1A1816]" /><label htmlFor="remember-details-chk" className="text-xs text-[#5A4E40]">Remember my delivery details for future orders</label></div>
                 ) : isDetailsChanged ? (
                   <div className="flex items-center gap-2.5 pt-2"><input id="update-details-chk" type="checkbox" checked={updateSavedDetails} onChange={event => setUpdateSavedDetails(event.target.checked)} className="w-4 h-4 accent-[#1A1816]" /><label htmlFor="update-details-chk" className="text-xs text-amber-900 font-medium">Update my saved delivery details with these changes</label></div>
-                ) : null}
+                ) : null)}
               </div>
             </div>
 
             <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
-              <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-3.5"><div><h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2"><CreditCard className="w-4 h-4 text-[#8C7A68]" />Select Payment Method</h3><p className="text-xs text-[#7A6E60] mt-0.5">{googlePayReviewMode ? 'PayPal, Payzy, or Google Pay TEST review.' : 'PayPal or Payzy only. Cash on Delivery is not available.'}</p></div><span className="text-[10px] uppercase tracking-[0.16em] text-[#8F8171]">Step 2 of 2</span></div>
+              <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-3.5"><div><h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2"><CreditCard className="w-4 h-4 text-[#8C7A68]" />Select Payment Method</h3><p className="text-xs text-[#7A6E60] mt-0.5">{googlePayReviewMode ? 'PayPal, Payzy, Cash on Delivery, or Google Pay TEST review.' : 'PayPal, Payzy, or Cash on Delivery.'}</p></div><span className="text-[10px] uppercase tracking-[0.16em] text-[#8F8171]">Step 2 of 2</span></div>
               {fieldErrors.paymentMethod && <div className="p-3 rounded-lg border border-rose-200 bg-rose-50 text-xs text-rose-700">{fieldErrors.paymentMethod}</div>}
 
               <div className="space-y-3.5" role="radiogroup" aria-label="Payment method">
@@ -614,10 +648,6 @@ export const CheckoutPage: React.FC = () => {
                           totalLKR={totalLKR}
                           disabled={isSubmitting || isSwitchingPayment}
                           onBeforePay={() => {
-                            if (!user) {
-                              setIsAuthOpen(true);
-                              return false;
-                            }
                             if (cart.length === 0) {
                               setFieldErrors(previous => ({ ...previous, general: 'Your shopping bag is empty.' }));
                               return false;
@@ -637,10 +667,32 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 )}
 
+                <div className={`rounded-2xl border overflow-hidden ${paymentMethod === 'cod' ? 'border-[#1A1816] ring-1 ring-[#1A1816]' : 'border-[#E7E0D6]'}`}>
+                  <button type="button" role="radio" aria-label="Cash on Delivery" aria-checked={paymentMethod === 'cod'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('cod')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-[#F6F1E9] border border-[#E5DDD2] flex items-center justify-center"><Truck className="w-5 h-5 text-[#574A3D]" /></div>
+                      <div><span className="text-sm font-semibold text-[#1A1816]">Cash on Delivery</span><p className="text-[11px] text-[#665A4E] mt-1">Pay in cash when your order is delivered.</p></div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'cod' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'cod' && <div className="w-2.5 h-2.5 rounded-full bg-[#1A1816]" />}</div>
+                  </button>
+                  {paymentMethod === 'cod' && (
+                    <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EEE8DF] space-y-4">
+                      <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD7] p-4">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762]">Cash on Delivery total</p>
+                        <p className="font-serif text-xl mt-1">LKR {totalLKR.toLocaleString('en-US')}</p>
+                        <p className="text-[11px] text-[#74685B] mt-2">No online charge is made. Payment remains pending until cash is collected on delivery.</p>
+                      </div>
+                      <button id="btn-cod-place-order" type="button" onClick={handleCodOrder} disabled={isSubmitting} className="w-full min-h-[52px] rounded-xl bg-[#1A1816] text-white text-[11px] uppercase tracking-[0.18em] font-semibold disabled:opacity-50 flex items-center justify-center gap-3">
+                        <Truck className="w-4 h-4" />{isSubmitting ? 'PLACING ORDER...' : 'PLACE CASH ON DELIVERY ORDER'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {paymentConfig.paypal.enabled && (
                   <div className={`rounded-xl border overflow-hidden ${paymentMethod === 'paypal' ? 'border-[#1A1816] ring-1 ring-[#1A1816]' : 'border-[#EAE3D9]'}`}>
                     <button type="button" role="radio" aria-label="PayPal" aria-checked={paymentMethod === 'paypal'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('paypal')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait"><div><span className="text-xs uppercase font-semibold tracking-wider">PayPal</span><p className="text-[11px] text-[#665A4E] mt-0.5">Pay securely with PayPal.</p></div><div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentMethod === 'paypal' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'paypal' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}</div></button>
-                    {paymentMethod === 'paypal' && <div className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] space-y-4"><div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs"><div className="flex items-center justify-between font-medium"><span>Total Charge via PayPal:</span><span>{paypalCurrency} {paypalDisplayAmount.toFixed(2)}</span></div><p className="text-[11px] text-[#7A6E60] mt-2">Your order is confirmed only after server-side payment verification.</p></div>{paypalClientId ? <PayPalScriptProvider options={{ clientId: paypalClientId, currency: paypalCurrency }}><PayPalButtons style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }} createOrder={async () => { if (!user) throw new Error('Sign in before checkout.'); if (!validateDeliveryDetails()) throw new Error('Please complete all required delivery fields.'); let localOrder = paypalPendingOrderRef.current || paypalPendingOrder; if (!localOrder || localOrder.status === 'cancelled') { localOrder = await createOrder({ customerName, firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), address: address.trim(), city: city.trim(), postalCode: postalCode.trim(), country: country.trim() || 'Sri Lanka', items: cart.map(item => ({ productId: item.productId, size: item.size, quantity: item.quantity })), currencyUsed: selectedCurrency?.code || 'USD', paymentMethod: 'paypal', promoCode: appliedPromo?.code, checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (paypalCheckoutAttemptIdRef.current = createPayPalCheckoutAttemptId()), notes: notes.trim() }); paypalPendingOrderRef.current = localOrder; setPaypalPendingOrder(localOrder); } const started = await createPayPalPayment(localOrder.id || localOrder.orderNumber); paypalPendingOrderRef.current = started.order; setPaypalPendingOrder(started.order); return started.paypalOrderId; }} onApprove={async data => { await handlePaypalApprovedOrder(data.orderID); }} onCancel={async () => { const pending = paypalPendingOrderRef.current || paypalPendingOrder; if (pending) { try { await reconcilePendingCheckout(pending); } catch { setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage })); } } }} onError={async error => { console.error('PayPal Button Error:', error); const pending = paypalPendingOrderRef.current || paypalPendingOrder; if (pending) { try { await reconcilePendingCheckout(pending); } catch { setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage })); } } }} /></PayPalScriptProvider> : <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900 text-center">PayPal is temporarily unavailable. Please use Payzy.</div>}</div>}
+                    {paymentMethod === 'paypal' && <div className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] space-y-4"><div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs"><div className="flex items-center justify-between font-medium"><span>Total Charge via PayPal:</span><span>{paypalCurrency} {paypalDisplayAmount.toFixed(2)}</span></div><p className="text-[11px] text-[#7A6E60] mt-2">Your order is confirmed only after server-side payment verification.</p></div>{paypalClientId ? <PayPalScriptProvider options={{ clientId: paypalClientId, currency: paypalCurrency }}><PayPalButtons style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }} createOrder={async () => { if (!validateDeliveryDetails()) throw new Error('Please complete all required delivery fields.'); let localOrder = paypalPendingOrderRef.current || paypalPendingOrder; if (!localOrder || localOrder.status === 'cancelled') { localOrder = await createOrder({ customerName, firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), address: address.trim(), city: city.trim(), postalCode: postalCode.trim(), country: country.trim() || 'Sri Lanka', items: cart.map(item => ({ productId: item.productId, size: item.size, quantity: item.quantity })), currencyUsed: selectedCurrency?.code || 'USD', paymentMethod: 'paypal', promoCode: appliedPromo?.code, checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (paypalCheckoutAttemptIdRef.current = createPayPalCheckoutAttemptId()), notes: notes.trim() }); paypalPendingOrderRef.current = localOrder; setPaypalPendingOrder(localOrder); } const started = await createPayPalPayment(localOrder.id || localOrder.orderNumber); paypalPendingOrderRef.current = started.order; setPaypalPendingOrder(started.order); return started.paypalOrderId; }} onApprove={async data => { await handlePaypalApprovedOrder(data.orderID); }} onCancel={async () => { const pending = paypalPendingOrderRef.current || paypalPendingOrder; if (pending) { try { await reconcilePendingCheckout(pending); } catch { setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage })); } } }} onError={async error => { console.error('PayPal Button Error:', error); const pending = paypalPendingOrderRef.current || paypalPendingOrder; if (pending) { try { await reconcilePendingCheckout(pending); } catch { setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage })); } } }} /></PayPalScriptProvider> : <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900 text-center">PayPal is temporarily unavailable. Please use Payzy.</div>}</div>}
                   </div>
                 )}
               </div>
@@ -659,7 +711,7 @@ export const CheckoutPage: React.FC = () => {
 
             <div className="border-t border-[#EAE3D9] pt-4 space-y-2.5 text-xs"><div className="flex justify-between text-[#7A6E60]"><span>SUBTOTAL</span><span>{formatPrice(subtotalLKR)}</span></div><div className="flex justify-between text-[#7A6E60]"><span>DELIVERY</span><span className="text-emerald-900">{shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(shippingLKR)}</span></div>{discountLKR > 0 && <div className="flex justify-between text-emerald-800"><span>DISCOUNT ({appliedPromo?.code})</span><span>-{formatPrice(discountLKR)}</span></div>}<div className="border-t border-[#EAE3D9] pt-3.5 flex justify-between items-baseline"><span className="text-xs uppercase tracking-[0.18em] font-semibold">TOTAL</span><div className="font-serif text-2xl">{formatPrice(totalLKR)}</div></div></div>
 
-            <div className="border-t border-[#EAE3D9] pt-4 space-y-3"><div className="flex items-start gap-2.5 text-xs"><ShieldCheck className="w-4 h-4 text-emerald-800 shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Verified Online Payment</span><p className="text-[11px] text-[#665A4E]">{googlePayReviewMode ? 'PayPal and Payzy remain the only live methods. Google Pay is isolated in non-chargeable TEST review mode.' : 'Orders are confirmed only after PayPal or Payzy verification.'}</p></div></div><div className="flex items-start gap-2.5 text-xs"><Truck className="w-4 h-4 text-[#8C7A68] shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Sri Lanka Delivery</span><p className="text-[11px] text-[#665A4E]">Courier and ETA details are shown when assigned; SAELYXE does not invent tracking information.</p></div></div></div>
+            <div className="border-t border-[#EAE3D9] pt-4 space-y-3"><div className="flex items-start gap-2.5 text-xs"><ShieldCheck className="w-4 h-4 text-emerald-800 shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Verified Online Payment</span><p className="text-[11px] text-[#665A4E]">{googlePayReviewMode ? 'PayPal, Payzy and Cash on Delivery are available; Google Pay is isolated in non-chargeable TEST review mode.' : 'PayPal and Payzy require server verification. Cash on Delivery remains unpaid until collection.'}</p></div></div><div className="flex items-start gap-2.5 text-xs"><Truck className="w-4 h-4 text-[#8C7A68] shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Sri Lanka Delivery</span><p className="text-[11px] text-[#665A4E]">Courier and ETA details are shown when assigned; SAELYXE does not invent tracking information.</p></div></div></div>
           </div>
         </div>
       </div>

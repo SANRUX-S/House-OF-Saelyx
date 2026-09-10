@@ -49,13 +49,13 @@ export const LegalTermsPage: React.FC = () => {
           </div>
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
             <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center"><Lock className="w-4 h-4" /></div>
-            <h4 className="font-serif text-sm font-semibold">Account Required</h4>
-            <p className="text-[12px] text-[#665A4E]">Browsing is open, but checkout requires a signed-in SAELYXE account.</p>
+            <h4 className="font-serif text-sm font-semibold">Guest Checkout</h4>
+            <p className="text-[12px] text-[#665A4E]">Checkout is available to guests and signed-in SAELYXE customers.</p>
           </div>
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
             <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center"><CreditCard className="w-4 h-4" /></div>
             <h4 className="font-serif text-sm font-semibold">Online Payments</h4>
-            <p className="text-[12px] text-[#665A4E]">PayPal and Payzy are supported where available. Cash on Delivery is not offered.</p>
+            <p className="text-[12px] text-[#665A4E]">PayPal, Payzy, and Cash on Delivery are supported where available.</p>
           </div>
           <div className="bg-[#F3EDE4] border border-[#E2D8C9] p-4 rounded-xl space-y-1.5">
             <div className="w-8 h-8 rounded-full bg-[#E4D9C9] flex items-center justify-center"><Gavel className="w-4 h-4" /></div>
@@ -69,7 +69,7 @@ export const LegalTermsPage: React.FC = () => {
             <div className="space-y-3">
               <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><UserCheck className="w-4 h-4" />Eligibility & Account</h3>
               <p>
-                SAELYXE is intended for customers aged 18 or older. A customer account is required before checkout. You must provide accurate account and delivery information, keep credentials secure, and not impersonate another person or use false details.
+                SAELYXE is intended for customers aged 18 or older. Guests may checkout without an account. Email/password account access requires email verification. You must provide accurate account and delivery information, keep credentials secure, and not impersonate another person or use false details.
               </p>
             </div>
             <div className="space-y-3 border-t border-[#F0E8DD] pt-6">
@@ -99,7 +99,7 @@ export const LegalTermsPage: React.FC = () => {
             <div className="space-y-3">
               <h3 className="font-serif text-lg font-semibold flex items-center gap-2"><CreditCard className="w-4 h-4" />Payments & Order Acceptance</h3>
               <p>
-                SAELYXE currently accepts PayPal and Payzy where those services are available. Cash on Delivery is not supported. An order is confirmed only after the applicable payment has been successfully verified by SAELYXE server-side systems. A provider screen or browser redirect alone does not constitute confirmation.
+                SAELYXE currently accepts PayPal and Payzy where those services are available, plus Cash on Delivery for eligible Sri Lankan deliveries. PayPal and Payzy orders are confirmed only after the applicable payment has been successfully verified by SAELYXE server-side systems. Cash on Delivery remains unpaid until collection. A provider screen or browser redirect alone does not constitute confirmation.
               </p>
             </div>
             <div className="space-y-3 border-t border-[#F0E8DD] pt-6">

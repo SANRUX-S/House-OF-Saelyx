@@ -17,6 +17,8 @@ import {
 import { useStore } from '../context/StoreContext';
 import { Order, OrderStatus } from '../types';
 import { openOrderReceipt } from '../lib/orderReceipt';
+import { getAppCheckRequestHeaders } from '../lib/firebase';
+import { guestOrderAccessHeaders, listGuestOrderAccessIds } from '../lib/guestOrderAccess';
 
 export const OrdersPage: React.FC = () => {
   const { user, orders, formatPrice, navigateTo, currentRoute, requestOrderCancellation } = useStore();
@@ -25,25 +27,57 @@ export const OrdersPage: React.FC = () => {
   const [cancellationError, setCancellationError] = useState('');
   const [isRequestingCancellation, setIsRequestingCancellation] = useState(false);
 
-  // Filter orders belonging to the authenticated customer
-  const userOrders = orders.filter(o => {
-    if (!user) return false;
+  const [guestOrders, setGuestOrders] = useState<Order[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const ids = listGuestOrderAccessIds();
+    if (ids.length === 0) {
+      setGuestOrders([]);
+      return () => { cancelled = true; };
+    }
+
+    void (async () => {
+      const appCheckHeaders = await getAppCheckRequestHeaders();
+      const results = await Promise.all(ids.map(async orderId => {
+        try {
+          const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/details`, {
+            headers: { ...appCheckHeaders, ...guestOrderAccessHeaders(orderId) }
+          });
+          if (!response.ok) return null;
+          return await response.json() as Order;
+        } catch {
+          return null;
+        }
+      }));
+      if (!cancelled) setGuestOrders(results.filter((order): order is Order => Boolean(order?.id)));
+    })();
+
+    return () => { cancelled = true; };
+  }, [user?.uid]);
+
+  const localGuestIds = new Set(listGuestOrderAccessIds());
+  const accountOrders = user ? orders.filter(o => {
     if (o.userId && o.userId === user.uid) return true;
     if (user.email && o.email && o.email.toLowerCase() === user.email.toLowerCase()) return true;
     return false;
-  });
+  }) : [];
+  const inMemoryGuestOrders = orders.filter(o => localGuestIds.has(o.id) || localGuestIds.has(o.orderNumber));
+  const mergedOrders = new Map<string, Order>();
+  [...accountOrders, ...inMemoryGuestOrders, ...guestOrders].forEach(order => mergedOrders.set(order.id || order.orderNumber, order));
+  const userOrders = Array.from(mergedOrders.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // Automatically select order if orderId was passed in route
   React.useEffect(() => {
     if (currentRoute.name === 'orders' && (currentRoute as any).orderId) {
-      const match = orders.find(o => o.orderNumber === (currentRoute as any).orderId || o.id === (currentRoute as any).orderId);
+      const match = userOrders.find(o => o.orderNumber === (currentRoute as any).orderId || o.id === (currentRoute as any).orderId);
       if (match) setSelectedOrder(match);
     }
   }, [currentRoute, orders]);
 
   React.useEffect(() => {
     if (!selectedOrder) return;
-    const latest = orders.find(order => order.id === selectedOrder.id || order.orderNumber === selectedOrder.orderNumber);
+    const latest = userOrders.find(order => order.id === selectedOrder.id || order.orderNumber === selectedOrder.orderNumber);
     if (latest && latest !== selectedOrder) setSelectedOrder(latest);
   }, [orders, selectedOrder]);
 
@@ -139,32 +173,6 @@ export const OrdersPage: React.FC = () => {
     { label: 'Delivered', icon: ShieldCheck }
   ];
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-32 pb-24 px-5 sm:px-8">
-        <div className="max-w-xl mx-auto bg-white p-8 sm:p-12 rounded-3xl border border-[#EAE3D9] text-center space-y-6 shadow-sm">
-          <div className="w-16 h-16 rounded-full bg-[#FAF8F5] border border-[#EAE3D9] flex items-center justify-center mx-auto text-[#7A6E60]">
-            <ShoppingBag className="w-7 h-7 stroke-[1.5]" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="font-serif text-2xl sm:text-3xl text-[#1A1816] font-normal">
-              AUTHENTICATION REQUIRED
-            </h2>
-            <p className="text-xs text-[#665A4E] leading-relaxed max-w-md mx-auto">
-              Please log in to view your orders and commission history.
-            </p>
-          </div>
-          <button
-            onClick={() => navigateTo({ name: 'home' })}
-            className="px-8 h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-full transition-all shadow-md cursor-pointer"
-          >
-            RETURN TO BOUTIQUE
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 sm:pt-28 pb-28 px-5 sm:px-8 md:px-12 lg:px-16">
       <div className="max-w-4xl mx-auto space-y-10">
@@ -181,7 +189,7 @@ export const OrdersPage: React.FC = () => {
 
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#665A4E]">
             <ShieldCheck className="w-4 h-4 text-emerald-800 stroke-[1.5]" />
-            <span>Authenticated Client Archive</span>
+            <span>{user ? 'Authenticated Client Archive' : 'Guest Order Archive'}</span>
           </div>
         </div>
 
@@ -208,10 +216,10 @@ export const OrdersPage: React.FC = () => {
             </div>
             <div className="space-y-2">
               <h3 className="font-serif text-2xl text-[#1A1816] font-normal">
-                You haven't placed any orders yet.
+                No orders are available here yet.
               </h3>
               <p className="text-xs text-[#665A4E] max-w-sm mx-auto leading-relaxed">
-                Explore our limited-run collections and commission your first piece with prompt courier delivery across Sri Lanka.
+                Guest orders placed in this browser and orders from your signed-in account will appear here.
               </p>
             </div>
             <button

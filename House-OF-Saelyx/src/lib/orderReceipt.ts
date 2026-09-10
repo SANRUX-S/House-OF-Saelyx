@@ -126,7 +126,7 @@ export const buildOrderReceiptHtml = (order: Order) => {
 </head>
 <body>
   <div class="toolbar">
-    <button type="button" onclick="window.print()">Print / Save PDF</button>
+    <button id="receipt-print-button" type="button">Print / Save PDF</button>
   </div>
   <main class="sheet">
     <header class="brand">
@@ -196,6 +196,8 @@ export const openOrderReceipt = (order: Order) => {
   receiptWindow.document.open();
   receiptWindow.document.write(buildOrderReceiptHtml(order));
   receiptWindow.document.close();
+  const printButton = receiptWindow.document.getElementById('receipt-print-button');
+  printButton?.addEventListener('click', () => receiptWindow.print());
   receiptWindow.focus();
   return true;
 };

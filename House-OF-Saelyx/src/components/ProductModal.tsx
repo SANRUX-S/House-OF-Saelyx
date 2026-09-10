@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, ArrowRight, ShieldCheck, Ruler, Bell, Clock3 } from 'lucide-react';
+import { X, Check, ArrowRight, ShieldCheck, Ruler, Bell, Clock3, Maximize2 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 export const ProductModal: React.FC = () => {
-  const { activeModalProduct, setActiveModalProduct, addToCart, formatPrice, openRestockModal, settings } = useStore();
+  const { activeModalProduct, setActiveModalProduct, addToCart, formatPrice, openRestockModal, settings, navigateTo } = useStore();
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -44,6 +44,20 @@ export const ProductModal: React.FC = () => {
 
       <div className="min-h-screen px-4 py-8 flex items-center justify-center">
         <div className="relative w-full max-w-4xl bg-[#FAF8F5] text-[#1A1816] rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-[#E3D9CD] z-10 animate-in fade-in zoom-in-95 duration-200">
+          <button
+            type="button"
+            onClick={() => {
+              const slug = activeModalProduct.slug || activeModalProduct.id;
+              setActiveModalProduct(null);
+              navigateTo({ name: 'product', slug });
+            }}
+            className="absolute top-3 right-16 sm:top-4 sm:right-[4.25rem] z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-md transition-all cursor-pointer"
+            aria-label="View full product page"
+            title="View full product page"
+          >
+            <Maximize2 className="w-4.5 h-4.5" />
+          </button>
+
           <button
             onClick={() => setActiveModalProduct(null)}
             className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-md transition-all cursor-pointer"

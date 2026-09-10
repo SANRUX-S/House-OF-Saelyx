@@ -44,6 +44,7 @@ export const AuthModal: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [resetSentEmail, setResetSentEmail] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState<boolean>(false);
+  const [verificationNotice, setVerificationNotice] = useState<'success' | 'error' | null>(null);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const drawerRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -86,6 +87,19 @@ export const AuthModal: React.FC = () => {
       window.clearTimeout(modeTimer);
     };
   }, [isAuthOpen, authMode, setAuthMode]);
+
+  useEffect(() => {
+    if (!isAuthOpen) return;
+    try {
+      const notice = sessionStorage.getItem('saelyxe_email_verification_notice');
+      if (notice === 'success' || notice === 'error') {
+        setVerificationNotice(notice);
+        sessionStorage.removeItem('saelyxe_email_verification_notice');
+      }
+    } catch {
+      // The sign-in panel works even if session storage is unavailable.
+    }
+  }, [isAuthOpen]);
 
   useEffect(() => {
     if (!isAuthOpen) return;
@@ -231,7 +245,7 @@ export const AuthModal: React.FC = () => {
               <div className="space-y-2">
                 <h3 className="font-serif text-lg font-normal text-[#25211D]">Verification link dispatched</h3>
                 <p className="text-xs leading-relaxed text-[#786F64]">
-                  We sent a confirmation link to <span className="font-medium text-[#25211D]">{form.email}</span>. You may verify your email anytime while browsing your account.
+                  We sent a SAELYXE confirmation link to <span className="font-medium text-[#25211D]">{form.email}</span>. Verify your email before signing in; you can continue shopping as a guest meanwhile.
                 </p>
               </div>
               <button
@@ -268,6 +282,11 @@ export const AuthModal: React.FC = () => {
             </div>
           ) : (
             <>
+              {verificationNotice && (
+                <div className={`mb-5 rounded-xl border px-4 py-3 text-xs leading-relaxed ${verificationNotice === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-rose-200 bg-rose-50 text-rose-800'}`}>
+                  {verificationNotice === 'success' ? 'Email verified successfully. You can sign in to your SAELYXE account now.' : 'That verification link is invalid or expired. Sign in to request a fresh SAELYXE verification email.'}
+                </div>
+              )}
               <form onSubmit={handleEmailSubmit} className="space-y-5" noValidate>
                 {isSignUp && (
                   <label className="block">

@@ -19,9 +19,9 @@ The release includes the completed storefront/admin hardening pass:
 - Spotlight price now always uses the actual catalog product price; the legacy separate spotlight price control is retired so display and checkout amounts cannot diverge.
 - Admin number inputs that begin at `0` select the placeholder zero on focus so entering `1` replaces it instead of creating an awkward `01` edit flow.
 - Product badges using `PRE-ORDER`, `PRE ORDER`, or `PREORDER` render with a visible clock icon on storefront catalog cards and quick view; pre-order labeling is not hidden by zero stock.
-- Customer checkout requires an authenticated SAELYXE account.
-- Cash on Delivery is removed from customer checkout; live checkout accepts only PayPal and Payzy.
-- Server order creation rejects guest checkout and rejects unsupported payment methods.
+- Customer checkout supports both secure guest checkout and signed-in SAELYXE accounts.
+- Cash on Delivery is supported for eligible Sri Lankan orders and remains unpaid until delivery collection; PayPal and Payzy remain provider-verified online methods.
+- Server order creation supports capability-protected guest checkout and rejects unsupported payment methods.
 - Firebase Authentication, App Check, administrator authorization, destructive-action recent-authentication checks, and rate limiting remain enabled.
 - Admin product media uses Firebase Storage through the protected server upload route.
 - Legacy Cloudinary image origin is removed from the production CSP.
