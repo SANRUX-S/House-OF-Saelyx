@@ -1,7 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ShoppingBag, Eye, Check, SlidersHorizontal, Bell, ChevronDown } from 'lucide-react';
+import { ShoppingBag, Eye, Check, SlidersHorizontal, Bell, ChevronDown, Clock3 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
+
+function isPreOrderBadge(value?: string) {
+  return /\bpre[\s-]?order\b/i.test(value || '');
+}
 
 export const CollectionGrid: React.FC = () => {
   const {
@@ -212,6 +216,7 @@ export const CollectionGrid: React.FC = () => {
               const isHovered = hoveredId === product.id;
               const isRecentlyAdded = addedIds[product.id];
               const isOutOfStock = product.inStock === false || (product.stockCount !== undefined && product.stockCount <= 0);
+              const isPreOrder = isPreOrderBadge(product.badge);
 
               return (
                 <div
@@ -231,7 +236,12 @@ export const CollectionGrid: React.FC = () => {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-                    {isOutOfStock ? (
+                    {isPreOrder ? (
+                      <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 inline-flex items-center gap-1.5 bg-amber-50/95 border border-amber-300 text-amber-950 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-semibold tracking-widest uppercase shadow-sm">
+                        <Clock3 className="w-3 h-3" />
+                        <span>{product.badge || 'PRE-ORDER'}</span>
+                      </div>
+                    ) : isOutOfStock ? (
                       <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 bg-red-950/90 text-red-200 border border-red-800/80 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-sans tracking-widest uppercase shadow-sm">
                         Sold Out
                       </div>
