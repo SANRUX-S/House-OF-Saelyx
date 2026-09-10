@@ -191,6 +191,17 @@ async function readApiPayload(response: Response) {
   }
 }
 
+function isTrustedAdminMediaUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password) return false;
+    return url.hostname === 'firebasestorage.googleapis.com' ||
+      url.hostname.endsWith('.public.blob.vercel-storage.com');
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promise<string> {
   const idToken = await getAdminAccessToken();
   if (!idToken) throw new Error('Admin session expired. Please sign in again.');
@@ -224,9 +235,9 @@ export async function uploadAdminImage(file: File, kind: AdminMediaKind): Promis
     const payload = await readApiPayload(response);
     if (!response.ok) throw new Error(uploadErrorMessage(response.status, payload));
 
-    const secureUrl = String(payload?.secureUrl || '');
-    if (!secureUrl.startsWith('https://firebasestorage.googleapis.com/')) {
-      throw new Error('SAELYXE Media Storage did not return a valid Firebase image URL.');
+    const secureUrl = String(payload?.secureUrl || '').trim();
+    if (!isTrustedAdminMediaUrl(secureUrl)) {
+      throw new Error('SAELYXE Media Storage did not return a valid image URL.');
     }
     return secureUrl;
   } catch (error) {
