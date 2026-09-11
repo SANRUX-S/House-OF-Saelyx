@@ -14,7 +14,6 @@ const api = read('api/index.ts');
 const ordersGuard = read('api/orders-guard.ts');
 const customerVerification = read('api/customer-verification.ts');
 const checkout = read('src/components/CheckoutPage.tsx');
-const googlePayTest = read('src/components/GooglePayTestButton.tsx');
 const app = read('src/App.tsx');
 const navbar = read('src/components/Navbar.tsx');
 const store = read('src/context/StoreContext.tsx');
@@ -30,9 +29,9 @@ const fallback = JSON.parse(read('data/saelyx_store.json'));
 
 check(api.includes("app.get('/api/admin/health'") && adminSecurity.includes('/api/admin/health'), 'Super Admin health surface is protected and wired');
 check(app.includes("case 'checkout':") && !app.includes('SAELYXE checkout is available to signed-in customers only'), 'Checkout supports guest and signed-in customers');
-check(checkout.includes("useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>"), 'Checkout keeps PayPal/Payzy/COD and includes a gated Google Pay review state');
-check(checkout.includes('saelyxe_google_pay_review_v1') && googlePayTest.includes("environment: 'TEST'"), 'Google Pay review flow is gated and non-chargeable', 'requires-google-review');
-check(!checkout.includes("paymentMethod: 'googlepay'"), 'Google Pay review flow cannot create a production order before a real processor is connected');
+check(checkout.includes("useState<'paypal' | 'payzy' | 'cod' | null>"), 'Checkout keeps PayPal, Payzy, and COD only');
+check(!checkout.includes('Google Pay') && !checkout.includes('googlepay') && !checkout.includes('gpaytest') && !checkout.includes('saelyxe_google_pay_review_v1'), 'Google Pay is removed from storefront checkout');
+check(!fs.existsSync('src/components/GooglePayTestButton.tsx'), 'Retired Google Pay review component is removed');
 check(checkout.includes('PLACE CASH ON DELIVERY ORDER') && checkout.includes("paymentMethod: 'cod'"), 'Cash on Delivery is available and server-backed');
 check(ordersGuard.includes("!['paypal', 'payzy', 'cod'].includes(paymentMethod)"), 'Server order guard restricts checkout to PayPal, Payzy, or COD');
 check(api.includes('const isGuestCheckout = !authToken') && api.includes("paymentStatus: paymentMethod === 'cod' ? 'cod_pending' : 'pending_verification'"), 'Core order API securely supports guests and unpaid COD');
@@ -52,7 +51,6 @@ check(app.includes('settings?.showHeroSection') && app.includes('settings?.showS
 check(store.includes("path === '/checkout' || path.startsWith('/checkout/')") && store.includes("path === '/secure-order-session'"), 'Direct checkout URL remains retired in favor of the secure internal route');
 check(store.includes("path === '/congsoleadmintechbypenetix'"), 'Private administrator route remains wired');
 check(vercel.includes('https://*.public.blob.vercel-storage.com'), 'Production CSP allows Vercel Blob media');
-check(vercel.includes('https://pay.google.com'), 'Production CSP permits the official Google Pay review library');
 check(!vercel.includes('https://res.cloudinary.com'), 'Cloudinary is removed from the active browser CSP');
 check(Array.isArray(fallback.products) && fallback.settings, 'Fallback store data remains structurally valid');
 
