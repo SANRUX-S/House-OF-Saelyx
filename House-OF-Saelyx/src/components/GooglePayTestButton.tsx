@@ -51,6 +51,29 @@ function ensureGooglePayScript() {
   });
 }
 
+function formatShippingAddress(address: any) {
+  if (!address) return 'Shipping address selected in Google Pay';
+  return [
+    address.name,
+    address.address1,
+    address.address2,
+    address.address3,
+    address.locality,
+    address.administrativeArea,
+    address.postalCode,
+    address.countryCode
+  ].filter(Boolean).join(', ');
+}
+
+function formatGooglePayMethod(paymentData: any) {
+  const info = paymentData?.paymentMethodData?.info || {};
+  const network = String(info.cardNetwork || '').trim();
+  const details = String(info.cardDetails || '').replace(/^\*+/, '').trim();
+  if (network && details) return `${network} •••• ${details} with Google Pay`;
+  if (network) return `${network} with Google Pay`;
+  return 'Google Pay';
+}
+
 export interface GooglePayTestButtonProps {
   totalLKR: number;
   disabled?: boolean;
@@ -71,6 +94,8 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reviewPaymentData, setReviewPaymentData] = useState<any | null>(null);
+  const [isPlacingTestOrder, setIsPlacingTestOrder] = useState(false);
 
   const reportError = useCallback((message: string) => {
     setError(message);
@@ -83,7 +108,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
 
     try {
       setError('');
-      await paymentsClientRef.current.loadPaymentData({
+      const paymentData = await paymentsClientRef.current.loadPaymentData({
         apiVersion: 2,
         apiVersionMinor: 0,
         allowedPaymentMethods: [testCardPaymentMethod],
@@ -106,13 +131,28 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
         }
       });
 
-      // TEST environment only: no card can be charged and no production order is persisted.
-      onAuthorized();
+      // Google Pay sheet selection is complete. Keep the TEST transaction in a
+      // merchant-side review step before the final confirmation screen so the
+      // review flow mirrors Google's recommended shopping-cart sequence.
+      setReviewPaymentData(paymentData);
     } catch (err: any) {
       if (String(err?.statusCode || '').toUpperCase() === 'CANCELED') return;
       reportError(err?.statusMessage || err?.message || 'Google Pay test could not be completed.');
     }
-  }, [disabled, onAuthorized, onBeforePay, reportError, totalLKR]);
+  }, [disabled, onBeforePay, reportError, totalLKR]);
+
+  const placeTestOrder = useCallback(() => {
+    if (disabled || isPlacingTestOrder || !reviewPaymentData) return;
+    setIsPlacingTestOrder(true);
+    try {
+      // TEST environment only: no card can be charged and CheckoutPage does not
+      // persist a production Google Pay order. This advances to the review-only
+      // post-purchase confirmation screen.
+      onAuthorized();
+    } finally {
+      setIsPlacingTestOrder(false);
+    }
+  }, [disabled, isPlacingTestOrder, onAuthorized, reviewPaymentData]);
 
   useEffect(() => {
     let active = true;
@@ -145,7 +185,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   useEffect(() => {
     const host = buttonHostRef.current;
     const client = paymentsClientRef.current;
-    if (!host || !client || !ready) return;
+    if (!host || !client || !ready || reviewPaymentData) return;
 
     host.replaceChildren();
     const button = client.createButton({
@@ -166,7 +206,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
     return () => {
       host.replaceChildren();
     };
-  }, [disabled, openGooglePay, ready]);
+  }, [disabled, openGooglePay, ready, reviewPaymentData]);
 
   if (loading) {
     return <div className="min-h-[52px] rounded-xl border border-[#E5DFD7] bg-[#FAF8F5] px-4 flex items-center justify-center text-[11px] text-[#74685B]">Loading Google Pay test…</div>;
@@ -174,6 +214,68 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
 
   if (!ready) {
     return <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] text-amber-900">Google Pay is not available in this browser/account. Use a supported browser with Google Pay set up.</div>;
+  }
+
+  if (reviewPaymentData) {
+    const shippingAddress = formatShippingAddress(reviewPaymentData.shippingAddress);
+    const paymentDescription = formatGooglePayMethod(reviewPaymentData);
+    const reviewEmail = String(reviewPaymentData.email || '').trim();
+
+    return (
+      <div className="rounded-xl border border-[#DADCE0] bg-white p-4 sm:p-5 space-y-4" data-google-pay-review-step="transaction">
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEE8DF] pb-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-[#5F6368]">Review order</p>
+            <h4 className="mt-1 text-base font-semibold text-[#202124]">Confirm before placing your order</h4>
+            <p className="mt-1 text-[11px] leading-relaxed text-[#6B6259]">Your Google Pay payment method and shipping details are selected. Review them before the final confirmation step.</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">TEST</span>
+        </div>
+
+        <div className="divide-y divide-[#EEE8DF] rounded-lg border border-[#E7E0D6] bg-[#FCFBF9] px-4">
+          <div className="py-3 flex items-start justify-between gap-5 text-[11px]">
+            <span className="shrink-0 text-[#74685B]">Payment method</span>
+            <span className="text-right font-medium text-[#202124]">{paymentDescription}</span>
+          </div>
+          <div className="py-3 flex items-start justify-between gap-5 text-[11px]">
+            <span className="shrink-0 text-[#74685B]">Ship to</span>
+            <span className="max-w-[70%] text-right font-medium leading-relaxed text-[#202124]">{shippingAddress}</span>
+          </div>
+          {reviewEmail && (
+            <div className="py-3 flex items-start justify-between gap-5 text-[11px]">
+              <span className="shrink-0 text-[#74685B]">Email</span>
+              <span className="break-all text-right font-medium text-[#202124]">{reviewEmail}</span>
+            </div>
+          )}
+          <div className="py-3 flex items-center justify-between gap-5">
+            <span className="text-[11px] text-[#74685B]">Order total</span>
+            <span className="font-serif text-xl text-[#1A1816]">LKR {Math.max(0, Number(totalLKR) || 0).toLocaleString('en-US')}</span>
+          </div>
+        </div>
+
+        <p className="text-[10px] leading-relaxed text-[#74685B]">TEST review only · clicking Place Order does not charge a real card and does not create a production SAELYXE order.</p>
+
+        <button
+          type="button"
+          onClick={placeTestOrder}
+          disabled={disabled || isPlacingTestOrder}
+          className="w-full min-h-[52px] rounded-lg bg-[#1A1816] px-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-opacity disabled:opacity-50"
+        >
+          {isPlacingTestOrder ? 'PLACING TEST ORDER…' : 'PLACE ORDER'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setReviewPaymentData(null)}
+          disabled={disabled || isPlacingTestOrder}
+          className="w-full py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[#5F6368] underline underline-offset-4 disabled:opacity-50"
+        >
+          Change Google Pay details
+        </button>
+
+        {error && <p className="text-[11px] text-rose-700">{error}</p>}
+      </div>
+    );
   }
 
   return (
