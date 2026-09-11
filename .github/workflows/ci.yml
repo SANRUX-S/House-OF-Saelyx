@@ -11,43 +11,6 @@ permissions:
   contents: read
 
 jobs:
-  performance-regression-alignment:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Align review-mode safety contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          MESSAGE="$(jq -r '.head_commit.message // ""' "$GITHUB_EVENT_PATH")"
-          if [ "$MESSAGE" != "chore: align performance hotfix regression contract" ]; then
-            echo "Alignment patch not requested for this commit."
-            exit 0
-          fi
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('House-OF-Saelyx/src/components/CheckoutPage.tsx')
-          text = path.read_text()
-          old = '// Google Pay review is isolated from normal production checkout.'
-          new = '// Google Pay review is isolated from normal production checkout; no production order was created.'
-          if old not in text:
-              raise SystemExit('Expected Google Pay review comment was not found')
-          path.write_text(text.replace(old, new, 1))
-          PY
-          git config user.name "SAELYXE Performance Bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add House-OF-Saelyx/src/components/CheckoutPage.tsx
-          if ! git diff --cached --quiet; then
-            git commit -m "fix(checkout): preserve Google Pay review safety contract"
-            git push origin HEAD:main
-          fi
-
   verify:
     runs-on: ubuntu-latest
     defaults:
