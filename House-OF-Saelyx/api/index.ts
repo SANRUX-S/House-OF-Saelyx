@@ -190,7 +190,7 @@ function hasRecentAuthentication(token: DecodedIdToken, maxAgeSeconds = 10 * 60)
 }
 
 function isAppCheckEnforced() {
-  return process.env.FIREBASE_APP_CHECK_ENFORCE === 'true' || process.env.VERCEL_ENV === 'production';
+  return process.env.FIREBASE_APP_CHECK_ENFORCE === 'true';
 }
 
 async function hasValidAppCheck(req: Request) {

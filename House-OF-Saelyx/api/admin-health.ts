@@ -62,7 +62,7 @@ async function isAdminToken(token: DecodedIdToken | null) {
 }
 
 function isAppCheckEnforced() {
-  return process.env.FIREBASE_APP_CHECK_ENFORCE === 'true' || process.env.VERCEL_ENV === 'production';
+  return process.env.FIREBASE_APP_CHECK_ENFORCE === 'true';
 }
 
 async function hasValidAppCheck(req: any) {
