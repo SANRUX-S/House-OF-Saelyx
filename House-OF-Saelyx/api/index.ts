@@ -2980,6 +2980,7 @@ app.get('/api/payments/config', (_req, res) => {
   const payzy = getPayzyConfig();
 
   return res.json({
+    version: '20260911-v4-txfix',
     appCheckEnforced: isAppCheckEnforced(),
     paypal: {
       enabled: payPalServerConfigured,
