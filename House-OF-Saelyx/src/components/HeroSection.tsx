@@ -31,12 +31,14 @@ export const HeroSection: React.FC = () => {
     <section className="relative w-full h-[100dvh] min-h-[660px] max-h-[1100px] overflow-hidden bg-[#181614] select-none">
       <div className="absolute inset-0 w-full h-full">
         <img
-          src="/images/saelyxe-hero.jpg"
+          src="/images/saelyxe-hero.png"
           alt="SAELYXE Editorial Lifestyle Collection"
           className="w-full h-full object-cover object-center"
           referrerPolicy="no-referrer"
+          fetchPriority="high"
+          decoding="sync"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-black/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/15 pointer-events-none" />
       </div>
 
       <div className="relative z-20 w-full h-full px-6 sm:px-10 md:px-12 lg:px-16 flex flex-col justify-between pt-16 md:pt-24 pb-8">
