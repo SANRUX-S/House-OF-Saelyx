@@ -549,10 +549,23 @@ async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrder
     for (const productId of quantityByProduct.keys()) {
       const productRef = adminDb.collection('products').doc(productId);
       const productSnap = await transaction.get(productRef);
-      if (!productSnap.exists) {
-        throw Object.assign(new Error('A product in this order is no longer available.'), { statusCode: 409 });
+      if (productSnap.exists) {
+        productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
+      } else {
+        const fallbackProduct = (readStore().products || []).find((p: any) => p.id === productId);
+        if (!fallbackProduct) {
+          throw Object.assign(new Error('A product in this order is no longer available.'), { statusCode: 409 });
+        }
+        const seededProduct = {
+          ...fallbackProduct,
+          id: fallbackProduct.id,
+          inStock: fallbackProduct.inStock !== false,
+          stockCount: Number(fallbackProduct.stockCount) || 50,
+          priceLKR: Number(fallbackProduct.priceLKR) || 0
+        };
+        transaction.set(productRef, seededProduct);
+        productSnapshots.set(productId, { ref: productRef, data: seededProduct });
       }
-      productSnapshots.set(productId, { ref: productRef, data: productSnap.data() || {} });
     }
 
     for (const [productId, quantity] of quantityByProduct.entries()) {
@@ -3442,8 +3455,21 @@ app.post('/api/orders', async (req, res) => {
       for (const productId of quantityByProduct.keys()) {
         const ref = adminDb.collection('products').doc(productId);
         const snap = await transaction.get(ref);
-        if (!snap.exists) throw new Error('One or more products are unavailable.');
-        productCache.set(productId, { ref, data: { id: snap.id, ...snap.data() } });
+        if (snap.exists) {
+          productCache.set(productId, { ref, data: { id: snap.id, ...snap.data() } });
+        } else {
+          const fallbackProduct = (readStore().products || []).find((p: any) => p.id === productId);
+          if (!fallbackProduct) throw new Error('One or more products are unavailable.');
+          const seededProduct = {
+            ...fallbackProduct,
+            id: fallbackProduct.id,
+            inStock: fallbackProduct.inStock !== false,
+            stockCount: Number(fallbackProduct.stockCount) || 50,
+            priceLKR: Number(fallbackProduct.priceLKR) || 0
+          };
+          transaction.set(ref, seededProduct);
+          productCache.set(productId, { ref, data: seededProduct });
+        }
       }
 
       const validatedItems = requested.map(item => {
