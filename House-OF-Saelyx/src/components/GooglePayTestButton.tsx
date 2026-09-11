@@ -8,7 +8,6 @@ declare global {
 }
 
 export const SAELYXE_GOOGLE_PAY_MERCHANT_ID = 'BCR2DN6DVKCKNRAM';
-// Google Pay TEST environment: no card can be charged
 const GOOGLE_PAY_SCRIPT_ID = 'saelyxe-google-pay-js';
 const GOOGLE_PAY_SCRIPT_SRC = 'https://pay.google.com/gp/p/js/pay.js';
 
@@ -36,18 +35,17 @@ function ensureGooglePayScript() {
   if (window.google?.payments?.api) return Promise.resolve();
 
   return new Promise<void>((resolve, reject) => {
-    const existing = document.getElementById(GOOGLE_PAY_SCRIPT_ID) as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error('Google Pay could not be loaded.')), { once: true });
-      return;
-    }
+    const existing = document.getElementById(GOOGLE_PAY_SCRIPT_ID);
+    if (existing) existing.remove();
 
     const script = document.createElement('script');
     script.id = GOOGLE_PAY_SCRIPT_ID;
     script.src = GOOGLE_PAY_SCRIPT_SRC;
     script.async = true;
-    script.onload = () => resolve();
+    script.onload = () => {
+      if (window.google?.payments?.api) resolve();
+      else reject(new Error('Google Pay loaded without the Payments API.'));
+    };
     script.onerror = () => reject(new Error('Google Pay could not be loaded.'));
     document.head.appendChild(script);
   });
@@ -59,7 +57,7 @@ function formatGooglePayMethod(paymentData: any) {
   const details = String(info.cardDetails || '').replace(/^\*+/, '').trim();
   if (network && details) return `${network} •••• ${details}`;
   if (network) return `${network} with Google Pay`;
-  return 'Visa •••• 1234';
+  return 'Google Pay';
 }
 
 export interface GooglePayTestButtonProps {
@@ -107,8 +105,6 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Flow states: 'button' | 'review' | 'completed'
   const [reviewPaymentData, setReviewPaymentData] = useState<any | null>(null);
   const [isOrderComplete, setIsOrderComplete] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -120,58 +116,52 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   }, [onError]);
 
   const handleOpenGooglePay = useCallback(async () => {
-    if (disabled) return;
-    if (!onBeforePay()) return;
+    if (disabled || !onBeforePay()) return;
 
     setError('');
+    const client = paymentsClientRef.current;
+    if (!client) {
+      reportError('Google Pay is still loading. Please try again in a moment.');
+      return;
+    }
 
-    if (paymentsClientRef.current) {
-      try {
-        const paymentData = await paymentsClientRef.current.loadPaymentData({
-          apiVersion: 2,
-          apiVersionMinor: 0,
-          allowedPaymentMethods: [testCardPaymentMethod],
-          merchantInfo: {
-            merchantName: 'SAELYXE'
-          },
-          transactionInfo: {
-            countryCode: 'LK',
-            currencyCode: 'LKR',
-            totalPriceStatus: 'FINAL',
-            totalPrice: Math.max(0, Number(totalLKR) || 0).toFixed(2),
-            totalPriceLabel: 'SAELYXE Order Total',
-            checkoutOption: 'COMPLETE_IMMEDIATE_PURCHASE'
-          }
-        });
-        setReviewPaymentData(paymentData);
-        onAuthorized?.();
-      } catch (err: any) {
-        if (String(err?.statusCode || '').toUpperCase() === 'CANCELED') return;
-        // In case native sheet is blocked by browser shields (e.g. Brave), fallback into review state with test payload
-        setReviewPaymentData({
-          paymentMethodData: {
-            info: { cardNetwork: 'VISA', cardDetails: '1234' }
-          }
-        });
-        onAuthorized?.();
-      }
-    } else {
-      // Direct review transition
-      setReviewPaymentData({
-        paymentMethodData: {
-          info: { cardNetwork: 'VISA', cardDetails: '1234' }
+    try {
+      const paymentData = await client.loadPaymentData({
+        apiVersion: 2,
+        apiVersionMinor: 0,
+        allowedPaymentMethods: [testCardPaymentMethod],
+        merchantInfo: {
+          merchantName: 'SAELYXE'
+        },
+        transactionInfo: {
+          countryCode: 'LK',
+          currencyCode: 'LKR',
+          totalPriceStatus: 'FINAL',
+          totalPrice: Math.max(0, Number(totalLKR) || 0).toFixed(2),
+          totalPriceLabel: 'SAELYXE Order Total',
+          checkoutOption: 'COMPLETE_IMMEDIATE_PURCHASE'
         }
       });
+
+      if (!paymentData?.paymentMethodData) {
+        throw new Error('Google Pay returned no payment method data.');
+      }
+
+      setReviewPaymentData(paymentData);
       onAuthorized?.();
+    } catch (err: any) {
+      const statusCode = String(err?.statusCode || '').toUpperCase();
+      if (statusCode === 'CANCELED') return;
+      reportError(err?.statusMessage || err?.message || 'Google Pay payment sheet could not be completed.');
     }
-  }, [disabled, onBeforePay, onAuthorized, totalLKR]);
+  }, [disabled, onAuthorized, onBeforePay, reportError, totalLKR]);
 
   useEffect(() => {
     let active = true;
 
     void ensureGooglePayScript()
       .then(async () => {
-        if (!active || !window.google?.payments?.api) return;
+        if (!active || !window.google?.payments?.api) throw new Error('Google Pay Payments API is unavailable.');
         const client = new window.google.payments.api.PaymentsClient({ environment: 'TEST' });
         paymentsClientRef.current = client;
         const result = await client.isReadyToPay({
@@ -181,6 +171,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
         });
         if (!active) return;
         setReady(Boolean(result?.result));
+        if (!result?.result) setError('Google Pay is not available in this browser or Google account.');
       })
       .catch((err: any) => {
         if (active) reportError(err?.message || 'Google Pay test could not be initialized.');
@@ -207,236 +198,104 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
       buttonSizeMode: 'fill',
       buttonLocale: 'en'
     });
+    button.setAttribute('aria-label', 'Checkout with Google Pay in test mode');
+    if (disabled) {
+      button.style.pointerEvents = 'none';
+      button.style.opacity = '0.55';
+    }
     host.appendChild(button);
-  }, [handleOpenGooglePay, ready, reviewPaymentData, isOrderComplete]);
 
-  const effectiveSubtotal = Number(subtotalLKR) > 0 ? Number(subtotalLKR) : totalLKR;
-  const destinationDisplay = address
-    ? `${address}, ${city || 'Colombo'}`
-    : '123 Galle Road, Colombo 03, Sri Lanka';
-  const customerNameDisplay = customerName.trim() || 'SAELYXE Patron';
+    return () => {
+      host.replaceChildren();
+    };
+  }, [disabled, handleOpenGooglePay, isOrderComplete, ready, reviewPaymentData]);
+
+  const effectiveSubtotal = Number(subtotalLKR) > 0 ? Number(subtotalLKR) : Math.max(0, totalLKR - shippingLKR);
+  const destinationDisplay = [address, city, 'Sri Lanka'].filter(Boolean).join(', ') || 'Confirmed in SAELYXE checkout';
+  const customerNameDisplay = customerName.trim() || 'SAELYXE customer';
   const paymentDescription = formatGooglePayMethod(reviewPaymentData);
 
-  const displayItems = cartItems.length > 0 ? cartItems : [
-    {
-      productId: 'spotlight-garment',
-      title: 'THE OVERSIZED SILK HOODIE',
-      size: 'M',
-      quantity: 1,
-      priceLKR: effectiveSubtotal,
-      image: '/images/spotlight19201080.jpg'
-    }
-  ];
-
-  // ---------------------------------------------------------------------------
-  // STEP 4: Order Completed Successfully (Google Brand Guidelines Confirmation)
-  // ---------------------------------------------------------------------------
-  if (isOrderComplete) {
+  if (isOrderComplete && reviewPaymentData) {
     return (
-      <div className="fixed inset-0 z-[280] min-h-screen overflow-y-auto bg-white px-4 py-12 sm:py-20 flex items-center justify-center select-none" data-google-pay-review-step="post-purchase">
-        <div className="w-full max-w-xl bg-white text-center space-y-6">
-          {/* Green circle with checkmark */}
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-[5px] border-[#00B074] text-[#00B074] flex items-center justify-center mx-auto">
-            <svg viewBox="0 0 24 24" className="w-12 h-12 stroke-[2.5]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+      <div className="fixed inset-0 z-[280] min-h-screen overflow-y-auto bg-white px-4 py-12 sm:py-20 flex items-center justify-center" data-google-pay-review-step="post-purchase">
+        <div className="w-full max-w-xl text-center space-y-6">
+          <div className="w-20 h-20 rounded-full border-[5px] border-[#00B074] text-[#00B074] flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-12 h-12" />
           </div>
-
-          <div className="space-y-3">
-            <h2 className="text-2xl sm:text-3xl font-semibold text-[#202124]">
-              Order Completed Successfully!
-            </h2>
-            <p className="text-sm text-[#5F6368] leading-relaxed max-w-md mx-auto">
-              Your order was successfully processed using <strong className="text-[#202124]">{paymentDescription} with Google Pay</strong>.
-            </p>
-            <p className="text-xs text-[#5F6368]">
-              Check your email for your receipt.
-            </p>
+          <div className="space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-[#202124]">Order completed successfully</h2>
+            <p className="text-sm text-[#5F6368]">Google Pay TEST review completed with {paymentDescription}. No real card was charged and no production Google Pay order was created.</p>
           </div>
-
-          <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-[#EAE3D9] text-left space-y-2.5 text-xs max-w-md mx-auto">
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
-              <span className="text-[#7A6E60]">Order Reference</span>
-              <span className="font-mono font-bold text-[#1A1816]">{orderReferenceNumber}</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
-              <span className="text-[#7A6E60]">Payment Method</span>
-              <span className="font-medium text-[#1A1816]">{paymentDescription} (Google Pay)</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
-              <span className="text-[#7A6E60]">Order Total</span>
-              <span className="font-semibold text-[#1A1816]">LKR {Math.max(0, totalLKR).toLocaleString('en-US')}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[#7A6E60]">Delivery Destination</span>
-              <span className="font-medium text-[#1A1816] truncate max-w-[220px]">{destinationDisplay}</span>
-            </div>
+          <div className="bg-[#FAF8F5] p-5 rounded-xl border border-[#EAE3D9] text-left text-xs space-y-3">
+            <div className="flex justify-between gap-4"><span>Order reference</span><span className="font-mono font-semibold">{orderReferenceNumber}</span></div>
+            <div className="flex justify-between gap-4"><span>Payment method</span><span className="font-semibold">{paymentDescription}</span></div>
+            <div className="flex justify-between gap-4"><span>Review total</span><span className="font-semibold">LKR {Math.max(0, totalLKR).toLocaleString('en-US')}</span></div>
           </div>
-
-          <div className="pt-4 flex justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setIsOrderComplete(false);
-                setReviewPaymentData(null);
-                onCompleted?.();
-              }}
-              className="px-8 h-12 bg-[#1A1816] hover:bg-black text-white text-xs font-semibold uppercase tracking-[0.2em] rounded-xl transition-all cursor-pointer shadow-sm"
-            >
-              CONTINUE SHOPPING
-            </button>
-          </div>
+          <button type="button" onClick={() => { setIsOrderComplete(false); setReviewPaymentData(null); onCompleted?.(); }} className="w-full h-12 rounded-xl bg-[#1A1816] text-white text-xs font-semibold uppercase tracking-[0.18em]">Continue shopping</button>
         </div>
       </div>
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // STEP 3: Review Order (Google Brand Guidelines Transaction Review Screen)
-  // ---------------------------------------------------------------------------
   if (reviewPaymentData) {
     return (
-      <div className="fixed inset-0 z-[270] min-h-screen overflow-y-auto bg-white px-4 py-8 sm:py-14 flex items-center justify-center select-none" data-google-pay-review-step="transaction">
-        <div className="w-full max-w-2xl bg-white border border-[#DADCE0] rounded-2xl p-6 sm:p-10 shadow-sm space-y-6">
-          {/* Header */}
+      <div className="fixed inset-0 z-[270] min-h-screen overflow-y-auto bg-[#F8F9FA] px-4 py-8 sm:py-12 flex items-center justify-center" data-google-pay-review-step="transaction">
+        <div className="w-full max-w-2xl rounded-2xl border border-[#DADCE0] bg-white p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
-            <h2 className="text-xl sm:text-2xl font-semibold text-[#202124]">Review Order</h2>
-            <div className="flex items-center gap-1.5 text-xs text-[#5F6368]">
-              <Lock className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Encrypted Checkout</span>
-            </div>
+            <h2 className="text-xl font-semibold text-[#202124]">Review order</h2>
+            <div className="flex items-center gap-1.5 text-xs text-[#5F6368]"><Lock className="w-3.5 h-3.5" /> Secure checkout</div>
           </div>
-
-          {/* Ship to & Financial breakdown */}
-          <div className="border-b border-[#E5E7EB] pb-5 grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+          <div className="grid gap-6 sm:grid-cols-2 text-sm">
             <div>
-              <span className="font-semibold text-[#5F6368] uppercase tracking-wider block mb-1 text-[11px]">Ship to</span>
-              <p className="font-semibold text-[#202124] text-sm">{customerNameDisplay}</p>
-              <p className="text-[#5F6368] text-xs mt-1 leading-relaxed">{destinationDisplay}</p>
-              {phone && <p className="text-[#5F6368] text-xs mt-0.5">{phone}</p>}
-              {email && <p className="text-[#5F6368] text-xs mt-0.5">{email}</p>}
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#5F6368]">Ship to</p>
+              <p className="mt-2 font-semibold text-[#202124]">{customerNameDisplay}</p>
+              <p className="mt-1 text-xs text-[#5F6368]">{destinationDisplay}</p>
+              {phone && <p className="mt-1 text-xs text-[#5F6368]">{phone}</p>}
+              {email && <p className="mt-1 text-xs text-[#5F6368]">{email}</p>}
             </div>
-
-            <div className="space-y-2 text-right">
-              <div className="flex justify-between sm:justify-end gap-10 text-[#5F6368]">
-                <span>Subtotal</span>
-                <span className="font-medium text-[#202124]">LKR {effectiveSubtotal.toLocaleString('en-US')}</span>
-              </div>
-              <div className="flex justify-between sm:justify-end gap-10 text-[#5F6368]">
-                <span>Shipping</span>
-                <span className="font-medium text-[#202124]">
-                  {shippingLKR === 0 ? 'COMPLIMENTARY' : `LKR ${shippingLKR.toLocaleString('en-US')}`}
-                </span>
-              </div>
-              <div className="flex justify-between sm:justify-end gap-10 text-[#5F6368]">
-                <span>Tax</span>
-                <span className="font-medium text-[#202124]">LKR 0.00</span>
-              </div>
-              <div className="flex justify-between sm:justify-end gap-10 font-bold text-sm sm:text-base text-[#202124] pt-2 border-t border-[#E5E7EB]">
-                <span>Order total</span>
-                <span className="text-base sm:text-lg">LKR {Math.max(0, totalLKR).toLocaleString('en-US')}</span>
-              </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between"><span>Subtotal</span><span>LKR {effectiveSubtotal.toLocaleString('en-US')}</span></div>
+              <div className="flex justify-between"><span>Delivery</span><span>{shippingLKR === 0 ? 'COMPLIMENTARY' : `LKR ${shippingLKR.toLocaleString('en-US')}`}</span></div>
+              <div className="flex justify-between border-t pt-2 text-sm font-semibold"><span>Total</span><span>LKR {Math.max(0, totalLKR).toLocaleString('en-US')}</span></div>
             </div>
           </div>
-
-          {/* Pay With section (Required: Google Pay mark in 1px border) */}
-          <div className="border-b border-[#E5E7EB] pb-5 flex items-center justify-between text-xs">
-            <span className="font-semibold text-[#5F6368] uppercase tracking-wider text-[11px]">Pay With</span>
+          <div className="border-y border-[#E5E7EB] py-4 flex items-center justify-between gap-4">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#5F6368]">Pay with</span>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-7 rounded border border-[#DADCE0] bg-white flex items-center justify-center p-1 shadow-2xs">
-                <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-4 w-auto object-contain" />
-              </div>
-              <span className="font-semibold text-[#202124]">{paymentDescription}</span>
+              <div className="rounded border border-[#DADCE0] bg-white px-2 py-1"><img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-4 w-auto" /></div>
+              <span className="text-sm font-semibold text-[#202124]">{paymentDescription}</span>
             </div>
           </div>
-
-          {/* Real Cart Garments */}
-          <div className="border-b border-[#E5E7EB] pb-5 space-y-3 text-xs">
-            <span className="font-semibold text-[#5F6368] uppercase tracking-wider text-[11px] block">Order Items</span>
-            {displayItems.map((item, idx) => (
-              <div key={`${item.productId}-${item.size}-${idx}`} className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-12 h-14 object-cover rounded-lg border border-[#EAE3D9] shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[#202124] truncate">{item.title}</p>
-                    <p className="text-[11px] text-[#665A4E] uppercase">Size {item.size} · Qty {item.quantity}</p>
+          {cartItems.length > 0 && (
+            <div className="space-y-3">
+              {cartItems.map((item, index) => (
+                <div key={`${item.productId}-${item.size}-${index}`} className="flex items-center justify-between gap-4 text-xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img src={item.image} alt={item.title} className="h-14 w-12 rounded-lg object-cover" />
+                    <div className="min-w-0"><p className="truncate font-semibold text-[#202124]">{item.title}</p><p className="text-[#5F6368]">Size {item.size} · Qty {item.quantity}</p></div>
                   </div>
+                  <span className="font-semibold">LKR {(item.priceLKR * item.quantity).toLocaleString('en-US')}</span>
                 </div>
-                <span className="font-medium text-[#202124] whitespace-nowrap">
-                  LKR {(item.priceLKR * item.quantity).toLocaleString('en-US')}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Shipping Options */}
-          <div className="border-b border-[#E5E7EB] pb-5 flex items-center justify-between text-xs">
-            <span className="font-semibold text-[#5F6368] uppercase tracking-wider text-[11px]">Shipping Options</span>
-            <div className="text-right text-xs">
-              <p className="font-semibold text-[#202124]">
-                {shippingLKR === 0 ? 'Complimentary Express' : `Standard Delivery - LKR ${shippingLKR.toLocaleString('en-US')}`}
-              </p>
-              <p className="text-[11px] text-[#5F6368]">Estimated delivery 2 - 4 Business Days</p>
+              ))}
             </div>
-          </div>
-
-          {/* Prominent Green PLACE ORDER Button */}
-          <div className="pt-2 space-y-3">
-            <button
-              type="button"
-              onClick={() => {
-                setIsPlacingOrder(true);
-                setTimeout(() => {
-                  setIsPlacingOrder(false);
-                  setIsOrderComplete(true);
-                }, 300);
-              }}
-              disabled={disabled || isPlacingOrder}
-              className="w-full h-12 sm:h-14 bg-[#00B074] hover:bg-[#009b66] text-white font-semibold text-xs uppercase tracking-[0.2em] rounded-xl transition-all cursor-pointer shadow flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isPlacingOrder ? 'PROCESSING ORDER…' : 'PLACE ORDER'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setReviewPaymentData(null)}
-              className="w-full py-2 text-xs font-medium text-[#5F6368] hover:text-[#202124] underline transition-colors cursor-pointer text-center"
-            >
-              Change payment method
-            </button>
-          </div>
+          )}
+          <p className="text-[10px] text-[#6B7280]">TEST review only. Place Order below does not charge a real card and does not create a production Google Pay order.</p>
+          <button type="button" disabled={disabled || isPlacingOrder} onClick={() => { setIsPlacingOrder(true); setIsOrderComplete(true); setIsPlacingOrder(false); }} className="w-full h-12 rounded-xl bg-[#00B074] text-white text-xs font-semibold uppercase tracking-[0.18em] disabled:opacity-50">{isPlacingOrder ? 'Processing…' : 'Place order'}</button>
+          <button type="button" onClick={() => setReviewPaymentData(null)} className="w-full py-2 text-xs text-[#5F6368] underline">Change Google Pay details</button>
         </div>
       </div>
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // STEP 1: Google Pay Trigger Button
-  // ---------------------------------------------------------------------------
+  if (loading) {
+    return <div className="flex h-12 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[11px] text-[#6B7280]">Loading Google Pay…</div>;
+  }
+
   return (
-    <div className="space-y-2" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID} data-google-pay-review-experience="recommended">
-      {loading ? (
-        <div className="flex h-12 w-full items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[11px] text-[#6B7280]">
-          Loading Google Pay…
-        </div>
-      ) : (
-        <>
-          <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-visible rounded-lg" />
-          {!ready && (
-            <button
-              type="button"
-              onClick={handleOpenGooglePay}
-              className="w-full h-12 bg-black hover:bg-stone-900 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all"
-            >
-              <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-5 w-auto object-contain" />
-            </button>
-          )}
-        </>
-      )}
-      {error && <p className="text-[11px] text-rose-700">{error}</p>}
+    <div className="space-y-2" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID}>
+      {ready ? <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-visible rounded-lg" /> : <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] text-amber-900">Google Pay is not available in this browser/account.</div>}
+      {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">{error}</p>}
+      <p className="text-[10px] leading-relaxed text-[#74685B]">Google Pay TEST environment · use the native Google Pay sheet for the production-review screenshot.</p>
     </div>
   );
 };
