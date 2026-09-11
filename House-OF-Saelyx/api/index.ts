@@ -1,7 +1,6 @@
 import express, { type Request } from 'express';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
@@ -108,10 +107,11 @@ function hasOnlyKeys(value: unknown, allowedKeys: readonly string[]) {
 }
 
 function readStore() {
-  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  const moduleDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
   const storePaths = [
     path.join(process.cwd(), 'data', 'saelyx_store.json'),
-    path.join(moduleDir, '..', 'data', 'saelyx_store.json')
+    path.join(moduleDir, '..', 'data', 'saelyx_store.json'),
+    path.join(moduleDir, 'data', 'saelyx_store.json')
   ];
   const storePath = storePaths.find(candidate => fs.existsSync(candidate));
   if (!storePath) throw new Error('Store data file is missing from the deployment.');
