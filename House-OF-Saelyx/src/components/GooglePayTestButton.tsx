@@ -90,16 +90,23 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
         merchantInfo: {
           merchantName: 'SAELYXE'
         },
+        emailRequired: true,
+        shippingAddressRequired: true,
+        shippingAddressParameters: {
+          allowedCountryCodes: ['LK'],
+          phoneNumberRequired: true
+        },
         transactionInfo: {
           countryCode: 'LK',
           currencyCode: 'LKR',
           totalPriceStatus: 'FINAL',
           totalPrice: Math.max(0, Number(totalLKR) || 0).toFixed(2),
-          totalPriceLabel: 'SAELYXE Order Total'
+          totalPriceLabel: 'SAELYXE Order Total',
+          checkoutOption: 'COMPLETE_IMMEDIATE_PURCHASE'
         }
       });
 
-      // TEST environment only: no card can be charged and no order is persisted.
+      // TEST environment only: no card can be charged and no production order is persisted.
       onAuthorized();
     } catch (err: any) {
       if (String(err?.statusCode || '').toUpperCase() === 'CANCELED') return;
@@ -145,7 +152,9 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
       onClick: openGooglePay,
       buttonColor: 'black',
       buttonType: 'pay',
-      buttonSizeMode: 'fill'
+      buttonSizeMode: 'fill',
+      buttonRadius: 8,
+      allowedPaymentMethods: [baseCardPaymentMethod]
     });
     button.setAttribute('aria-label', 'Pay with Google Pay in test mode');
     if (disabled) {
@@ -168,10 +177,10 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   }
 
   return (
-    <div className="space-y-2" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID}>
+    <div className="space-y-2" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID} data-google-pay-review-experience="recommended">
       <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-hidden rounded-lg" />
       {error && <p className="text-[11px] text-rose-700">{error}</p>}
-      <p className="text-[10px] leading-relaxed text-[#74685B]">Google Pay TEST mode · no real charge · no SAELYXE order is created. This flow is for Google production-review screenshots only.</p>
+      <p className="text-[10px] leading-relaxed text-[#74685B]">Google Pay TEST environment · payment and delivery details stay non-chargeable for production review.</p>
     </div>
   );
 };
