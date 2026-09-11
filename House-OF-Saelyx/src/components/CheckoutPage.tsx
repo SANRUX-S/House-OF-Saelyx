@@ -84,7 +84,7 @@ export const CheckoutPage: React.FC = () => {
   } = useStore();
 
   const [googlePayReviewMode] = useState(() => {
-    // Google Pay review is isolated from normal production checkout.
+    // Google Pay review is isolated from normal production checkout; no production order was created.
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
     let sessionEnabled = false;
