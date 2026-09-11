@@ -22,7 +22,8 @@ export const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-  const announcementText = (settings?.announcementText || '').trim();
+  // Announcement bar removed per user instruction. Kept settings?.announcementText for store schema compatibility.
+  const announcementText = false && Boolean(settings?.announcementText);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
