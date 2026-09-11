@@ -28,29 +28,19 @@ export const HeroSection: React.FC = () => {
   };
 
   return (
-    <section className="relative w-full min-h-[580px] sm:min-h-[640px] md:min-h-[680px] h-[88vh] lg:h-[92vh] max-h-[1050px] overflow-hidden bg-[#0C0B0A] select-none flex items-center justify-center">
-      {/* Ambient background glow so wide screens blend naturally without harsh black bars */}
-      <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
-        <img
-          src="/images/saelyxe-hero.png"
-          alt=""
-          aria-hidden="true"
-          className="w-full h-full object-cover object-center blur-3xl opacity-35 scale-110"
-        />
-        <div className="absolute inset-0 bg-black/40" />
-      </div>
-
-      {/* 100% Uncropped, Unzoomed Pristine Image */}
-      <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+    <section className="relative w-full min-h-[580px] sm:min-h-[620px] md:min-h-[660px] h-[86vh] lg:h-[90vh] max-h-[1050px] overflow-hidden bg-[#181614] select-none flex items-center justify-center">
+      {/* Full-bleed Edge-to-Edge Editorial Image with Top-Anchor (Zero Black Sidebars) */}
+      <div className="absolute inset-0 w-full h-full">
         <img
           src="/images/saelyxe-hero.png"
           alt="SAELYXE Editorial Lifestyle Collection"
-          className="w-full h-full object-contain object-center"
+          className="w-full h-full object-cover object-[center_top] sm:object-[center_10%] md:object-[center_14%]"
           referrerPolicy="no-referrer"
           fetchPriority="high"
           decoding="sync"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-black/5 pointer-events-none" />
       </div>
 
       <div className="relative z-20 w-full h-full px-6 sm:px-10 md:px-12 lg:px-16 flex flex-col justify-between pt-16 md:pt-24 pb-8">
