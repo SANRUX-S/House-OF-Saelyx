@@ -143,7 +143,7 @@ export const CheckoutPage: React.FC = () => {
     if (user.country && (!savedDetailsObj || !savedDetailsObj.country)) setCountry(user.country);
   }, [user]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>('googlepay');
   const [paymentConfig, setPaymentConfig] = useState({
     paypal: { enabled: true, clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || '', mode: 'sandbox' },
     payzy: { enabled: true, configured: false, mode: 'sandbox' as 'sandbox' | 'live', testAmountLKR: 10 as number | null }
