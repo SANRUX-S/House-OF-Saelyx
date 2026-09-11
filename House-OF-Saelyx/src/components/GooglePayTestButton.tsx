@@ -151,12 +151,12 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
     const button = client.createButton({
       onClick: openGooglePay,
       buttonColor: 'black',
-      buttonType: 'pay',
+      buttonType: 'checkout',
       buttonSizeMode: 'fill',
       buttonRadius: 8,
       allowedPaymentMethods: [baseCardPaymentMethod]
     });
-    button.setAttribute('aria-label', 'Pay with Google Pay in test mode');
+    button.setAttribute('aria-label', 'Checkout with Google Pay in test mode');
     if (disabled) {
       button.style.pointerEvents = 'none';
       button.style.opacity = '0.55';
@@ -178,7 +178,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
 
   return (
     <div className="space-y-2" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID} data-google-pay-review-experience="recommended">
-      <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-hidden rounded-lg" />
+      <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-visible rounded-lg" />
       {error && <p className="text-[11px] text-rose-700">{error}</p>}
       <p className="text-[10px] leading-relaxed text-[#74685B]">Google Pay TEST environment · payment and delivery details stay non-chargeable for production review.</p>
     </div>
