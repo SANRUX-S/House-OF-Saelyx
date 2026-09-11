@@ -754,6 +754,7 @@ async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrder
     }
 
     const productSnapshots = new Map<string, { ref: any; data: any }>();
+    const productsToSeed = new Map<any, any>();
     for (const productId of quantityByProduct.keys()) {
       const productRef = adminDb.collection('products').doc(productId);
       const productSnap = await transaction.get(productRef);
@@ -771,7 +772,7 @@ async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrder
           stockCount: Number(fallbackProduct.stockCount) || 50,
           priceLKR: Number(fallbackProduct.priceLKR) || 0
         };
-        transaction.set(productRef, seededProduct);
+        productsToSeed.set(productRef, seededProduct);
         productSnapshots.set(productId, { ref: productRef, data: seededProduct });
       }
     }
@@ -783,6 +784,10 @@ async function reservePayPalInventory(adminDb: any, orderId: string, paypalOrder
       if (!Number.isFinite(stockCount) || stockCount < quantity) {
         throw Object.assign(new Error(`${cached.data.title || 'A product'} is no longer available in the requested quantity.`), { statusCode: 409 });
       }
+    }
+
+    for (const [productRef, seededProduct] of productsToSeed.entries()) {
+      transaction.set(productRef, seededProduct);
     }
 
     for (const [productId, quantity] of quantityByProduct.entries()) {
@@ -3654,6 +3659,7 @@ app.post('/api/orders', async (req, res) => {
       }
 
       const productCache = new Map<string, { ref: any; data: any }>();
+      const productsToSeed = new Map<any, any>();
       const quantityByProduct = new Map<string, number>();
 
       for (const item of requested) {
@@ -3675,7 +3681,7 @@ app.post('/api/orders', async (req, res) => {
             stockCount: Number(fallbackProduct.stockCount) || 50,
             priceLKR: Number(fallbackProduct.priceLKR) || 0
           };
-          transaction.set(ref, seededProduct);
+          productsToSeed.set(ref, seededProduct);
           productCache.set(productId, { ref, data: seededProduct });
         }
       }
@@ -3777,6 +3783,9 @@ app.post('/api/orders', async (req, res) => {
       if (firstName) order.firstName = firstName;
       if (lastName) order.lastName = lastName;
 
+      for (const [pRef, seeded] of productsToSeed.entries()) {
+        transaction.set(pRef, seeded);
+      }
       transaction.set(orderRef, order);
       const guardExpiresAtMs = Date.now() + idempotencyWindowMs;
       transaction.set(guardRef, {
