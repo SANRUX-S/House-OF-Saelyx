@@ -29,13 +29,9 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section 
-      className="relative w-full min-h-[540px] sm:min-h-[580px] h-[82vh] md:h-auto md:aspect-[16/9] md:min-h-[540px] md:max-h-[88vh] overflow-hidden select-none flex items-center justify-center"
-      style={{
-        backgroundColor: '#181614',
-        backgroundImage: 'radial-gradient(ellipse at 50% 30%, rgba(217, 119, 6, 0.12) 0%, rgba(24, 22, 20, 1) 100%)',
-      }}
+      className="relative w-full h-[100dvh] min-h-[600px] overflow-hidden select-none flex items-center justify-center bg-[#181614]"
     >
-      {/* Full-bleed Edge-to-Edge Editorial Image with Inline Style Anchoring (Zero Black Sidebars & Zero Zoom Distortion) */}
+      {/* 100% Full-Screen Edge-to-Edge Hero Image */}
       <div className="absolute inset-0 w-full h-full overflow-hidden">
         <img
           src="/images/saelyxe-hero.png"
@@ -47,7 +43,7 @@ export const HeroSection: React.FC = () => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            objectPosition: 'center 12%',
+            objectPosition: 'center 10%',
             display: 'block',
           }}
           referrerPolicy="no-referrer"
