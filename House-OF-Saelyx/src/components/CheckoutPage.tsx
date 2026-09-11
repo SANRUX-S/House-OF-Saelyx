@@ -652,6 +652,7 @@ export const CheckoutPage: React.FC = () => {
                           city={city}
                           email={email}
                           phone={phone}
+                          cartItems={effectiveCart}
                           disabled={isSubmitting || isSwitchingPayment}
                           onBeforePay={() => {
                             if (effectiveCart.length === 0) {
