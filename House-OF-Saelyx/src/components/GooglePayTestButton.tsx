@@ -221,7 +221,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
             Your order was successfully processed using {paymentDescription} with Google Pay.
           </p>
           <p className="mt-2 text-sm text-[#5f6368]">Check your email for your receipt.</p>
-          <p className="mt-8 text-[11px] text-[#9aa0a6]">Google Pay TEST review only · no real card was charged and no production order was created.</p>
+          <p className="mt-8 text-[11px] text-[#9aa0a6]">Google Pay TEST review only · no card can be charged and no production order was created.</p>
           <button
             type="button"
             onClick={() => {

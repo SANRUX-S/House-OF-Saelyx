@@ -702,7 +702,95 @@ export const CheckoutPage: React.FC = () => {
                 {paymentConfig.paypal.enabled && (
                   <div className={`rounded-xl border overflow-hidden ${paymentMethod === 'paypal' ? 'border-[#1A1816] ring-1 ring-[#1A1816]' : 'border-[#EAE3D9]'}`}>
                     <button type="button" role="radio" aria-label="PayPal" aria-checked={paymentMethod === 'paypal'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('paypal')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait"><div><span className="text-xs uppercase font-semibold tracking-wider">PayPal</span><p className="text-[11px] text-[#665A4E] mt-0.5">Pay securely with PayPal.</p></div><div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentMethod === 'paypal' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'paypal' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}</div></button>
-                    {paymentMethod === 'paypal' && <div className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] space-y-4"><div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs"><div className="flex items-center justify-between font-medium"><span>Total Charge via PayPal:</span><span>{paypalCurrency} {paypalDisplayAmount.toFixed(2)}</span></div><p className="text-[11px] text-[#7A6E60] mt-2">Your order is confirmed only after server-side payment verification.</p></div>{paypalClientId ? <PayPalScriptProvider options={{ clientId: paypalClientId, currency: paypalCurrency }}><PayPalButtons style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }} createOrder={async () => { if (!validateDeliveryDetails()) throw new Error('Please complete all required delivery fields.'); let localOrder = paypalPendingOrderRef.current || paypalPendingOrder; if (!localOrder || localOrder.status === 'cancelled') { localOrder = await createOrder({ customerName, firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), address: address.trim(), city: city.trim(), postalCode: postalCode.trim(), country: country.trim() || 'Sri Lanka', items: cart.map(item => ({ productId: item.productId, size: item.size, quantity: item.quantity })), currencyUsed: selectedCurrency?.code || 'USD', paymentMethod: 'paypal', promoCode: appliedPromo?.code, checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (paypalCheckoutAttemptIdRef.current = createPayPalCheckoutAttemptId()), notes: notes.trim() }); paypalPendingOrderRef.current = localOrder; setPaypalPendingOrder(localOrder); } const started = await createPayPalPayment(localOrder.id || localOrder.orderNumber); paypalPendingOrderRef.current = started.order; setPaypalPendingOrder(started.order); return started.paypalOrderId; }} onApprove={async data => { await handlePaypalApprovedOrder(data.orderID); }} onCancel={async () => { const pending = paypalPendingOrderRef.current || paypalPendingOrder; if (pending) { try { await reconcilePendingCheckout(pending); } catch { setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage })); } } }} onError={async error => { console.error('PayPal Button Error:', error); const pending = paypalPendingOrderRef.current || paypalPendingOrder; if (pending) { try { await reconcilePendingCheckout(pending); } catch { setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage })); } } }} /></PayPalScriptProvider> : <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900 text-center">PayPal is temporarily unavailable. Please use Payzy.</div>}</div>}
+                    {paymentMethod === 'paypal' && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] space-y-4">
+                        <div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs">
+                          <div className="flex items-center justify-between font-medium">
+                            <span>Total Charge via PayPal:</span>
+                            <span>{paypalCurrency} {paypalDisplayAmount.toFixed(2)}</span>
+                          </div>
+                          <p className="text-[11px] text-[#7A6E60] mt-2">
+                            Your order is confirmed only after server-side payment verification.
+                          </p>
+                        </div>
+                        {paypalClientId ? (
+                          <PayPalScriptProvider options={{ clientId: paypalClientId, currency: paypalCurrency }}>
+                            <PayPalButtons
+                              style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
+                              createOrder={async () => {
+                                if (!validateDeliveryDetails()) {
+                                  setFieldErrors(previous => ({
+                                    ...previous,
+                                    general: 'Please complete all delivery details (First Name, Last Name, Phone Number, Address, City) above before paying with card.'
+                                  }));
+                                  throw new Error('Please complete all required delivery fields.');
+                                }
+                                setFieldErrors(previous => ({ ...previous, general: undefined }));
+                                let localOrder = paypalPendingOrderRef.current || paypalPendingOrder;
+                                if (!localOrder || localOrder.status === 'cancelled') {
+                                  localOrder = await createOrder({
+                                    customerName,
+                                    firstName: firstName.trim(),
+                                    lastName: lastName.trim(),
+                                    email: email.trim().toLowerCase(),
+                                    phone: phone.trim(),
+                                    address: address.trim(),
+                                    city: city.trim(),
+                                    postalCode: postalCode.trim(),
+                                    country: country.trim() || 'Sri Lanka',
+                                    items: cart.map(item => ({ productId: item.productId, size: item.size, quantity: item.quantity })),
+                                    currencyUsed: selectedCurrency?.code || 'USD',
+                                    paymentMethod: 'paypal',
+                                    promoCode: appliedPromo?.code,
+                                    checkoutAttemptId: paypalCheckoutAttemptIdRef.current || (paypalCheckoutAttemptIdRef.current = createPayPalCheckoutAttemptId()),
+                                    notes: notes.trim()
+                                  });
+                                  paypalPendingOrderRef.current = localOrder;
+                                  setPaypalPendingOrder(localOrder);
+                                }
+                                const started = await createPayPalPayment(localOrder.id || localOrder.orderNumber);
+                                paypalPendingOrderRef.current = started.order;
+                                setPaypalPendingOrder(started.order);
+                                return started.paypalOrderId;
+                              }}
+                              onApprove={async data => {
+                                await handlePaypalApprovedOrder(data.orderID);
+                              }}
+                              onCancel={async () => {
+                                const pending = paypalPendingOrderRef.current || paypalPendingOrder;
+                                if (pending) {
+                                  try {
+                                    await reconcilePendingCheckout(pending);
+                                  } catch {
+                                    setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage }));
+                                  }
+                                }
+                              }}
+                              onError={async error => {
+                                console.error('PayPal Button Error:', error);
+                                const pending = paypalPendingOrderRef.current || paypalPendingOrder;
+                                if (pending) {
+                                  try {
+                                    await reconcilePendingCheckout(pending);
+                                  } catch {
+                                    setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage }));
+                                  }
+                                } else {
+                                  setFieldErrors(previous => ({
+                                    ...previous,
+                                    general: 'PayPal card payment was declined or could not open. Please ensure your delivery details are complete and your card supports online transactions, or use Cash on Delivery.'
+                                  }));
+                                }
+                              }}
+                            />
+                          </PayPalScriptProvider>
+                        ) : (
+                          <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900 text-center">
+                            PayPal is temporarily unavailable. Please use Payzy.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
