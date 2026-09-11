@@ -13,47 +13,7 @@
   }
 }
 
-/* Google Pay production-review experience.
-   Google permits plain "Google Pay" text in the payment selector when other
-   payment brand identities are not displayed. In review mode we therefore
-   hide the custom/payment-brand tiles and let Google's own createButton()
-   render the only Google Pay button artwork. */
-div[role="radiogroup"][aria-label="Payment method"]:has(button[aria-label="Google Pay test"]) {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-}
-
-div[role="radiogroup"][aria-label="Payment method"]:has(button[aria-label="Google Pay test"]) > * {
-  margin-top: 0 !important;
-}
-
-div[role="radiogroup"][aria-label="Payment method"] > div:has(> button[aria-label="Google Pay test"]) {
-  order: -10;
-  border-color: #dadce0 !important;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08);
-}
-
-button[aria-label="Google Pay test"] {
-  min-height: 76px;
-}
-
-/* Remove the old custom "G Pay" tile completely. The adjacent Google Pay
-   text remains, using the site's normal typography as Google's guidelines allow. */
-button[aria-label="Google Pay test"] > div:first-child > div:first-child {
-  display: none !important;
-}
-
-/* During the Google review capture, don't show a Payzy brand tile either;
-   this keeps all selector methods text-led and avoids mixing custom brand marks. */
-div[role="radiogroup"][aria-label="Payment method"]:has(button[aria-label="Google Pay test"])
-  button[aria-label="Payzy"] > div:first-child > div:first-child {
-  display: none !important;
-}
-
-/* Maintain Google's required clear space around the API-generated button.
-   The button itself is not restyled or recreated. */
+/* Google Pay brand integration styling */
 [data-google-pay-review-experience="recommended"] > div:first-child {
   padding: 8px;
   background: #ffffff;

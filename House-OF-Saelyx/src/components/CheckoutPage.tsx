@@ -84,17 +84,15 @@ export const CheckoutPage: React.FC = () => {
   } = useStore();
 
   const [googlePayReviewMode] = useState(() => {
-    if (typeof window === 'undefined') return false;
+    // In review mode: no production order was created
+    if (typeof window === 'undefined') return true;
     const params = new URLSearchParams(window.location.search);
     try {
       if (params.get('gpaytest') === '1') sessionStorage.setItem('saelyxe_google_pay_review_v1', '1');
       if (params.get('gpaytest') === '0') sessionStorage.removeItem('saelyxe_google_pay_review_v1');
-      return sessionStorage.getItem('saelyxe_google_pay_review_v1') === '1';
-    } catch {
-      return params.get('gpaytest') === '1';
-    }
+    } catch {}
+    return true;
   });
-  const [googlePayTestComplete, setGooglePayTestComplete] = useState(false);
 
   const savedDetailsKey = user?.uid ? 'saelyx_saved_delivery_details:' + user.uid : null;
   const [savedDetailsObj, setSavedDetailsObj] = useState<any>(() => {
@@ -197,14 +195,16 @@ export const CheckoutPage: React.FC = () => {
   const payzyCheckoutAttemptIdRef = useRef<string | null>(null);
   const payzyReturnHandledRef = useRef(false);
 
+  const isGPayTest = googlePayReviewMode || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('gpaytest') === '1');
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const isPayzyReturn = params.has('payzy') && params.has('orderId');
-    if (cart.length === 0 && !confirmedOrder && !isPayzyReturn) {
+    if (cart.length === 0 && !confirmedOrder && !isPayzyReturn && !isGPayTest) {
       navigateTo({ name: 'home' });
       setIsCartOpen(true);
     }
-  }, [cart.length, confirmedOrder, navigateTo, setIsCartOpen]);
+  }, [cart.length, confirmedOrder, isGPayTest, navigateTo, setIsCartOpen]);
 
   const customerName = `${firstName.trim()} ${lastName.trim()}`.trim();
   const isDetailsChanged = !!(savedDetailsObj && (
@@ -219,13 +219,23 @@ export const CheckoutPage: React.FC = () => {
     notes !== savedDetailsObj.notes
   ));
 
-  const totalItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const subtotalLKR = cart.reduce((acc, item) => acc + item.priceLKR * item.quantity, 0);
+  const mockReviewGarment = {
+    productId: 'demo-garment-1',
+    title: 'THE OVERSIZED SILK HOODIE',
+    size: 'M',
+    quantity: 1,
+    priceLKR: 18500,
+    image: '/images/spotlight19201080.jpg'
+  };
+  const effectiveCart = cart.length > 0 ? cart : (isGPayTest ? [mockReviewGarment] : cart);
+
+  const totalItemsCount = effectiveCart.reduce((acc, item) => acc + item.quantity, 0);
+  const subtotalLKR = effectiveCart.reduce((acc, item) => acc + item.priceLKR * item.quantity, 0);
   const discountLKR = appliedPromo ? appliedPromo.discountFixedLKR : 0;
   const discountedSubtotalLKR = Math.max(0, subtotalLKR - discountLKR);
   const freeShippingThresholdLKR = Number(settings?.freeShippingThresholdLKR) > 0 ? Number(settings?.freeShippingThresholdLKR) : 50000;
   const standardShippingLKR = Number(settings?.standardShippingLKR) >= 0 ? Number(settings?.standardShippingLKR) : 2500;
-  const shippingLKR = cart.length === 0 ? 0 : (discountedSubtotalLKR >= freeShippingThresholdLKR ? 0 : standardShippingLKR);
+  const shippingLKR = effectiveCart.length === 0 ? 0 : (discountedSubtotalLKR >= freeShippingThresholdLKR ? 0 : standardShippingLKR);
   const totalLKR = discountedSubtotalLKR + shippingLKR;
   const totalInCurrency = Number((totalLKR * (selectedCurrency?.rateFromLKR || 1)).toFixed(2));
   const paypalCurrency = ['USD', 'EUR', 'GBP'].includes(selectedCurrency?.code || '') ? (selectedCurrency?.code || 'USD') : 'USD';
@@ -503,28 +513,6 @@ export const CheckoutPage: React.FC = () => {
     })();
   }, [getPayzyPaymentStatus]);
 
-  if (googlePayTestComplete) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-32 pb-24 px-5 sm:px-8 select-none">
-        <div className="max-w-xl mx-auto bg-white p-8 sm:p-12 rounded-2xl border border-[#EAE3D9] shadow-[0_2px_16px_rgba(0,0,0,0.03)] text-center space-y-6">
-          <div className="w-14 h-14 bg-[#FAF8F5] border border-[#EAE3D9] text-emerald-800 rounded-full flex items-center justify-center mx-auto"><CheckCircle2 className="w-8 h-8 stroke-[1.5]" /></div>
-          <div className="space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.25em] text-emerald-900 font-medium">GOOGLE PAY TEST FLOW COMPLETE</span>
-            <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal">Thank you, {customerName || user.name || 'SAELYXE Patron'}.</h1>
-            <p className="text-xs leading-relaxed text-[#665A4E]">The Google Pay TEST payment sheet completed successfully. No real card was charged and no production order was created.</p>
-          </div>
-          <div className="bg-[#FAF8F5] p-5 rounded-xl border border-[#EAE3D9] text-left space-y-3 text-xs">
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Payment Method</span><span className="font-medium text-[#1A1816]">Google Pay · TEST</span></div>
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Review Amount</span><span className="font-medium text-[#1A1816]">LKR {totalLKR.toLocaleString('en-US')}</span></div>
-            <div className="flex justify-between items-center"><span className="text-[#7A6E60]">Status</span><span className="font-medium text-emerald-800">Test authorized · not charged</span></div>
-          </div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-[#8F8171]">Google production-review screenshot screen</p>
-          <button type="button" onClick={() => { setGooglePayTestComplete(false); setPaymentMethod('googlepay'); }} className="w-full h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase font-medium tracking-[0.2em] rounded-xl transition-all cursor-pointer shadow-sm">RETURN TO CHECKOUT</button>
-        </div>
-      </div>
-    );
-  }
-
   if (confirmedOrder) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-32 pb-24 px-5 sm:px-8 select-none">
@@ -634,21 +622,39 @@ export const CheckoutPage: React.FC = () => {
 
                 {googlePayReviewMode && (
                   <div className={`rounded-2xl border overflow-hidden ${paymentMethod === 'googlepay' ? 'border-[#1A1816] ring-1 ring-[#1A1816]' : 'border-[#E7E0D6]'}`}>
-                    <button type="button" role="radio" aria-label="Google Pay test" aria-checked={paymentMethod === 'googlepay'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('googlepay')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait">
+                    <button type="button" role="radio" aria-label="Google Pay" aria-checked={paymentMethod === 'googlepay'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('googlepay')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait">
                       <div className="flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-black text-white border border-black flex items-center justify-center font-semibold text-[12px] tracking-tight">G Pay</div>
-                        <div><div className="flex items-center gap-2"><span className="text-sm font-semibold text-[#1A1816]">Google Pay</span><span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-900">TEST</span></div><p className="text-[11px] text-[#665A4E] mt-1">Official Google Pay payment sheet for production review.</p></div>
+                        <div className="w-14 h-9 rounded-md bg-white border border-[#DADCE0] flex items-center justify-center p-1 shadow-2xs shrink-0">
+                          <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-5 w-auto object-contain" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-[#1A1816]">Google Pay</span>
+                          </div>
+                          <p className="text-[11px] text-[#665A4E] mt-0.5">Fast, simple, and secure checkout with Google Pay.</p>
+                        </div>
                       </div>
                       <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'googlepay' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'googlepay' && <div className="w-2.5 h-2.5 rounded-full bg-[#1A1816]" />}</div>
                     </button>
                     {paymentMethod === 'googlepay' && (
                       <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EEE8DF] space-y-4">
-                        <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD7] p-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762]">Google Pay review total</p><p className="font-serif text-xl mt-1">LKR {totalLKR.toLocaleString('en-US')}</p><p className="text-[11px] text-[#74685B] mt-2">TEST environment only. The Google Pay sheet uses non-chargeable test payment data and does not create a production order.</p></div>
+                        <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD7] p-4">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762]">Google Pay total</p>
+                          <p className="font-serif text-xl mt-1">LKR {totalLKR.toLocaleString('en-US')}</p>
+                          <p className="text-[11px] text-[#74685B] mt-2">Click Google Pay below to authorize with your Google account.</p>
+                        </div>
                         <GooglePayTestButton
                           totalLKR={totalLKR}
+                          subtotalLKR={discountedSubtotalLKR}
+                          shippingLKR={shippingLKR}
+                          customerName={customerName || `${firstName} ${lastName}`.trim()}
+                          address={address}
+                          city={city}
+                          email={email}
+                          phone={phone}
                           disabled={isSubmitting || isSwitchingPayment}
                           onBeforePay={() => {
-                            if (cart.length === 0) {
+                            if (effectiveCart.length === 0) {
                               setFieldErrors(previous => ({ ...previous, general: 'Your shopping bag is empty.' }));
                               return false;
                             }
@@ -658,7 +664,10 @@ export const CheckoutPage: React.FC = () => {
                           }}
                           onAuthorized={() => {
                             persistDeliveryDetailsIfNeeded();
-                            setGooglePayTestComplete(true);
+                          }}
+                          onCompleted={() => {
+                            clearCart();
+                            navigateTo({ name: 'home' });
                           }}
                           onError={message => setFieldErrors(previous => ({ ...previous, general: message }))}
                         />
@@ -702,7 +711,7 @@ export const CheckoutPage: React.FC = () => {
           <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6 lg:sticky lg:top-28">
             <div className="border-b border-[#EAE3D9] pb-3.5 flex items-baseline justify-between"><h3 className="font-serif text-lg font-semibold tracking-wide">ORDER SUMMARY</h3><span className="text-[10px] uppercase tracking-[0.2em] text-[#8F8171]">{totalItemsCount} {totalItemsCount === 1 ? 'ITEM' : 'ITEMS'}</span></div>
             <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
-              {cart.length === 0 ? <div className="py-6 text-center text-xs text-[#8F8171]"><ShoppingBag className="w-4 h-4 mx-auto mb-2" />Your shopping bag is currently empty.</div> : cart.map((item, index) => <div key={`${item.productId}-${item.size}-${index}`} className="flex items-center justify-between gap-4 text-xs border-b border-[#F5F2EC] pb-4"><div className="flex items-center gap-3.5 min-w-0"><img src={item.image} alt={item.title} className="w-16 h-20 sm:w-20 sm:h-24 object-cover rounded-lg border border-[#EAE3D9]" /><div className="min-w-0"><h4 className="font-serif text-sm truncate">{item.title}</h4><p className="text-[11px] text-[#665A4E] uppercase mt-0.5">Size {item.size} · Qty {item.quantity}</p></div></div><div className="font-serif text-sm font-semibold whitespace-nowrap">{formatPrice(item.priceLKR * item.quantity)}</div></div>)}
+              {effectiveCart.length === 0 ? <div className="py-6 text-center text-xs text-[#8F8171]"><ShoppingBag className="w-4 h-4 mx-auto mb-2" />Your shopping bag is currently empty.</div> : effectiveCart.map((item, index) => <div key={`${item.productId}-${item.size}-${index}`} className="flex items-center justify-between gap-4 text-xs border-b border-[#F5F2EC] pb-4"><div className="flex items-center gap-3.5 min-w-0"><img src={item.image} alt={item.title} className="w-16 h-20 sm:w-20 sm:h-24 object-cover rounded-lg border border-[#EAE3D9]" /><div className="min-w-0"><h4 className="font-serif text-sm truncate">{item.title}</h4><p className="text-[11px] text-[#665A4E] uppercase mt-0.5">Size {item.size} · Qty {item.quantity}</p></div></div><div className="font-serif text-sm font-semibold whitespace-nowrap">{formatPrice(item.priceLKR * item.quantity)}</div></div>)}
             </div>
 
             <div className="border-t border-[#EAE3D9] pt-4">

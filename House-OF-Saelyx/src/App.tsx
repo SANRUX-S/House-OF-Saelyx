@@ -15,6 +15,7 @@ import { AuthModal } from './components/AuthModal';
 import { BackInStockModal } from './components/BackInStockModal';
 import { ScrollToTop } from './components/ScrollToTop';
 import { SEOManager } from './components/SEOManager';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AdminPanel = React.lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
 const ProductDetailPage = React.lazy(() => import('./components/ProductDetailPage').then(module => ({ default: module.ProductDetailPage })));
@@ -183,9 +184,11 @@ const StoreContent: React.FC = () => {
       <Navbar />
 
       <main className="flex-grow">
-        <React.Suspense fallback={<RouteLoading />}>
-          {renderRoute()}
-        </React.Suspense>
+        <ErrorBoundary>
+          <React.Suspense fallback={<RouteLoading />}>
+            {renderRoute()}
+          </React.Suspense>
+        </ErrorBoundary>
       </main>
 
       <Footer />
@@ -207,8 +210,10 @@ const StoreContent: React.FC = () => {
 
 export default function App() {
   return (
-    <StoreProvider>
-      <StoreContent />
-    </StoreProvider>
+    <ErrorBoundary>
+      <StoreProvider>
+        <StoreContent />
+      </StoreProvider>
+    </ErrorBoundary>
   );
 }
