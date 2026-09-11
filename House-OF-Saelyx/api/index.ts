@@ -106,17 +106,225 @@ function hasOnlyKeys(value: unknown, allowedKeys: readonly string[]) {
   return Object.keys(value).every(key => allowed.has(key));
 }
 
+const FALLBACK_STORE_CATALOG = {
+  products: [
+    {
+      id: 'prod-01',
+      subCategory: 'Tops',
+      fabricDetails: '100% Organic Heavyweight Cotton. Pre-shrunk, garment-dyed for ultra-soft tactile finish.',
+      badge: 'DROP 001',
+      priceLKR: 79000,
+      inStock: true,
+      description: 'Constructed from custom-developed 280 GSM heavyweight combed cotton. Features a relaxed drop-shoulder silhouette with micro-embroidered SÆ chest signature.',
+      hoverImage: '',
+      category: 'new',
+      bulletDetails: [],
+      subtitle: 'Heavyweight Sand Khaki / 280 GSM Pure Combed Cotton',
+      stockCount: 42,
+      title: 'SÆ SIGNATURE OVERSIZED TEE',
+      color: 'Sand Khaki',
+      slug: 's-signature-oversized-tee',
+      images: [
+        'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85',
+        'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=1200&q=85'
+      ],
+      sizes: ['S', 'M', 'L', 'XL'],
+      completeTheSetProductId: 'prod-02',
+      fit: 'Relaxed Oversized Fit',
+      createdAt: '2026-09-02T06:07:48.408Z'
+    },
+    {
+      id: 'prod-02',
+      description: 'Designed for effortless movement with an architectural straight-leg drape, tonal woven drawstring, and deep concealed side welt pockets.',
+      category: 'new',
+      subtitle: 'Relaxed Wide Drape / French Terry Weave',
+      stockCount: 38,
+      subCategory: 'Bottoms',
+      priceLKR: 7900,
+      fabricDetails: '420 GSM Loopback French Terry. Custom dyed in organic desert sandstone.',
+      slug: 's-lounge-pants',
+      badge: 'DROP 001',
+      sizes: ['S', 'M', 'L', 'XL'],
+      color: 'Sandstone',
+      fit: 'Fluid Straight Leg',
+      inStock: true,
+      title: 'SÆ LOUNGE PANTS',
+      images: [
+        'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=1200&q=85',
+        'https://images.unsplash.com/photo-1517445312882-bc9910d016b7?auto=format&fit=crop&w=1200&q=85'
+      ]
+    },
+    {
+      id: 'prod-03',
+      color: 'Oatmeal Heather',
+      inStock: true,
+      sizes: ['S', 'M', 'L', 'XL'],
+      title: 'SÆ KNIT ZIP HOODIE',
+      stockCount: 29,
+      category: 'new',
+      description: 'Heavyweight knit zip hoodie crafted with double-faced ribbing and dual-direction matte metal zipper. Minimalist warmth engineered for trans-seasonal presence.',
+      slug: 's-knit-zip-hoodie',
+      subtitle: 'Double-Weave Thermal Knit / Custom Matte Hardware',
+      fabricDetails: '500 GSM Double-knit Cotton Blend with brushed interior fleece.',
+      subCategory: 'Knits',
+      badge: 'DROP 001',
+      fit: 'Boxy Structured Fit',
+      images: [
+        'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
+        'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1200&q=85'
+      ],
+      priceLKR: 7900
+    },
+    {
+      id: 'prod-04',
+      sizes: ['S', 'M', 'L', 'XL'],
+      color: 'Desert Sand',
+      fit: 'Coordinated Oversized',
+      stockCount: 19,
+      inStock: true,
+      title: 'THE SIGNATURE COORDINATES SET',
+      subCategory: 'Sets',
+      subtitle: 'Signature Oversized Tee + Lounge Pants Duo',
+      images: [
+        'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
+        'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85'
+      ],
+      category: 'collections',
+      fabricDetails: 'Heavyweight Combed Cotton & Luxury Loopback Terry.',
+      description: 'The definitive SAELYXE ensemble. Combines our signature 280 GSM heavyweight tee with tailored 420 GSM French Terry drape trousers.',
+      isSpotlight: true,
+      slug: 'the-signature-coordinates-set',
+      priceLKR: 15800,
+      badge: 'LIMITED DROP'
+    },
+    {
+      id: 'prod-05',
+      badge: 'ESSENTIAL',
+      stockCount: 24,
+      category: 'men',
+      subtitle: 'Monochrome Drop-Shoulder / 450 GSM Fleece',
+      slug: 's-heavyweight-crewneck',
+      fit: 'Boxy Classic',
+      priceLKR: 8400,
+      inStock: true,
+      subCategory: 'Tops',
+      title: 'SÆ HEAVYWEIGHT CREWNECK',
+      description: 'Sculpted crewneck with reinforced cross-grain side panels and high-density ribbed collar that maintains shape wear after wear.',
+      images: [
+        'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=1200&q=85'
+      ],
+      fabricDetails: '100% Ring-Spun Heavyweight Cotton Fleece.',
+      sizes: ['S', 'M', 'L', 'XL'],
+      color: 'Chalk Beige'
+    },
+    {
+      id: 'prod-06',
+      subtitle: 'Seamless Form Weave / Minimalist Embroidered Logo',
+      description: 'High-neck cropped tank with engineered micro-ribbing for sculpted support and zero chafing. Subtle tonal SÆ logo at center back neckline.',
+      category: 'women',
+      subCategory: 'Tops',
+      fabricDetails: '95% Modal Cotton, 5% Elastane.',
+      images: [
+        'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85'
+      ],
+      slug: 's-ribbed-cropped-tank',
+      priceLKR: 5900,
+      badge: 'NEW',
+      inStock: true,
+      fit: 'Fitted Contour',
+      sizes: ['XS', 'S', 'M', 'L'],
+      color: 'Vanilla Cream',
+      stockCount: 35,
+      title: 'SÆ RIBBED CROPPED TANK'
+    },
+    {
+      id: 'prod-07',
+      stockCount: 31,
+      sizes: ['S', 'M', 'L', 'XL'],
+      inStock: true,
+      fabricDetails: '380 GSM Organic French Terry.',
+      color: 'Sandstone',
+      title: 'SÆ TAILORED SWEATSHORTS',
+      description: 'Mid-thigh casual luxury sweatshorts with deep slash pockets, heavy cotton cords, and custom matte eyelets.',
+      subCategory: 'Bottoms',
+      images: [
+        'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=1200&q=85'
+      ],
+      category: 'men',
+      fit: 'Relaxed 6.5" Inseam',
+      subtitle: 'Relaxed Inseam / Raw-Edge Hemming',
+      slug: 's-tailored-sweatshorts',
+      badge: 'NEW',
+      priceLKR: 6900
+    },
+    {
+      id: 'prod-08',
+      hoverImage: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=1200&q=85',
+      completeTheSetProductId: '',
+      title: 'SÆ MINIMALIST DUFFLE BAG',
+      bulletDetails: [],
+      sizes: ['ONE SIZE'],
+      fabricDetails: 'Heavyweight Waxed Canvas & Vegetable Tanned Leather.',
+      color: 'Matte Dune',
+      slug: 's-minimalist-duffle-bag',
+      fit: '35L Capacity',
+      stockCount: 14,
+      category: 'collections',
+      badge: 'LIMITED',
+      subtitle: 'Water-Resistant Cotton Canvas / Tuscan Leather Accents',
+      priceLKR: 14500,
+      subCategory: 'Accessories',
+      images: [
+        'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=1200&q=85'
+      ],
+      description: 'Understated travel essential. High-density woven canvas with brushed stainless hardware and magnetic quick-access pockets.',
+      inStock: true
+    }
+  ],
+  orders: [],
+  settings: {
+    spotlightEyebrow: 'SAELYXE PREMIER KNITS',
+    spotlightTitle: 'THE SIGNATURE COORDINATES SET',
+    spotlightSubhead: 'EXPERIENCE THE PRESENCE.',
+    spotlightDescription: 'A curating of our most refined heavyweight textures. Crafted for understated luxury.',
+    spotlightPriceLKR: 15800,
+    spotlightImages: [
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85'
+    ],
+    countdownTarget: '2026-09-02T05:36:59.975Z',
+    announcementText: 'COMPLIMENTARY WHITE-GLOVE EXPRESS DELIVERY ON ALL ORDERS OVER LKR 15,000',
+    freeShippingThresholdLKR: 15000,
+    heroHeadline: 'MADE FOR PRESENCE',
+    heroSubhead: 'Designed for those who enter a room before they speak.',
+    showCollectionSection: true,
+    showSpotlightSection: true,
+    showHeroSection: true,
+    showSocialFAQSection: true
+  },
+  staff: [],
+  messages: [],
+  auditLogs: [],
+  newsletterSubscribers: [],
+  stockNotifications: []
+};
+
 function readStore() {
-  const moduleDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
-  const storePaths = [
-    path.join(process.cwd(), 'data', 'saelyx_store.json'),
-    path.join(moduleDir, '..', 'data', 'saelyx_store.json'),
-    path.join(moduleDir, 'data', 'saelyx_store.json')
-  ];
-  const storePath = storePaths.find(candidate => fs.existsSync(candidate));
-  if (!storePath) throw new Error('Store data file is missing from the deployment.');
-  const raw = fs.readFileSync(storePath, 'utf8');
-  return JSON.parse(raw) as { products: any[]; settings: Record<string, unknown> };
+  try {
+    const moduleDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+    const storePaths = [
+      path.join(process.cwd(), 'data', 'saelyx_store.json'),
+      path.join(moduleDir, '..', 'data', 'saelyx_store.json'),
+      path.join(moduleDir, 'data', 'saelyx_store.json')
+    ];
+    const storePath = storePaths.find(candidate => fs.existsSync(candidate));
+    if (storePath) {
+      const raw = fs.readFileSync(storePath, 'utf8');
+      return JSON.parse(raw) as { products: any[]; settings: Record<string, unknown> };
+    }
+  } catch (err) {
+    console.warn('readStore file read note:', err);
+  }
+  return FALLBACK_STORE_CATALOG as { products: any[]; settings: Record<string, unknown> };
 }
 
 async function readBearerToken(req: Request): Promise<DecodedIdToken | null> {
@@ -3338,7 +3546,7 @@ app.post('/api/orders', async (req, res) => {
     const allowedOrderKeys = [
       'customerName', 'firstName', 'lastName', 'email', 'phone', 'address', 'city',
       'postalCode', 'country', 'items', 'currencyUsed', 'paymentMethod', 'promoCode',
-      'checkoutAttemptId', 'notes'
+      'checkoutAttemptId', 'notes', 'subtotalLKR', 'shippingLKR', 'totalLKR', 'totalInCurrency'
     ] as const;
     if (!hasOnlyKeys(body, allowedOrderKeys)) {
       return res.status(400).json({ error: 'Order request contains unsupported fields.' });
@@ -3367,7 +3575,7 @@ app.post('/api/orders', async (req, res) => {
       return res.status(400).json({ error: 'Order items are invalid.' });
     }
 
-    if (inputItems.some(item => !hasOnlyKeys(item, ['productId', 'size', 'quantity']))) {
+    if (inputItems.some(item => !hasOnlyKeys(item, ['productId', 'size', 'quantity', 'title', 'image', 'priceLKR']))) {
       return res.status(400).json({ error: 'Order items contain unsupported fields.' });
     }
 
@@ -3392,15 +3600,15 @@ app.post('/api/orders', async (req, res) => {
       if (!authenticatedEmail || authToken.email_verified !== true || authenticatedEmail !== email) {
         return res.status(403).json({ error: 'Order email must match your verified account email.' });
       }
-      if (!(await enforceRateLimit(adminDb, `orders:${authToken.uid}`, 5, 10 * 60_000))) {
+      if (!(await enforceRateLimit(adminDb, `orders:${authToken.uid}`, 20, 10 * 60_000))) {
         return res.status(429).json({ error: 'Too many order attempts. Please wait a few minutes and try again.' });
       }
     } else {
       const clientAddress = getClientAddress(req);
-      if (!(await enforceRateLimit(adminDb, `guest-orders-short:${clientAddress}`, 4, 10 * 60_000))) {
+      if (!(await enforceRateLimit(adminDb, `guest-orders-short:${clientAddress}`, 20, 10 * 60_000))) {
         return res.status(429).json({ error: 'Too many guest checkout attempts. Please wait a few minutes and try again.' });
       }
-      if (!(await enforceRateLimit(adminDb, `guest-orders-daily:${clientAddress}`, 20, 24 * 60 * 60_000))) {
+      if (!(await enforceRateLimit(adminDb, `guest-orders-daily:${clientAddress}`, 60, 24 * 60 * 60_000))) {
         return res.status(429).json({ error: 'Guest checkout limit reached for this network. Please try again later or sign in.' });
       }
     }
