@@ -28,11 +28,9 @@
   }
 }
 
-/* Google Pay brand integration styling */
-[data-google-pay-review-experience="recommended"] > div:first-child {
-  padding: 8px;
-  background: #ffffff;
-  border-radius: 10px;
+/* Google Pay has been removed from the storefront. Hide the legacy inline footer mark. */
+.footer-payment-icons figure:has(svg[aria-labelledby="pi-google_pay"]) {
+  display: none !important;
 }
 
 /* ==========================================================================
