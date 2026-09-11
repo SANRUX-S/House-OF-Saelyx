@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   storefront-performance-hotfix:
-    if: github.event_name == 'push' && github.event.head_commit.message == 'chore: apply storefront performance hotfix'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,6 +24,13 @@ jobs:
       - name: Apply focused production performance fixes
         shell: bash
         run: |
+          set -euo pipefail
+          MESSAGE="$(jq -r '.head_commit.message // ""' "$GITHUB_EVENT_PATH")"
+          if [ "$MESSAGE" != "chore: retry storefront performance hotfix" ]; then
+            echo "Performance hotfix not requested for this commit."
+            exit 0
+          fi
+
           python - <<'PY'
           from pathlib import Path
           import re
