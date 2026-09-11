@@ -118,7 +118,7 @@ export const SpotlightProduct: React.FC = () => {
           <div className="md:col-span-6 lg:col-span-5 space-y-5 sm:space-y-6 text-left">
             <div className="space-y-2">
               <span className="block text-[11px] sm:text-xs md:text-sm uppercase tracking-[0.25em] text-white/90 font-medium">{eyebrow}</span>
-              <h2 className="font-sans text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight uppercase leading-[1.04]">{title}</h2>
+              <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-light text-white tracking-wide leading-[1.08]">{title}</h2>
             </div>
 
             <div className="space-y-1.5 sm:space-y-2 max-w-md">

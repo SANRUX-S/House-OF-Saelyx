@@ -31,12 +31,12 @@ export const HeroSection: React.FC = () => {
     <section className="relative w-full h-[100dvh] min-h-[660px] max-h-[1100px] overflow-hidden bg-[#181614] select-none">
       <div className="absolute inset-0 w-full h-full">
         <img
-          src="/saelyxe-hero.avif"
+          src="/images/saelyxe-hero.jpg"
           alt="SAELYXE Editorial Lifestyle Collection"
-          className="w-full h-full object-cover object-[55%_center] md:object-center filter brightness-[0.95]"
+          className="w-full h-full object-cover object-center"
           referrerPolicy="no-referrer"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-black/30 pointer-events-none" />
       </div>
 
       <div className="relative z-20 w-full h-full px-6 sm:px-10 md:px-12 lg:px-16 flex flex-col justify-between pt-16 md:pt-24 pb-8">
@@ -55,7 +55,7 @@ export const HeroSection: React.FC = () => {
           <div className="max-w-md text-left flex flex-col items-start space-y-4">
             <span className="block text-[10px] font-semibold tracking-[0.25em] text-white/90 uppercase">NEW COLLECTION</span>
 
-            <h2 className="font-sans text-4xl lg:text-5xl xl:text-[54px] font-black tracking-[-0.01em] lg:tracking-[0.02em] text-white uppercase leading-[1.05] drop-shadow-2xl whitespace-pre-line">
+            <h2 className="font-serif text-4xl lg:text-5xl xl:text-[52px] font-normal tracking-wide text-white uppercase leading-[1.12] drop-shadow-xl whitespace-pre-line">
               {heroHeadline}
             </h2>
 
@@ -170,7 +170,7 @@ export const HeroSection: React.FC = () => {
         <div className="md:hidden">
           <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center flex flex-col items-center space-y-2.5 px-4 z-20">
             <span className="block text-[10px] font-medium tracking-[0.25em] text-white/90 uppercase">NEW COLLECTION</span>
-            <h2 className="font-sans text-2xl sm:text-3xl font-black tracking-tight text-white uppercase leading-[1.08] drop-shadow-lg max-w-xs whitespace-pre-line">{heroHeadline}</h2>
+            <h2 className="font-serif text-3xl font-normal tracking-wide text-white uppercase leading-[1.12] drop-shadow-lg max-w-xs whitespace-pre-line">{heroHeadline}</h2>
             <p className="text-white/90 text-xs font-normal tracking-wide max-w-[240px] leading-relaxed drop-shadow-md">{heroSubhead}</p>
             <div className="pt-1.5">
               <button

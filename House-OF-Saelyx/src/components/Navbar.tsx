@@ -92,7 +92,7 @@ export const Navbar: React.FC = () => {
           }}
           className="group flex items-center cursor-pointer text-center"
         >
-          <span className="font-sans text-xl sm:text-2xl font-black tracking-[0.35em] text-white uppercase transition-opacity group-hover:opacity-80">SAELYXE</span>
+          <span className="font-serif text-2xl font-normal tracking-[0.3em] text-white uppercase transition-opacity group-hover:opacity-80">SAELYXE</span>
         </button>
 
         <div className="flex items-center gap-2.5 sm:gap-3.5 relative">
@@ -182,7 +182,7 @@ export const Navbar: React.FC = () => {
         }`}
       >
         <button type="button" onClick={() => { navigateTo({ name: 'home' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="group flex items-center cursor-pointer text-left">
-          <span className="font-sans text-xl lg:text-2xl font-black tracking-[0.38em] text-white uppercase transition-opacity group-hover:opacity-80">SAELYXE</span>
+          <span className="font-serif text-xl lg:text-2xl font-normal tracking-[0.35em] text-white uppercase transition-opacity group-hover:opacity-80">SAELYXE</span>
         </button>
 
         <div className="absolute inset-x-0 mx-auto w-max flex items-center bg-white/15 border border-white/20 rounded-full px-4 py-1 shadow-2xl pointer-events-auto">
