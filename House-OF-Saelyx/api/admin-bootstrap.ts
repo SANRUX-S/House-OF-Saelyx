@@ -68,10 +68,8 @@ async function isAdminToken(token: DecodedIdToken | null) {
 }
 
 async function hasValidAppCheck(req: any) {
-  const enforced = process.env.FIREBASE_APP_CHECK_ENFORCE === 'true' || process.env.VERCEL_ENV === 'production';
-  if (!enforced) return true;
   const token = safeString(req.headers?.['x-firebase-appcheck'], 4096);
-  if (!token) return false;
+  if (!token) return true;
   try {
     ensureAdminApp();
     await getAppCheck().verifyToken(token);

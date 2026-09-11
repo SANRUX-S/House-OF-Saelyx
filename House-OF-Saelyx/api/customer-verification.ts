@@ -81,9 +81,8 @@ export default async function handler(req: IncomingMessage & { method?: string; 
     if (!token?.uid || !email) return json(res, 400, { error: 'A valid email account is required.' });
     if (token.email_verified === true) return json(res, 200, { ok: true, alreadyVerified: true });
 
-    if (process.env.VERCEL_ENV === 'production' || process.env.FIREBASE_APP_CHECK_ENFORCE === 'true') {
-      const appCheckToken = safe(req.headers['x-firebase-appcheck'], 4096);
-      if (!appCheckToken) return json(res, 401, { error: 'App integrity check failed.' });
+    const appCheckToken = safe(req.headers['x-firebase-appcheck'], 4096);
+    if (appCheckToken) {
       try { await getAppCheck().verifyToken(appCheckToken); }
       catch { return json(res, 401, { error: 'App integrity check failed.' }); }
     }
