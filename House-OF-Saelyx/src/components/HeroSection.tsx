@@ -28,17 +28,29 @@ export const HeroSection: React.FC = () => {
   };
 
   return (
-    <section className="relative w-full h-[100dvh] min-h-[660px] max-h-[1100px] overflow-hidden bg-[#181614] select-none">
-      <div className="absolute inset-0 w-full h-full">
+    <section className="relative w-full min-h-[580px] sm:min-h-[640px] md:min-h-[680px] h-[88vh] lg:h-[92vh] max-h-[1050px] overflow-hidden bg-[#0C0B0A] select-none flex items-center justify-center">
+      {/* Ambient background glow so wide screens blend naturally without harsh black bars */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+        <img
+          src="/images/saelyxe-hero.png"
+          alt=""
+          aria-hidden="true"
+          className="w-full h-full object-cover object-center blur-3xl opacity-35 scale-110"
+        />
+        <div className="absolute inset-0 bg-black/40" />
+      </div>
+
+      {/* 100% Uncropped, Unzoomed Pristine Image */}
+      <div className="absolute inset-0 w-full h-full flex items-center justify-center">
         <img
           src="/images/saelyxe-hero.png"
           alt="SAELYXE Editorial Lifestyle Collection"
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full object-contain object-center"
           referrerPolicy="no-referrer"
           fetchPriority="high"
           decoding="sync"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/15 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none" />
       </div>
 
       <div className="relative z-20 w-full h-full px-6 sm:px-10 md:px-12 lg:px-16 flex flex-col justify-between pt-16 md:pt-24 pb-8">
@@ -170,9 +182,9 @@ export const HeroSection: React.FC = () => {
         </div>
 
         <div className="md:hidden">
-          <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center flex flex-col items-center space-y-2.5 px-4 z-20">
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-white/90 uppercase">NEW COLLECTION</span>
-            <h2 className="font-serif text-3xl font-normal tracking-wide text-white uppercase leading-[1.12] drop-shadow-lg max-w-xs whitespace-pre-line">{heroHeadline}</h2>
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full text-center flex flex-col items-center space-y-2 px-4 z-20">
+            <span className="block text-[9.5px] font-medium tracking-[0.25em] text-white/90 uppercase">NEW COLLECTION</span>
+            <h2 className="font-serif text-2xl sm:text-3xl font-normal tracking-wide text-white uppercase leading-[1.12] drop-shadow-lg max-w-xs whitespace-pre-line">{heroHeadline}</h2>
             <p className="text-white/90 text-xs font-normal tracking-wide max-w-[240px] leading-relaxed drop-shadow-md">{heroSubhead}</p>
             <div className="pt-1.5">
               <button
