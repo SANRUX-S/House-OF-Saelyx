@@ -28,18 +28,33 @@ export const HeroSection: React.FC = () => {
   };
 
   return (
-    <section className="relative w-full min-h-[580px] sm:min-h-[620px] md:min-h-[660px] h-[86vh] lg:h-[90vh] max-h-[1050px] overflow-hidden bg-[#181614] select-none flex items-center justify-center">
-      {/* Full-bleed Edge-to-Edge Editorial Image with Top-Anchor (Zero Black Sidebars) */}
-      <div className="absolute inset-0 w-full h-full">
+    <section 
+      className="relative w-full min-h-[540px] sm:min-h-[580px] h-[82vh] md:h-auto md:aspect-[16/9] md:min-h-[540px] md:max-h-[88vh] overflow-hidden select-none flex items-center justify-center"
+      style={{
+        backgroundColor: '#181614',
+        backgroundImage: 'radial-gradient(ellipse at 50% 30%, rgba(217, 119, 6, 0.12) 0%, rgba(24, 22, 20, 1) 100%)',
+      }}
+    >
+      {/* Full-bleed Edge-to-Edge Editorial Image with Inline Style Anchoring (Zero Black Sidebars & Zero Zoom Distortion) */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
         <img
           src="/images/saelyxe-hero.png"
           alt="SAELYXE Editorial Lifestyle Collection"
-          className="w-full h-full object-cover object-[center_top] sm:object-[center_10%] md:object-[center_14%]"
+          className="w-full h-full"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center 12%',
+            display: 'block',
+          }}
           referrerPolicy="no-referrer"
           fetchPriority="high"
           decoding="sync"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
         <div className="absolute inset-0 bg-black/5 pointer-events-none" />
       </div>
 
