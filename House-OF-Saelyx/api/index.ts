@@ -2754,6 +2754,7 @@ app.get('/api/payments/config', (_req, res) => {
   const payzy = getPayzyConfig();
 
   return res.json({
+    appCheckEnforced: isAppCheckEnforced(),
     paypal: {
       enabled: payPalServerConfigured,
       clientId: payPalServerConfigured ? payPalClientId : '',
