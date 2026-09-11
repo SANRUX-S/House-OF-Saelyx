@@ -19,7 +19,6 @@ import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
-const GooglePayTestButton = React.lazy(() => import('./GooglePayTestButton').then(module => ({ default: module.GooglePayTestButton })));
 
 function createPayPalCheckoutAttemptId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return `paypal-${crypto.randomUUID()}`;
@@ -83,19 +82,6 @@ export const CheckoutPage: React.FC = () => {
     setIsCartOpen
   } = useStore();
 
-  const [googlePayReviewMode] = useState(() => {
-    // Google Pay review is isolated from normal production checkout; no production order was created.
-    if (typeof window === 'undefined') return false;
-    const params = new URLSearchParams(window.location.search);
-    let sessionEnabled = false;
-    try {
-      if (params.get('gpaytest') === '1') sessionStorage.setItem('saelyxe_google_pay_review_v1', '1');
-      if (params.get('gpaytest') === '0') sessionStorage.removeItem('saelyxe_google_pay_review_v1');
-      sessionEnabled = sessionStorage.getItem('saelyxe_google_pay_review_v1') === '1';
-    } catch {}
-    return params.get('gpaytest') === '1' || sessionEnabled;
-  });
-
   const savedDetailsKey = user?.uid ? 'saelyx_saved_delivery_details:' + user.uid : null;
   const [savedDetailsObj, setSavedDetailsObj] = useState<any>(() => {
     try {
@@ -145,7 +131,7 @@ export const CheckoutPage: React.FC = () => {
     if (user.country && (!savedDetailsObj || !savedDetailsObj.country)) setCountry(user.country);
   }, [user]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | null>(null);
   const [paymentConfig, setPaymentConfig] = useState({
     paypal: { enabled: true, clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || '', mode: 'sandbox' },
     payzy: { enabled: true, configured: false, mode: 'sandbox' as 'sandbox' | 'live', testAmountLKR: 10 as number | null }
@@ -197,16 +183,14 @@ export const CheckoutPage: React.FC = () => {
   const payzyCheckoutAttemptIdRef = useRef<string | null>(null);
   const payzyReturnHandledRef = useRef(false);
 
-  const isGPayTest = googlePayReviewMode;
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const isPayzyReturn = params.has('payzy') && params.has('orderId');
-    if (cart.length === 0 && !confirmedOrder && !isPayzyReturn && !isGPayTest) {
+    if (cart.length === 0 && !confirmedOrder && !isPayzyReturn) {
       navigateTo({ name: 'home' });
       setIsCartOpen(true);
     }
-  }, [cart.length, confirmedOrder, isGPayTest, navigateTo, setIsCartOpen]);
+  }, [cart.length, confirmedOrder, navigateTo, setIsCartOpen]);
 
   const customerName = `${firstName.trim()} ${lastName.trim()}`.trim();
   const isDetailsChanged = !!(savedDetailsObj && (
@@ -221,22 +205,14 @@ export const CheckoutPage: React.FC = () => {
     notes !== savedDetailsObj.notes
   ));
 
-  const mockReviewGarment = {
-    productId: 'demo-garment-1',
-    title: 'THE OVERSIZED SILK HOODIE',
-    size: 'M',
-    quantity: 1,
-    priceLKR: 18500,
-    image: '/images/spotlight19201080.jpg'
-  };
-  const effectiveCart = cart.length > 0 ? cart : (isGPayTest ? [mockReviewGarment] : cart);
+  const effectiveCart = cart;
 
   const totalItemsCount = effectiveCart.reduce((acc, item) => acc + item.quantity, 0);
   const subtotalLKR = effectiveCart.reduce((acc, item) => acc + item.priceLKR * item.quantity, 0);
   const discountLKR = appliedPromo ? appliedPromo.discountFixedLKR : 0;
   const discountedSubtotalLKR = Math.max(0, subtotalLKR - discountLKR);
-  const freeShippingThresholdLKR = Number(settings?.freeShippingThresholdLKR) > 0 ? Number(settings?.freeShippingThresholdLKR) : 50000;
-  const standardShippingLKR = Number(settings?.standardShippingLKR) >= 0 ? Number(settings?.standardShippingLKR) : 2500;
+  const freeShippingThresholdLKR = Number(settings?.freeShippingThresholdLKR) > 0 ? Number(settings.freeShippingThresholdLKR) : 50000;
+  const standardShippingLKR = Number(settings?.standardShippingLKR) >= 0 ? Number(settings.standardShippingLKR) : 2500;
   const shippingLKR = effectiveCart.length === 0 ? 0 : (discountedSubtotalLKR >= freeShippingThresholdLKR ? 0 : standardShippingLKR);
   const totalLKR = discountedSubtotalLKR + shippingLKR;
   const totalInCurrency = Number((totalLKR * (selectedCurrency?.rateFromLKR || 1)).toFixed(2));
@@ -296,11 +272,10 @@ export const CheckoutPage: React.FC = () => {
     return reconciled;
   };
 
-  const handlePaymentMethodChange = async (method: 'paypal' | 'payzy' | 'cod' | 'googlepay') => {
+  const handlePaymentMethodChange = async (method: 'paypal' | 'payzy' | 'cod') => {
     if (paymentSwitchInFlightRef.current || isSubmitting || method === paymentMethod) return;
     const previousMethod = paymentMethod;
 
-    // Reflect the customer's selection immediately; provider reconciliation happens after the UI update.
     setPaymentMethod(method);
     setFieldErrors(previous => ({ ...previous, paymentMethod: undefined, general: undefined }));
     paymentSwitchInFlightRef.current = true;
@@ -612,7 +587,7 @@ export const CheckoutPage: React.FC = () => {
             </div>
 
             <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
-              <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-3.5"><div><h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2"><CreditCard className="w-4 h-4 text-[#8C7A68]" />Select Payment Method</h3><p className="text-xs text-[#7A6E60] mt-0.5">{googlePayReviewMode ? 'PayPal, Payzy, Cash on Delivery, or Google Pay TEST review.' : 'PayPal, Payzy, or Cash on Delivery.'}</p></div><span className="text-[10px] uppercase tracking-[0.16em] text-[#8F8171]">Step 2 of 2</span></div>
+              <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-3.5"><div><h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2"><CreditCard className="w-4 h-4 text-[#8C7A68]" />Select Payment Method</h3><p className="text-xs text-[#7A6E60] mt-0.5">PayPal, Payzy, or Cash on Delivery.</p></div><span className="text-[10px] uppercase tracking-[0.16em] text-[#8F8171]">Step 2 of 2</span></div>
               {fieldErrors.paymentMethod && <div className="p-3 rounded-lg border border-rose-200 bg-rose-50 text-xs text-rose-700">{fieldErrors.paymentMethod}</div>}
 
               <div className="space-y-3.5" role="radiogroup" aria-label="Payment method">
@@ -623,63 +598,6 @@ export const CheckoutPage: React.FC = () => {
                       <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'payzy' ? 'border-[#13A8DD]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'payzy' && <div className="w-2.5 h-2.5 rounded-full bg-[#13A8DD]" />}</div>
                     </button>
                     {paymentMethod === 'payzy' && <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EEE8DF] space-y-4"><div className="rounded-xl bg-white border border-[#E5DFD7] p-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762]">Payzy order total</p><p className="font-serif text-xl mt-1">LKR {totalLKR.toLocaleString('en-US')}</p><p className="text-[11px] text-[#74685B] mt-2">You will continue to Payzy. SAELYXE confirms the order only after the signed payment response is verified.</p></div>{!paymentConfig.payzy.configured ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] text-amber-900">Payzy is temporarily unavailable.</div> : <button type="button" onClick={handlePayzyOrder} disabled={isSubmitting} className="w-full min-h-[52px] rounded-xl bg-[#303139] text-white text-[11px] uppercase tracking-[0.18em] font-semibold disabled:opacity-50 flex items-center justify-center gap-3"><PayzyMark className="w-6 h-6" />{isSubmitting ? 'Opening Payzy...' : 'CONTINUE WITH PAYZY'}</button>}</div>}
-                  </div>
-                )}
-
-                {googlePayReviewMode && (
-                  <div className={`rounded-2xl border overflow-hidden ${paymentMethod === 'googlepay' ? 'border-[#1A1816] ring-1 ring-[#1A1816]' : 'border-[#E7E0D6]'}`}>
-                    <button type="button" role="radio" aria-label="Google Pay" aria-checked={paymentMethod === 'googlepay'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('googlepay')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-14 h-9 rounded-md bg-white border border-[#DADCE0] flex items-center justify-center p-1 shadow-2xs shrink-0">
-                          <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-5 w-auto object-contain" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[#1A1816]">Google Pay</span>
-                          </div>
-                          <p className="text-[11px] text-[#665A4E] mt-0.5">Fast, simple, and secure checkout with Google Pay.</p>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'googlepay' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'googlepay' && <div className="w-2.5 h-2.5 rounded-full bg-[#1A1816]" />}</div>
-                    </button>
-                    {paymentMethod === 'googlepay' && (
-                      <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EEE8DF] space-y-4">
-                        <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD7] p-4">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762]">Google Pay total</p>
-                          <p className="font-serif text-xl mt-1">LKR {totalLKR.toLocaleString('en-US')}</p>
-                          <p className="text-[11px] text-[#74685B] mt-2">Click Google Pay below to authorize with your Google account.</p>
-                        </div>
-                        <GooglePayTestButton
-                          totalLKR={totalLKR}
-                          subtotalLKR={discountedSubtotalLKR}
-                          shippingLKR={shippingLKR}
-                          customerName={customerName || `${firstName} ${lastName}`.trim()}
-                          address={address}
-                          city={city}
-                          email={email}
-                          phone={phone}
-                          cartItems={effectiveCart}
-                          disabled={isSubmitting || isSwitchingPayment}
-                          onBeforePay={() => {
-                            if (effectiveCart.length === 0) {
-                              setFieldErrors(previous => ({ ...previous, general: 'Your shopping bag is empty.' }));
-                              return false;
-                            }
-                            if (!validateDeliveryDetails()) return false;
-                            setFieldErrors(previous => ({ ...previous, general: undefined, paymentMethod: undefined }));
-                            return true;
-                          }}
-                          onAuthorized={() => {
-                            persistDeliveryDetailsIfNeeded();
-                          }}
-                          onCompleted={() => {
-                            clearCart();
-                            navigateTo({ name: 'home' });
-                          }}
-                          onError={message => setFieldErrors(previous => ({ ...previous, general: message }))}
-                        />
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -806,7 +724,7 @@ export const CheckoutPage: React.FC = () => {
 
             <div className="border-t border-[#EAE3D9] pt-4 space-y-2.5 text-xs"><div className="flex justify-between text-[#7A6E60]"><span>SUBTOTAL</span><span>{formatPrice(subtotalLKR)}</span></div><div className="flex justify-between text-[#7A6E60]"><span>DELIVERY</span><span className="text-emerald-900">{shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(shippingLKR)}</span></div>{discountLKR > 0 && <div className="flex justify-between text-emerald-800"><span>DISCOUNT ({appliedPromo?.code})</span><span>-{formatPrice(discountLKR)}</span></div>}<div className="border-t border-[#EAE3D9] pt-3.5 flex justify-between items-baseline"><span className="text-xs uppercase tracking-[0.18em] font-semibold">TOTAL</span><div className="font-serif text-2xl">{formatPrice(totalLKR)}</div></div></div>
 
-            <div className="border-t border-[#EAE3D9] pt-4 space-y-3"><div className="flex items-start gap-2.5 text-xs"><ShieldCheck className="w-4 h-4 text-emerald-800 shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Verified Online Payment</span><p className="text-[11px] text-[#665A4E]">{googlePayReviewMode ? 'PayPal, Payzy and Cash on Delivery are available; Google Pay is isolated in non-chargeable TEST review mode.' : 'PayPal and Payzy require server verification. Cash on Delivery remains unpaid until collection.'}</p></div></div><div className="flex items-start gap-2.5 text-xs"><Truck className="w-4 h-4 text-[#8C7A68] shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Sri Lanka Delivery</span><p className="text-[11px] text-[#665A4E]">Courier and ETA details are shown when assigned; SAELYXE does not invent tracking information.</p></div></div></div>
+            <div className="border-t border-[#EAE3D9] pt-4 space-y-3"><div className="flex items-start gap-2.5 text-xs"><ShieldCheck className="w-4 h-4 text-emerald-800 shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Verified Online Payment</span><p className="text-[11px] text-[#665A4E]">PayPal and Payzy require server verification. Cash on Delivery remains unpaid until collection.</p></div></div><div className="flex items-start gap-2.5 text-xs"><Truck className="w-4 h-4 text-[#8C7A68] shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Sri Lanka Delivery</span><p className="text-[11px] text-[#665A4E]">Courier and ETA details are shown when assigned; SAELYXE does not invent tracking information.</p></div></div></div>
           </div>
         </div>
       </div>
