@@ -719,10 +719,6 @@ export const CheckoutPage: React.FC = () => {
                               style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
                               createOrder={async () => {
                                 if (!validateDeliveryDetails()) {
-                                  setFieldErrors(previous => ({
-                                    ...previous,
-                                    general: 'Please complete all delivery details (First Name, Last Name, Phone Number, Address, City) above before paying with card.'
-                                  }));
                                   throw new Error('Please complete all required delivery fields.');
                                 }
                                 setFieldErrors(previous => ({ ...previous, general: undefined }));
@@ -775,11 +771,6 @@ export const CheckoutPage: React.FC = () => {
                                   } catch {
                                     setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage }));
                                   }
-                                } else {
-                                  setFieldErrors(previous => ({
-                                    ...previous,
-                                    general: 'PayPal card payment was declined or could not open. Please ensure your delivery details are complete and your card supports online transactions, or use Cash on Delivery.'
-                                  }));
                                 }
                               }}
                             />
