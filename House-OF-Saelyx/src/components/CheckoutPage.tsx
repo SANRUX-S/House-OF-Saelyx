@@ -19,7 +19,7 @@ import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
-import { GooglePayTestButton } from './GooglePayTestButton';
+const GooglePayTestButton = React.lazy(() => import('./GooglePayTestButton').then(module => ({ default: module.GooglePayTestButton })));
 
 function createPayPalCheckoutAttemptId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return `paypal-${crypto.randomUUID()}`;
@@ -84,14 +84,16 @@ export const CheckoutPage: React.FC = () => {
   } = useStore();
 
   const [googlePayReviewMode] = useState(() => {
-    // In review mode: no production order was created
-    if (typeof window === 'undefined') return true;
+    // Google Pay review is isolated from normal production checkout.
+    if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
+    let sessionEnabled = false;
     try {
       if (params.get('gpaytest') === '1') sessionStorage.setItem('saelyxe_google_pay_review_v1', '1');
       if (params.get('gpaytest') === '0') sessionStorage.removeItem('saelyxe_google_pay_review_v1');
+      sessionEnabled = sessionStorage.getItem('saelyxe_google_pay_review_v1') === '1';
     } catch {}
-    return true;
+    return params.get('gpaytest') === '1' || sessionEnabled;
   });
 
   const savedDetailsKey = user?.uid ? 'saelyx_saved_delivery_details:' + user.uid : null;
@@ -143,7 +145,7 @@ export const CheckoutPage: React.FC = () => {
     if (user.country && (!savedDetailsObj || !savedDetailsObj.country)) setCountry(user.country);
   }, [user]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>('googlepay');
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'payzy' | 'cod' | 'googlepay' | null>(null);
   const [paymentConfig, setPaymentConfig] = useState({
     paypal: { enabled: true, clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || '', mode: 'sandbox' },
     payzy: { enabled: true, configured: false, mode: 'sandbox' as 'sandbox' | 'live', testAmountLKR: 10 as number | null }
@@ -195,7 +197,7 @@ export const CheckoutPage: React.FC = () => {
   const payzyCheckoutAttemptIdRef = useRef<string | null>(null);
   const payzyReturnHandledRef = useRef(false);
 
-  const isGPayTest = googlePayReviewMode || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('gpaytest') === '1');
+  const isGPayTest = googlePayReviewMode;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -295,20 +297,24 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const handlePaymentMethodChange = async (method: 'paypal' | 'payzy' | 'cod' | 'googlepay') => {
-    if (paymentSwitchInFlightRef.current || isSubmitting) return;
+    if (paymentSwitchInFlightRef.current || isSubmitting || method === paymentMethod) return;
+    const previousMethod = paymentMethod;
+
+    // Reflect the customer's selection immediately; provider reconciliation happens after the UI update.
+    setPaymentMethod(method);
+    setFieldErrors(previous => ({ ...previous, paymentMethod: undefined, general: undefined }));
     paymentSwitchInFlightRef.current = true;
     setIsSwitchingPayment(true);
     try {
-      if (paymentMethod === 'paypal' && method !== 'paypal') {
+      if (previousMethod === 'paypal' && method !== 'paypal') {
         const pending = paypalPendingOrderRef.current || paypalPendingOrder;
         if (pending) {
           const reconciled = await reconcilePendingCheckout(pending);
           if (reconciled.paymentStatus === 'verified') return;
         }
       }
-      setPaymentMethod(method);
-      setFieldErrors(previous => ({ ...previous, paymentMethod: undefined, general: undefined }));
     } catch {
+      setPaymentMethod(previousMethod);
       setFieldErrors(previous => ({ ...previous, general: unresolvedPaymentMessage }));
     } finally {
       paymentSwitchInFlightRef.current = false;

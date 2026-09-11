@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion, useSpring, useTransform } from 'framer-motion';
+
 import { ArrowRight, Check, Lock } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
@@ -28,44 +28,11 @@ function getTimeLeft(target?: string | null): TimeLeft {
   };
 }
 
-function NumberItem({ mv, number, height }: { mv: any; number: number; height: number }) {
-  const y = useTransform(mv, (latest: number) => {
-    const placeValue = ((latest % 10) + 10) % 10;
-    let offset = (10 + number - placeValue) % 10;
-    let memo = offset * height;
-    if (offset > 5) memo -= 10 * height;
-    return memo;
-  });
-
-  return (
-    <motion.span className="absolute inset-0 flex items-center justify-center font-serif leading-none" style={{ y }}>
-      {number}
-    </motion.span>
-  );
-}
-
-function SpringDigit({ value, height }: { value: number; height: number }) {
-  const animatedValue = useSpring(value, { stiffness: 200, damping: 25, mass: 0.8 });
-
-  useEffect(() => {
-    animatedValue.set(value);
-  }, [animatedValue, value]);
-
-  return (
-    <div className="relative inline-block overflow-hidden tabular-nums font-serif select-none" style={{ height, width: '0.6em' }}>
-      {Array.from({ length: 10 }, (_, i) => (
-        <NumberItem key={i} mv={animatedValue} number={i} height={height} />
-      ))}
-    </div>
-  );
-}
-
 function NumberSlot({ value, height = 36 }: { value: number; height?: number }) {
   const formatted = Math.max(0, value).toString().padStart(2, '0');
   return (
-    <div className="flex items-center justify-center leading-none" style={{ height }}>
-      <SpringDigit value={Number(formatted[0])} height={height} />
-      <SpringDigit value={Number(formatted[1])} height={height} />
+    <div className="flex items-center justify-center tabular-nums font-serif leading-none" style={{ height }}>
+      <span>{formatted}</span>
     </div>
   );
 }
@@ -141,7 +108,7 @@ export const SpotlightProduct: React.FC = () => {
           alt={title}
           onContextMenu={event => event.preventDefault()}
           draggable={false}
-          className={`absolute inset-0 w-full h-full object-cover object-[68%_center] md:object-center pointer-events-none transition-all duration-700 ${!isDropped ? 'blur-md scale-105 md:blur-none md:scale-100' : ''}`}
+          className={`absolute inset-0 w-full h-full object-cover object-[68%_center] md:object-center pointer-events-none transition-opacity duration-300`}
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 z-0 bg-transparent" onContextMenu={event => event.preventDefault()} />
@@ -164,7 +131,7 @@ export const SpotlightProduct: React.FC = () => {
 
             {!isDropped && (
               <div className="block md:hidden pt-1">
-                <div className="inline-block bg-black/35 backdrop-blur-md border border-white/20 rounded-xl px-5 py-3.5 shadow-lg">
+                <div className="inline-block bg-black/35 border border-white/20 rounded-xl px-5 py-3.5 shadow-lg">
                   <span className="block text-[9px] uppercase tracking-[0.2em] text-white/70 font-medium mb-2">LIMITED OFFER STARTS IN</span>
                   <TimerDisplay height={28} />
                 </div>
@@ -176,7 +143,7 @@ export const SpotlightProduct: React.FC = () => {
                 type="button"
                 onClick={handleAdd}
                 disabled={!isDropped || !spotlightProduct?.inStock}
-                className={`w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-full text-xs font-semibold uppercase tracking-[0.18em] transition-all duration-300 shadow-xl ${isDropped && spotlightProduct?.inStock ? 'bg-white hover:bg-stone-100 text-[#1A1816] cursor-pointer active:scale-95' : 'bg-white/20 backdrop-blur-md text-white/70 cursor-not-allowed border border-white/15'}`}
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-full text-xs font-semibold uppercase tracking-[0.18em] transition-all duration-300 shadow-xl ${isDropped && spotlightProduct?.inStock ? 'bg-white hover:bg-stone-100 text-[#1A1816] cursor-pointer active:scale-95' : 'bg-white/20 text-white/70 cursor-not-allowed border border-white/15'}`}
               >
                 <span>{!isDropped ? 'LOCKED UNTIL DROP' : !spotlightProduct?.inStock ? 'SOLD OUT' : isAdded ? 'ADDED TO BAG' : 'ADD TO BAG'}</span>
                 {!isDropped ? <Lock className="w-3.5 h-3.5 text-white/70" /> : isAdded ? <Check className="w-4 h-4 text-emerald-600" /> : <ArrowRight className="w-4 h-4 text-[#1A1816]" />}
@@ -186,9 +153,9 @@ export const SpotlightProduct: React.FC = () => {
 
           {!isDropped && (
             <div className="hidden md:flex md:col-span-6 lg:col-span-7 justify-end items-center">
-              <div className="w-full max-w-xl lg:max-w-2xl h-[460px] lg:h-[520px] rounded-2xl bg-stone-900/40 backdrop-blur-3xl border border-white/20 p-8 lg:p-12 flex flex-col justify-center items-center text-center shadow-2xl transition-all">
+              <div className="w-full max-w-xl lg:max-w-2xl h-[460px] lg:h-[520px] rounded-2xl bg-stone-900/40 border border-white/20 p-8 lg:p-12 flex flex-col justify-center items-center text-center shadow-2xl transition-all">
                 <div className="space-y-7">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/15">
                     <Lock className="w-3.5 h-3.5 text-amber-200" />
                     <span className="text-[10px] uppercase tracking-[0.25em] text-white/90 font-medium">UNRELEASED DROP</span>
                   </div>

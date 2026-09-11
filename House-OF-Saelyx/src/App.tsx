@@ -52,26 +52,10 @@ const StoreContent: React.FC = () => {
     restockModalProduct,
     restockModalSize,
     settings,
-    refetchData,
     setIsAuthOpen,
     navigateTo,
   } = useStore();
 
-  const isFetchingRef = React.useRef(false);
-  const safeRefetch = React.useCallback(() => {
-    if (isFetchingRef.current || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return;
-    isFetchingRef.current = true;
-    refetchData()
-      .catch(error => console.warn('Database resync warning:', error))
-      .finally(() => {
-        isFetchingRef.current = false;
-      });
-  }, [refetchData]);
-
-  React.useEffect(() => {
-    window.addEventListener('focus', safeRefetch);
-    return () => window.removeEventListener('focus', safeRefetch);
-  }, [safeRefetch]);
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
