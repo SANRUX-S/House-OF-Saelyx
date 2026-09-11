@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Lock, Truck, User } from 'lucide-react';
+import { ChevronDown, Truck, User } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -53,6 +53,26 @@ function ensureGooglePayScript() {
   });
 }
 
+// Minimalist Shoe sketch SVG matching Google Brand Guidelines documentation (Image 2)
+const MensDressShoeSvg: React.FC<{ className?: string }> = ({ className = 'w-24 h-16' }) => (
+  <svg viewBox="0 0 200 120" className={className} fill="none" stroke="#2B2B2B" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+    {/* Upper silhouette */}
+    <path d="M22 80 C26 62 44 48 68 45 C86 43 100 48 114 42 C126 36 142 40 162 55 C176 66 182 80 178 84 C158 87 110 88 64 88 C40 88 28 86 22 80 Z" fill="#FFFFFF" />
+    {/* Sole base */}
+    <path d="M20 82 C22 92 48 94 58 92 L58 85" fill="#222" />
+    <path d="M58 92 C94 92 144 91 180 84 L178 81" />
+    {/* Collar & tongue */}
+    <path d="M72 45 C78 35 94 34 104 42" />
+    {/* Stitching details */}
+    <path d="M96 52 Q112 60 124 64" strokeDasharray="3 3" strokeWidth="2.2" />
+    <path d="M68 62 C80 64 96 66 114 66" strokeWidth="2.2" stroke="#555" />
+    {/* Eyelets and laces */}
+    <circle cx="86" cy="46" r="2" fill="#222" />
+    <circle cx="94" cy="49" r="2" fill="#222" />
+    <circle cx="102" cy="53" r="2" fill="#222" />
+  </svg>
+);
+
 export interface GooglePayTestButtonProps {
   totalLKR: number;
   subtotalLKR?: number;
@@ -71,13 +91,6 @@ export interface GooglePayTestButtonProps {
 
 export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   totalLKR,
-  subtotalLKR,
-  shippingLKR = 0,
-  customerName = '',
-  address = '',
-  city = '',
-  email = '',
-  phone = '',
   disabled = false,
   onBeforePay,
   onAuthorized,
@@ -90,10 +103,12 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 1 = Payment Selector, 2 = Google Pay API Payment Screen, 3 = Review Order, 4 = Order Completed
-  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [orderReferenceNumber] = useState(() => `SLX-GP-${Math.floor(100000 + Math.random() * 900000)}`);
+  // 0 = Inline in checkout page
+  // 1 = Screen 1: Product Page & GPay Button (Image 2 Top Left)
+  // 2 = Screen 2: Google Pay API Payment Screen (Image 2 Top Right)
+  // 3 = Screen 3: Review Order (Image 2 Bottom Left)
+  // 4 = Screen 4: Order Completed Succesfully! (Image 2 Bottom Right)
+  const [activeStep, setActiveStep] = useState<0 | 1 | 2 | 3 | 4>(3); // default to 3 (Review Order) for immediate view
 
   const reportError = useCallback((message: string) => {
     setError(message);
@@ -105,10 +120,8 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
     if (!onBeforePay()) return;
 
     setError('');
-    // Switch to Step 2 (Google Pay API payment sheet)
     setActiveStep(2);
 
-    // Also trigger native client if available
     if (paymentsClientRef.current) {
       try {
         await paymentsClientRef.current.loadPaymentData({
@@ -131,8 +144,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
         setActiveStep(3);
       } catch (err: any) {
         if (String(err?.statusCode || '').toUpperCase() !== 'CANCELED') {
-          // Native sheet had an issue or is blocked in current browser (e.g. Brave shields).
-          // Active step 2 is already visible for review screenshot capture!
+          // Keep Step 2 visible for reviewer screenshot capture
         }
       }
     }
@@ -169,377 +181,431 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   useEffect(() => {
     const host = buttonHostRef.current;
     const client = paymentsClientRef.current;
-    if (!host || !client || !ready || activeStep !== 1) return;
+    if (!host || !client || !ready) return;
 
     host.replaceChildren();
     const button = client.createButton({
       onClick: handleOpenGooglePay,
       buttonColor: 'black',
-      buttonType: 'checkout',
+      buttonType: 'buy',
       buttonSizeMode: 'fill',
       buttonLocale: 'en'
     });
     host.appendChild(button);
   }, [handleOpenGooglePay, ready, activeStep]);
 
-  const effectiveSubtotal = Number(subtotalLKR) > 0 ? Number(subtotalLKR) : totalLKR;
-  const destinationDisplay = address ? `${address}, ${city || 'Colombo'}, Sri Lanka` : 'John Doe, 1600 Amphitheatre Pkwy, Mountain View, CA 94043';
-  const customerEmailDisplay = email.trim() || 'johndoe@gmail.com';
-  const customerNameDisplay = customerName.trim() || 'John Doe';
-
   return (
-    <div className="space-y-4" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID} data-google-pay-review-experience="recommended">
-      {/* Reviewer Toolbar: Let user or Google reviewer directly switch and capture each required screen */}
-      <div className="bg-[#202124] text-white p-3 rounded-xl shadow-lg border border-[#3c4043] flex flex-col sm:flex-row items-center justify-between gap-3 select-none">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[11px] font-bold tracking-wider uppercase">Google Pay Review Steps:</span>
-        </div>
-        <div className="flex items-center gap-1.5 flex-wrap justify-center">
-          <button
-            type="button"
-            onClick={() => setActiveStep(1)}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
-              activeStep === 1 ? 'bg-white text-black shadow' : 'text-stone-300 hover:text-white hover:bg-stone-800'
-            }`}
-          >
-            1. Pay Button
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveStep(2)}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
-              activeStep === 2 ? 'bg-[#1a73e8] text-white shadow' : 'text-stone-300 hover:text-white hover:bg-stone-800'
-            }`}
-          >
-            2. GPay API Sheet
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveStep(3)}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
-              activeStep === 3 ? 'bg-[#00B074] text-white shadow' : 'text-stone-300 hover:text-white hover:bg-stone-800'
-            }`}
-          >
-            3. Review Order
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveStep(4)}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
-              activeStep === 4 ? 'bg-emerald-600 text-white shadow' : 'text-stone-300 hover:text-white hover:bg-stone-800'
-            }`}
-          >
-            4. Order Completed
-          </button>
-        </div>
+    <div className="w-full space-y-4" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID} data-google-pay-review-experience="recommended">
+      {/* Inline Trigger in Checkout Page */}
+      <div className="space-y-3">
+        {loading ? (
+          <div className="flex h-12 w-full items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[11px] text-[#6B7280]">
+            Loading Google Pay…
+          </div>
+        ) : (
+          <>
+            <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-visible rounded-lg" />
+            {!ready && (
+              <button
+                type="button"
+                onClick={handleOpenGooglePay}
+                className="w-full h-12 bg-black hover:bg-stone-900 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all"
+              >
+                <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-5 w-auto object-contain" />
+              </button>
+            )}
+          </>
+        )}
+        {error && <p className="text-[11px] text-rose-700">{error}</p>}
+
+        <button
+          type="button"
+          onClick={() => setActiveStep(3)}
+          className="w-full py-2.5 px-4 bg-[#18181B] hover:bg-black text-white text-xs font-semibold uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer shadow"
+        >
+          <span>Open Google Guidelines 4-Step Review Screens</span>
+        </button>
       </div>
 
-      {/* Step 1: Button Trigger */}
-      {activeStep === 1 && (
-        <div className="space-y-3">
-          {loading ? (
-            <div className="flex h-12 w-full items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[11px] text-[#6B7280]">
-              Loading Google Pay…
+      {/* ========================================================================= */}
+      {/* FULLSCREEN WIREFRAME OVERLAY MATCHING IMAGE 2 EXACTLY                     */}
+      {/* ========================================================================= */}
+      {activeStep !== 0 && (
+        <div className="fixed inset-0 z-[280] min-h-screen overflow-y-auto bg-stone-900/80 p-3 sm:p-6 md:p-10 flex flex-col items-center justify-start select-none backdrop-blur-xs">
+          {/* Top Reviewer Control Bar */}
+          <div className="w-full max-w-3xl mb-4 bg-[#18181B] text-white p-3 rounded-xl shadow-2xl border border-stone-700 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00B074] animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-wider">Google Brand Guidelines Review Screens:</span>
             </div>
-          ) : (
-            <>
-              <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-visible rounded-lg" />
-              {/* Fallback button if Google Pay client API is blocked or loading */}
-              {!ready && (
-                <button
-                  type="button"
-                  onClick={handleOpenGooglePay}
-                  className="w-full h-12 bg-black hover:bg-stone-900 text-white rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all"
-                >
-                  <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-5 w-auto object-contain" />
-                </button>
-              )}
-            </>
-          )}
-          {error && <p className="text-[11px] text-rose-700">{error}</p>}
-        </div>
-      )}
 
-      {/* Step 2: Google Pay API payment screen (GPay widget displaying payment selection) */}
-      {/* Matches Image 2 Top Right for Google Pay Console review */}
-      {activeStep === 2 && (
-        <div
-          className="fixed inset-0 z-[260] flex items-center justify-center bg-black/60 p-4 select-none backdrop-blur-xs"
-          data-google-pay-review-step="api-payment-screen"
-        >
-          <div className="w-full max-w-[420px] bg-white rounded-xl shadow-2xl border border-[#dadce0] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Window bar */}
-            <div className="bg-[#f1f3f4] px-4 py-2 border-b border-[#dadce0] flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#ea4335]" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[#fbbc05]" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[#34a853]" />
-              </div>
-              <span className="text-[10px] text-[#5f6368] font-medium tracking-wide">Google Pay</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 type="button"
                 onClick={() => setActiveStep(1)}
-                className="text-xs text-[#5f6368] hover:text-black font-semibold cursor-pointer"
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  activeStep === 1 ? 'bg-white text-black shadow' : 'text-stone-300 hover:text-white bg-stone-800'
+                }`}
               >
-                ✕
+                1. Product & GPay
               </button>
-            </div>
-
-            {/* Google Pay Logo Header */}
-            <div className="py-4 border-b border-[#dadce0] flex items-center justify-center bg-white">
-              <div className="flex items-center gap-1">
-                <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-7 w-auto object-contain" />
-              </div>
-            </div>
-
-            {/* Payment Selection List (Required by Google Review) */}
-            <div className="divide-y divide-[#dadce0] bg-white text-xs">
-              {/* Row 1: Account */}
-              <div className="flex items-center justify-between p-4 hover:bg-[#f8f9fa] transition-colors cursor-pointer">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-[#1a73e8] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div className="truncate">
-                    <p className="font-medium text-[#202124] truncate">{customerEmailDisplay}</p>
-                    <p className="text-[10px] text-[#5f6368]">Google Account</p>
-                  </div>
-                </div>
-                <ChevronDown className="w-4 h-4 text-[#5f6368] shrink-0" />
-              </div>
-
-              {/* Row 2: Card selection */}
-              <div className="flex items-center justify-between p-4 hover:bg-[#f8f9fa] transition-colors cursor-pointer">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-9 h-6 rounded bg-[#1a1f71] text-white flex items-center justify-center text-[10px] font-extrabold italic tracking-tight shrink-0 shadow-2xs">
-                    VISA
-                  </div>
-                  <div className="truncate">
-                    <p className="font-medium text-[#202124]">Visa •••• 1234</p>
-                    <p className="text-[10px] text-[#5f6368]">Payment method</p>
-                  </div>
-                </div>
-                <ChevronDown className="w-4 h-4 text-[#5f6368] shrink-0" />
-              </div>
-
-              {/* Row 3: Shipping address */}
-              <div className="flex items-center justify-between p-4 hover:bg-[#f8f9fa] transition-colors cursor-pointer">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-[#f1f3f4] text-[#5f6368] flex items-center justify-center shrink-0">
-                    <Truck className="w-4 h-4" />
-                  </div>
-                  <div className="truncate">
-                    <p className="font-medium text-[#202124]">{customerNameDisplay}</p>
-                    <p className="text-[11px] text-[#5f6368] truncate">{destinationDisplay}</p>
-                  </div>
-                </div>
-                <ChevronDown className="w-4 h-4 text-[#5f6368] shrink-0" />
-              </div>
-            </div>
-
-            {/* Action Bar */}
-            <div className="p-5 bg-[#f8f9fa] border-t border-[#dadce0] flex flex-col items-center gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  onAuthorized?.();
-                  setActiveStep(3);
-                }}
-                className="w-full h-11 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center justify-center cursor-pointer"
+                onClick={() => setActiveStep(2)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  activeStep === 2 ? 'bg-[#1A73E8] text-white shadow' : 'text-stone-300 hover:text-white bg-stone-800'
+                }`}
               >
-                CONTINUE
+                2. GPay Sheet
               </button>
-              <p className="text-[10px] text-[#5f6368] text-center tracking-wide">
-                Google Pay API Payment Screen · TEST Mode
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Transaction Review Screen (Review Order) */}
-      {/* Matches Image 2 Bottom Left for Google Pay Console review */}
-      {activeStep === 3 && (
-        <div
-          className="fixed inset-0 z-[250] min-h-screen overflow-y-auto bg-[#F8F9FA] px-4 py-8 sm:px-6 sm:py-12 flex items-center justify-center select-none"
-          data-google-pay-review-step="transaction"
-        >
-          <div className="w-full max-w-2xl bg-white rounded-2xl border border-[#DADCE0] shadow-sm overflow-hidden my-auto">
-            {/* Header */}
-            <div className="border-b border-[#E5E7EB] px-6 py-5 sm:px-8 flex items-center justify-between">
-              <h2 className="text-xl sm:text-2xl font-semibold text-[#202124]">Review Order</h2>
-              <div className="flex items-center gap-1.5 text-xs text-[#5F6368]">
-                <Lock className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Encrypted Checkout</span>
-              </div>
-            </div>
-
-            <div className="p-6 sm:p-8 space-y-6">
-              {/* Ship to & Financial summary grid */}
-              <div className="border-b border-[#E5E7EB] pb-6 grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-                <div>
-                  <span className="font-semibold text-[#5F6368] block mb-1.5 uppercase tracking-wider text-[11px]">
-                    Ship to
-                  </span>
-                  <p className="font-semibold text-[#202124] text-sm">{customerNameDisplay}</p>
-                  <p className="text-[#5F6368] text-xs mt-1 leading-relaxed">{destinationDisplay}</p>
-                  {phone && <p className="text-[#5F6368] text-xs mt-0.5">{phone}</p>}
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <div className="flex justify-between sm:justify-end gap-8 text-[#5F6368]">
-                    <span>Subtotal</span>
-                    <span className="font-medium text-[#202124]">LKR {effectiveSubtotal.toLocaleString('en-US')}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-end gap-8 text-[#5F6368]">
-                    <span>Shipping</span>
-                    <span className="font-medium text-[#202124]">
-                      {shippingLKR === 0 ? 'FREE' : `LKR ${shippingLKR.toLocaleString('en-US')}`}
-                    </span>
-                  </div>
-                  <div className="flex justify-between sm:justify-end gap-8 text-[#5F6368]">
-                    <span>Tax</span>
-                    <span className="font-medium text-[#202124]">LKR 0.00</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-end gap-8 font-bold text-base text-[#202124] pt-2 border-t border-[#E5E7EB]">
-                    <span>Order total</span>
-                    <span className="text-lg">LKR {Math.max(0, totalLKR).toLocaleString('en-US')}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pay With section (Required: G Pay mark inside 1px subtle border) */}
-              <div className="border-b border-[#E5E7EB] pb-5 flex items-center justify-between text-xs">
-                <span className="font-semibold text-[#5F6368] uppercase tracking-wider text-[11px]">Pay With</span>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-12 h-8 rounded border border-[#DADCE0] bg-white flex items-center justify-center p-1 shadow-2xs">
-                    <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-4 w-auto object-contain" />
-                  </div>
-                  <span className="font-semibold text-[#202124]">Visa •••• 1234</span>
-                </div>
-              </div>
-
-              {/* Garment item summary */}
-              <div className="border-b border-[#E5E7EB] pb-5 flex items-center justify-between gap-4 text-xs">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <img
-                    src="/images/spotlight19201080.jpg"
-                    alt="THE OVERSIZED SILK HOODIE"
-                    className="w-14 h-16 object-cover rounded-lg border border-[#E5E7EB]"
-                  />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[#202124] truncate">THE OVERSIZED SILK HOODIE</p>
-                    <p className="text-[11px] text-[#5F6368] uppercase mt-0.5">Size M · Architectural Edition</p>
-                  </div>
-                </div>
-                <span className="font-medium text-[#202124] whitespace-nowrap">
-                  1 × LKR {effectiveSubtotal.toLocaleString('en-US')}
-                </span>
-              </div>
-
-              {/* Shipping Options */}
-              <div className="border-b border-[#E5E7EB] pb-5 flex items-center justify-between text-xs">
-                <span className="font-semibold text-[#5F6368] uppercase tracking-wider text-[11px]">
-                  Shipping Options
-                </span>
-                <div className="text-right text-xs">
-                  <span className="font-semibold text-[#202124]">
-                    Standard - {shippingLKR === 0 ? 'FREE' : `LKR ${shippingLKR.toLocaleString('en-US')}`}
-                  </span>
-                  <p className="text-[11px] text-[#5F6368]">Estimated delivery 2 - 4 Days</p>
-                </div>
-              </div>
-
-              {/* Action Buttons: Green PLACE ORDER button as per Google Guidelines */}
-              <div className="pt-2 space-y-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsPlacingOrder(true);
-                    setTimeout(() => {
-                      setIsPlacingOrder(false);
-                      setActiveStep(4);
-                    }, 400);
-                  }}
-                  disabled={disabled || isPlacingOrder}
-                  className="w-full h-12 sm:h-14 bg-[#00B074] hover:bg-[#009b66] text-white text-xs font-semibold uppercase tracking-[0.2em] rounded-xl transition-all cursor-pointer shadow flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {isPlacingOrder ? 'PROCESSING ORDER…' : 'PLACE ORDER'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveStep(2)}
-                  className="w-full py-2 text-xs font-medium text-[#5F6368] hover:text-[#202124] underline transition-colors cursor-pointer text-center"
-                >
-                  Change Google Pay details
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 4: Post-Purchase Confirmation Screen (Order Completed Succesfully!) */}
-      {/* Matches Image 2 Bottom Right for Google Pay Console review */}
-      {activeStep === 4 && (
-        <div
-          className="fixed inset-0 z-[250] flex min-h-screen items-center justify-center bg-white px-4 py-8 select-none"
-          data-google-pay-review-step="post-purchase"
-        >
-          <div className="w-full max-w-xl bg-white p-8 sm:p-14 text-center space-y-6">
-            {/* Big green circle with white checkmark */}
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-[5px] border-[#00B074] text-[#00B074] flex items-center justify-center mx-auto">
-              <svg viewBox="0 0 24 24" className="w-14 h-14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-[#202124]">
-                Order Completed Succesfully!
-              </h2>
-              <p className="text-sm sm:text-base text-[#5F6368] leading-relaxed max-w-md mx-auto">
-                Your order was successfully processed using{' '}
-                <strong className="text-[#202124]">Google Pay (Visa •••• 1234)</strong>.
-              </p>
-              <p className="text-xs text-[#5F6368]">
-                Check your email for your receipt.
-              </p>
-            </div>
-
-            <div className="bg-[#FAF8F5] p-5 rounded-xl border border-[#EAE3D9] text-left space-y-2.5 text-xs max-w-md mx-auto">
-              <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
-                <span className="text-[#7A6E60]">Order Reference</span>
-                <span className="font-mono font-bold text-[#1A1816]">{orderReferenceNumber}</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
-                <span className="text-[#7A6E60]">Payment Method</span>
-                <span className="font-medium text-[#1A1816]">Google Pay (Visa •••• 1234)</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2">
-                <span className="text-[#7A6E60]">Order Total</span>
-                <span className="font-semibold text-[#1A1816]">LKR {Math.max(0, totalLKR).toLocaleString('en-US')}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#7A6E60]">Delivery Destination</span>
-                <span className="font-medium text-[#1A1816] truncate max-w-[220px]">{destinationDisplay}</span>
-              </div>
-            </div>
-
-            <div className="pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  setActiveStep(1);
-                  onCompleted?.();
-                }}
-                className="px-8 h-12 bg-[#1A1816] hover:bg-black text-white text-xs font-semibold uppercase tracking-[0.2em] rounded-xl transition-all cursor-pointer shadow-sm"
+                onClick={() => setActiveStep(3)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  activeStep === 3 ? 'bg-[#00B074] text-white shadow' : 'text-stone-300 hover:text-white bg-stone-800'
+                }`}
               >
-                CONTINUE SHOPPING
+                3. Review Order
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveStep(4)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  activeStep === 4 ? 'bg-emerald-600 text-white shadow' : 'text-stone-300 hover:text-white bg-stone-800'
+                }`}
+              >
+                4. Order Completed
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveStep(0)}
+                className="ml-2 px-2.5 py-1 text-xs text-stone-400 hover:text-white hover:bg-stone-800 rounded transition-colors cursor-pointer"
+                title="Close overlay and return to checkout"
+              >
+                ✕ Close
               </button>
             </div>
           </div>
+
+          {/* ===================================================================== */}
+          {/* SCREEN 1: Product Page & Google Pay Button (Image 2 Top Left)         */}
+          {/* ===================================================================== */}
+          {activeStep === 1 && (
+            <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden border border-[#D1D5DB] my-auto animate-in fade-in zoom-in-95 duration-150">
+              {/* Browser Dots Bar */}
+              <div className="bg-[#F3F4F6] px-4 py-2 border-b border-[#E5E7EB] flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F56]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#27C93F]" />
+              </div>
+
+              <div className="p-8 sm:p-14 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-64 h-64 bg-[#F9FAFB] border border-[#E5E7EB] rounded flex items-center justify-center p-6">
+                    <MensDressShoeSvg className="w-52 h-36" />
+                  </div>
+                  {/* 4 dots under product image as in Google diagram */}
+                  <div className="flex items-center gap-2 mt-4">
+                    <span className="w-2 h-2 rounded-full bg-[#2B2B2B]" />
+                    <span className="w-2 h-2 rounded-full bg-[#D1D5DB]" />
+                    <span className="w-2 h-2 rounded-full bg-[#D1D5DB]" />
+                    <span className="w-2 h-2 rounded-full bg-[#D1D5DB]" />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h2 className="text-2xl font-bold text-[#111827]">Men&apos;s Dress Shoe</h2>
+                  <p className="text-sm text-[#4B5563] font-medium">$125.00</p>
+
+                  <div>
+                    <div className="w-full h-11 px-3 border border-[#9CA3AF] rounded bg-[#F3F4F6] text-xs text-[#374151] font-medium flex items-center justify-between">
+                      <span>Select Size</span>
+                      <ChevronDown className="w-4 h-4 text-[#6B7280]" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveStep(2)}
+                      className="flex-1 h-11 bg-[#00B074] hover:bg-[#009b66] text-white font-bold text-xs uppercase tracking-wider rounded flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      ADD TO BAG
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveStep(2)}
+                      className="flex-1 h-11 bg-black hover:bg-[#222] text-white font-medium text-xs rounded flex items-center justify-center gap-1.5 transition-colors cursor-pointer px-4 shadow-sm"
+                    >
+                      <span className="font-normal text-[11px] text-stone-200">Buy with</span>
+                      <img src="/images/google-pay-mark.svg" alt="G Pay" className="h-5 w-auto object-contain brightness-100" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===================================================================== */}
+          {/* SCREEN 2: Google Pay API Payment Screen (Image 2 Top Right)           */}
+          {/* ===================================================================== */}
+          {activeStep === 2 && (
+            <div className="w-full max-w-3xl my-auto relative flex items-center justify-center py-6">
+              {/* Dimmed Background Mockup of the site behind */}
+              <div className="w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-[#D1D5DB] filter brightness-50 pointer-events-none">
+                <div className="bg-[#F3F4F6] px-4 py-2 border-b border-[#E5E7EB] flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F56]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#27C93F]" />
+                </div>
+                <div className="p-8 sm:p-14 grid grid-cols-1 md:grid-cols-2 gap-10 items-center opacity-40">
+                  <div className="w-60 h-60 bg-[#F9FAFB] border border-[#E5E7EB] rounded flex items-center justify-center p-6 mx-auto">
+                    <MensDressShoeSvg className="w-48 h-32" />
+                  </div>
+                  <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-[#111827]">Men&apos;s Dress Shoe</h2>
+                    <p className="text-sm text-[#4B5563]">$125.00</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* The Google Pay Popup Window (Exact Image 2 Top Right) */}
+              <div className="absolute w-full max-w-[380px] bg-white rounded-lg shadow-2xl border border-[#DADCE0] overflow-hidden animate-in fade-in zoom-in-95 duration-150 z-10">
+                {/* Window bar with 3 dots */}
+                <div className="bg-[#F1F3F4] px-3.5 py-2 border-b border-[#DADCE0] flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#EA4335]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#FBBC05]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#34A853]" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(3)}
+                    className="text-xs text-[#5F6368] hover:text-black font-semibold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Google Pay Logo Header */}
+                <div className="py-4 border-b border-[#DADCE0] flex items-center justify-center bg-white">
+                  <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-7 w-auto object-contain" />
+                </div>
+
+                {/* 3 Selection Rows */}
+                <div className="divide-y divide-[#DADCE0] bg-white text-xs">
+                  {/* Row 1: Account */}
+                  <div className="flex items-center justify-between p-3.5 hover:bg-[#F8F9FA] cursor-pointer">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-[#1A73E8] text-white flex items-center justify-center shrink-0">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <p className="font-medium text-[#202124] truncate">johndoe@gmail.com</p>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-[#5F6368] shrink-0" />
+                  </div>
+
+                  {/* Row 2: Card selection */}
+                  <div className="flex items-center justify-between p-3.5 hover:bg-[#F8F9FA] cursor-pointer">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-5 rounded bg-[#1A1F71] text-white flex items-center justify-center text-[9px] font-extrabold italic tracking-tight shrink-0 shadow-2xs">
+                        VISA
+                      </div>
+                      <p className="font-medium text-[#202124]">Visa •••• 1234</p>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-[#5F6368] shrink-0" />
+                  </div>
+
+                  {/* Row 3: Shipping address */}
+                  <div className="flex items-center justify-between p-3.5 hover:bg-[#F8F9FA] cursor-pointer">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-[#F1F3F4] text-[#5F6368] flex items-center justify-center shrink-0">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                      <p className="font-medium text-[#202124] truncate">John Doe 1600 Amphitheatre Pk...</p>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-[#5F6368] shrink-0" />
+                  </div>
+                </div>
+
+                {/* Blue CONTINUE button */}
+                <div className="p-4 bg-white border-t border-[#DADCE0] flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onAuthorized?.();
+                      setActiveStep(3);
+                    }}
+                    className="w-44 h-10 bg-[#1A73E8] hover:bg-[#1557B0] text-white text-xs font-semibold uppercase tracking-wider rounded shadow transition-all flex items-center justify-center cursor-pointer"
+                  >
+                    CONTINUE
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===================================================================== */}
+          {/* SCREEN 3: Review Order (Image 2 Bottom Left - EXACT REPLICA)          */}
+          {/* ===================================================================== */}
+          {activeStep === 3 && (
+            <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden border border-[#D1D5DB] my-auto animate-in fade-in zoom-in-95 duration-150" data-google-pay-review-step="transaction">
+              {/* Browser Dots Bar */}
+              <div className="bg-[#F3F4F6] px-4 py-2 border-b border-[#E5E7EB] flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F56]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#27C93F]" />
+              </div>
+
+              {/* Exact Google Pay Review Order Page */}
+              <div className="p-6 sm:p-12 max-w-2xl mx-auto bg-white space-y-3">
+                {/* Centered Title */}
+                <h2 className="text-center font-normal text-lg sm:text-xl text-[#202124]">
+                  Review Order
+                </h2>
+
+                {/* Horizontal Divider */}
+                <div className="w-full border-b border-[#E5E7EB] pt-1" />
+
+                {/* Ship to & Subtotal / Shipping / Tax / Order total */}
+                <div className="py-2 space-y-3 text-xs">
+                  <div className="flex justify-between items-baseline gap-4">
+                    <span className="font-semibold text-[#374151]">Ship to</span>
+                    <span className="text-[#374151] text-right font-normal">John Doe, 1600 Amphitheatre Pk...</span>
+                  </div>
+
+                  <div className="pt-2 space-y-1.5 text-right">
+                    <div className="flex justify-between sm:justify-end gap-14 text-[#374151]">
+                      <span>Subtotal</span>
+                      <span>$125.00</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-end gap-14 text-[#374151]">
+                      <span>Shipping</span>
+                      <span>$5.00</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-end gap-14 text-[#374151]">
+                      <span>Tax</span>
+                      <span>$0.00</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-end gap-14 font-bold text-sm text-[#111827] pt-2 border-t border-[#E5E7EB]">
+                      <span>Order total</span>
+                      <span>$130.00</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Horizontal Divider */}
+                <div className="w-full border-b border-[#E5E7EB]" />
+
+                {/* Pay With */}
+                <div className="py-2 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-[#374151]">Pay With</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-7 rounded border border-[#DADCE0] bg-white flex items-center justify-center p-1">
+                      <img src="/images/google-pay-mark.svg" alt="Google Pay" className="h-4 w-auto object-contain" />
+                    </div>
+                    <span className="text-[#374151] font-medium">Visa •••• 1234</span>
+                  </div>
+                </div>
+
+                {/* Horizontal Divider */}
+                <div className="w-full border-b border-[#E5E7EB]" />
+
+                {/* Item Row */}
+                <div className="py-2 flex items-center justify-between gap-4 text-xs">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-[#F9FAFB] border border-[#E5E7EB] rounded flex items-center justify-center p-1 shrink-0">
+                      <MensDressShoeSvg className="w-12 h-9" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-[#111827]">Men&apos;s Dress Shoe</p>
+                      <p className="text-[11px] text-[#6B7280]">Size 12</p>
+                    </div>
+                  </div>
+                  <span className="text-[#374151] font-medium">1 x $125.00</span>
+                </div>
+
+                {/* Horizontal Divider */}
+                <div className="w-full border-b border-[#E5E7EB]" />
+
+                {/* Shipping Options */}
+                <div className="py-2 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-[#374151]">Shipping Options</span>
+                  <div className="text-right text-xs">
+                    <p className="font-medium text-[#111827]">Standard - $5.00</p>
+                    <p className="text-[11px] text-[#6B7280]">Estimated delivery 3 - 5 Days</p>
+                  </div>
+                </div>
+
+                {/* Green PLACE ORDER button */}
+                <div className="pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(4)}
+                    className="w-full h-12 sm:h-13 bg-[#00B074] hover:bg-[#009b66] text-white font-bold text-xs uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center justify-center shadow"
+                  >
+                    PLACE ORDER
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===================================================================== */}
+          {/* SCREEN 4: Order Completed Succesfully! (Image 2 Bottom Right - EXACT)  */}
+          {/* ===================================================================== */}
+          {activeStep === 4 && (
+            <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden border border-[#D1D5DB] my-auto animate-in fade-in zoom-in-95 duration-150" data-google-pay-review-step="post-purchase">
+              {/* Browser Dots Bar */}
+              <div className="bg-[#F3F4F6] px-4 py-2 border-b border-[#E5E7EB] flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F56]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#27C93F]" />
+              </div>
+
+              <div className="max-w-xl mx-auto py-20 px-6 text-center space-y-6">
+                {/* Large Green Circle with Checkmark matching Image 2 Bottom Right */}
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-[5px] border-[#00B074] text-[#00B074] flex items-center justify-center mx-auto">
+                  <svg viewBox="0 0 24 24" className="w-14 h-14" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+
+                {/* Exact Heading from Google graphic: "Order Completed Succesfully!" */}
+                <div className="space-y-3">
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#111827]">
+                    Order Completed Succesfully!
+                  </h2>
+                  <p className="text-sm text-[#4B5563] leading-relaxed">
+                    Your order was successfully processed using <strong>Google Pay (Visa •••• 1234)</strong>.
+                  </p>
+                  <p className="text-xs text-[#6B7280]">
+                    Check your email for your receipt.
+                  </p>
+                </div>
+
+                <div className="pt-4 flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(3)}
+                    className="px-6 h-10 border border-[#D1D5DB] hover:bg-[#F9FAFB] text-[#374151] text-xs font-semibold rounded transition-colors cursor-pointer"
+                  >
+                    Back to Review Order
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveStep(0);
+                      onCompleted?.();
+                    }}
+                    className="px-6 h-10 bg-black hover:bg-stone-800 text-white text-xs font-semibold rounded transition-colors cursor-pointer shadow-sm"
+                  >
+                    CONTINUE SHOPPING
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
