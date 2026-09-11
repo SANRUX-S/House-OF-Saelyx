@@ -51,20 +51,6 @@ function ensureGooglePayScript() {
   });
 }
 
-function formatShippingAddress(address: any) {
-  if (!address) return 'Shipping address selected in Google Pay';
-  return [
-    address.name,
-    address.address1,
-    address.address2,
-    address.address3,
-    address.locality,
-    address.administrativeArea,
-    address.postalCode,
-    address.countryCode
-  ].filter(Boolean).join(', ');
-}
-
 function formatGooglePayMethod(paymentData: any) {
   const info = paymentData?.paymentMethodData?.info || {};
   const network = String(info.cardNetwork || '').trim();
@@ -115,12 +101,6 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
         merchantInfo: {
           merchantName: 'SAELYXE'
         },
-        emailRequired: true,
-        shippingAddressRequired: true,
-        shippingAddressParameters: {
-          allowedCountryCodes: ['LK'],
-          phoneNumberRequired: true
-        },
         transactionInfo: {
           countryCode: 'LK',
           currencyCode: 'LKR',
@@ -131,9 +111,9 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
         }
       });
 
-      // Google Pay sheet selection is complete. Keep the TEST transaction in a
-      // merchant-side review step before the final confirmation screen so the
-      // review flow mirrors Google's recommended shopping-cart sequence.
+      // Delivery/contact details are already required and validated by the
+      // SAELYXE checkout before Google Pay opens. Do not request them again in
+      // the Google Pay sheet; keep the sheet focused on payment selection.
       setReviewPaymentData(paymentData);
     } catch (err: any) {
       if (String(err?.statusCode || '').toUpperCase() === 'CANCELED') return;
@@ -217,9 +197,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
   }
 
   if (reviewPaymentData) {
-    const shippingAddress = formatShippingAddress(reviewPaymentData.shippingAddress);
     const paymentDescription = formatGooglePayMethod(reviewPaymentData);
-    const reviewEmail = String(reviewPaymentData.email || '').trim();
 
     return (
       <div className="rounded-xl border border-[#DADCE0] bg-white p-4 sm:p-5 space-y-4" data-google-pay-review-step="transaction">
@@ -227,7 +205,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
           <div>
             <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-[#5F6368]">Review order</p>
             <h4 className="mt-1 text-base font-semibold text-[#202124]">Confirm before placing your order</h4>
-            <p className="mt-1 text-[11px] leading-relaxed text-[#6B6259]">Your Google Pay payment method and shipping details are selected. Review them before the final confirmation step.</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-[#6B6259]">Your Google Pay payment method is selected. Delivery and contact information were already confirmed in the SAELYXE checkout.</p>
           </div>
           <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">TEST</span>
         </div>
@@ -238,15 +216,9 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
             <span className="text-right font-medium text-[#202124]">{paymentDescription}</span>
           </div>
           <div className="py-3 flex items-start justify-between gap-5 text-[11px]">
-            <span className="shrink-0 text-[#74685B]">Ship to</span>
-            <span className="max-w-[70%] text-right font-medium leading-relaxed text-[#202124]">{shippingAddress}</span>
+            <span className="shrink-0 text-[#74685B]">Delivery</span>
+            <span className="max-w-[70%] text-right font-medium leading-relaxed text-[#202124]">Confirmed in SAELYXE checkout</span>
           </div>
-          {reviewEmail && (
-            <div className="py-3 flex items-start justify-between gap-5 text-[11px]">
-              <span className="shrink-0 text-[#74685B]">Email</span>
-              <span className="break-all text-right font-medium text-[#202124]">{reviewEmail}</span>
-            </div>
-          )}
           <div className="py-3 flex items-center justify-between gap-5">
             <span className="text-[11px] text-[#74685B]">Order total</span>
             <span className="font-serif text-xl text-[#1A1816]">LKR {Math.max(0, Number(totalLKR) || 0).toLocaleString('en-US')}</span>
@@ -282,7 +254,7 @@ export const GooglePayTestButton: React.FC<GooglePayTestButtonProps> = ({
     <div className="space-y-2" data-google-pay-merchant-id={SAELYXE_GOOGLE_PAY_MERCHANT_ID} data-google-pay-review-experience="recommended">
       <div ref={buttonHostRef} className="min-h-[48px] w-full overflow-visible rounded-lg" />
       {error && <p className="text-[11px] text-rose-700">{error}</p>}
-      <p className="text-[10px] leading-relaxed text-[#74685B]">Google Pay TEST environment · payment and delivery details stay non-chargeable for production review.</p>
+      <p className="text-[10px] leading-relaxed text-[#74685B]">Google Pay TEST environment · payment details stay non-chargeable for production review.</p>
     </div>
   );
 };
