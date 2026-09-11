@@ -1,15 +1,30 @@
 @import "tailwindcss";
 
-/* Shared storefront font families; sizes and layout remain component-owned. */
+/* Shared storefront font families - Sleek Modern Luxury Streetwear Architecture (Fear of God / Represent aesthetic) */
 @theme {
-  --font-sans: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
-  --font-serif: "Cormorant Garamond", Georgia, serif;
-  --font-display: "Cinzel", serif;
+  --font-sans: "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 @layer base {
+  *, ::before, ::after {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 }
 

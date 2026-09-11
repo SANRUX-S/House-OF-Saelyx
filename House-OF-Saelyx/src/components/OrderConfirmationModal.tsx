@@ -59,7 +59,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
               <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-emerald-900 block">
                 COMMISSION REGISTERED & SEALED
               </span>
-              <h2 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
+              <h2 className="font-sans text-2xl sm:text-3xl font-black text-[#1A1816] tracking-tight uppercase">
                 ORDER PLACED
               </h2>
               <p className="text-xs text-[#665A4E] leading-relaxed max-w-sm mx-auto">
@@ -92,7 +92,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
 
               <div className="flex justify-between items-center">
                 <span className="text-[#665A4E] uppercase tracking-wider text-[10px] font-medium">Order Total</span>
-                <span className="font-serif text-base font-semibold text-[#1A1816]">
+                <span className="font-sans text-base font-bold text-[#1A1816]">
                   {formatPrice(order.totalLKR)}
                 </span>
               </div>

@@ -439,7 +439,7 @@ export const ProductDetailPage: React.FC<{ slug: string }> = ({ slug }) => {
                 </p>
               )}
 
-              <div className="text-xl sm:text-3xl font-serif font-bold text-[#1A1816] pt-1">
+              <div className="text-xl sm:text-3xl font-sans font-extrabold tracking-tight text-[#1A1816] pt-1">
                 {formatPrice(product.priceLKR)}
               </div>
             </div>

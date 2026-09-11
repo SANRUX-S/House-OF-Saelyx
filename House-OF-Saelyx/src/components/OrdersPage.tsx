@@ -199,7 +199,7 @@ export const OrdersPage: React.FC = () => {
             <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#8C7A68] block mb-1">
               SAELYXE
             </span>
-            <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal tracking-tight">
+            <h1 className="font-sans text-2xl sm:text-4xl text-[#1A1816] font-black tracking-tight uppercase">
               MY ORDERS
             </h1>
           </div>

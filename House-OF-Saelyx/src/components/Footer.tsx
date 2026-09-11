@@ -48,7 +48,7 @@ export const Footer: React.FC = () => {
             <span className="block text-[10px] tracking-[0.3em] text-white uppercase font-semibold mb-2">
               NEWSLETTER ACCESS
             </span>
-            <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-wide text-white leading-tight">
+            <h3 className="font-sans text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white uppercase leading-tight">
               BE FIRST FOR THE NEXT DROP
             </h3>
             <p className="text-xs text-[#E6E6E6] mt-2 tracking-[0.14em] uppercase font-medium">
