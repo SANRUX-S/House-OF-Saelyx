@@ -13,7 +13,11 @@ export const CartDrawer: React.FC = () => {
     clearCart,
     selectedCurrency,
     createOrder,
-    navigateTo
+    navigateTo,
+    user,
+    isGuest,
+    setAuthMode,
+    setIsAuthOpen
   } = useStore();
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -410,7 +414,12 @@ export const CartDrawer: React.FC = () => {
               <button
                 onClick={() => {
                   handleClose();
-                  navigateTo({ name: 'checkout' });
+                  if (!user && !isGuest) {
+                    setAuthMode('checkout');
+                    setIsAuthOpen(true);
+                  } else {
+                    navigateTo({ name: 'checkout' });
+                  }
                 }}
                 className="w-full py-3.5 sm:py-4 bg-white text-black font-semibold text-xs tracking-[0.2em] uppercase rounded-full hover:bg-neutral-200 transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer"
               >

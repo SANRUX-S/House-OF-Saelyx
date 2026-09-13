@@ -28,6 +28,27 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
     }
   };
 
+  const handleWhatsAppNotify = () => {
+    if (!order) return;
+    const itemsSummary = (order.items || []).map(item => `• ${item.title} (${item.size || 'Standard'}) × ${item.quantity}`).join('\n');
+    const waText = `✨ *SAELYXE ORDER CONFIRMATION* ✨
+━━━━━━━━━━━━━━━━━
+📦 *Order #:* #${order.orderNumber}
+👤 *Customer:* ${order.customerName || 'Client'}
+💰 *Total:* ${formatPrice(order.totalLKR)}
+💳 *Payment:* ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+
+🛍️ *Items Ordered:*
+${itemsSummary}
+
+📍 *Delivery Address:*
+${[order.address, order.city, order.country].filter(Boolean).join(', ')}
+━━━━━━━━━━━━━━━━━
+Please confirm order handover and dispatch schedule.`;
+
+    window.open(`https://wa.me/94707775568?text=${encodeURIComponent(waText)}`, '_blank');
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto select-none">
       {/* Dark backdrop */}
@@ -92,7 +113,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
 
               <div className="flex justify-between items-center">
                 <span className="text-[#665A4E] uppercase tracking-wider text-[10px] font-medium">Order Total</span>
-                <span className="font-sans text-base font-bold text-[#1A1816]">
+                <span className="font-price text-base font-bold text-[#1A1816]">
                   {formatPrice(order.totalLKR)}
                 </span>
               </div>
@@ -115,7 +136,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
                         {item.title} <span className="text-[#7A6E60]">× {item.quantity}</span>
                       </span>
                     </div>
-                    <span className="font-sans text-xs text-[#4A4036] flex-shrink-0">
+                    <span className="font-price text-xs font-semibold text-[#4A4036] flex-shrink-0">
                       {formatPrice(item.priceLKR * item.quantity)}
                     </span>
                   </div>
@@ -125,11 +146,11 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
               <div className="pt-2 border-t border-[#ECE3D8] space-y-1.5 text-xs text-[#665A4E]">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-sans">{formatPrice(order.subtotalLKR)}</span>
+                  <span className="font-price font-medium">{formatPrice(order.subtotalLKR)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Delivery</span>
-                  <span className="font-sans text-emerald-800">
+                  <span className="font-price font-medium text-emerald-800">
                     {order.shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(order.shippingLKR)}
                   </span>
                 </div>
@@ -138,9 +159,23 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
 
             {/* Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              
+              {/* WhatsApp Atelier Direct Notification Button */}
+              <button
+                type="button"
+                onClick={handleWhatsAppNotify}
+                className="sm:col-span-2 h-12 bg-[#128C7E] hover:bg-[#0E7064] text-white text-[11px] uppercase tracking-[0.16em] font-bold rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.062-1.899-.462-1.503-.623-2.457-2.146-2.532-2.247-.074-.1-1.026-1.365-1.026-2.604 0-1.238.649-1.848.88-2.099.23-.25.502-.313.669-.313.167 0 .334.002.48.009.153.007.359-.059.562.428.209.502.712 1.737.774 1.863.063.125.105.272.021.439-.083.167-.125.271-.25.418-.125.146-.263.327-.376.439-.125.125-.256.261-.11.512.146.251.648 1.069 1.391 1.731.956.852 1.762 1.116 2.013 1.242.251.125.397.104.544-.063.146-.167.627-.732.794-.983.167-.251.334-.209.563-.125.23.084 1.464.69 1.715.816.251.125.418.188.48.293.063.104.063.606-.081 1.011z" />
+                  <path d="M12 2C6.477 2 2 6.477 2 12c0 1.891.524 3.66 1.434 5.178L2 22l4.981-1.309A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.182c-1.637 0-3.15-.494-4.417-1.341l-.317-.213-2.962.777.791-2.888-.233-.371A8.147 8.147 0 013.818 12c0-4.512 3.67-8.182 8.182-8.182 4.511 0 8.182 3.67 8.182 8.182 0 4.511-3.671 8.182-8.182 8.182z" />
+                </svg>
+                <span>Notify Atelier on WhatsApp (070 777 5568)</span>
+              </button>
+
               <button
                 onClick={handleContinueToOrders}
-                className="h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.2em] font-medium rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                className="h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.18em] font-semibold rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>CONTINUE TO MY ORDERS</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -152,7 +187,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
                     window.alert('Your browser blocked the receipt window. Please allow pop-ups for SAELYXE and try again.');
                   }
                 }}
-                className="h-12 bg-white border border-[#D5CBBF] hover:bg-[#FAF8F5] text-[#1A1816] text-[11px] uppercase tracking-[0.18em] font-medium rounded-2xl transition-colors cursor-pointer flex items-center justify-center gap-2"
+                className="h-12 bg-white border border-[#D5CBBF] hover:bg-[#FAF8F5] text-[#1A1816] text-[11px] uppercase tracking-[0.18em] font-semibold rounded-2xl transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
                 <FileText className="w-3.5 h-3.5" />
                 RECEIPT / INVOICE
@@ -160,7 +195,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
 
               <button
                 onClick={onClose}
-                className="sm:col-span-2 h-11 bg-transparent text-[#665A4E] text-[10px] uppercase tracking-[0.18em] font-medium rounded-xl hover:bg-[#FAF8F5] hover:text-[#1A1816] transition-colors cursor-pointer"
+                className="sm:col-span-2 h-11 bg-transparent text-[#665A4E] text-[10px] uppercase tracking-[0.18em] font-semibold rounded-xl hover:bg-[#FAF8F5] hover:text-[#1A1816] transition-colors cursor-pointer"
               >
                 RETURN TO BOUTIQUE
               </button>

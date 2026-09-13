@@ -13,12 +13,16 @@ import {
   AlertCircle,
   Check,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Globe,
+  BadgePercent,
+  Sparkles
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
+import { DELIVERABLE_COUNTRIES, getCountryDialCode } from '../data/countries';
 
 function createPayPalCheckoutAttemptId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return `paypal-${crypto.randomUUID()}`;
@@ -101,7 +105,12 @@ export const CheckoutPage: React.FC = () => {
   const [firstName, setFirstName] = useState(initialFirstName);
   const [lastName, setLastName] = useState(initialLastName);
   const [email, setEmail] = useState(savedDetailsObj?.email || user?.email || '');
-  const [phone, setPhone] = useState(savedDetailsObj?.phone || user?.phoneNumber || '');
+  
+  const rawInitialPhone = savedDetailsObj?.phone || user?.phoneNumber || '';
+  const [phone, setPhone] = useState(() => {
+    return rawInitialPhone.replace(/^\+\d{1,4}\s*/, '').trim();
+  });
+
   const [address, setAddress] = useState(savedDetailsObj?.address || user?.address || '');
   const [city, setCity] = useState(savedDetailsObj?.city || user?.city || '');
   const [postalCode, setPostalCode] = useState(savedDetailsObj?.postalCode || user?.postalCode || '');
@@ -124,7 +133,7 @@ export const CheckoutPage: React.FC = () => {
     if (!firstName) setFirstName(user.firstName || (user.name ? user.name.split(' ')[0] : ''));
     if (!lastName) setLastName(user.lastName || (user.name ? user.name.split(' ').slice(1).join(' ') : ''));
     if (!email && user.email) setEmail(user.email);
-    if (!phone && user.phoneNumber) setPhone(user.phoneNumber);
+    if (!phone && user.phoneNumber) setPhone(user.phoneNumber.replace(/^\+\d{1,4}\s*/, '').trim());
     if (user.address && (!savedDetailsObj || !savedDetailsObj.address)) setAddress(user.address);
     if (user.city && (!savedDetailsObj || !savedDetailsObj.city)) setCity(user.city);
     if (user.postalCode && (!savedDetailsObj || !savedDetailsObj.postalCode)) setPostalCode(user.postalCode);
@@ -193,11 +202,14 @@ export const CheckoutPage: React.FC = () => {
   }, [cart.length, confirmedOrder, navigateTo, setIsCartOpen]);
 
   const customerName = `${firstName.trim()} ${lastName.trim()}`.trim();
+  const currentDialCode = getCountryDialCode(country);
+  const fullPhoneNumber = `${currentDialCode} ${phone.trim()}`.trim();
+
   const isDetailsChanged = !!(savedDetailsObj && (
     firstName !== savedDetailsObj.firstName ||
     lastName !== savedDetailsObj.lastName ||
     email !== savedDetailsObj.email ||
-    phone !== savedDetailsObj.phone ||
+    fullPhoneNumber !== savedDetailsObj.phone ||
     address !== savedDetailsObj.address ||
     city !== savedDetailsObj.city ||
     postalCode !== savedDetailsObj.postalCode ||
@@ -220,6 +232,8 @@ export const CheckoutPage: React.FC = () => {
   const usdRateFromLKR = currencies.find(currency => currency.code === 'USD')?.rateFromLKR || 0.0033;
   const paypalDisplayAmount = paypalCurrency === selectedCurrency?.code ? totalInCurrency : Number((totalLKR * usdRateFromLKR).toFixed(2));
 
+  const isSriLanka = country.trim().toLowerCase() === 'sri lanka';
+
   const handleApplyPromo = async (event: React.FormEvent) => {
     event.preventDefault();
     setPromoError('');
@@ -238,7 +252,7 @@ export const CheckoutPage: React.FC = () => {
         setAppliedPromo({ code, discountFixedLKR: data.discountLKR, message: data.message });
         setPromoSuccess(data.message || 'Promo code applied successfully.');
       } else {
-        setPromoError(data.error || data.message || 'Invalid promo or coupon or voucher code.');
+        setPromoError(data.error || data.message || 'Invalid promo or coupon code.');
       }
     } catch {
       setPromoError('Unable to validate promo code. Please check your connection.');
@@ -302,8 +316,12 @@ export const CheckoutPage: React.FC = () => {
     if (!firstName.trim()) errors.firstName = 'First name is required.';
     if (!lastName.trim()) errors.lastName = 'Last name is required.';
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Please provide a valid email address.';
-    const cleanPhone = phone.replace(/[\s\-()]/g, '');
-    if (!cleanPhone || !/^(?:\+94|0)?7[0-9]{8}$/.test(cleanPhone)) errors.phone = 'Enter a valid Sri Lankan mobile number (e.g. +94 77 123 4567).';
+    
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (!digitsOnly || digitsOnly.length < 6 || digitsOnly.length > 16) {
+      errors.phone = 'Please enter a valid contact number.';
+    }
+
     if (!address.trim()) errors.address = 'Delivery address is required.';
     if (!city.trim()) errors.city = 'City / locality is required.';
     setFieldErrors(errors);
@@ -323,7 +341,7 @@ export const CheckoutPage: React.FC = () => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone.trim(),
+        phone: fullPhoneNumber,
         address: address.trim(),
         city: city.trim(),
         postalCode: postalCode.trim(),
@@ -375,8 +393,8 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
     if (!validateDeliveryDetails()) return;
-    if (country.trim().toLowerCase() !== 'sri lanka') {
-      setFieldErrors(previous => ({ ...previous, general: 'Cash on Delivery is currently available only for Sri Lankan delivery addresses.' }));
+    if (!isSriLanka) {
+      setFieldErrors(previous => ({ ...previous, general: 'Cash on Delivery is currently available only for Sri Lankan delivery addresses. For FedEx international delivery, please select PayPal.' }));
       return;
     }
 
@@ -388,7 +406,7 @@ export const CheckoutPage: React.FC = () => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone.trim(),
+        phone: fullPhoneNumber,
         address: address.trim(),
         city: city.trim(),
         postalCode: postalCode.trim(),
@@ -418,12 +436,12 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
     if (!validateDeliveryDetails()) return;
-    if (country.trim().toLowerCase() !== 'sri lanka') {
-      setFieldErrors(previous => ({ ...previous, general: 'Payzy is currently available only for Sri Lankan delivery addresses.' }));
+    if (!isSriLanka) {
+      setFieldErrors(previous => ({ ...previous, general: 'Payzy is currently available for Sri Lankan delivery addresses only. For international delivery, please use PayPal.' }));
       return;
     }
     if (!paymentConfig.payzy.configured) {
-      setFieldErrors(previous => ({ ...previous, general: 'Payzy server credential setup is still pending. Please use PayPal for now.' }));
+      setFieldErrors(previous => ({ ...previous, general: 'Payzy server credential setup is currently pending. Please select PayPal or Cash on Delivery.' }));
       return;
     }
 
@@ -435,7 +453,7 @@ export const CheckoutPage: React.FC = () => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone.trim(),
+        phone: fullPhoneNumber,
         address: address.trim(),
         city: city.trim(),
         postalCode: postalCode.trim(),
@@ -496,24 +514,70 @@ export const CheckoutPage: React.FC = () => {
 
   if (confirmedOrder) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-32 pb-24 px-5 sm:px-8 select-none">
+      <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-28 pb-24 px-5 sm:px-8 select-none">
         <OrderConfirmationModal order={confirmedOrder} onClose={() => { setConfirmedOrder(null); navigateTo({ name: 'home' }); }} />
-        <div className="max-w-xl mx-auto bg-white p-8 sm:p-12 rounded-2xl border border-[#EAE3D9] shadow-[0_2px_16px_rgba(0,0,0,0.03)] text-center space-y-6">
-          <div className="w-14 h-14 bg-[#FAF8F5] border border-[#EAE3D9] text-emerald-800 rounded-full flex items-center justify-center mx-auto"><CheckCircle2 className="w-8 h-8 stroke-[1.5]" /></div>
-          <div className="space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.25em] text-emerald-900 font-medium">ORDER PLACED</span>
-            <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal">Thank you, {confirmedOrder.customerName}.</h1>
-            <p className="text-xs text-[#665A4E]">Your order reference is <strong className="font-mono text-[#1A1816]">{confirmedOrder.orderNumber}</strong>. Track this order with the reference below or open My Orders on this browser for updates.</p>
+        <div className="max-w-xl mx-auto bg-white p-8 sm:p-12 rounded-3xl border border-[#EAE3D9] shadow-[0_4px_30px_rgba(0,0,0,0.03)] text-center space-y-7">
+          <div className="w-16 h-16 bg-[#FBF9F5] border border-[#E8E0D5] text-emerald-800 rounded-full flex items-center justify-center mx-auto shadow-sm">
+            <CheckCircle2 className="w-9 h-9 stroke-[1.5]" />
           </div>
-          <div className="bg-[#FAF8F5] p-5 rounded-xl border border-[#EAE3D9] text-left space-y-3 text-xs">
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Payment Method</span><span className="font-medium text-[#1A1816] uppercase">{confirmedOrder.paymentMethod === 'paypal' ? 'PayPal' : confirmedOrder.paymentMethod === 'payzy' ? 'Payzy' : 'Cash on Delivery'}</span></div>
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Logistics Courier</span><span className="font-medium text-[#1A1816]">{confirmedOrder.courierName || 'Pending courier assignment'}</span></div>
-            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2"><span className="text-[#7A6E60]">Estimated Delivery</span><span className="font-medium text-emerald-900">{confirmedOrder.deliveryEta || 'Pending courier update'}</span></div>
-            <div className="flex justify-between items-center"><span className="text-[#7A6E60]">Destination</span><span className="font-medium text-[#1A1816]">{confirmedOrder.address}, {confirmedOrder.city}</span></div>
+          <div className="space-y-2.5">
+            <span className="text-[10px] uppercase tracking-[0.25em] text-emerald-900 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+              ORDER CONFIRMED
+            </span>
+            <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1816] font-normal pt-1">
+              Thank you, {confirmedOrder.customerName}.
+            </h1>
+            <p className="text-xs text-[#665A4E] leading-relaxed">
+              Your order reference is <strong className="font-price font-bold text-[#1A1816] bg-[#F6F2EC] px-2 py-0.5 rounded border border-[#E5DDD2]">{confirmedOrder.orderNumber}</strong>. 
+              Track this order anytime with your reference below or through My Orders.
+            </p>
           </div>
+
+          <div className="bg-[#FAF8F5] p-5 rounded-2xl border border-[#EAE3D9] text-left space-y-3.5 text-xs">
+            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2.5">
+              <span className="text-[#7A6E60]">Payment Method</span>
+              <span className="font-semibold text-[#1A1816] uppercase tracking-wider">
+                {confirmedOrder.paymentMethod === 'paypal' ? 'PayPal' : confirmedOrder.paymentMethod === 'payzy' ? 'Payzy' : 'Cash on Delivery'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2.5">
+              <span className="text-[#7A6E60]">Logistics Courier</span>
+              <span className="font-semibold text-[#1A1816] flex items-center gap-1.5">
+                <Truck className="w-3.5 h-3.5 text-[#8C7A68]" />
+                {confirmedOrder.courierName || (confirmedOrder.country !== 'Sri Lanka' ? 'FedEx Express Worldwide' : 'Premier Express Courier')}
+              </span>
+            </div>
+            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2.5">
+              <span className="text-[#7A6E60]">Estimated Delivery</span>
+              <span className="font-price font-semibold text-emerald-900">
+                {confirmedOrder.deliveryEta || (confirmedOrder.country !== 'Sri Lanka' ? '3–5 Business Days (FedEx)' : '1–3 Business Days')}
+              </span>
+            </div>
+            <div className="flex justify-between items-center border-b border-[#ECE3D8] pb-2.5">
+              <span className="text-[#7A6E60]">Destination Country</span>
+              <span className="font-medium text-[#1A1816]">{confirmedOrder.country || 'Sri Lanka'}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[#7A6E60]">Delivery Address</span>
+              <span className="font-medium text-[#1A1816] text-right truncate max-w-[240px]">{confirmedOrder.address}, {confirmedOrder.city}</span>
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button type="button" onClick={() => navigateTo({ name: 'orders' })} className="flex-1 h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase font-medium tracking-[0.2em] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">CONTINUE TO MY ORDERS →</button>
-            <button type="button" onClick={() => navigateTo({ name: 'track-order', orderId: confirmedOrder.orderNumber })} className="px-6 h-12 bg-white border border-[#D5CBBF] text-[#1A1816] text-[11px] uppercase font-medium tracking-[0.18em] rounded-xl hover:bg-[#FAF8F5] transition-colors cursor-pointer">Track Order</button>
+            <button
+              type="button"
+              onClick={() => navigateTo({ name: 'orders' })}
+              className="flex-1 h-12 bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase font-semibold tracking-[0.2em] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow-md"
+            >
+              CONTINUE TO MY ORDERS →
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo({ name: 'track-order', orderId: confirmedOrder.orderNumber })}
+              className="px-6 h-12 bg-white border border-[#D5CBBF] text-[#1A1816] text-[11px] uppercase font-semibold tracking-[0.18em] rounded-xl hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+            >
+              Track Order
+            </button>
           </div>
         </div>
       </div>
@@ -523,124 +587,373 @@ export const CheckoutPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1A1816] pt-24 sm:pt-28 pb-28 px-5 sm:px-8 md:px-12 lg:px-16 select-none">
       <div className="max-w-6xl mx-auto space-y-8">
+        
+        {/* Top Navigation & Security Header */}
         <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-4">
-          <button type="button" onClick={() => navigateTo({ name: 'home' })} className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-medium text-[#665A4E] hover:text-[#1A1816] transition-colors cursor-pointer"><ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" /><span>Continue Shopping</span></button>
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#665A4E]"><Lock className="w-3.5 h-3.5 text-emerald-800 stroke-[1.5]" /><span>{user ? 'Secure Account Checkout' : 'Secure Guest Checkout'}</span></div>
+          <button
+            type="button"
+            onClick={() => navigateTo({ name: 'home' })}
+            className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-semibold text-[#665A4E] hover:text-[#1A1816] transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 stroke-[1.5]" />
+            <span>Continue Shopping</span>
+          </button>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#665A4E]">
+            <Lock className="w-3.5 h-3.5 text-emerald-800 stroke-[1.5]" />
+            <span>{user ? 'Secure Account Checkout' : 'Secure Guest Checkout'}</span>
+          </div>
         </div>
 
-        {fieldErrors.general && <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-800 flex items-start gap-2.5"><AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" /><span>{fieldErrors.general}</span></div>}
+        {fieldErrors.general && (
+          <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-800 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span className="leading-relaxed">{fieldErrors.general}</span>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          
+          {/* Left Column: Form & Steps */}
           <div className="lg:col-span-7 space-y-8">
-            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
-              <div className="flex items-center justify-between border-b border-[#ECE3D8] pb-3.5">
-                <h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2"><MapPin className="w-4 h-4 text-[#8C7A68]" />Delivery & Contact Information</h3>
-                <span className="text-[10px] uppercase tracking-[0.16em] text-[#8F8171]">Step 1 of 2</span>
+            
+            {/* Step 1: Delivery & Contact Information */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_4px_rgba(0,0,0,0.02)] space-y-6">
+              <div className="flex items-center justify-between border-b border-[#ECE3D8] pb-4">
+                <div>
+                  <h3 className="font-serif text-xl font-semibold text-[#1A1816] flex items-center gap-2.5">
+                    <MapPin className="w-4 h-4 text-[#8C7A68]" />
+                    Delivery & Destination
+                  </h3>
+                  <p className="text-[11px] text-[#7A6E60] mt-0.5">Enter your recipient and destination address.</p>
+                </div>
+                <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-[#8F8171] bg-[#FAF8F5] px-2.5 py-1 rounded-full border border-[#E8E1D7]">
+                  Step 1 of 2
+                </span>
+              </div>
+
+              {/* Dispatch & Courier Banner */}
+              <div className="p-3.5 rounded-xl bg-[#F7F4EE] border border-[#E5DDD2] flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-[#1A1816] text-white flex items-center justify-center shrink-0">
+                    <Truck className="w-4 h-4 stroke-[1.75]" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#1A1816] block truncate">
+                      {isSriLanka ? 'Premier Express Islandwide Courier' : 'FedEx Express Worldwide Courier'}
+                    </span>
+                    <span className="text-[11px] text-[#6E6153] block truncate">
+                      {isSriLanka ? '1–3 Business Days · Door-to-door verified delivery' : `3–5 Business Days to ${country} · Signature confirmation`}
+                    </span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-md text-[9px] uppercase font-bold tracking-wider bg-[#1A1816] text-[#FAF8F5] shrink-0">
+                  Insured
+                </span>
               </div>
 
               <div className="space-y-4">
+                {/* First & Last Name */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="field-firstName" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">First Name *</label>
-                    <input id="field-firstName" type="text" required placeholder="e.g. Kasun" value={firstName} onChange={event => { setFirstName(event.target.value); if (fieldErrors.firstName) setFieldErrors(previous => ({ ...previous, firstName: undefined })); }} className={`w-full h-[48px] bg-[#FCFBF9] border rounded-lg px-4 text-xs text-[#1A1816] placeholder:text-[#AAA094] focus:outline-none focus:bg-white transition-colors ${fieldErrors.firstName ? 'border-rose-400 focus:border-rose-500' : 'border-[#E5DDD2] focus:border-[#1A1816]'}`} />
+                    <label htmlFor="field-firstName" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40] mb-1.5">First Name *</label>
+                    <input
+                      id="field-firstName"
+                      type="text"
+                      required
+                      placeholder="First name"
+                      value={firstName}
+                      onChange={event => {
+                        setFirstName(event.target.value);
+                        if (fieldErrors.firstName) setFieldErrors(previous => ({ ...previous, firstName: undefined }));
+                      }}
+                      className={`w-full h-[46px] bg-white border rounded-md px-3.5 text-xs font-medium text-[#1A1816] placeholder:text-[#9E9284] focus:outline-none transition-all ${
+                        fieldErrors.firstName ? 'border-rose-400 focus:border-rose-500 ring-1 ring-rose-400' : 'border-[#DCD5CB] focus:border-[#1A1816] focus:ring-1 focus:ring-[#1A1816]'
+                      }`}
+                    />
                     {fieldErrors.firstName && <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.firstName}</p>}
                   </div>
                   <div>
-                    <label htmlFor="field-lastName" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">Last Name *</label>
-                    <input id="field-lastName" type="text" required placeholder="e.g. Fernando" value={lastName} onChange={event => { setLastName(event.target.value); if (fieldErrors.lastName) setFieldErrors(previous => ({ ...previous, lastName: undefined })); }} className={`w-full h-[48px] bg-[#FCFBF9] border rounded-lg px-4 text-xs text-[#1A1816] placeholder:text-[#AAA094] focus:outline-none focus:bg-white transition-colors ${fieldErrors.lastName ? 'border-rose-400 focus:border-rose-500' : 'border-[#E5DDD2] focus:border-[#1A1816]'}`} />
+                    <label htmlFor="field-lastName" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40] mb-1.5">Last Name *</label>
+                    <input
+                      id="field-lastName"
+                      type="text"
+                      required
+                      placeholder="Last name"
+                      value={lastName}
+                      onChange={event => {
+                        setLastName(event.target.value);
+                        if (fieldErrors.lastName) setFieldErrors(previous => ({ ...previous, lastName: undefined }));
+                      }}
+                      className={`w-full h-[46px] bg-white border rounded-md px-3.5 text-xs font-medium text-[#1A1816] placeholder:text-[#9E9284] focus:outline-none transition-all ${
+                        fieldErrors.lastName ? 'border-rose-400 focus:border-rose-500 ring-1 ring-rose-400' : 'border-[#DCD5CB] focus:border-[#1A1816] focus:ring-1 focus:ring-[#1A1816]'
+                      }`}
+                    />
                     {fieldErrors.lastName && <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.lastName}</p>}
                   </div>
                 </div>
 
+                {/* Email Address */}
                 <div>
-                  <label htmlFor="field-email" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">Email Address *</label>
-                  <input id="field-email" type="email" required value={email} onChange={event => { setEmail(event.target.value); if (fieldErrors.email) setFieldErrors(previous => ({ ...previous, email: undefined })); }} className={`w-full h-[48px] bg-[#FCFBF9] border rounded-lg px-4 text-xs text-[#1A1816] focus:outline-none focus:bg-white transition-colors ${fieldErrors.email ? 'border-rose-400' : 'border-[#E5DDD2] focus:border-[#1A1816]'}`} />
+                  <label htmlFor="field-email" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40] mb-1.5">Email Address *</label>
+                  <input
+                    id="field-email"
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={event => {
+                      setEmail(event.target.value);
+                      if (fieldErrors.email) setFieldErrors(previous => ({ ...previous, email: undefined }));
+                    }}
+                    className={`w-full h-[46px] bg-white border rounded-md px-3.5 text-xs font-medium text-[#1A1816] placeholder:text-[#9E9284] focus:outline-none transition-all ${
+                      fieldErrors.email ? 'border-rose-400 focus:border-rose-500 ring-1 ring-rose-400' : 'border-[#DCD5CB] focus:border-[#1A1816] focus:ring-1 focus:ring-[#1A1816]'
+                    }`}
+                  />
                   {fieldErrors.email && <p className="mt-1 text-[11px] text-rose-600">{fieldErrors.email}</p>}
                 </div>
 
+                {/* Country Destination (50 Countries) */}
                 <div>
-                  <label htmlFor="field-phone" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">Contact Phone * (Sri Lankan Mobile)</label>
-                  <div className="relative flex items-center"><span className="absolute left-3.5 text-xs font-semibold text-[#8F8171]">+94</span><input id="field-phone" type="tel" required placeholder="77 123 4567" value={phone.startsWith('+94') ? phone.slice(3).trim() : phone.startsWith('0') ? phone.slice(1).trim() : phone} onChange={event => { const raw = event.target.value.replace(/[^\d\s]/g, ''); setPhone(`+94 ${raw}`.trim()); if (fieldErrors.phone) setFieldErrors(previous => ({ ...previous, phone: undefined })); }} className={`w-full h-[48px] bg-[#FCFBF9] border rounded-lg pl-14 pr-4 text-xs text-[#1A1816] focus:outline-none focus:bg-white ${fieldErrors.phone ? 'border-rose-400' : 'border-[#E5DDD2] focus:border-[#1A1816]'}`} /></div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="field-country" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40]">
+                      Destination Country / Region *
+                    </label>
+                    <span className="text-[10px] font-semibold text-[#8C7A68] flex items-center gap-1">
+                      <Globe className="w-3 h-3" /> 50 Deliverable Countries
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <select
+                      id="field-country"
+                      value={country}
+                      onChange={event => {
+                        const newCountry = event.target.value;
+                        setCountry(newCountry);
+                        if (newCountry.trim().toLowerCase() !== 'sri lanka' && (paymentMethod === 'cod' || paymentMethod === 'payzy')) {
+                          setPaymentMethod('paypal');
+                        }
+                        if (fieldErrors.general) setFieldErrors(previous => ({ ...previous, general: undefined }));
+                      }}
+                      className="w-full h-[46px] bg-white border border-[#DCD5CB] rounded-md px-3.5 pr-10 text-xs font-medium text-[#1A1816] focus:outline-none focus:border-[#1A1816] focus:ring-1 focus:ring-[#1A1816] transition-all cursor-pointer appearance-none"
+                    >
+                      {DELIVERABLE_COUNTRIES.map(c => (
+                        <option key={c.code} value={c.name}>
+                          {c.name} ({c.dialCode})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-[#8C7A68] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Seamless Unified Contact Phone with Docked Country Dial Code */}
+                <div>
+                  <label htmlFor="field-phone" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40] mb-1.5">
+                    Contact Phone Number *
+                  </label>
+                  <div className={`flex items-center h-[46px] bg-white border rounded-md transition-all ${
+                    fieldErrors.phone
+                      ? 'border-rose-400 ring-1 ring-rose-400'
+                      : 'border-[#DCD5CB] focus-within:border-[#1A1816] focus-within:ring-1 focus-within:ring-[#1A1816]'
+                  }`}>
+                    <div className="h-full px-3.5 flex items-center justify-center text-xs font-bold text-[#1A1816] bg-[#F7F4EE] border-r border-[#E5DDD2] select-none shrink-0 rounded-l-md">
+                      {currentDialCode}
+                    </div>
+                    <input
+                      id="field-phone"
+                      type="tel"
+                      required
+                      placeholder="Mobile number"
+                      value={phone}
+                      onChange={event => {
+                        const raw = event.target.value.replace(/[^\d\s-]/g, '');
+                        setPhone(raw);
+                        if (fieldErrors.phone) setFieldErrors(previous => ({ ...previous, phone: undefined }));
+                      }}
+                      className="w-full h-full px-3.5 text-xs font-medium text-[#1A1816] placeholder:text-[#9E9284] bg-transparent focus:outline-none"
+                    />
+                  </div>
                   {fieldErrors.phone && <p className="mt-1 text-[11px] text-rose-600">{fieldErrors.phone}</p>}
                 </div>
 
+                {/* Street Address */}
                 <div>
-                  <label htmlFor="field-address" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">Street Address & Residence *</label>
-                  <input id="field-address" type="text" required value={address} onChange={event => { setAddress(event.target.value); if (fieldErrors.address) setFieldErrors(previous => ({ ...previous, address: undefined })); }} className={`w-full h-[48px] bg-[#FCFBF9] border rounded-lg px-4 text-xs text-[#1A1816] focus:outline-none focus:bg-white ${fieldErrors.address ? 'border-rose-400' : 'border-[#E5DDD2] focus:border-[#1A1816]'}`} />
+                  <label htmlFor="field-address" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40] mb-1.5">
+                    Street Address & Residence *
+                  </label>
+                  <input
+                    id="field-address"
+                    type="text"
+                    required
+                    placeholder="House number, building, apartment, street name"
+                    value={address}
+                    onChange={event => {
+                      setAddress(event.target.value);
+                      if (fieldErrors.address) setFieldErrors(previous => ({ ...previous, address: undefined }));
+                    }}
+                    className={`w-full h-[46px] bg-white border rounded-md px-3.5 text-xs font-medium text-[#1A1816] placeholder:text-[#9E9284] focus:outline-none transition-all ${
+                      fieldErrors.address ? 'border-rose-400 focus:border-rose-500 ring-1 ring-rose-400' : 'border-[#DCD5CB] focus:border-[#1A1816] focus:ring-1 focus:ring-[#1A1816]'
+                    }`}
+                  />
                   {fieldErrors.address && <p className="mt-1 text-[11px] text-rose-600">{fieldErrors.address}</p>}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div><label htmlFor="field-city" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">City / Locality *</label><input id="field-city" type="text" required value={city} onChange={event => { setCity(event.target.value); if (fieldErrors.city) setFieldErrors(previous => ({ ...previous, city: undefined })); }} className={`w-full h-[48px] bg-[#FCFBF9] border rounded-lg px-4 text-xs text-[#1A1816] focus:outline-none ${fieldErrors.city ? 'border-rose-400' : 'border-[#E5DDD2] focus:border-[#1A1816]'}`} />{fieldErrors.city && <p className="mt-1 text-[11px] text-rose-600">{fieldErrors.city}</p>}</div>
-                  <div><label htmlFor="field-postalCode" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">Postal Code</label><input id="field-postalCode" type="text" value={postalCode} onChange={event => setPostalCode(event.target.value)} className="w-full h-[48px] bg-[#FCFBF9] border border-[#E5DDD2] rounded-lg px-4 text-xs text-[#1A1816] focus:outline-none focus:border-[#1A1816]" /></div>
-                  <div><label htmlFor="field-country" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">Country</label><select id="field-country" value={country} disabled className="w-full h-[48px] bg-[#FCFBF9] border border-[#E5DDD2] rounded-lg px-4 text-xs text-[#1A1816]"><option value="Sri Lanka">Sri Lanka</option></select></div>
+                {/* City & Postal Code */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="field-city" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40] mb-1.5">City / Locality *</label>
+                    <input
+                      id="field-city"
+                      type="text"
+                      required
+                      placeholder="City or Town"
+                      value={city}
+                      onChange={event => {
+                        setCity(event.target.value);
+                        if (fieldErrors.city) setFieldErrors(previous => ({ ...previous, city: undefined }));
+                      }}
+                      className={`w-full h-[46px] bg-white border rounded-md px-3.5 text-xs font-medium text-[#1A1816] placeholder:text-[#9E9284] focus:outline-none transition-all ${
+                        fieldErrors.city ? 'border-rose-400 focus:border-rose-500 ring-1 ring-rose-400' : 'border-[#DCD5CB] focus:border-[#1A1816] focus:ring-1 focus:ring-[#1A1816]'
+                      }`}
+                    />
+                    {fieldErrors.city && <p className="mt-1 text-[11px] text-rose-600">{fieldErrors.city}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="field-postalCode" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40] mb-1.5">Postal / ZIP Code</label>
+                    <input
+                      id="field-postalCode"
+                      type="text"
+                      placeholder="Postal code"
+                      value={postalCode}
+                      onChange={event => setPostalCode(event.target.value)}
+                      className="w-full h-[46px] bg-white border border-[#DCD5CB] rounded-md px-3.5 text-xs font-medium text-[#1A1816] placeholder:text-[#9E9284] focus:outline-none focus:border-[#1A1816] focus:ring-1 focus:ring-[#1A1816] transition-all"
+                    />
+                  </div>
                 </div>
 
-                <div><label htmlFor="field-notes" className="block text-[10px] uppercase tracking-[0.18em] font-medium text-[#665A4E] mb-1.5">Courier Delivery Instructions (Optional)</label><input id="field-notes" type="text" value={notes} onChange={event => setNotes(event.target.value)} className="w-full h-[48px] bg-[#FCFBF9] border border-[#E5DDD2] rounded-lg px-4 text-xs text-[#1A1816] focus:outline-none focus:border-[#1A1816]" /></div>
+                {/* Optional Instructions */}
+                <div>
+                  <label htmlFor="field-notes" className="block text-[10px] uppercase tracking-[0.16em] font-semibold text-[#5A4E40] mb-1.5">
+                    Delivery Instructions (Optional)
+                  </label>
+                  <input
+                    id="field-notes"
+                    type="text"
+                    placeholder="Gate code, buzzer, or specific drop-off details"
+                    value={notes}
+                    onChange={event => setNotes(event.target.value)}
+                    className="w-full h-[46px] bg-white border border-[#DCD5CB] rounded-md px-3.5 text-xs font-medium text-[#1A1816] placeholder:text-[#9E9284] focus:outline-none focus:border-[#1A1816] focus:ring-1 focus:ring-[#1A1816] transition-all"
+                  />
+                </div>
 
                 {user && (!hasSavedDetails ? (
-                  <div className="flex items-center gap-2.5 pt-2"><input id="remember-details-chk" type="checkbox" checked={rememberDetails} onChange={event => setRememberDetails(event.target.checked)} className="w-4 h-4 accent-[#1A1816]" /><label htmlFor="remember-details-chk" className="text-xs text-[#5A4E40]">Remember my delivery details for future orders</label></div>
+                  <div className="flex items-center gap-2.5 pt-2">
+                    <input
+                      id="remember-details-chk"
+                      type="checkbox"
+                      checked={rememberDetails}
+                      onChange={event => setRememberDetails(event.target.checked)}
+                      className="w-4 h-4 accent-[#1A1816] rounded"
+                    />
+                    <label htmlFor="remember-details-chk" className="text-xs text-[#5A4E40] cursor-pointer">
+                      Remember my delivery details for future orders
+                    </label>
+                  </div>
                 ) : isDetailsChanged ? (
-                  <div className="flex items-center gap-2.5 pt-2"><input id="update-details-chk" type="checkbox" checked={updateSavedDetails} onChange={event => setUpdateSavedDetails(event.target.checked)} className="w-4 h-4 accent-[#1A1816]" /><label htmlFor="update-details-chk" className="text-xs text-amber-900 font-medium">Update my saved delivery details with these changes</label></div>
+                  <div className="flex items-center gap-2.5 pt-2">
+                    <input
+                      id="update-details-chk"
+                      type="checkbox"
+                      checked={updateSavedDetails}
+                      onChange={event => setUpdateSavedDetails(event.target.checked)}
+                      className="w-4 h-4 accent-[#1A1816] rounded"
+                    />
+                    <label htmlFor="update-details-chk" className="text-xs text-amber-900 font-medium cursor-pointer">
+                      Update my saved delivery details with these changes
+                    </label>
+                  </div>
                 ) : null)}
               </div>
             </div>
 
-            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
-              <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-3.5"><div><h3 className="font-serif text-lg font-semibold text-[#1A1816] flex items-center gap-2"><CreditCard className="w-4 h-4 text-[#8C7A68]" />Select Payment Method</h3><p className="text-xs text-[#7A6E60] mt-0.5">PayPal, Payzy, or Cash on Delivery.</p></div><span className="text-[10px] uppercase tracking-[0.16em] text-[#8F8171]">Step 2 of 2</span></div>
-              {fieldErrors.paymentMethod && <div className="p-3 rounded-lg border border-rose-200 bg-rose-50 text-xs text-rose-700">{fieldErrors.paymentMethod}</div>}
-
-              <div className="space-y-3.5" role="radiogroup" aria-label="Payment method">
-                {paymentConfig.payzy.enabled && (
-                  <div className={`rounded-2xl border overflow-hidden ${paymentMethod === 'payzy' ? 'border-[#2D3138] ring-1 ring-[#2D3138]' : 'border-[#E7E0D6]'}`}>
-                    <button type="button" role="radio" aria-label="Payzy" aria-checked={paymentMethod === 'payzy'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('payzy')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait">
-                      <div className="flex items-center gap-3.5"><div className="w-12 h-12 rounded-xl bg-white border border-[#E8E2DA] flex items-center justify-center"><PayzyMark className="w-9 h-9" /></div><div><span className="text-sm font-extrabold text-[#34353C]">Pay<span className="text-[#13A8DD]">zy</span></span><p className="text-[11px] text-[#665A4E] mt-1">Secure Sri Lankan online payment checkout.</p></div></div>
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'payzy' ? 'border-[#13A8DD]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'payzy' && <div className="w-2.5 h-2.5 rounded-full bg-[#13A8DD]" />}</div>
-                    </button>
-                    {paymentMethod === 'payzy' && <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EEE8DF] space-y-4"><div className="rounded-xl bg-white border border-[#E5DFD7] p-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762]">Payzy order total</p><p className="font-serif text-xl mt-1">LKR {totalLKR.toLocaleString('en-US')}</p><p className="text-[11px] text-[#74685B] mt-2">You will continue to Payzy. SAELYXE confirms the order only after the signed payment response is verified.</p></div>{!paymentConfig.payzy.configured ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] text-amber-900">Payzy is temporarily unavailable.</div> : <button type="button" onClick={handlePayzyOrder} disabled={isSubmitting} className="w-full min-h-[52px] rounded-xl bg-[#303139] text-white text-[11px] uppercase tracking-[0.18em] font-semibold disabled:opacity-50 flex items-center justify-center gap-3"><PayzyMark className="w-6 h-6" />{isSubmitting ? 'Opening Payzy...' : 'CONTINUE WITH PAYZY'}</button>}</div>}
-                  </div>
-                )}
-
-                <div className={`rounded-2xl border overflow-hidden ${paymentMethod === 'cod' ? 'border-[#1A1816] ring-1 ring-[#1A1816]' : 'border-[#E7E0D6]'}`}>
-                  <button type="button" role="radio" aria-label="Cash on Delivery" aria-checked={paymentMethod === 'cod'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('cod')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-xl bg-[#F6F1E9] border border-[#E5DDD2] flex items-center justify-center"><Truck className="w-5 h-5 text-[#574A3D]" /></div>
-                      <div><span className="text-sm font-semibold text-[#1A1816]">Cash on Delivery</span><p className="text-[11px] text-[#665A4E] mt-1">Pay in cash when your order is delivered.</p></div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'cod' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'cod' && <div className="w-2.5 h-2.5 rounded-full bg-[#1A1816]" />}</div>
-                  </button>
-                  {paymentMethod === 'cod' && (
-                    <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EEE8DF] space-y-4">
-                      <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD7] p-4">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762]">Cash on Delivery total</p>
-                        <p className="font-serif text-xl mt-1">LKR {totalLKR.toLocaleString('en-US')}</p>
-                        <p className="text-[11px] text-[#74685B] mt-2">No online charge is made. Payment remains pending until cash is collected on delivery.</p>
-                      </div>
-                      <button id="btn-cod-place-order" type="button" onClick={handleCodOrder} disabled={isSubmitting} className="w-full min-h-[52px] rounded-xl bg-[#1A1816] text-white text-[11px] uppercase tracking-[0.18em] font-semibold disabled:opacity-50 flex items-center justify-center gap-3">
-                        <Truck className="w-4 h-4" />{isSubmitting ? 'PLACING ORDER...' : 'PLACE CASH ON DELIVERY ORDER'}
-                      </button>
-                    </div>
-                  )}
+            {/* Step 2: Payment Method Selection */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_4px_rgba(0,0,0,0.02)] space-y-6">
+              <div className="flex items-center justify-between border-b border-[#EAE3D9] pb-4">
+                <div>
+                  <h3 className="font-serif text-xl font-semibold text-[#1A1816] flex items-center gap-2.5">
+                    <CreditCard className="w-4 h-4 text-[#8C7A68]" />
+                    Select Payment Method
+                  </h3>
+                  <p className="text-xs text-[#7A6E60] mt-0.5">PayPal, Payzy, or Cash on Delivery.</p>
                 </div>
+                <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-[#8F8171] bg-[#FAF8F5] px-2.5 py-1 rounded-full border border-[#E8E1D7]">
+                  Step 2 of 2
+                </span>
+              </div>
 
+              {fieldErrors.paymentMethod && (
+                <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-700">
+                  {fieldErrors.paymentMethod}
+                </div>
+              )}
+
+              <div className="space-y-4" role="radiogroup" aria-label="Payment method">
+                
+                {/* 1. PayPal (International & Global) */}
                 {paymentConfig.paypal.enabled && (
-                  <div className={`rounded-xl border overflow-hidden ${paymentMethod === 'paypal' ? 'border-[#1A1816] ring-1 ring-[#1A1816]' : 'border-[#EAE3D9]'}`}>
-                    <button type="button" role="radio" aria-label="PayPal" aria-checked={paymentMethod === 'paypal'} disabled={isSubmitting || isSwitchingPayment} onClick={() => handlePaymentMethodChange('paypal')} className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 disabled:cursor-wait"><div><span className="text-xs uppercase font-semibold tracking-wider">PayPal</span><p className="text-[11px] text-[#665A4E] mt-0.5">Pay securely with PayPal.</p></div><div className={`w-4 h-4 rounded-full border flex items-center justify-center ${paymentMethod === 'paypal' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'}`}>{paymentMethod === 'paypal' && <div className="w-2 h-2 rounded-full bg-[#1A1816]" />}</div></button>
-                    {paymentMethod === 'paypal' && (
-                      <div className="px-5 pb-5 pt-3 border-t border-[#F0EBE3] space-y-4">
-                        <div className="rounded-lg bg-white p-3.5 border border-[#EAE3D9] text-xs">
-                          <div className="flex items-center justify-between font-medium">
-                            <span>Total Charge via PayPal:</span>
-                            <span>{paypalCurrency} {paypalDisplayAmount.toFixed(2)}</span>
+                  <div className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                    paymentMethod === 'paypal' ? 'border-[#1A1816] ring-2 ring-[#1A1816]/10 shadow-sm bg-[#FAF8F5]/40' : 'border-[#E7E0D6] hover:border-[#D5CBBF]'
+                  }`}>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-label="PayPal"
+                      aria-checked={paymentMethod === 'paypal'}
+                      disabled={isSubmitting || isSwitchingPayment}
+                      onClick={() => handlePaymentMethodChange('paypal')}
+                      className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer disabled:cursor-wait"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-white border border-[#E5DDD2] flex items-center justify-center shadow-xs">
+                          <span className="font-serif italic font-bold text-lg text-[#003087]">P<span className="text-[#0079C1]">P</span></span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-[#1A1816] tracking-wide">PayPal</span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider bg-blue-50 text-blue-800 border border-blue-200">
+                              Global & Cards
+                            </span>
                           </div>
-                          <p className="text-[11px] text-[#7A6E60] mt-2">
-                            Your order is confirmed only after server-side payment verification.
+                          <p className="text-[11px] text-[#665A4E] mt-0.5">
+                            Visa, Mastercard, Amex, and PayPal balances across all 50 countries.
                           </p>
                         </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                        paymentMethod === 'paypal' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'
+                      }`}>
+                        {paymentMethod === 'paypal' && <div className="w-2.5 h-2.5 rounded-full bg-[#1A1816]" />}
+                      </div>
+                    </button>
+
+                    {paymentMethod === 'paypal' && (
+                      <div className="px-5 pb-5 pt-3 border-t border-[#EDE7DE] space-y-4 bg-white">
+                        <div className="rounded-xl bg-[#FAF8F5] p-4 border border-[#EAE3D9] text-xs space-y-2">
+                          <div className="flex items-center justify-between font-semibold">
+                            <span className="text-[#665A4E]">PayPal Charge Amount:</span>
+                            <span className="font-price font-bold text-sm text-[#1A1816]">
+                              {paypalCurrency} {paypalDisplayAmount.toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#7A6E60] leading-relaxed">
+                            Your payment is held in escrow and confirmed only after server-side cryptographic verification.
+                          </p>
+                        </div>
+
                         {paypalClientId ? (
                           <PayPalScriptProvider options={{ clientId: paypalClientId, currency: paypalCurrency }}>
                             <PayPalButtons
-                              style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 44 }}
+                              style={{ layout: 'vertical', shape: 'rect', color: 'gold', height: 46 }}
                               createOrder={async () => {
                                 if (!validateDeliveryDetails()) {
                                   throw new Error('Please complete all required delivery fields.');
@@ -653,7 +966,7 @@ export const CheckoutPage: React.FC = () => {
                                     firstName: firstName.trim(),
                                     lastName: lastName.trim(),
                                     email: email.trim().toLowerCase(),
-                                    phone: phone.trim(),
+                                    phone: fullPhoneNumber,
                                     address: address.trim(),
                                     city: city.trim(),
                                     postalCode: postalCode.trim(),
@@ -701,31 +1014,303 @@ export const CheckoutPage: React.FC = () => {
                           </PayPalScriptProvider>
                         ) : (
                           <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900 text-center">
-                            PayPal is temporarily unavailable. Please use Payzy.
+                            PayPal gateway is temporarily unavailable.
                           </div>
                         )}
                       </div>
                     )}
                   </div>
                 )}
+
+                {/* 2. Payzy (Sri Lanka Online Checkout) */}
+                {paymentConfig.payzy.enabled && (
+                  <div className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                    !isSriLanka ? 'opacity-60 bg-stone-50/70 border-[#EAE3D9]' : paymentMethod === 'payzy' ? 'border-[#2D3138] ring-2 ring-[#2D3138]/10 shadow-sm bg-[#FAF8F5]/40' : 'border-[#E7E0D6] hover:border-[#D5CBBF]'
+                  }`}>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-label="Payzy"
+                      aria-checked={paymentMethod === 'payzy'}
+                      disabled={isSubmitting || isSwitchingPayment || !isSriLanka}
+                      onClick={() => handlePaymentMethodChange('payzy')}
+                      className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-white border border-[#E8E2DA] flex items-center justify-center shadow-xs">
+                          <PayzyMark className="w-9 h-9" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-extrabold text-[#34353C]">Pay<span className="text-[#13A8DD]">zy</span></span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider bg-cyan-50 text-cyan-900 border border-cyan-200">
+                              Sri Lanka Only
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#665A4E] mt-0.5">
+                            {isSriLanka
+                              ? 'Instant online checkout for Sri Lankan Visa, Mastercard, and wallets.'
+                              : `Payzy is only available for Sri Lankan orders. For ${country}, please select PayPal.`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                        paymentMethod === 'payzy' ? 'border-[#13A8DD]' : 'border-[#D5CBBF]'
+                      }`}>
+                        {paymentMethod === 'payzy' && <div className="w-2.5 h-2.5 rounded-full bg-[#13A8DD]" />}
+                      </div>
+                    </button>
+
+                    {paymentMethod === 'payzy' && isSriLanka && (
+                      <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EDE7DE] space-y-4 bg-white">
+                        <div className="rounded-2xl bg-[#FAF8F5] border border-[#E5DFD7] p-4 space-y-1.5">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762] font-semibold">Payzy Order Total</p>
+                          <p className="font-price font-bold text-xl text-[#1A1816]">LKR {totalLKR.toLocaleString('en-US')}</p>
+                          <p className="text-[11px] text-[#74685B] pt-1 leading-relaxed">
+                            You will be redirected to the secure Payzy payment portal. SAELYXE validates and records your order upon receipt of the signed verification token.
+                          </p>
+                        </div>
+                        {!paymentConfig.payzy.configured ? (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] text-amber-900">
+                            Payzy gateway credentials are being updated. Please use PayPal or Cash on Delivery.
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handlePayzyOrder}
+                            disabled={isSubmitting}
+                            className="w-full min-h-[52px] rounded-xl bg-[#303139] hover:bg-[#1E1F24] text-white text-[11px] uppercase tracking-[0.18em] font-semibold disabled:opacity-50 flex items-center justify-center gap-3 cursor-pointer shadow-sm hover:shadow-md transition-all"
+                          >
+                            <PayzyMark className="w-6 h-6" />
+                            {isSubmitting ? 'Opening Payzy...' : 'CONTINUE WITH PAYZY'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Cash on Delivery (Domestic Sri Lanka) */}
+                <div className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                  !isSriLanka ? 'opacity-60 bg-stone-50/70 border-[#EAE3D9]' : paymentMethod === 'cod' ? 'border-[#1A1816] ring-2 ring-[#1A1816]/10 shadow-sm bg-[#FAF8F5]/40' : 'border-[#E7E0D6] hover:border-[#D5CBBF]'
+                }`}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-label="Cash on Delivery"
+                    aria-checked={paymentMethod === 'cod'}
+                    disabled={isSubmitting || isSwitchingPayment || !isSriLanka}
+                    onClick={() => handlePaymentMethodChange('cod')}
+                    className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-[#F6F1E9] border border-[#E5DDD2] flex items-center justify-center shadow-xs">
+                        <Truck className="w-5 h-5 text-[#574A3D]" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-[#1A1816] tracking-wide">Cash on Delivery</span>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider bg-stone-200/80 text-stone-800 border border-stone-300">
+                            Sri Lanka Only
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#665A4E] mt-0.5">
+                          {isSriLanka
+                            ? 'Pay in cash when your order arrives at your doorstep.'
+                            : `Cash on Delivery is available in Sri Lanka only. For ${country}, please select PayPal.`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      paymentMethod === 'cod' ? 'border-[#1A1816]' : 'border-[#D5CBBF]'
+                    }`}>
+                      {paymentMethod === 'cod' && <div className="w-2.5 h-2.5 rounded-full bg-[#1A1816]" />}
+                    </div>
+                  </button>
+
+                  {paymentMethod === 'cod' && isSriLanka && (
+                    <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-[#EDE7DE] space-y-4 bg-white">
+                      <div className="rounded-2xl bg-[#FAF8F5] border border-[#E5DFD7] p-4 space-y-1.5">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-[#8A7762] font-semibold">Cash on Delivery Total</p>
+                        <p className="font-price font-bold text-xl text-[#1A1816]">LKR {totalLKR.toLocaleString('en-US')}</p>
+                        <p className="text-[11px] text-[#74685B] pt-1 leading-relaxed">
+                          No immediate charge is required. Payment status remains pending until our logistics partner receives cash upon delivery.
+                        </p>
+                      </div>
+                      <button
+                        id="btn-cod-place-order"
+                        type="button"
+                        onClick={handleCodOrder}
+                        disabled={isSubmitting}
+                        className="w-full min-h-[52px] rounded-xl bg-[#1A1816] hover:bg-black text-white text-[11px] uppercase tracking-[0.18em] font-semibold disabled:opacity-50 flex items-center justify-center gap-3 cursor-pointer shadow-sm hover:shadow-md transition-all"
+                      >
+                        <Truck className="w-4 h-4" />
+                        {isSubmitting ? 'PLACING ORDER...' : 'PLACE CASH ON DELIVERY ORDER'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
+
           </div>
 
-          <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6 lg:sticky lg:top-28">
-            <div className="border-b border-[#EAE3D9] pb-3.5 flex items-baseline justify-between"><h3 className="font-serif text-lg font-semibold tracking-wide">ORDER SUMMARY</h3><span className="text-[10px] uppercase tracking-[0.2em] text-[#8F8171]">{totalItemsCount} {totalItemsCount === 1 ? 'ITEM' : 'ITEMS'}</span></div>
-            <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
-              {effectiveCart.length === 0 ? <div className="py-6 text-center text-xs text-[#8F8171]"><ShoppingBag className="w-4 h-4 mx-auto mb-2" />Your shopping bag is currently empty.</div> : effectiveCart.map((item, index) => <div key={`${item.productId}-${item.size}-${index}`} className="flex items-center justify-between gap-4 text-xs border-b border-[#F5F2EC] pb-4"><div className="flex items-center gap-3.5 min-w-0"><img src={item.image} alt={item.title} className="w-16 h-20 sm:w-20 sm:h-24 object-cover rounded-lg border border-[#EAE3D9]" /><div className="min-w-0"><h4 className="font-serif text-sm truncate">{item.title}</h4><p className="text-[11px] text-[#665A4E] uppercase mt-0.5">Size {item.size} · Qty {item.quantity}</p></div></div><div className="font-serif text-sm font-semibold whitespace-nowrap">{formatPrice(item.priceLKR * item.quantity)}</div></div>)}
+          {/* Right Column: Order Summary */}
+          <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-[#EAE3D9] shadow-[0_1px_4px_rgba(0,0,0,0.02)] space-y-6 lg:sticky lg:top-28">
+            <div className="border-b border-[#EAE3D9] pb-4 flex items-baseline justify-between">
+              <h3 className="font-serif text-xl font-semibold tracking-wide text-[#1A1816]">
+                ORDER SUMMARY
+              </h3>
+              <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#8F8171] bg-[#FAF8F5] px-2.5 py-1 rounded-full border border-[#E8E1D7]">
+                {totalItemsCount} {totalItemsCount === 1 ? 'ITEM' : 'ITEMS'}
+              </span>
             </div>
 
+            {/* Cart Items List */}
+            <div className="space-y-3.5 max-h-80 overflow-y-auto pr-1 divide-y divide-[#F5F2EC]">
+              {effectiveCart.length === 0 ? (
+                <div className="py-8 text-center text-xs text-[#8F8171]">
+                  <ShoppingBag className="w-5 h-5 mx-auto mb-2 opacity-50" />
+                  Your shopping bag is currently empty.
+                </div>
+              ) : (
+                effectiveCart.map((item, index) => (
+                  <div key={`${item.productId}-${item.size}-${index}`} className="pt-3.5 first:pt-0 flex items-center justify-between gap-4 text-xs">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="w-16 h-20 sm:w-18 sm:h-22 object-cover rounded-xl border border-[#EAE3D9] shadow-xs shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <h4 className="font-serif text-sm font-semibold truncate text-[#1A1816]">{item.title}</h4>
+                        <p className="text-[11px] text-[#665A4E] uppercase mt-0.5 font-medium">
+                          Size {item.size} · Qty {item.quantity}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="font-price font-semibold text-sm text-[#1A1816] whitespace-nowrap">
+                      {formatPrice(item.priceLKR * item.quantity)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Promo Code Section */}
             <div className="border-t border-[#EAE3D9] pt-4">
-              {appliedPromo ? <div className="flex items-center justify-between p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs"><div><span className="font-medium">{appliedPromo.code}</span><span className="text-[11px] block">-{formatPrice(appliedPromo.discountFixedLKR)} discount applied</span></div><button type="button" onClick={handleRemovePromo} className="text-[11px] text-rose-700 underline">Remove</button></div> : <div className="space-y-3"><button type="button" onClick={() => setIsPromoOpen(previous => !previous)} className="flex items-center justify-between w-full text-[11px] uppercase tracking-[0.16em] text-[#665A4E]"><span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" />Have a coupon or voucher?</span>{isPromoOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}</button>{isPromoOpen && <form onSubmit={handleApplyPromo} className="space-y-2"><div className="flex gap-2"><input type="text" value={promoCode} onChange={event => setPromoCode(event.target.value.toUpperCase())} className="flex-1 h-[42px] border border-[#E5DDD2] rounded-lg px-3.5 text-xs uppercase" /><button type="submit" disabled={isCheckingPromo} className="h-[42px] px-5 bg-[#1A1816] text-white text-[10px] uppercase rounded-lg">{isCheckingPromo ? '...' : 'Apply'}</button></div>{promoError && <p className="text-[11px] text-rose-600">{promoError}</p>}{promoSuccess && <p className="text-[11px] text-emerald-800">{promoSuccess}</p>}</form>}</div>}
+              {appliedPromo ? (
+                <div className="flex items-center justify-between p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs">
+                  <div>
+                    <span className="font-bold text-[#1A1816] tracking-wider">{appliedPromo.code}</span>
+                    <span className="font-price text-[11px] text-emerald-900 block font-medium mt-0.5">
+                      -{formatPrice(appliedPromo.discountFixedLKR)} discount applied
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemovePromo}
+                    className="text-[11px] text-rose-700 font-semibold hover:underline cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsPromoOpen(previous => !previous)}
+                    className="flex items-center justify-between w-full text-[11px] uppercase tracking-[0.16em] font-semibold text-[#665A4E] hover:text-[#1A1816] transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5" />
+                      Have a coupon or voucher code?
+                    </span>
+                    {isPromoOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
+                  {isPromoOpen && (
+                    <form onSubmit={handleApplyPromo} className="space-y-2 pt-1">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="ENTER CODE"
+                          value={promoCode}
+                          onChange={event => setPromoCode(event.target.value.toUpperCase())}
+                          className="flex-1 h-[44px] border border-[#E5DDD2] rounded-xl px-3.5 text-xs font-semibold uppercase tracking-wider text-[#1A1816] placeholder:text-[#AAA094] focus:outline-none focus:border-[#1A1816]"
+                        />
+                        <button
+                          type="submit"
+                          disabled={isCheckingPromo}
+                          className="h-[44px] px-5 bg-[#1A1816] hover:bg-black text-white text-[10px] uppercase font-bold tracking-wider rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {isCheckingPromo ? '...' : 'Apply'}
+                        </button>
+                      </div>
+                      {promoError && <p className="text-[11px] text-rose-600 font-medium">{promoError}</p>}
+                      {promoSuccess && <p className="text-[11px] text-emerald-800 font-medium">{promoSuccess}</p>}
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="border-t border-[#EAE3D9] pt-4 space-y-2.5 text-xs"><div className="flex justify-between text-[#7A6E60]"><span>SUBTOTAL</span><span>{formatPrice(subtotalLKR)}</span></div><div className="flex justify-between text-[#7A6E60]"><span>DELIVERY</span><span className="text-emerald-900">{shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(shippingLKR)}</span></div>{discountLKR > 0 && <div className="flex justify-between text-emerald-800"><span>DISCOUNT ({appliedPromo?.code})</span><span>-{formatPrice(discountLKR)}</span></div>}<div className="border-t border-[#EAE3D9] pt-3.5 flex justify-between items-baseline"><span className="text-xs uppercase tracking-[0.18em] font-semibold">TOTAL</span><div className="font-serif text-2xl">{formatPrice(totalLKR)}</div></div></div>
+            {/* Calculations Breakdown */}
+            <div className="border-t border-[#EAE3D9] pt-4 space-y-3 text-xs">
+              <div className="flex justify-between text-[#7A6E60]">
+                <span>SUBTOTAL</span>
+                <span className="font-price font-semibold text-[#1A1816]">{formatPrice(subtotalLKR)}</span>
+              </div>
+              <div className="flex justify-between text-[#7A6E60]">
+                <span>SHIPPING & LOGISTICS</span>
+                <span className="font-price font-semibold text-emerald-900">
+                  {shippingLKR === 0 ? 'COMPLIMENTARY' : formatPrice(shippingLKR)}
+                </span>
+              </div>
+              {discountLKR > 0 && (
+                <div className="flex justify-between text-emerald-800">
+                  <span>DISCOUNT ({appliedPromo?.code})</span>
+                  <span className="font-price font-semibold text-emerald-800">-{formatPrice(discountLKR)}</span>
+                </div>
+              )}
+              <div className="border-t border-[#EAE3D9] pt-4 flex justify-between items-baseline">
+                <span className="text-xs uppercase tracking-[0.2em] font-bold text-[#1A1816]">TOTAL</span>
+                <div className="font-price text-2xl font-bold tracking-tight text-[#1A1816]">
+                  {formatPrice(totalLKR)}
+                </div>
+              </div>
+            </div>
 
-            <div className="border-t border-[#EAE3D9] pt-4 space-y-3"><div className="flex items-start gap-2.5 text-xs"><ShieldCheck className="w-4 h-4 text-emerald-800 shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Verified Online Payment</span><p className="text-[11px] text-[#665A4E]">PayPal and Payzy require server verification. Cash on Delivery remains unpaid until collection.</p></div></div><div className="flex items-start gap-2.5 text-xs"><Truck className="w-4 h-4 text-[#8C7A68] shrink-0" /><div><span className="block text-[10px] uppercase tracking-[0.16em] font-semibold">Sri Lanka Delivery</span><p className="text-[11px] text-[#665A4E]">Courier and ETA details are shown when assigned; SAELYXE does not invent tracking information.</p></div></div></div>
+            {/* Trust Seals and Badges */}
+            <div className="border-t border-[#EAE3D9] pt-5 space-y-3.5">
+              <div className="flex items-start gap-3 text-xs">
+                <ShieldCheck className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
+                <div>
+                  <span className="block text-[10.5px] uppercase tracking-[0.16em] font-bold text-[#1A1816]">
+                    Authentic Luxury Silhouettes
+                  </span>
+                  <p className="text-[11px] text-[#665A4E] leading-relaxed">
+                    Every piece is crafted in limited numbers, authenticated, and delivered in bespoke protective packaging.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 text-xs">
+                <Truck className="w-4 h-4 text-[#8C7A68] shrink-0 mt-0.5" />
+                <div>
+                  <span className="block text-[10.5px] uppercase tracking-[0.16em] font-bold text-[#1A1816]">
+                    {isSriLanka ? 'Islandwide Express Delivery' : 'FedEx Express Worldwide Delivery'}
+                  </span>
+                  <p className="text-[11px] text-[#665A4E] leading-relaxed">
+                    {isSriLanka
+                      ? 'Domestic express courier with live tracking reference provided upon dispatch.'
+                      : 'International delivery via FedEx Priority with door-to-door tracking and direct signature confirmation.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
           </div>
+
         </div>
       </div>
     </div>

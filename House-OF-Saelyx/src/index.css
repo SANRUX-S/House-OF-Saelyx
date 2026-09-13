@@ -156,3 +156,14 @@ button:has(> [data-testid="payzy-mark"])::before {
     transform: none;
   }
 }
+
+/* ==========================================================================
+   SAELYXE Luxury Lining Numeral & Price Typography Styling
+   ========================================================================== */
+.font-price,
+.luxury-numeral {
+  font-family: var(--font-sans) !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+  font-variant-numeric: tabular-nums lining-nums !important;
+  letter-spacing: -0.015em;
+}

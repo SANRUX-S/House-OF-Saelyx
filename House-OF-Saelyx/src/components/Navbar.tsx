@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, ShoppingBag, User } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { AccountDropdown } from './AccountDropdown';
+import { GuestDropdown } from './GuestDropdown';
 
 export const Navbar: React.FC = () => {
   const {
@@ -16,12 +17,14 @@ export const Navbar: React.FC = () => {
     currentRoute,
     navigateTo,
     user,
+    isGuest,
     settings
   } = useStore();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const [isGuestDropdownOpen, setIsGuestDropdownOpen] = useState(false);
   // Announcement bar removed per user instruction. Kept settings?.announcementText for store schema compatibility.
   const announcementText = false && Boolean(settings?.announcementText);
 
@@ -115,6 +118,23 @@ export const Navbar: React.FC = () => {
               </button>
               <AccountDropdown isOpen={isAccountDropdownOpen} onClose={() => setIsAccountDropdownOpen(false)} user={user} />
             </div>
+          ) : isGuest ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  setIsGuestDropdownOpen(previous => !previous);
+                }}
+                className="p-0.5 text-white/90 hover:text-white cursor-pointer flex items-center gap-1"
+                aria-label="Guest account"
+              >
+                <div className="w-7 h-7 rounded-full bg-white/15 border border-white/20 flex items-center justify-center text-amber-200">
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                </div>
+              </button>
+              <GuestDropdown isOpen={isGuestDropdownOpen} onClose={() => setIsGuestDropdownOpen(false)} />
+            </div>
           ) : (
             <button
               id="btn-nav-login-mobile"
@@ -207,6 +227,19 @@ export const Navbar: React.FC = () => {
                 <span className="max-w-[110px] truncate">{user.name}</span><span className="text-[8px] opacity-60">▼</span>
               </button>
               <AccountDropdown isOpen={isAccountDropdownOpen} onClose={() => setIsAccountDropdownOpen(false)} user={user} />
+            </div>
+          ) : isGuest ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={event => { event.stopPropagation(); setIsGuestDropdownOpen(previous => !previous); }}
+                className="flex items-center gap-1.5 text-[10.5px] lg:text-[11px] uppercase tracking-[0.16em] font-medium text-white px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 cursor-pointer shadow-sm"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-300"></span>
+                <span>GUEST</span>
+                <span className="text-[8px] opacity-60">▼</span>
+              </button>
+              <GuestDropdown isOpen={isGuestDropdownOpen} onClose={() => setIsGuestDropdownOpen(false)} />
             </div>
           ) : (
             <div className="flex items-center gap-3.5 lg:gap-4">

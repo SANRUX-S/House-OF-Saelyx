@@ -75,7 +75,7 @@ type CreateOrderInput = Omit<
   checkoutAttemptId?: string;
 };
 
-type AuthMode = 'signin' | 'signup';
+type AuthMode = 'signin' | 'signup' | 'checkout';
 
 interface StoreContextType {
   // Navigation & Routing
@@ -128,6 +128,8 @@ interface StoreContextType {
 
   // Authentication & Users
   user: AppUser | null;
+  isGuest: boolean;
+  setIsGuest: (guest: boolean) => void;
   isAuthLoading: boolean;
   authError: string | null;
   setAuthError: (err: string | null) => void;
@@ -455,6 +457,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [user, setUser] = useState<AppUser | null>(() => {
     return null;
   });
+  const [isGuest, setIsGuestState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('saelyxe_is_guest') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const setIsGuest = useCallback((guest: boolean) => {
+    setIsGuestState(guest);
+    try {
+      if (guest) {
+        localStorage.setItem('saelyxe_is_guest', 'true');
+      } else {
+        localStorage.removeItem('saelyxe_is_guest');
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }, []);
+
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const userRef = useRef(user);
@@ -462,7 +485,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     userRef.current = user;
-  }, [user]);
+    if (user) {
+      setIsGuest(false);
+    }
+  }, [user, setIsGuest]);
 
   // Synchronize route changes with browser history & URL bar
   const navigateTo = useCallback((route: AppRoute) => {
@@ -2166,6 +2192,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         trackingOrderId,
         setTrackingOrderId,
         user,
+        isGuest,
+        setIsGuest,
         isAuthLoading,
         authError,
         setAuthError,

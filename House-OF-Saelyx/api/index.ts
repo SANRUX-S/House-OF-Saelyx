@@ -2,6 +2,7 @@ import express, { type Request } from 'express';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
@@ -1051,14 +1052,13 @@ function formatOrderPaymentStatus(order: any) {
   if (status === 'verified') return 'Payment verified';
   if (status === 'refunded') return 'Refund completed';
   if (status === 'refund_pending') return 'Refund processing';
-  if (status === 'cancelled') return 'Payment cancelled';
   return status ? status.replace(/_/g, ' ') : 'Pending verification';
 }
 
 function buildOrderItemRows(order: any) {
   const items = Array.isArray(order?.items) ? order.items : [];
   if (items.length === 0) {
-    return '<tr><td style="padding:16px 0;color:#7a7066;font-size:13px">No item details available.</td></tr>';
+    return '<tr><td style="padding:14px 0;color:#8a7e73;font-size:12px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif">No item details available.</td></tr>';
   }
 
   return items.map((item: any) => {
@@ -1066,19 +1066,19 @@ function buildOrderItemRows(order: any) {
     const price = Number(item?.priceLKR) || 0;
     const image = safeString(item?.image, 1000);
     const imageCell = image
-      ? `<img src="${escapeHtml(image)}" width="64" height="78" alt="" style="display:block;width:64px;height:78px;object-fit:cover;border-radius:10px;background:#f6f2ec;border:1px solid #e7dfd5">`
-      : '<div style="width:64px;height:78px;border-radius:10px;background:#f6f2ec;border:1px solid #e7dfd5"></div>';
+      ? `<img src="${escapeHtml(image)}" width="48" height="58" alt="" style="display:block;width:48px;height:58px;object-fit:cover;border-radius:6px;background:#f8f5f0;border:1px solid #eae2d5">`
+      : '<div style="width:48px;height:58px;border-radius:6px;background:#f8f5f0;border:1px solid #eae2d5"></div>';
 
     return [
       '<tr>',
-      '<td style="padding:14px 0;border-bottom:1px solid #eee8df">',
-      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>',
-      `<td width="78" valign="top">${imageCell}</td>`,
-      '<td valign="top" style="padding:2px 12px 0 0">',
-      `<div style="font-size:14px;line-height:1.45;font-weight:700;color:#1b1815">${escapeHtml(item?.title || 'SAELYXE item')}</div>`,
-      `<div style="margin-top:7px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7f73">Size ${escapeHtml(item?.size || '—')} &nbsp;·&nbsp; Qty ${quantity}</div>`,
+      '<td style="padding:10px 0;border-bottom:1px solid #f2ece3">',
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;width:100%"><tr>',
+      `<td width="56" valign="top" style="width:56px">${imageCell}</td>`,
+      '<td valign="top" style="padding:1px 10px 0;word-break:break-word;overflow-wrap:anywhere">',
+      `<div style="font-size:12.5px;line-height:1.35;font-weight:600;color:#1c1916;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif">${escapeHtml(item?.title || 'SAELYXE item')}</div>`,
+      `<div style="margin-top:2px;font-size:11px;color:#8a7e73;font-weight:400;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif">Size: ${escapeHtml(item?.size || '—')} &nbsp;·&nbsp; Qty: ${quantity}</div>`,
       '</td>',
-      `<td width="120" valign="top" align="right" style="padding-top:2px;font-size:13px;font-weight:700;color:#1b1815;white-space:nowrap">${formatLkrEmail(price * quantity)}</td>`,
+      `<td width="96" valign="top" align="right" style="width:96px;padding-top:1px;font-size:12.5px;font-weight:700;color:#1c1916;white-space:nowrap;text-align:right;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif">${formatLkrEmail(price * quantity)}</td>`,
       '</tr></table>',
       '</td>',
       '</tr>'
@@ -1093,21 +1093,34 @@ function buildOrderTotals(order: any) {
   const total = Number(order?.totalLKR) || 0;
 
   return [
-    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:13px;color:#6f655c">',
-    `<tr><td style="padding:5px 0">Subtotal</td><td align="right" style="padding:5px 0;color:#1b1815">${formatLkrEmail(subtotal)}</td></tr>`,
-    discount > 0
-      ? `<tr><td style="padding:5px 0;color:#35614b">Discount${order?.promoCode ? ` (${escapeHtml(order.promoCode)})` : ''}</td><td align="right" style="padding:5px 0;color:#35614b">-${formatLkrEmail(discount)}</td></tr>`
+    '<div style="background:#faf7f2;border:1px solid #eae2d5;border-radius:10px;padding:12px 14px;margin-top:14px;box-sizing:border-box">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:12px;color:#6e645a;table-layout:fixed;width:100%;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif">',
+    order?.promoCode
+      ? `<tr><td style="padding:4px 0;width:55%">Promo code</td><td align="right" style="padding:4px 0;width:45%;font-weight:600;color:#1c1916;font-family:monospace">${escapeHtml(order.promoCode)}</td></tr>`
       : '',
-    `<tr><td style="padding:5px 0">Delivery</td><td align="right" style="padding:5px 0;color:#1b1815">${shipping === 0 ? 'Complimentary' : formatLkrEmail(shipping)}</td></tr>`,
-    '<tr><td colspan="2" style="height:9px"></td></tr>',
-    `<tr><td style="padding:13px 0 0;border-top:1px solid #dcd4ca;font-size:14px;font-weight:800;color:#1b1815">Total</td><td align="right" style="padding:13px 0 0;border-top:1px solid #dcd4ca;font-size:20px;font-weight:800;color:#1b1815">${formatLkrEmail(total)}</td></tr>`,
-    '</table>'
+    `<tr><td style="padding:4px 0;width:55%">Subtotal</td><td align="right" style="padding:4px 0;width:45%;color:#1c1916;font-weight:500">${formatLkrEmail(subtotal)}</td></tr>`,
+    discount > 0
+      ? `<tr><td style="padding:4px 0;width:55%;color:#2d6a4f;font-weight:500">Savings applied</td><td align="right" style="padding:4px 0;width:45%;color:#2d6a4f;font-weight:700">-${formatLkrEmail(discount)}</td></tr>`
+      : '',
+    `<tr><td style="padding:4px 0;width:55%">Delivery</td><td align="right" style="padding:4px 0;width:45%;color:#2d6a4f;font-weight:500">${shipping === 0 ? 'Complimentary' : formatLkrEmail(shipping)}</td></tr>`,
+    '<tr><td colspan="2" style="padding-top:6px;border-bottom:1px solid #eae2d5"></td></tr>',
+    '<tr>',
+    '<td style="padding-top:8px;font-size:13px;font-weight:700;color:#1c1916;width:50%">Total</td>',
+    `<td align="right" style="padding-top:8px;font-size:15px;font-weight:800;color:#1c1916;width:50%;white-space:nowrap">`,
+    discount > 0
+      ? `<span style="font-size:12px;color:#a09589;text-decoration:line-through;margin-right:6px;font-weight:400">${formatLkrEmail(subtotal + shipping)}</span>`
+      : '',
+    formatLkrEmail(total),
+    '</td>',
+    '</tr>',
+    '</table>',
+    '</div>'
   ].join('');
 }
 
 function buildSaelyxeOrderEmail(params: {
   order: any;
-  eyebrow: string;
+  eyebrow?: string;
   heading: string;
   intro: string;
   logistics?: string;
@@ -1116,55 +1129,183 @@ function buildSaelyxeOrderEmail(params: {
   const orderNumber = safeString(order?.orderNumber || order?.id, 120);
   const createdAt = safeString(order?.createdAt, 100);
   const dateLabel = createdAt && Number.isFinite(Date.parse(createdAt))
-    ? new Date(createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-    : 'Recorded by SAELYXE';
+    ? new Date(createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'September 13, 2026';
   const orderUrl = `https://www.saelyxe.com/orders?id=${encodeURIComponent(orderNumber)}`;
   const customerName = safeString(order?.customerName, 120) || 'Customer';
+  const customerEmail = safeString(order?.email || order?.customerEmail, 254).toLowerCase();
+
+  const destinationParts = [
+    safeString(order?.city, 100),
+    safeString(order?.country, 100)
+  ].filter(Boolean);
+  const destination = destinationParts.join(', ') || 'Colombo, Sri Lanka';
+
+  const total = Number(order?.totalLKR) || 0;
+  const trackingNumber = safeString(order?.trackingNumber, 160);
+  const courierName = safeString(order?.courierName, 160);
+  const deliveryEta = safeString(order?.deliveryEta, 160);
+  const isGoldLogo = order?.logoVariant === 'gold';
+  const logoUrl = (order?._isEmailPreview === true || !process.env.VERCEL)
+    ? (isGoldLogo ? '/images/saelyxe-wordmark-gold.png' : '/images/saelyxe-wordmark-noir.png')
+    : (isGoldLogo ? 'https://www.saelyxe.com/images/saelyxe-wordmark-gold.png' : 'https://www.saelyxe.com/images/saelyxe-wordmark-noir.png');
+
+  const headerBgVariant = order?.headerBgVariant || 'wall'; // 'wall' | 'champagne'
+  const isLocalOrPreview = (order?._isEmailPreview === true || !process.env.VERCEL);
+  const iconBase = isLocalOrPreview ? '' : 'https://www.saelyxe.com';
+
+  const iconVariant = order?.iconVariant || 'gold'; // 'gold' (raw standalone) | 'plaque' | 'seal' | 'none'
+  const iconUrl = iconVariant === 'seal'
+    ? `${iconBase}/images/saelyxe-icon-gold-seal.png`
+    : (iconVariant === 'plaque'
+      ? `${iconBase}/images/saelyxe-icon-gold-plaque.png`
+      : `${iconBase}/images/saelyxe-icon-gold.png`);
+
+  const wallBgUrl = `${iconBase}/images/saelyxe-header-wall-bg.jpg`;
+  const headerBgStyle = headerBgVariant === 'wall'
+    ? `background:#dac4ac url('${escapeHtml(wallBgUrl)}') no-repeat center center;background-size:cover;border-bottom:1px solid #c8b49c;`
+    : `background:#faf6f0;border-bottom:1px solid #e2d7c7;`;
+
+  const taglineColor = headerBgVariant === 'wall' ? '#5a4220' : '#9e7d4e';
+  const badgeStyle = headerBgVariant === 'wall'
+    ? 'display:inline-block;padding:4px 8px;background:rgba(255,255,255,0.92);border:1px solid #c4b097;border-radius:9999px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;font-size:8px;font-weight:700;letter-spacing:0.12em;color:#5a4220;text-transform:uppercase;box-shadow:0 1px 4px rgba(40,30,20,0.06)'
+    : 'display:inline-block;padding:4px 8px;background:#ffffff;border:1px solid #d8ccbd;border-radius:9999px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;font-size:8px;font-weight:700;letter-spacing:0.12em;color:#8a7457;text-transform:uppercase';
 
   return [
-    '<!doctype html><html><body style="margin:0;padding:0;background:#efece7;font-family:Arial,Helvetica,sans-serif;color:#1b1815">',
-    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#efece7;padding:30px 12px"><tr><td align="center">',
-    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border:1px solid #e4ddd4;border-radius:18px;overflow:hidden">',
-    '<tr><td style="background:#171411;padding:28px 34px;color:#fff">',
-    '<div style="font-family:Georgia,Times New Roman,serif;font-size:30px;letter-spacing:.14em;font-weight:700">SAELYXE</div>',
-    '<div style="margin-top:6px;font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:#d8cec1">Made for Presence</div>',
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><meta name="format-detection" content="telephone=no,date=no,address=no,email=no"/><title>SAELYXE Receipt</title>',
+    '<style>',
+    'html, body { margin:0 !important; padding:0 !important; width:100% !important; min-width:100% !important; }',
+    '* { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; box-sizing:border-box !important; }',
+    'table, td { mso-table-lspace:0pt !important; mso-table-rspace:0pt !important; border-collapse:collapse !important; }',
+    'img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; display:block; max-width:100%; }',
+    'table { border-spacing:0 !important; }',
+    '@media only screen and (max-width: 599px) {',
+    '  .email-wrap-td { padding: 10px 6px !important; }',
+    '  .email-main-card { width: 100% !important; max-width: 100% !important; border-radius: 10px !important; }',
+    '  .email-pad-header { padding: 14px 14px !important; }',
+    '  .email-pad-body { padding-left: 14px !important; padding-right: 14px !important; }',
+    '  .email-btn-block { display: block !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; text-align: center !important; margin-left: 0 !important; margin-right: 0 !important; }',
+    '}',
+    '</style>',
+    '</head><body style="margin:0;padding:0;background:#f7f5f0;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#1c1916;-webkit-font-smoothing:antialiased">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:#f7f5f0;padding:16px 8px;margin:0" class="email-wrap-td"><tr><td align="center">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-main-card" style="width:100%;max-width:580px;margin:0 auto;background:#ffffff;border:1px solid #eae2d5;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(40,30,20,0.04);table-layout:fixed">',
+    
+    // Top Metallic Gold Accent Stripe (3px)
+    '<tr><td style="height:3px;background:#c5a059;line-height:3px;font-size:1px">&nbsp;</td></tr>',
+
+    // Top Bar Header with Native Luxury Emblem + Wordmark
+    `<tr><td class="email-pad-header" style="${headerBgStyle}padding:16px 18px">`,
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;width:100%"><tr>',
+    '<td valign="middle" align="left">',
+    iconVariant !== 'none'
+      ? [
+          '<table role="presentation" cellspacing="0" cellpadding="0"><tr>',
+          '<td valign="middle" width="38" style="width:38px;padding-right:10px">',
+          `<img src="${escapeHtml(iconUrl)}" alt="SAELYXE Emblem" width="32" height="32" style="display:block;width:32px;height:32px;border:0;outline:none;background:transparent;${iconVariant === 'plaque' ? 'border-radius:7px;box-shadow:0 2px 6px rgba(40,30,20,0.12)' : (iconVariant === 'seal' ? 'border-radius:9999px;box-shadow:0 2px 6px rgba(40,30,20,0.12)' : '')}">`,
+          '</td>',
+          '<td valign="middle">',
+          `<img src="${escapeHtml(logoUrl)}" alt="SAELYXE" width="118" height="27" style="display:block;width:118px;height:auto;border:0;outline:none;background:transparent">`,
+          `<div style="margin-top:3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:7.5px;font-weight:700;letter-spacing:0.22em;color:${taglineColor};text-transform:uppercase;white-space:nowrap">MADE FOR PRESENCE</div>`,
+          '</td>',
+          '</tr></table>'
+        ].join('')
+      : [
+          `<img src="${escapeHtml(logoUrl)}" alt="SAELYXE" width="125" height="28" style="display:block;width:125px;height:auto;border:0;outline:none;background:transparent">`,
+          `<div style="margin-top:3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:7.5px;font-weight:700;letter-spacing:0.24em;color:${taglineColor};text-transform:uppercase;white-space:nowrap">MADE FOR PRESENCE</div>`
+        ].join(''),
+    '</td>',
+    '<td align="right" valign="middle" style="width:95px;text-align:right">',
+    `<span style="${badgeStyle};white-space:nowrap">RECEIPT</span>`,
+    '</td>',
+    '</tr></table>',
     '</td></tr>',
-    '<tr><td style="padding:34px 34px 10px">',
-    `<div style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:#8a7f73">${escapeHtml(params.eyebrow)}</div>`,
-    `<h1 style="margin:9px 0 13px;font-family:Georgia,Times New Roman,serif;font-size:34px;line-height:1.08;font-weight:500;color:#1b1815">${escapeHtml(params.heading)}</h1>`,
-    `<p style="margin:0 0 7px;font-size:14px;line-height:1.7;color:#514942">Hello ${escapeHtml(customerName)},</p>`,
-    `<p style="margin:0;font-size:14px;line-height:1.7;color:#514942">${escapeHtml(params.intro)}</p>`,
+
+    // Main Card Body
+    '<tr><td class="email-pad-body" style="padding:20px 18px 8px">',
+    `<div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8a7e73;word-break:break-all">Order #${escapeHtml(orderNumber)} &nbsp;·&nbsp; ${escapeHtml(dateLabel)}</div>`,
+    `<h1 style="margin:12px 0 8px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.015em;color:#1c1916">${escapeHtml(params.heading || 'Order summary')}</h1>`,
+    `<p style="margin:0 0 4px;font-size:13px;line-height:1.45;font-weight:600;color:#1c1916">Hi ${escapeHtml(customerName)},</p>`,
+    `<p style="margin:0;font-size:12px;line-height:1.55;color:#665e55;font-weight:400">${escapeHtml(params.intro)}</p>`,
     '</td></tr>',
-    '<tr><td style="padding:20px 34px 0">',
-    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8f5f1;border:1px solid #e7dfd5;border-radius:14px">',
-    '<tr>',
-    `<td style="padding:16px 18px;border-right:1px solid #e7dfd5"><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#95897d">Order number</div><div style="margin-top:5px;font-family:monospace;font-size:13px;font-weight:700;color:#1b1815">#${escapeHtml(orderNumber)}</div></td>`,
-    `<td style="padding:16px 18px"><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#95897d">Order date</div><div style="margin-top:5px;font-size:12px;font-weight:700;color:#1b1815">${escapeHtml(dateLabel)}</div></td>`,
-    '</tr>',
+
+    // Section 1: Order Details
+    '<tr><td class="email-pad-body" style="padding:14px 18px 0">',
+    '<div style="font-size:12px;font-weight:700;color:#1c1916;padding-bottom:6px;border-bottom:1px solid #eae2d5;letter-spacing:0.02em">Order details</div>',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:12px;margin-top:6px;table-layout:fixed;width:100%">',
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#8a7e73;font-size:12px;font-weight:400;vertical-align:top">Transaction ID</td><td style="padding:5px 0 5px 6px;font-family:monospace;font-size:12px;font-weight:600;color:#1c1916;word-break:break-all;vertical-align:top">#${escapeHtml(orderNumber)}</td></tr>`,
+    customerEmail ? `<tr><td width="105" style="width:105px;padding:5px 0;color:#8a7e73;font-size:12px;font-weight:400;vertical-align:top">Email</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-size:12px;font-weight:400;word-break:break-all;vertical-align:top">${escapeHtml(customerEmail)}</td></tr>` : '',
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#8a7e73;font-size:12px;font-weight:400;vertical-align:top">Destination</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-size:12px;font-weight:400;word-break:break-word;vertical-align:top">${escapeHtml(destination)}</td></tr>`,
     '</table>',
     '</td></tr>',
-    '<tr><td style="padding:24px 34px 0">',
-    '<div style="padding-bottom:10px;border-bottom:1px solid #ded7ce;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#1b1815">Payment details</div>',
-    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:10px;font-size:13px">',
-    `<tr><td style="padding:5px 0;color:#8a7f73">Payment method</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">${escapeHtml(formatOrderPaymentMethod(order))}</td></tr>`,
-    `<tr><td style="padding:5px 0;color:#8a7f73">Payment status</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">${escapeHtml(formatOrderPaymentStatus(order))}</td></tr>`,
+
+    // Section 2: Payment Details
+    '<tr><td class="email-pad-body" style="padding:14px 18px 0">',
+    '<div style="font-size:12px;font-weight:700;color:#1c1916;padding-bottom:6px;border-bottom:1px solid #eae2d5;letter-spacing:0.02em">Payment details</div>',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:12px;margin-top:6px;table-layout:fixed;width:100%">',
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#8a7e73;font-size:12px;font-weight:400;vertical-align:top">Payment source</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-size:12px;font-weight:400;word-break:break-word;vertical-align:top">${escapeHtml(formatOrderPaymentMethod(order))}</td></tr>`,
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#8a7e73;font-size:12px;font-weight:400;vertical-align:top">Payment status</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-size:12px;font-weight:400;word-break:break-word;vertical-align:top">${escapeHtml(formatOrderPaymentStatus(order))}</td></tr>`,
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#8a7e73;font-size:12px;font-weight:400;vertical-align:top">Initial charge</td><td style="padding:5px 0 5px 6px;color:#665e55;font-size:12px;font-weight:400;vertical-align:top">${formatLkrEmail(total)}</td></tr>`,
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#8a7e73;font-size:12px;font-weight:400;vertical-align:top">Final cost</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-size:12px;font-weight:600;vertical-align:top">${formatLkrEmail(total)}</td></tr>`,
     '</table>',
     '</td></tr>',
-    '<tr><td style="padding:25px 34px 0">',
-    '<div style="padding-bottom:10px;border-bottom:1px solid #ded7ce;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#1b1815">Your items</div>',
-    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0">',
+
+    // Section 3: Your Items
+    '<tr><td class="email-pad-body" style="padding:14px 18px 0">',
+    '<div style="font-size:12px;font-weight:700;color:#1c1916;padding-bottom:6px;border-bottom:1px solid #eae2d5;letter-spacing:0.02em">Your items</div>',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:2px;table-layout:fixed;width:100%">',
     buildOrderItemRows(order),
     '</table>',
     '</td></tr>',
-    params.logistics || '',
-    '<tr><td style="padding:24px 34px 0">',
+
+    // Section 4: Totals Box
+    '<tr><td class="email-pad-body" style="padding:2px 18px 0">',
     buildOrderTotals(order),
     '</td></tr>',
-    '<tr><td style="padding:30px 34px 34px">',
-    `<a href="${escapeHtml(orderUrl)}" style="display:inline-block;background:#171411;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800">View order / receipt</a>`,
-    '<p style="margin:24px 0 0;font-size:11px;line-height:1.7;color:#91867a">This is an automated transactional message for your SAELYXE order. Keep your order number for reference.</p>',
+
+    // Section 5: Action Button (Responsive Luxury Pill Button)
+    '<tr><td class="email-pad-body" style="padding:18px 18px 0">',
+    `<a href="${escapeHtml(orderUrl)}" class="email-btn-block" style="display:block;width:100%;max-width:300px;margin:0 auto;background:#b88e3e;background-image:linear-gradient(135deg,#c5a059 0%,#b38738 100%);color:#ffffff;border:1px solid #a87d30;text-decoration:none;padding:11px 20px;border-radius:9999px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;text-align:center;box-sizing:border-box;box-shadow:0 3px 10px rgba(184,142,62,0.22)">View Order &amp; Receipt</a>`,
     '</td></tr>',
-    '<tr><td style="background:#f8f5f1;border-top:1px solid #e7dfd5;padding:20px 34px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8b8075">SAELYXE &nbsp;·&nbsp; Made for Presence &nbsp;·&nbsp; Sri Lanka</td></tr>',
+
+    // Section 6: Additional Details
+    '<tr><td class="email-pad-body" style="padding:20px 18px 22px">',
+    '<div style="border-top:1px solid #eae2d5;padding-top:16px">',
+    '<div style="font-size:12px;font-weight:700;color:#1c1916;margin-bottom:10px;letter-spacing:0.02em">Additional details</div>',
+    
+    (trackingNumber || courierName)
+      ? [
+          '<div style="margin-bottom:10px">',
+          '<div style="font-size:11.5px;font-weight:600;color:#2c2621">Delivery &amp; Tracking</div>',
+          `<div style="margin-top:2px;font-size:11px;line-height:1.5;color:#665e55">Handed to <strong>${escapeHtml(courierName || 'Courier')}</strong> with tracking code <span style="display:inline-block;font-family:monospace;font-weight:600;background:#faf7f2;border:1px solid #eae2d5;padding:1px 5px;border-radius:4px;color:#1c1916">${escapeHtml(trackingNumber || 'Pending')}</span>.${deliveryEta ? ` Estimated delivery: ${escapeHtml(deliveryEta)}.` : ''}</div>`,
+          '</div>'
+        ].join('')
+      : [
+          '<div style="margin-bottom:10px">',
+          '<div style="font-size:11.5px;font-weight:600;color:#2c2621">Delivery &amp; Dispatch</div>',
+          '<div style="margin-top:2px;font-size:11px;line-height:1.5;color:#665e55">Your order is recorded securely. You will receive live courier tracking as soon as it departs our atelier.</div>',
+          '</div>'
+        ].join(''),
+
+    '<div style="margin-bottom:10px">',
+    '<div style="font-size:11.5px;font-weight:600;color:#2c2621">Authenticity &amp; Archival Care</div>',
+    '<div style="margin-top:2px;font-size:11px;line-height:1.5;color:#665e55">Every SAELYXE piece is cut from custom heavyweight textiles and sealed in white-glove archival packaging.</div>',
+    '</div>',
+
+    '<div>',
+    '<div style="font-size:11.5px;font-weight:600;color:#2c2621">Concierge Assistance</div>',
+    '<div style="margin-top:2px;font-size:11px;line-height:1.5;color:#665e55">Reach our concierge anytime at <a href="mailto:support@saelyxe.com" style="color:#1c1916;font-weight:600;text-decoration:underline">support@saelyxe.com</a>.</div>',
+    '</div>',
+
+    '</div>',
+    '</td></tr>',
+
+    // Card Footer
+    '<tr><td class="email-pad-body" style="background:#faf7f2;border-top:1px solid #eae2d5;padding:14px 18px;text-align:center">',
+    '<div style="font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#8a7e73">SAELYXE &nbsp;·&nbsp; MADE FOR PRESENCE &nbsp;·&nbsp; SRI LANKA</div>',
+    '<p style="margin:3px 0 0;font-size:9.5px;line-height:1.4;color:#a09589">This is an automated transactional order confirmation. Keep your order number for reference.</p>',
+    '</td></tr>',
+
     '</table>',
     '</td></tr></table>',
     '</body></html>'
@@ -1172,50 +1313,215 @@ function buildSaelyxeOrderEmail(params: {
 }
 
 async function deliverTransactionalEmail(params: {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
-  idempotencyKey: string;
+  idempotencyKey?: string;
 }): Promise<EmailDeliveryResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  const to = safeString(params.to, 254).toLowerCase();
+  const rawList = Array.isArray(params.to) ? params.to : [params.to];
+  const recipients = rawList
+    .map(e => safeString(e, 254).toLowerCase().trim())
+    .filter(e => isEmail(e));
 
-  if (!apiKey || !from) return { sent: false, error: 'transactional_email_not_configured' };
-  if (!isEmail(to)) return { sent: false, error: 'invalid_customer_email' };
+  if (recipients.length === 0) {
+    return { sent: false, error: 'invalid_customer_email' };
+  }
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': params.idempotencyKey
-      },
-      body: JSON.stringify({
-        from,
-        to: [to],
+  // 1. Check Resend Transport
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const resendFrom = process.env.RESEND_FROM_EMAIL || 'SAELYXE Concierge <orders@saelyxe.com>';
+  if (resendApiKey) {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+          ...(params.idempotencyKey ? { 'Idempotency-Key': params.idempotencyKey } : {})
+        },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: recipients,
+          subject: params.subject,
+          html: params.html
+        })
+      });
+
+      const payload: any = await response.json().catch(() => ({}));
+      if (response.ok) {
+        return {
+          sent: true,
+          id: safeString(payload?.id, 160) || undefined
+        };
+      }
+      const error = safeString(payload?.message, 240) || `resend_http_${response.status}`;
+      console.error('Resend transactional email failed:', params.subject, response.status, error);
+    } catch (error: any) {
+      console.error('Resend transport error:', params.subject, error?.message || error);
+    }
+  }
+
+  // 2. Check SMTP / Nodemailer Transport (Gmail App Password or Custom SMTP)
+  const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
+  if (smtpUser && smtpPass) {
+    try {
+      const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+      const port = Number(process.env.SMTP_PORT) || 465;
+      const secure = port === 465;
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass
+        }
+      });
+
+      const fromAddr = process.env.SMTP_FROM || `SAELYXE Atelier <${smtpUser}>`;
+      const info = await transporter.sendMail({
+        from: fromAddr,
+        to: recipients.join(', '),
         subject: params.subject,
         html: params.html
-      })
-    });
+      });
 
-    const payload: any = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = safeString(payload?.message, 240) || `resend_http_${response.status}`;
-      console.error('Transactional email failed:', params.subject, response.status, error);
-      return { sent: false, error };
+      return {
+        sent: true,
+        id: info.messageId
+      };
+    } catch (error: any) {
+      console.error('SMTP email transport error:', params.subject, error?.message || error);
     }
-
-    return {
-      sent: true,
-      id: safeString(payload?.id, 160) || undefined
-    };
-  } catch (error: any) {
-    const message = safeString(error?.message, 240) || 'transactional_email_transport_error';
-    console.error('Transactional email transport failed:', params.subject, message);
-    return { sent: false, error: message };
   }
+
+  // 3. Fallback dev logger when neither transport credentials are set
+  console.log(`[TRANSACTIONAL EMAIL] To: ${recipients.join(', ')} | Subject: "${params.subject}" (Configure RESEND_API_KEY or SMTP_USER/SMTP_PASS in .env for live dispatch)`);
+  return { sent: false, error: 'transactional_email_not_configured' };
+}
+
+function buildSaelyxeAdminNewOrderEmail(order: any) {
+  const orderNumber = safeString(order?.orderNumber || order?.id, 120);
+  const createdAt = safeString(order?.createdAt, 100);
+  const dateLabel = createdAt && Number.isFinite(Date.parse(createdAt))
+    ? new Date(createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : 'Just Now';
+  const customerName = safeString(order?.customerName, 120) || 'Client';
+  const customerEmail = safeString(order?.email || order?.customerEmail, 254).toLowerCase();
+  const customerPhone = safeString(order?.phone || order?.phoneNumber || order?.shippingAddress?.phone, 50);
+
+  const street = safeString(order?.address || order?.shippingAddress?.street, 150);
+  const city = safeString(order?.city || order?.shippingAddress?.city, 100);
+  const postalCode = safeString(order?.postalCode || order?.shippingAddress?.postalCode, 30);
+  const country = safeString(order?.country || order?.shippingAddress?.country, 60) || 'Sri Lanka';
+  const fullAddress = [street, city, postalCode, country].filter(Boolean).join(', ') || 'Address not specified';
+
+  const total = Number(order?.totalLKR) || 0;
+  const isCod = order?.paymentMethod === 'cod';
+  const paymentLabel = isCod ? '💵 Cash on Delivery' : '💳 Online Payment (PayPal / Card)';
+  const paymentStatus = order?.paymentStatus === 'verified' ? '✅ Paid & Verified' : (isCod ? '⏳ Collect Upon Handover' : '⏳ Pending');
+
+  // Direct WhatsApp chat link for customer
+  const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
+  let waNumber = cleanPhone;
+  if (waNumber.startsWith('0') && waNumber.length === 10) {
+    waNumber = '94' + waNumber.slice(1);
+  } else if (!waNumber.startsWith('94') && waNumber.length === 9) {
+    waNumber = '94' + waNumber;
+  }
+  const waLink = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Hello ${customerName}, this is SAELYXE Atelier regarding your order #${orderNumber}.`)}` : '';
+
+  return [
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><meta name="format-detection" content="telephone=no,date=no,address=no,email=no"/><title>New Order Alert</title>',
+    '<style>',
+    'html, body { margin:0 !important; padding:0 !important; width:100% !important; min-width:100% !important; }',
+    '* { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; box-sizing:border-box !important; }',
+    'table, td { mso-table-lspace:0pt !important; mso-table-rspace:0pt !important; border-collapse:collapse !important; }',
+    'img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; display:block; max-width:100%; }',
+    'table { border-spacing:0 !important; }',
+    '@media only screen and (max-width: 599px) {',
+    '  .admin-wrap-td { padding: 10px 6px !important; }',
+    '  .admin-main-card { width: 100% !important; max-width: 100% !important; border-radius: 10px !important; }',
+    '  .admin-pad-header { padding: 14px 14px !important; }',
+    '  .admin-pad-body { padding-left: 14px !important; padding-right: 14px !important; }',
+    '  .admin-btn-block { display: block !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; text-align: center !important; margin-left: 0 !important; margin-right: 0 !important; margin-bottom: 8px !important; }',
+    '}',
+    '</style>',
+    '</head><body style="margin:0;padding:0;background:#12100e;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#1c1916;-webkit-font-smoothing:antialiased">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:#12100e;padding:16px 8px;margin:0" class="admin-wrap-td"><tr><td align="center">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="admin-main-card" style="width:100%;max-width:580px;margin:0 auto;background:#ffffff;border:1px solid #332d27;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.35);table-layout:fixed">',
+    
+    // Top Gold Accent Stripe
+    '<tr><td style="height:4px;background:#d4af37;line-height:4px;font-size:1px">&nbsp;</td></tr>',
+
+    // Alert Header Bar
+    '<tr><td class="admin-pad-header" style="background:#1c1916;padding:18px 20px;border-bottom:1px solid #2e2822">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;width:100%"><tr><td>',
+    '<div style="display:inline-block;padding:3px 9px;background:#d4af37;color:#141210;font-size:9px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;border-radius:9999px">🚨 ATELIER ORDER ALERT</div>',
+    `<div style="margin-top:8px;font-size:18px;font-weight:700;color:#f5eedf;letter-spacing:-0.01em;word-break:break-all;line-height:1.25">Order #${escapeHtml(orderNumber)}</div>`,
+    `<div style="font-size:11.5px;color:#a89985;margin-top:3px">${escapeHtml(dateLabel)}</div>`,
+    
+    // Revenue Banner (Full width within header - clean & uncroppable)
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px;background:rgba(212,175,55,0.09);border:1px solid rgba(212,175,55,0.25);border-radius:8px;table-layout:fixed;width:100%">',
+    '<tr>',
+    '<td style="padding:10px 14px;font-size:11px;color:#d8ccbd;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;vertical-align:middle">Total Order Revenue</td>',
+    `<td align="right" style="padding:10px 14px;font-size:18px;font-weight:800;color:#d4af37;letter-spacing:-0.01em;white-space:nowrap;vertical-align:middle;text-align:right">${formatLkrEmail(total)}</td>`,
+    '</tr>',
+    '</table>',
+    
+    '</td></tr></table>',
+    '</td></tr>',
+
+    // Quick Action Bar (Thumb-friendly full width stacked buttons)
+    '<tr><td class="admin-pad-header" style="background:#faf7f2;padding:12px 18px;border-bottom:1px solid #eae2d5">',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;width:100%">',
+    '<tr><td style="padding-bottom:8px">',
+    `<a href="https://www.saelyxe.com/admin/orders" target="_blank" class="admin-btn-block" style="display:block;width:100%;box-sizing:border-box;padding:11px 16px;background:#1c1916;color:#ffffff;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;border-radius:8px;text-align:center">Open in Admin Panel &rarr;</a>`,
+    '</td></tr>',
+    waLink ? [
+      '<tr><td>',
+      `<a href="${escapeHtml(waLink)}" target="_blank" class="admin-btn-block" style="display:block;width:100%;box-sizing:border-box;padding:11px 16px;background:#128C7E;color:#ffffff;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;border-radius:8px;text-align:center">💬 Chat with Client on WhatsApp</a>`,
+      '</td></tr>'
+    ].join('') : '',
+    '</table>',
+    '</td></tr>',
+
+    // Customer & Shipping Info Card
+    '<tr><td class="admin-pad-body" style="padding:16px 18px 6px">',
+    '<div style="font-size:11.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#8a7e73;padding-bottom:6px;border-bottom:1px solid #eae2d5">Customer &amp; Delivery Details</div>',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:12px;margin-top:6px;table-layout:fixed;width:100%">',
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#706558;font-weight:500;vertical-align:top">Client Name</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-weight:700;word-break:break-word;vertical-align:top">${escapeHtml(customerName)}</td></tr>`,
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#706558;font-weight:500;vertical-align:top">Client Email</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-weight:600;word-break:break-all;vertical-align:top"><a href="mailto:${escapeHtml(customerEmail)}" style="color:#1c1916;text-decoration:underline">${escapeHtml(customerEmail)}</a></td></tr>`,
+    customerPhone ? `<tr><td width="105" style="width:105px;padding:5px 0;color:#706558;font-weight:500;vertical-align:top">Client Phone</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-weight:700;font-family:monospace;vertical-align:top">${escapeHtml(customerPhone)}</td></tr>` : '',
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#706558;font-weight:500;vertical-align:top">Delivery Address</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-weight:600;word-break:break-word;vertical-align:top">${escapeHtml(fullAddress)}</td></tr>`,
+    `<tr><td width="105" style="width:105px;padding:5px 0;color:#706558;font-weight:500;vertical-align:top">Payment Method</td><td style="padding:5px 0 5px 6px;color:#1c1916;font-weight:700;word-break:break-word;vertical-align:top">${escapeHtml(paymentLabel)} &nbsp;<span style="font-weight:500;color:#665e55">(${escapeHtml(paymentStatus)})</span></td></tr>`,
+    '</table>',
+    '</td></tr>',
+
+    // Garments to Dispatch Pick List
+    '<tr><td class="admin-pad-body" style="padding:12px 18px 0">',
+    '<div style="font-size:11.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#8a7e73;padding-bottom:6px;border-bottom:1px solid #eae2d5">Garments to Pack (Pick List)</div>',
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:6px;table-layout:fixed;width:100%">',
+    buildOrderItemRows(order),
+    '</table>',
+    '</td></tr>',
+
+    // Totals
+    '<tr><td class="admin-pad-body" style="padding:0 18px 18px">',
+    buildOrderTotals(order),
+    '</td></tr>',
+
+    // Footer
+    '<tr><td class="admin-pad-body" style="background:#faf7f2;border-top:1px solid #eae2d5;padding:14px 18px;text-align:center">',
+    '<div style="font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#8a7e73">SAELYXE ATELIER AUTOMATED DISPATCH SYSTEM</div>',
+    '<p style="margin:3px 0 0;font-size:10px;color:#a09589;line-height:1.4">This alert was generated automatically upon order placement. Pack with signature archival presentation and update courier tracking.</p>',
+    '</td></tr>',
+
+    '</table>',
+    '</td></tr></table>',
+    '</body></html>'
+  ].join('');
 }
 
 async function sendOrderConfirmationEmail(order: any): Promise<EmailDeliveryResult> {
@@ -1241,6 +1547,32 @@ async function sendOrderConfirmationEmail(order: any): Promise<EmailDeliveryResu
   });
 }
 
+async function sendAdminNewOrderAlertEmail(order: any): Promise<EmailDeliveryResult> {
+  const orderNumber = safeString(order?.orderNumber || order?.id, 120);
+  const totalLKR = Number(order?.totalLKR) || 0;
+  const customerName = safeString(order?.customerName, 120) || 'Client';
+
+  const adminEmailsRaw = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.OWNER_EMAIL || 'saelyxe.co@gmail.com';
+  const adminEmails = adminEmailsRaw
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(e => isEmail(e));
+
+  if (adminEmails.length === 0) {
+    adminEmails.push('saelyxe.co@gmail.com');
+  }
+
+  const html = buildSaelyxeAdminNewOrderEmail(order);
+  const idempotency = crypto.createHash('sha256').update(`admin-alert|${orderNumber}`).digest('hex').slice(0, 40);
+
+  return deliverTransactionalEmail({
+    to: adminEmails,
+    subject: `🚨 [NEW ORDER] #${orderNumber} — LKR ${totalLKR.toLocaleString()} (${customerName})`,
+    html,
+    idempotencyKey: `saelyxe-admin-alert-${idempotency}`
+  });
+}
+
 async function ensureOrderConfirmationEmail(adminDb: any, order: any): Promise<any> {
   if (!order || !order.id) return order;
   // If payment or order is cancelled or failed, do not send confirmation email
@@ -1251,27 +1583,48 @@ async function ensureOrderConfirmationEmail(adminDb: any, order: any): Promise<a
   if (order.paymentMethod === 'paypal' && order.paymentStatus !== 'verified') {
     return order;
   }
-  // Idempotent: send exactly once
-  if (order.confirmationEmailStatus === 'sent') {
-    return order;
-  }
 
   const orderRef = adminDb.collection('orders').doc(order.id);
-  const emailResult: EmailDeliveryResult = await sendOrderConfirmationEmail(order).catch(error => ({
-    sent: false,
-    error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_email_error'
-  }));
   const emailTime = new Date().toISOString();
-  await orderRef.set({
-    confirmationEmailStatus: emailResult.sent ? 'sent' : 'failed',
-    confirmationEmailId: emailResult.id || null,
-    confirmationEmailError: emailResult.sent ? null : emailResult.error || 'unknown_error',
-    confirmationEmailSentAt: emailResult.sent ? emailTime : null,
-    confirmationEmailAttemptedAt: emailTime
-  }, { merge: true }).catch(err => console.error('Confirmation email delivery record error:', err));
 
-  order.confirmationEmailStatus = emailResult.sent ? 'sent' : 'failed';
-  if (emailResult.id) order.confirmationEmailId = emailResult.id;
+  // 1. Deliver Customer Confirmation Email (idempotent)
+  if (order.confirmationEmailStatus !== 'sent') {
+    const customerResult: EmailDeliveryResult = await sendOrderConfirmationEmail(order).catch(error => ({
+      sent: false,
+      error: safeString(error instanceof Error ? error.message : error, 240) || 'order_confirmation_email_error'
+    }));
+
+    await orderRef.set({
+      confirmationEmailStatus: customerResult.sent ? 'sent' : 'failed',
+      confirmationEmailId: customerResult.id || null,
+      confirmationEmailError: customerResult.sent ? null : customerResult.error || 'unknown_error',
+      confirmationEmailSentAt: customerResult.sent ? emailTime : null,
+      confirmationEmailAttemptedAt: emailTime
+    }, { merge: true }).catch(err => console.error('Confirmation email delivery record error:', err));
+
+    order.confirmationEmailStatus = customerResult.sent ? 'sent' : 'failed';
+    if (customerResult.id) order.confirmationEmailId = customerResult.id;
+  }
+
+  // 2. Deliver Admin New Order Alert Email (idempotent)
+  if (order.adminAlertEmailStatus !== 'sent') {
+    const adminResult: EmailDeliveryResult = await sendAdminNewOrderAlertEmail(order).catch(error => ({
+      sent: false,
+      error: safeString(error instanceof Error ? error.message : error, 240) || 'admin_alert_email_error'
+    }));
+
+    await orderRef.set({
+      adminAlertEmailStatus: adminResult.sent ? 'sent' : 'failed',
+      adminAlertEmailId: adminResult.id || null,
+      adminAlertEmailError: adminResult.sent ? null : adminResult.error || 'unknown_error',
+      adminAlertEmailSentAt: adminResult.sent ? emailTime : null,
+      adminAlertEmailAttemptedAt: emailTime
+    }, { merge: true }).catch(err => console.error('Admin alert email delivery record error:', err));
+
+    order.adminAlertEmailStatus = adminResult.sent ? 'sent' : 'failed';
+    if (adminResult.id) order.adminAlertEmailId = adminResult.id;
+  }
+
   return order;
 }
 
@@ -2971,6 +3324,187 @@ app.get('/api/settings', async (_req, res) => {
 
 app.get('/api/currencies', (_req, res) => {
   res.json(CURRENCIES);
+});
+
+app.get('/api/preview/order-email', (req, res) => {
+  const view = safeString(req.query.view, 30) || 'confirmation';
+  const logo = safeString(req.query.logo, 20) || 'noir';
+  const bg = safeString(req.query.bg, 20) || 'wall'; // 'wall' | 'champagne'
+  const icon = safeString(req.query.icon, 20) || 'gold'; // 'gold' (freestanding raw icon) | 'plaque' | 'seal' | 'none'
+  const isDispatched = view === 'dispatched';
+  const isDelivered = view === 'delivered';
+  const isOnline = view === 'online';
+
+  const sampleOrder = {
+    _isEmailPreview: true,
+    logoVariant: logo,
+    iconVariant: icon,
+    headerBgVariant: bg,
+    id: 'SX-2026-8891',
+    orderNumber: 'SX-2026-8891',
+    customerName: 'Kavindu Perera',
+    email: 'kavindu@example.com',
+    paymentMethod: isOnline ? 'paypal' : 'cod',
+    paymentStatus: isOnline ? 'verified' : 'pending',
+    createdAt: new Date().toISOString(),
+    trackingNumber: isDispatched || isDelivered ? 'FDX-794820194821' : undefined,
+    courierName: isDispatched || isDelivered ? 'FedEx International Priority' : undefined,
+    deliveryEta: isDispatched ? '3–5 business days' : undefined,
+    items: [
+      {
+        title: 'SAELYXE ARCHITECTURAL HEAVYWEIGHT HOODIE',
+        size: 'L',
+        quantity: 1,
+        priceLKR: 18500,
+        image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=300&q=80'
+      },
+      {
+        title: 'MONOLITH HEAVYWEIGHT TEE — NOIR',
+        size: 'M',
+        quantity: 1,
+        priceLKR: 8500,
+        image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300&q=80'
+      }
+    ],
+    subtotalLKR: 27000,
+    shippingLKR: 0,
+    discountLKR: 0,
+    totalLKR: 27000,
+    address: 'No. 42, Ward Place',
+    city: 'Colombo 07',
+    postalCode: '00700',
+    country: 'Sri Lanka'
+  };
+
+  let eyebrow = 'Order received';
+  let heading = 'Order summary';
+  let intro = isOnline
+    ? 'Thank you for choosing SAELYXE. Your payment has been verified and your order has been recorded securely.'
+    : 'Thank you for choosing SAELYXE. Your order has been recorded and payment will be collected on delivery.';
+  let logistics: string | undefined = undefined;
+
+  if (isDispatched) {
+    eyebrow = 'Order update';
+    heading = 'Order dispatched';
+    intro = 'Your order has been handed to FedEx International Priority. Your real courier and tracking details are included below.';
+    logistics = [
+      '<tr><td style="padding:24px 34px 0">',
+      '<div style="padding-bottom:10px;border-bottom:1px solid #ded7ce;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#1b1815">Delivery details</div>',
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:10px;font-size:13px">',
+      `<tr><td style="padding:5px 0;color:#8a7f73">Courier</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">FedEx International Priority</td></tr>`,
+      `<tr><td style="padding:5px 0;color:#8a7f73">Tracking number</td><td align="right" style="padding:5px 0;font-family:monospace;font-weight:700;color:#1b1815">FDX-794820194821</td></tr>`,
+      `<tr><td style="padding:5px 0;color:#8a7f73">Estimated delivery</td><td align="right" style="padding:5px 0;font-weight:700;color:#1b1815">3–5 business days</td></tr>`,
+      '</table>',
+      '</td></tr>'
+    ].join('');
+  } else if (isDelivered) {
+    eyebrow = 'Order update';
+    heading = 'Order delivered';
+    intro = 'Your SAELYXE order has been marked as delivered. Thank you for choosing SAELYXE.';
+  }
+
+  const rawHtml = buildSaelyxeOrderEmail({
+    order: sampleOrder,
+    eyebrow,
+    heading,
+    intro,
+    logistics
+  });
+
+  const previewBanner = `
+  <div style="background:#faf6f0;color:#2c251f;padding:10px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11.5px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e2d7c7;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <strong style="text-transform:uppercase;letter-spacing:0.12em;font-size:10.5px;color:#8a7457;">SAELYXE Order Email Preview</strong>
+      <span style="background:#f0e9df;color:#7a6b5c;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:600;">Customer View</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:10.5px;color:#8a7e73;font-weight:600;margin-right:2px;">TOP BAR BG:</span>
+      <a href="?view=${encodeURIComponent(view)}&logo=${encodeURIComponent(logo)}&icon=${encodeURIComponent(icon)}&bg=wall" style="color:${bg === 'wall' ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:3px 9px;border-radius:9999px;text-decoration:none;font-size:11px;">Luxury Wall (Icon BG)</a>
+      <a href="?view=${encodeURIComponent(view)}&logo=${encodeURIComponent(logo)}&icon=${encodeURIComponent(icon)}&bg=champagne" style="color:${bg === 'champagne' ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:3px 9px;border-radius:9999px;text-decoration:none;font-size:11px;">Champagne Tint</a>
+      <span style="border-left:1px solid #d8ccbd;height:14px;margin:0 4px;"></span>
+      <span style="font-size:10.5px;color:#8a7e73;font-weight:600;margin-right:2px;">ICON:</span>
+      <a href="?view=${encodeURIComponent(view)}&logo=${encodeURIComponent(logo)}&bg=${encodeURIComponent(bg)}&icon=gold" style="color:${icon === 'gold' ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:3px 9px;border-radius:9999px;text-decoration:none;font-size:11px;">Raw Icon (No Circle)</a>
+      <a href="?view=${encodeURIComponent(view)}&logo=${encodeURIComponent(logo)}&bg=${encodeURIComponent(bg)}&icon=plaque" style="color:${icon === 'plaque' ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:3px 9px;border-radius:9999px;text-decoration:none;font-size:11px;">Gold Plaque</a>
+      <a href="?view=${encodeURIComponent(view)}&logo=${encodeURIComponent(logo)}&bg=${encodeURIComponent(bg)}&icon=seal" style="color:${icon === 'seal' ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:3px 9px;border-radius:9999px;text-decoration:none;font-size:11px;">Round Seal</a>
+      <a href="?view=${encodeURIComponent(view)}&logo=${encodeURIComponent(logo)}&bg=${encodeURIComponent(bg)}&icon=none" style="color:${icon === 'none' ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:3px 9px;border-radius:9999px;text-decoration:none;font-size:11px;">No Icon</a>
+      <span style="border-left:1px solid #d8ccbd;height:14px;margin:0 4px;"></span>
+      <span style="font-size:10.5px;color:#8a7e73;font-weight:600;margin-right:2px;">WORDMARK:</span>
+      <a href="?view=${encodeURIComponent(view)}&bg=${encodeURIComponent(bg)}&icon=${encodeURIComponent(icon)}&logo=noir" style="color:${logo !== 'gold' ? '#ffffff;background:#1c1916;font-weight:600' : '#6b5f50;background:#efe8de'};padding:3px 9px;border-radius:9999px;text-decoration:none;font-size:11px;">Noir</a>
+      <a href="?view=${encodeURIComponent(view)}&bg=${encodeURIComponent(bg)}&icon=${encodeURIComponent(icon)}&logo=gold" style="color:${logo === 'gold' ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:3px 9px;border-radius:9999px;text-decoration:none;font-size:11px;">Gold</a>
+      <span style="border-left:1px solid #d8ccbd;height:14px;margin:0 4px;"></span>
+      <a href="?view=confirmation&bg=${encodeURIComponent(bg)}&icon=${encodeURIComponent(icon)}&logo=${encodeURIComponent(logo)}" style="color:${!isDispatched && !isDelivered && !isOnline ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:4px 10px;border-radius:9999px;text-decoration:none;font-size:11px;">1. Received</a>
+      <a href="?view=online&bg=${encodeURIComponent(bg)}&icon=${encodeURIComponent(icon)}&logo=${encodeURIComponent(logo)}" style="color:${isOnline ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:4px 10px;border-radius:9999px;text-decoration:none;font-size:11px;">2. Paid</a>
+      <a href="?view=dispatched&bg=${encodeURIComponent(bg)}&icon=${encodeURIComponent(icon)}&logo=${encodeURIComponent(logo)}" style="color:${isDispatched ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:4px 10px;border-radius:9999px;text-decoration:none;font-size:11px;">3. Dispatched</a>
+      <a href="?view=delivered&bg=${encodeURIComponent(bg)}&icon=${encodeURIComponent(icon)}&logo=${encodeURIComponent(logo)}" style="color:${isDelivered ? '#ffffff;background:#b88e3e;font-weight:600' : '#6b5f50;background:#efe8de'};padding:4px 10px;border-radius:9999px;text-decoration:none;font-size:11px;">4. Delivered</a>
+    </div>
+  </div>`;
+
+  const finalHtml = rawHtml.includes('<body')
+    ? rawHtml.replace(/<body[^>]*>/i, (m) => m + previewBanner)
+    : previewBanner + rawHtml;
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(finalHtml);
+});
+
+app.get('/api/preview/admin-email', (req, res) => {
+  const isOnline = req.query.payment === 'online';
+  const sampleOrder = {
+    _isEmailPreview: true,
+    id: 'SX-2026-9042',
+    orderNumber: 'SX-2026-9042',
+    customerName: 'Kavindu Perera',
+    email: 'kavindu@example.com',
+    phone: '077 123 4567',
+    paymentMethod: isOnline ? 'paypal' : 'cod',
+    paymentStatus: isOnline ? 'verified' : 'pending',
+    createdAt: new Date().toISOString(),
+    items: [
+      {
+        title: 'SAELYXE ARCHITECTURAL HEAVYWEIGHT HOODIE',
+        size: 'L',
+        quantity: 1,
+        priceLKR: 18500,
+        image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=300&q=80'
+      },
+      {
+        title: 'MONOLITH HEAVYWEIGHT TEE — NOIR',
+        size: 'M',
+        quantity: 1,
+        priceLKR: 8500,
+        image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=300&q=80'
+      }
+    ],
+    subtotalLKR: 27000,
+    shippingLKR: 0,
+    discountLKR: 0,
+    totalLKR: 27000,
+    address: 'No. 42, Ward Place',
+    city: 'Colombo 07',
+    postalCode: '00700',
+    country: 'Sri Lanka'
+  };
+
+  const rawHtml = buildSaelyxeAdminNewOrderEmail(sampleOrder);
+  const previewBanner = `
+  <div style="background:#1c1916;color:#ffffff;padding:10px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #332d27;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <strong style="color:#d4af37;text-transform:uppercase;letter-spacing:0.12em;font-size:11px;">SAELYXE Admin New Order Alert Preview</strong>
+      <span style="background:#2e2822;color:#d4af37;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:700;">Owner View</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <a href="?payment=cod" style="color:${!isOnline ? '#141210;background:#d4af37;font-weight:700' : '#d4af37;background:#2e2822'};padding:4px 10px;border-radius:9999px;text-decoration:none;font-size:11px;">Cash on Delivery</a>
+      <a href="?payment=online" style="color:${isOnline ? '#141210;background:#d4af37;font-weight:700' : '#d4af37;background:#2e2822'};padding:4px 10px;border-radius:9999px;text-decoration:none;font-size:11px;">Online / Card</a>
+      <a href="/api/preview/order-email" style="color:#a89985;padding:4px 10px;text-decoration:none;font-size:11px;">&larr; Switch to Customer View</a>
+    </div>
+  </div>`;
+
+  const finalHtml = rawHtml.includes('<body')
+    ? rawHtml.replace(/<body[^>]*>/i, (m) => m + previewBanner)
+    : previewBanner + rawHtml;
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(finalHtml);
 });
 
 
@@ -4936,6 +5470,82 @@ app.get(['/api/sitemap', '/sitemap.xml'], async (_req, res) => {
   } catch {
     return res.status(500).send('Unable to generate sitemap.');
   }
+});
+
+app.get('/api/preview/order-email', (_req, res) => {
+  const sampleOrder = {
+    id: 'preview_order_123',
+    orderNumber: 'SAEL-20260913-9821',
+    createdAt: new Date().toISOString(),
+    customerName: 'Roshan Samarasinghe',
+    email: 'saelyxe.co@gmail.com',
+    phone: '0707775568',
+    address: 'No. 42/B, Ward Place, Cinnamon Gardens',
+    city: 'Colombo 07',
+    postalCode: '00700',
+    country: 'Sri Lanka',
+    paymentMethod: 'cod',
+    paymentStatus: 'pending',
+    subtotalLKR: 14500,
+    shippingLKR: 0,
+    discountLKR: 0,
+    totalLKR: 14500,
+    promoCode: 'SAELYXE10',
+    items: [
+      {
+        id: 'prod_1',
+        title: 'SAELYXE Oversized French Terry Hoodie - Charcoal Noir',
+        size: 'L',
+        quantity: 1,
+        priceLKR: 14500,
+        image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80'
+      }
+    ],
+    _isEmailPreview: true
+  };
+  const html = buildSaelyxeOrderEmail({
+    order: sampleOrder,
+    heading: 'Order summary',
+    intro: 'Thank you for choosing SAELYXE. Your order has been recorded and payment will be collected on delivery.'
+  });
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
+});
+
+app.get('/api/preview/admin-email', (_req, res) => {
+  const sampleOrder = {
+    id: 'preview_order_123',
+    orderNumber: 'SAEL-20260913-9821',
+    createdAt: new Date().toISOString(),
+    customerName: 'Roshan Samarasinghe',
+    email: 'saelyxe.co@gmail.com',
+    phone: '0707775568',
+    address: 'No. 42/B, Ward Place, Cinnamon Gardens',
+    city: 'Colombo 07',
+    postalCode: '00700',
+    country: 'Sri Lanka',
+    paymentMethod: 'cod',
+    paymentStatus: 'pending',
+    subtotalLKR: 14500,
+    shippingLKR: 0,
+    discountLKR: 0,
+    totalLKR: 14500,
+    promoCode: 'SAELYXE10',
+    items: [
+      {
+        id: 'prod_1',
+        title: 'SAELYXE Oversized French Terry Hoodie - Charcoal Noir',
+        size: 'L',
+        quantity: 1,
+        priceLKR: 14500,
+        image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80'
+      }
+    ],
+    _isEmailPreview: true
+  };
+  const html = buildSaelyxeAdminNewOrderEmail(sampleOrder);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
 });
 
 export default app;
