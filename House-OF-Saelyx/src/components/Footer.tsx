@@ -121,17 +121,19 @@ export const Footer: React.FC = () => {
         <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#E2E2E2] font-medium">
           <div className="tracking-[0.14em] uppercase text-[11px] font-semibold text-white/90">© 2025–2026 SAELYXE. ALL RIGHTS RESERVED.</div>
 
-          <div className="flex flex-col items-center sm:items-end gap-2.5">
-            <div className="footer-payment-icons flex max-w-[390px] flex-wrap items-center justify-center sm:justify-end gap-1.5" aria-label="Accepted payment methods">
-              <img src="/payments/paypal.svg" width="38" height="24" alt="PayPal" loading="lazy" />
-              <span className="h-6 min-w-[44px] px-1.5 rounded bg-white text-[#34353C] text-[9px] font-extrabold flex items-center justify-center border border-black/5" aria-label="Payzy">Pay<span className="text-[#13A8DD]">zy</span></span>
-              <img src="/payments/american_express.svg" width="38" height="24" alt="American Express" loading="lazy" />
-              <img src="/payments/diners_club.svg" width="38" height="24" alt="Diners Club" loading="lazy" />
-              <img src="/payments/discover.svg" width="38" height="24" alt="Discover" loading="lazy" />
-              <img src="/payments/jcb.svg" width="38" height="24" alt="JCB" loading="lazy" />
-              <img src="/payments/master.svg" width="38" height="24" alt="Mastercard" loading="lazy" />
-              <img src="/payments/unionpay.svg" width="38" height="24" alt="UnionPay" loading="lazy" />
-              <img src="/payments/visa.svg" width="38" height="24" alt="Visa" loading="lazy" />
+          <div className="flex min-w-0 flex-col items-center sm:items-end gap-2.5">
+            <div className="footer-payment-icons flex max-w-full flex-nowrap items-center justify-start sm:justify-end gap-1.5 overflow-x-auto sm:overflow-visible whitespace-nowrap" aria-label="Accepted payment methods">
+              <img src="/payments/paypal.svg" width="38" height="24" alt="PayPal" loading="lazy" className="h-6 w-[38px] shrink-0 object-contain" />
+              <span className="flex h-6 w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[3px] border border-black/5 bg-white px-1.5" aria-label="Payzy">
+                <img src="https://app.payzy.lk/logoWordDark.png" alt="Payzy" loading="lazy" className="h-[18px] w-auto max-w-[58px] object-contain" />
+              </span>
+              <img src="/payments/visa.svg" width="38" height="24" alt="Visa" loading="lazy" className="h-6 w-[38px] shrink-0 object-contain" />
+              <img src="/payments/master.svg" width="38" height="24" alt="Mastercard" loading="lazy" className="h-6 w-[38px] shrink-0 object-contain" />
+              <img src="/payments/american_express.svg" width="38" height="24" alt="American Express" loading="lazy" className="h-6 w-[38px] shrink-0 object-contain" />
+              <img src="/payments/diners_club.svg" width="38" height="24" alt="Diners Club" loading="lazy" className="h-6 w-[38px] shrink-0 object-contain" />
+              <img src="/payments/discover.svg" width="38" height="24" alt="Discover" loading="lazy" className="h-6 w-[38px] shrink-0 object-contain" />
+              <img src="/payments/jcb.svg" width="38" height="24" alt="JCB" loading="lazy" className="h-6 w-[38px] shrink-0 object-contain" />
+              <img src="/payments/unionpay.svg" width="38" height="24" alt="UnionPay" loading="lazy" className="h-6 w-[38px] shrink-0 object-contain" />
             </div>
 
             <span className="group relative overflow-hidden inline-flex items-center text-[10px] font-medium tracking-[0.035em] text-[#9B9B9B]">
