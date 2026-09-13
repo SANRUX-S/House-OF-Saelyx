@@ -23,6 +23,7 @@ export const CartDrawer: React.FC = () => {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [orderComplete, setOrderComplete] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
 
   // Lifecycle state for managing smooth enter/exit animations
   const [shouldRender, setShouldRender] = useState(false);
@@ -35,6 +36,7 @@ export const CartDrawer: React.FC = () => {
       return () => clearTimeout(timer);
     } else {
       setIsAnimating(false);
+      setConfirmDeleteKey(null);
       const timer = setTimeout(() => setShouldRender(false), 300);
       return () => clearTimeout(timer);
     }
@@ -341,13 +343,37 @@ export const CartDrawer: React.FC = () => {
                           <h4 className="text-xs font-semibold uppercase tracking-wide truncate">
                             {item.title}
                           </h4>
-                          <button
-                            onClick={() => removeFromCart(item.productId, item.size)}
-                            className="text-neutral-500 hover:text-rose-400 transition-colors p-1 cursor-pointer"
-                            aria-label="Remove item"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {confirmDeleteKey === `${item.productId}-${item.size}` ? (
+                            <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in duration-150">
+                              <span className="text-[10px] uppercase tracking-wider text-rose-400 font-semibold">Remove?</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  removeFromCart(item.productId, item.size);
+                                  setConfirmDeleteKey(null);
+                                }}
+                                className="px-2 py-0.5 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30 text-[10px] uppercase font-bold rounded-md transition-colors cursor-pointer"
+                              >
+                                Yes
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteKey(null)}
+                                className="px-2 py-0.5 bg-white/10 text-neutral-300 hover:text-white text-[10px] uppercase font-medium rounded-md transition-colors cursor-pointer"
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteKey(`${item.productId}-${item.size}`)}
+                              className="text-neutral-500 hover:text-rose-400 transition-colors p-1 cursor-pointer shrink-0"
+                              aria-label="Remove item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                         <div className="text-[11px] text-neutral-400 mt-0.5">
                           Size: <span className="text-white font-medium">{item.size}</span>

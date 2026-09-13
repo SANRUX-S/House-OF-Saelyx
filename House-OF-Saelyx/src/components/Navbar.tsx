@@ -130,7 +130,7 @@ export const Navbar: React.FC = () => {
                 aria-label="Guest account"
               >
                 <div className="w-7 h-7 rounded-full bg-white/15 border border-white/20 flex items-center justify-center text-amber-200">
-                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <User className="w-3.5 h-3.5 text-white" />
                 </div>
               </button>
               <GuestDropdown isOpen={isGuestDropdownOpen} onClose={() => setIsGuestDropdownOpen(false)} />
@@ -143,15 +143,15 @@ export const Navbar: React.FC = () => {
                 setAuthMode('signin');
                 setIsAuthOpen(true);
               }}
-              className="p-1 text-white/90 hover:text-white cursor-pointer"
+              className="p-1 text-white hover:text-white/80 cursor-pointer"
               aria-label="User account"
             >
               <User className="w-6 h-6 stroke-[2]" />
             </button>
           )}
 
-          <button type="button" onClick={() => setIsCartOpen(true)} className="relative p-1 text-white/90 hover:text-white transition-transform active:scale-95 cursor-pointer" aria-label="Shopping Bag">
-            <ShoppingBag className="w-6 h-6 stroke-[2]" />
+          <button type="button" onClick={() => setIsCartOpen(true)} className="relative p-1 text-white hover:text-white/80 transition-transform active:scale-95 cursor-pointer" aria-label="Shopping Bag">
+            <ShoppingBag className="w-6 h-6 stroke-[2] text-white" />
             {cartCount > 0 && <span className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center bg-white text-black text-[10px] font-bold rounded-full px-1 border border-black/10 shadow-md">{cartCount}</span>}
           </button>
         </div>
@@ -248,8 +248,8 @@ export const Navbar: React.FC = () => {
             </div>
           )}
 
-          <button type="button" onClick={() => setIsCartOpen(true)} className="relative p-1 text-white/90 hover:text-white transition-transform active:scale-95 cursor-pointer" aria-label="Shopping Bag">
-            <ShoppingBag className="w-4.5 h-4.5 lg:w-5 lg:h-5 stroke-[2]" />
+          <button type="button" onClick={() => setIsCartOpen(true)} className="relative p-1 text-white hover:text-white/80 transition-transform active:scale-95 cursor-pointer" aria-label="Shopping Bag">
+            <ShoppingBag className="w-4.5 h-4.5 lg:w-5 lg:h-5 stroke-[2] text-white" />
             {cartCount > 0 && <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center bg-white text-black text-[9px] font-bold rounded-full px-1 shadow-md border border-black/10">{cartCount}</span>}
           </button>
         </div>
