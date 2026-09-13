@@ -124,6 +124,52 @@ html {
   outline-offset: 5px;
 }
 
+/* Keep the checkout logic untouched; only present Payzy with Payzy's own customer-portal wordmark. */
+div:has(> [data-testid="payzy-mark"]) > [data-testid="payzy-mark"],
+button:has(> [data-testid="payzy-mark"]) > [data-testid="payzy-mark"] {
+  display: none;
+}
+
+div:has(> [data-testid="payzy-mark"])::before,
+button:has(> [data-testid="payzy-mark"])::before {
+  content: "";
+  display: block;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 24px;
+  border-radius: 4px;
+  background: #fff url("https://app.payzy.lk/logoWordDark.png") center / 34px auto no-repeat;
+}
+
+/* Google Pay was removed from the storefront. Preserve the existing footer lineup while restoring PayPal and Payzy marks only. */
+.footer-payment-icons figure:has(#pi-google_pay) {
+  display: none;
+}
+
+.footer-payment-icons::before,
+.footer-payment-icons::after {
+  content: "";
+  display: block;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 24px;
+  border-radius: 3px;
+  background-color: #fff;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-sizing: border-box;
+}
+
+.footer-payment-icons::before {
+  background-image: url("https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg");
+  background-size: 37px 23px;
+}
+
+.footer-payment-icons::after {
+  background-image: url("https://app.payzy.lk/logoWordDark.png");
+  background-size: 34px auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .footer-link,
   .footer-link::after,
