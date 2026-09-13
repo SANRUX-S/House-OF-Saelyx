@@ -124,7 +124,7 @@ export const Footer: React.FC = () => {
           <div className="flex flex-col items-center sm:items-end gap-2.5">
             <div className="footer-payment-icons flex max-w-[390px] flex-wrap items-center justify-center sm:justify-end gap-1.5" aria-label="Accepted payment methods">
               <img src="/payments/paypal.svg" width="38" height="24" alt="PayPal" loading="lazy" />
-              <span className="h-6 min-w-[44px] px-1.5 rounded bg-white text-[#34353C] text-[9px] font-extrabold flex items-center justify-center border border-black/5" aria-label="Payzy">Pay<span className="text-[#13A8DD]">zy</span></span>
+              <img src="https://app.payzy.lk/logoWordDark.png" width="44" height="24" alt="Payzy" loading="lazy" className="h-6 w-[44px] rounded bg-white object-contain px-1 border border-black/5" />
               <img src="/payments/american_express.svg" width="38" height="24" alt="American Express" loading="lazy" />
               <img src="/payments/diners_club.svg" width="38" height="24" alt="Diners Club" loading="lazy" />
               <img src="/payments/discover.svg" width="38" height="24" alt="Discover" loading="lazy" />
