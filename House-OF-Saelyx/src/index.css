@@ -28,11 +28,6 @@
   }
 }
 
-/* Google Pay has been removed from the storefront. Hide the legacy inline footer mark. */
-.footer-payment-icons figure:has(svg[aria-labelledby="pi-google_pay"]) {
-  display: none !important;
-}
-
 /* ==========================================================================
    SAELYXE Luxury Global Custom Scrollbar Styling
    ========================================================================== */
