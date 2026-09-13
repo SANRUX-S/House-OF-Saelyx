@@ -118,21 +118,35 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#E2E2E2] font-medium">
-          <div className="tracking-[0.14em] uppercase text-[11px] font-semibold text-white/90">© 2025–2026 SAELYXE. ALL RIGHTS RESERVED.</div>
+        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-[#E2E2E2] font-medium">
+          <div className="tracking-[0.14em] uppercase text-[11px] font-semibold text-white/90 text-center sm:text-left">© 2025–2026 SAELYXE. ALL RIGHTS RESERVED.</div>
 
           <div className="flex flex-col items-center sm:items-end gap-2.5">
-            <div className="footer-payment-icons flex max-w-[390px] flex-wrap items-center justify-center sm:justify-end gap-1.5" aria-label="Accepted payment methods">
-              <img src="/payments/paypal.svg" width="38" height="24" alt="PayPal" loading="lazy" />
-              <img src="https://app.payzy.lk/logoWordDark.png" width="44" height="24" alt="Payzy" loading="lazy" className="h-6 w-[44px] rounded bg-white object-contain px-1 border border-black/5" />
-              <img src="/payments/american_express.svg" width="38" height="24" alt="American Express" loading="lazy" />
-              <img src="/payments/diners_club.svg" width="38" height="24" alt="Diners Club" loading="lazy" />
-              <img src="/payments/discover.svg" width="38" height="24" alt="Discover" loading="lazy" />
-              <img src="/payments/jcb.svg" width="38" height="24" alt="JCB" loading="lazy" />
-              <img src="/payments/master.svg" width="38" height="24" alt="Mastercard" loading="lazy" />
-              <img src="/payments/unionpay.svg" width="38" height="24" alt="UnionPay" loading="lazy" />
-              <img src="/payments/visa.svg" width="38" height="24" alt="Visa" loading="lazy" />
+            <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-white/55">
+              <span className="h-px w-5 bg-white/20" />
+              Secure Payments
+              <span className="h-px w-5 bg-white/20" />
             </div>
+
+            <div className="footer-payment-icons flex flex-wrap items-center justify-center sm:justify-end gap-2" aria-label="Accepted payment methods">
+              <span className="flex h-8 min-w-[54px] items-center justify-center rounded-md border border-white/10 bg-white px-2 shadow-sm">
+                <img src="/payments/paypal.svg" width="42" height="26" alt="PayPal" loading="lazy" className="h-6 w-auto object-contain" />
+              </span>
+              <span className="flex h-8 min-w-[58px] items-center justify-center rounded-md border border-white/10 bg-white px-2 shadow-sm" aria-label="Payzy">
+                <span className="text-[13px] font-extrabold tracking-[-0.02em] text-[#34353C]">Pay<span className="text-[#13A8DD]">zy</span></span>
+              </span>
+              <span className="flex h-8 min-w-[48px] items-center justify-center rounded-md border border-white/10 bg-white px-1.5 shadow-sm">
+                <img src="/payments/visa.svg" width="38" height="24" alt="Visa" loading="lazy" className="h-6 w-auto object-contain" />
+              </span>
+              <span className="flex h-8 min-w-[48px] items-center justify-center rounded-md border border-white/10 bg-white px-1.5 shadow-sm">
+                <img src="/payments/master.svg" width="38" height="24" alt="Mastercard" loading="lazy" className="h-6 w-auto object-contain" />
+              </span>
+              <span className="flex h-8 min-w-[48px] items-center justify-center rounded-md border border-white/10 bg-white px-1.5 shadow-sm">
+                <img src="/payments/american_express.svg" width="38" height="24" alt="American Express" loading="lazy" className="h-6 w-auto object-contain" />
+              </span>
+            </div>
+
+            <p className="text-[9px] uppercase tracking-[0.14em] text-white/40">PayPal · Payzy · Visa · Mastercard · Amex</p>
 
             <span className="group relative overflow-hidden inline-flex items-center text-[10px] font-medium tracking-[0.035em] text-[#9B9B9B]">
               Powered by&nbsp;<span className="text-[#DADADA] group-hover:text-white transition-colors duration-300">PENETIX Cyber Solutions</span>
