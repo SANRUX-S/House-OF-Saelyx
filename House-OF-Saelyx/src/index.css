@@ -167,3 +167,40 @@ button:has(> [data-testid="payzy-mark"])::before {
   font-variant-numeric: tabular-nums lining-nums !important;
   letter-spacing: -0.015em;
 }
+
+/* ==========================================================================
+   SAELYXE Subtle Luxury Floating Animation (Hero featured card)
+   ========================================================================== */
+@keyframes luxuryFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-luxury-float {
+  animation: luxuryFloat 4.2s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   SAELYXE Cinematic Auto-Scroll Pan for Hero Featured Product Image
+   ========================================================================== */
+@keyframes autoProductPan {
+  0%, 18% {
+    object-position: center 0%;
+  }
+  50%, 68% {
+    object-position: center 100%;
+  }
+  100% {
+    object-position: center 0%;
+  }
+}
+
+.animate-product-pan {
+  animation: autoProductPan 7.5s ease-in-out infinite;
+  will-change: object-position;
+}
+

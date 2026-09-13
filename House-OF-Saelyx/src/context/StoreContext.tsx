@@ -408,7 +408,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [settings, setSettings] = useState<DropSettings | null>(() => {
     try {
       const saved = localStorage.getItem('saelyx_settings');
-      return saved ? JSON.parse(saved) : null;
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (parsed && parsed.countdownTarget === '2026-09-02T05:36:59.975Z') {
+        parsed.countdownTarget = '2026-09-18T12:30:00.000Z';
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -753,6 +757,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (setRes.ok) {
         const setData = await setRes.json();
+        if (setData.countdownTarget === '2026-09-02T05:36:59.975Z') {
+          setData.countdownTarget = '2026-09-18T12:30:00.000Z';
+        }
         setSettings(setData);
         try {
           localStorage.setItem('saelyx_settings', JSON.stringify(setData));
@@ -948,6 +955,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsub = onSnapshot(settingsRef, snap => {
       if (!snap.exists()) return;
       const nextSettings = snap.data() as DropSettings;
+      if (nextSettings.countdownTarget === '2026-09-02T05:36:59.975Z') {
+        nextSettings.countdownTarget = '2026-09-18T12:30:00.000Z';
+      }
       setSettings(nextSettings);
       try {
         localStorage.setItem('saelyx_settings', JSON.stringify(nextSettings));

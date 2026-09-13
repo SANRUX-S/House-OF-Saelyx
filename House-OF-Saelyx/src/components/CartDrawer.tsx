@@ -118,21 +118,21 @@ export const CartDrawer: React.FC = () => {
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
         {/* Animated Slide Drawer */}
         <div 
-          className={`w-screen max-w-full sm:max-w-md bg-[#181614] text-white shadow-2xl border-l border-white/10 flex flex-col justify-between h-full transform transition-transform duration-300 ease-in-out ${
+          className={`w-screen max-w-full sm:max-w-md bg-white text-[#181614] shadow-2xl border-l border-neutral-200 flex flex-col justify-between h-full transform transition-transform duration-300 ease-in-out ${
             isAnimating ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
           {/* Header */}
-          <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-white/10 flex items-center justify-between">
+          <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-neutral-200 flex items-center justify-between bg-white">
             <div className="flex items-center gap-2">
-              <h2 className="font-serif text-lg sm:text-xl tracking-wide">YOUR SHOPPING BAG</h2>
-              <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-neutral-300">
+              <h2 className="font-serif text-lg sm:text-xl tracking-wide text-[#181614]">YOUR SHOPPING BAG</h2>
+              <span className="text-xs bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-semibold border border-neutral-200">
                 {cart.reduce((t, i) => t + i.quantity, 0)}
               </span>
             </div>
             <button
               onClick={handleClose}
-              className="min-w-[40px] min-h-[40px] p-2 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center cursor-pointer"
+              className="min-w-[40px] min-h-[40px] p-2 rounded-full text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors flex items-center justify-center cursor-pointer"
               aria-label="Close cart"
             >
               <X className="w-5 h-5" />
@@ -140,35 +140,35 @@ export const CartDrawer: React.FC = () => {
           </div>
 
           {/* Cart Content / Checkout Step */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-5">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-5 bg-white">
             {orderComplete ? (
               <div className="py-10 text-center space-y-6 animate-in fade-in">
-                <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-400 flex items-center justify-center mx-auto">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-600 flex items-center justify-center mx-auto">
                   <Check className="w-8 h-8" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="font-serif text-2xl text-white">ORDER CONFIRMED</h3>
-                  <p className="text-xs text-neutral-400">
+                  <h3 className="font-serif text-2xl text-neutral-900">ORDER CONFIRMED</h3>
+                  <p className="text-xs text-neutral-500">
                     Thank you for choosing SAELYXE. Your limited drop garment is being prepared.
                   </p>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left space-y-2 text-xs">
+                <div className="bg-[#FAF8F5] border border-neutral-200 rounded-xl p-4 text-left space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-neutral-400">Order Reference:</span>
-                    <span className="font-mono text-white font-bold">{orderComplete.orderNumber}</span>
+                    <span className="text-neutral-500">Order Reference:</span>
+                    <span className="font-mono text-neutral-900 font-bold">{orderComplete.orderNumber}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-neutral-400">Customer:</span>
-                    <span className="text-white">{orderComplete.customerName}</span>
+                    <span className="text-neutral-500">Customer:</span>
+                    <span className="text-neutral-900 font-medium">{orderComplete.customerName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-neutral-400">Delivery Status:</span>
-                    <span className="text-emerald-400 font-semibold uppercase">Order Received</span>
+                    <span className="text-neutral-500">Delivery Status:</span>
+                    <span className="text-emerald-600 font-semibold uppercase">Order Received</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-neutral-400">Direct Hand Delivery ETA:</span>
-                    <span className="text-amber-300">{orderComplete.deliveryEta}</span>
+                    <span className="text-neutral-500">Direct Hand Delivery ETA:</span>
+                    <span className="text-amber-700 font-medium">{orderComplete.deliveryEta}</span>
                   </div>
                 </div>
 
@@ -178,21 +178,21 @@ export const CartDrawer: React.FC = () => {
                     setIsCheckingOut(false);
                     handleClose();
                   }}
-                  className="w-full py-3.5 bg-white text-black font-semibold text-xs tracking-widest uppercase rounded-full hover:bg-neutral-200 transition-colors cursor-pointer"
+                  className="w-full py-3.5 bg-[#181614] text-white font-semibold text-xs tracking-widest uppercase rounded-full hover:bg-black transition-colors cursor-pointer shadow-md"
                 >
                   RETURN TO STORE
                 </button>
               </div>
             ) : isCheckingOut ? (
               <form onSubmit={handlePlaceOrder} className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                  <span className="text-xs uppercase tracking-widest text-neutral-400 font-semibold">
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
+                  <span className="text-xs uppercase tracking-widest text-neutral-500 font-semibold">
                     Delivery Details
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsCheckingOut(false)}
-                    className="text-[11px] text-neutral-300 hover:text-white underline cursor-pointer p-1"
+                    className="text-[11px] text-neutral-600 hover:text-black underline cursor-pointer p-1"
                   >
                     Back to items
                   </button>
@@ -200,7 +200,7 @@ export const CartDrawer: React.FC = () => {
 
                 <div className="space-y-3 text-xs">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1 font-medium">
                       Full Name *
                     </label>
                     <input
@@ -209,13 +209,13 @@ export const CartDrawer: React.FC = () => {
                       placeholder="e.g. Kasun Fernando"
                       value={formData.name}
                       onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2.5 text-base sm:text-xs text-white focus:outline-none focus:border-white"
+                      className="w-full bg-[#FAF8F5] border border-neutral-200 rounded-lg px-3 py-2.5 text-base sm:text-xs text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:border-black"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                      <label className="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1 font-medium">
                         Email Address *
                       </label>
                       <input
@@ -224,11 +224,11 @@ export const CartDrawer: React.FC = () => {
                         placeholder="name@domain.com"
                         value={formData.email}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2.5 text-base sm:text-xs text-white focus:outline-none focus:border-white"
+                        className="w-full bg-[#FAF8F5] border border-neutral-200 rounded-lg px-3 py-2.5 text-base sm:text-xs text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:border-black"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                      <label className="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1 font-medium">
                         Phone (for courier) *
                       </label>
                       <input
@@ -237,13 +237,13 @@ export const CartDrawer: React.FC = () => {
                         placeholder="+94 77 000 0000"
                         value={formData.phone}
                         onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2.5 text-base sm:text-xs text-white focus:outline-none focus:border-white"
+                        className="w-full bg-[#FAF8F5] border border-neutral-200 rounded-lg px-3 py-2.5 text-base sm:text-xs text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:border-black"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1 font-medium">
                       Hand-Delivery Street Address *
                     </label>
                     <input
@@ -252,13 +252,13 @@ export const CartDrawer: React.FC = () => {
                       placeholder="e.g. Apt 4B, 18 Flower Road"
                       value={formData.address}
                       onChange={e => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2.5 text-base sm:text-xs text-white focus:outline-none focus:border-white"
+                      className="w-full bg-[#FAF8F5] border border-neutral-200 rounded-lg px-3 py-2.5 text-base sm:text-xs text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:border-black"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                      <label className="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1 font-medium">
                         City *
                       </label>
                       <input
@@ -266,24 +266,24 @@ export const CartDrawer: React.FC = () => {
                         required
                         value={formData.city}
                         onChange={e => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2.5 text-base sm:text-xs text-white focus:outline-none focus:border-white"
+                        className="w-full bg-[#FAF8F5] border border-neutral-200 rounded-lg px-3 py-2.5 text-base sm:text-xs text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:border-black"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                      <label className="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1 font-medium">
                         Country
                       </label>
                       <input
                         type="text"
                         value={formData.country}
                         onChange={e => setFormData({ ...formData, country: e.target.value })}
-                        className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2.5 text-base sm:text-xs text-white focus:outline-none focus:border-white"
+                        className="w-full bg-[#FAF8F5] border border-neutral-200 rounded-lg px-3 py-2.5 text-base sm:text-xs text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:border-black"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1">
+                    <label className="block text-[10px] uppercase tracking-wider text-neutral-500 mb-1 font-medium">
                       Delivery Notes / Gate Code
                     </label>
                     <input
@@ -291,17 +291,17 @@ export const CartDrawer: React.FC = () => {
                       placeholder="Special instructions for direct hand-delivery"
                       value={formData.notes}
                       onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                      className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2.5 text-base sm:text-xs text-white focus:outline-none focus:border-white"
+                      className="w-full bg-[#FAF8F5] border border-neutral-200 rounded-lg px-3 py-2.5 text-base sm:text-xs text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:border-black"
                     />
                   </div>
                 </div>
 
-                <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1.5 text-xs text-neutral-300">
-                  <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200/80 space-y-1 text-xs text-neutral-700">
+                  <div className="flex items-center gap-2 text-emerald-700 font-semibold">
                     <ShieldCheck className="w-4 h-4" />
                     <span>White-Glove Direct Dispatch</span>
                   </div>
-                  <p className="text-[11px] text-neutral-400">
+                  <p className="text-[11px] text-neutral-600">
                     Hand-delivered in our signature luxury presentation box with protective dust sleeve.
                   </p>
                 </div>
@@ -309,7 +309,7 @@ export const CartDrawer: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 sm:py-4 bg-white text-black font-semibold text-xs tracking-[0.2em] uppercase rounded-full hover:bg-neutral-200 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 mt-4 cursor-pointer"
+                  className="w-full py-3.5 sm:py-4 bg-[#181614] text-white font-semibold text-xs tracking-[0.2em] uppercase rounded-full hover:bg-black transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 mt-4 cursor-pointer"
                 >
                   <span>{loading ? 'PROCESSING...' : `CONFIRM & PLACE ORDER — ${formatPrice(totalLKR)}`}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -317,10 +317,10 @@ export const CartDrawer: React.FC = () => {
               </form>
             ) : cart.length === 0 ? (
               <div className="py-20 text-center space-y-4">
-                <p className="text-neutral-400 text-sm font-serif">Your shopping bag is empty.</p>
+                <p className="text-neutral-500 text-sm font-serif">Your shopping bag is empty.</p>
                 <button
                   onClick={handleClose}
-                  className="text-xs uppercase tracking-widest text-white underline underline-offset-4 cursor-pointer"
+                  className="text-xs uppercase tracking-widest text-[#181614] font-semibold underline underline-offset-4 hover:opacity-75 cursor-pointer"
                 >
                   Continue Shopping
                 </button>
@@ -330,36 +330,36 @@ export const CartDrawer: React.FC = () => {
                 {cart.map(item => (
                   <div
                     key={`${item.productId}-${item.size}`}
-                    className="flex gap-3.5 p-3 bg-white/5 rounded-xl border border-white/5 hover:border-white/15 transition-all"
+                    className="flex gap-3.5 p-3 bg-[#FAF8F5] rounded-xl border border-neutral-200/80 hover:border-neutral-300 transition-all shadow-xs"
                   >
                     <img
                       src={item.image}
                       alt={item.title}
-                      className="w-16 h-20 sm:w-20 sm:h-24 object-cover rounded-lg bg-neutral-800 flex-shrink-0"
+                      className="w-16 h-20 sm:w-20 sm:h-24 object-cover rounded-lg bg-neutral-100 flex-shrink-0 border border-neutral-200/50"
                     />
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                       <div>
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-xs font-semibold uppercase tracking-wide truncate">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide truncate text-[#181614]">
                             {item.title}
                           </h4>
                           {confirmDeleteKey === `${item.productId}-${item.size}` ? (
                             <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in duration-150">
-                              <span className="text-[10px] uppercase tracking-wider text-rose-400 font-semibold">Remove?</span>
+                              <span className="text-[10px] uppercase tracking-wider text-rose-600 font-semibold">Remove?</span>
                               <button
                                 type="button"
                                 onClick={() => {
                                   removeFromCart(item.productId, item.size);
                                   setConfirmDeleteKey(null);
                                 }}
-                                className="px-2 py-0.5 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30 text-[10px] uppercase font-bold rounded-md transition-colors cursor-pointer"
+                                className="px-2 py-0.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-[10px] uppercase font-bold rounded-md transition-colors cursor-pointer"
                               >
                                 Yes
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setConfirmDeleteKey(null)}
-                                className="px-2 py-0.5 bg-white/10 text-neutral-300 hover:text-white text-[10px] uppercase font-medium rounded-md transition-colors cursor-pointer"
+                                className="px-2 py-0.5 bg-neutral-200/70 text-neutral-700 hover:bg-neutral-200 text-[10px] uppercase font-medium rounded-md transition-colors cursor-pointer"
                               >
                                 No
                               </button>
@@ -368,41 +368,41 @@ export const CartDrawer: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteKey(`${item.productId}-${item.size}`)}
-                              className="text-neutral-500 hover:text-rose-400 transition-colors p-1 cursor-pointer shrink-0"
+                              className="text-neutral-400 hover:text-rose-600 transition-colors p-1 cursor-pointer shrink-0"
                               aria-label="Remove item"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
-                        <div className="text-[11px] text-neutral-400 mt-0.5">
-                          Size: <span className="text-white font-medium">{item.size}</span>
+                        <div className="text-[11px] text-neutral-500 mt-0.5">
+                          Size: <span className="text-[#181614] font-medium">{item.size}</span>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center bg-black/40 rounded-full border border-white/10 px-2 py-1 gap-2">
+                        <div className="flex items-center bg-white rounded-full border border-neutral-300 px-2 py-1 gap-2 shadow-xs">
                           <button
                             onClick={() => updateQuantity(item.productId, item.size, item.quantity - 1)}
                             disabled={item.quantity <= 1}
-                            className="min-w-[28px] min-h-[28px] flex items-center justify-center text-neutral-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                            className="min-w-[28px] min-h-[28px] flex items-center justify-center text-neutral-500 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                             aria-label="Decrease quantity"
                           >
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className="text-xs font-sans font-medium min-w-[14px] text-center">
+                          <span className="text-xs font-sans font-medium min-w-[14px] text-center text-[#181614]">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => updateQuantity(item.productId, item.size, item.quantity + 1)}
-                            className="min-w-[28px] min-h-[28px] flex items-center justify-center text-neutral-400 hover:text-white cursor-pointer"
+                            className="min-w-[28px] min-h-[28px] flex items-center justify-center text-neutral-500 hover:text-black cursor-pointer"
                             aria-label="Increase quantity"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
                         </div>
 
-                        <span className="text-xs font-bold font-serif">
+                        <span className="text-xs font-bold font-serif text-[#181614]">
                           {formatPrice(item.priceLKR * item.quantity)}
                         </span>
                       </div>
@@ -411,8 +411,8 @@ export const CartDrawer: React.FC = () => {
                 ))}
 
                 {/* Free Packaging Feature */}
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-neutral-300">
-                  <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[#FAF8F5] border border-neutral-200 text-xs text-neutral-600">
+                  <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
                   <span className="text-[11px]">Complimentary SÆ matte presentation packaging included.</span>
                 </div>
               </div>
@@ -421,17 +421,17 @@ export const CartDrawer: React.FC = () => {
 
           {/* Footer Subtotal & Action (when not checked out) */}
           {!orderComplete && cart.length > 0 && !isCheckingOut && (
-            <div className="p-4 sm:p-6 border-t border-white/10 bg-[#121110] space-y-3.5">
+            <div className="p-4 sm:p-6 border-t border-neutral-200 bg-[#FAF8F5] space-y-3.5">
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-neutral-400">
+                <div className="flex justify-between text-neutral-500">
                   <span>Subtotal</span>
-                  <span className="text-white font-medium">{formatPrice(subtotalLKR)}</span>
+                  <span className="text-[#181614] font-medium">{formatPrice(subtotalLKR)}</span>
                 </div>
-                <div className="flex justify-between text-neutral-400">
+                <div className="flex justify-between text-neutral-500">
                   <span>Delivery</span>
-                  <span>{isFreeShipping ? <span className="text-emerald-400 font-semibold">FREE</span> : formatPrice(shippingLKR)}</span>
+                  <span>{isFreeShipping ? <span className="text-emerald-600 font-semibold">FREE</span> : formatPrice(shippingLKR)}</span>
                 </div>
-                <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-white/10">
+                <div className="flex justify-between text-sm font-bold text-[#181614] pt-2 border-t border-neutral-200">
                   <span>Estimated Total</span>
                   <span>{formatPrice(totalLKR)}</span>
                 </div>
@@ -447,7 +447,7 @@ export const CartDrawer: React.FC = () => {
                     navigateTo({ name: 'checkout' });
                   }
                 }}
-                className="w-full py-3.5 sm:py-4 bg-white text-black font-semibold text-xs tracking-[0.2em] uppercase rounded-full hover:bg-neutral-200 transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 sm:py-4 bg-[#181614] text-white font-semibold text-xs tracking-[0.2em] uppercase rounded-full hover:bg-black transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>PROCEED TO CHECKOUT</span>
                 <ArrowRight className="w-4 h-4" />

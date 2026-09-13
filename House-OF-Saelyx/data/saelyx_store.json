@@ -220,7 +220,8 @@
     "spotlightImages": [
       "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85"
     ],
-    "countdownTarget": "2026-09-02T05:36:59.975Z",
+    "spotlightBackgroundImage": "/images/spotlight19201080.avif",
+    "countdownTarget": "2026-09-17T19:50:35.286Z",
     "announcementText": "COMPLIMENTARY WHITE-GLOVE EXPRESS DELIVERY ON ALL ORDERS OVER LKR 15,000",
     "freeShippingThresholdLKR": 15000,
     "heroHeadline": "MADE FOR PRESENCE",
